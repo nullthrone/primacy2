@@ -86,7 +86,8 @@ export class Session implements Connection {
   }
 
   private overLimit(): boolean {
-    const now = Date.now();
+    // The server clock, not Date.now(): tests run simulated time much faster than wall time.
+    const now = this.world.host.now();
     if (now - this.windowStart >= 1000) {
       this.windowStart = now;
       this.windowCount = 0;

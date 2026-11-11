@@ -45,6 +45,8 @@ export interface ServerOptions {
   fetch?: FetchLike;
   /** Gameplay modules; defaults to the full set. */
   modules?: GameModule[];
+  /** Server identity to use when the database has none yet. Tests pass fixed keys for reproducible sectors. */
+  keys?: KeyPair;
 }
 
 export interface PrimacyServer {
@@ -79,7 +81,7 @@ export async function startServer(over: Partial<ServerConfig> = {}, opts: Server
 
   let keys = store.getKv<KeyPair>('identity');
   if (!keys) {
-    keys = generateKeyPair();
+    keys = opts.keys ?? generateKeyPair();
     store.setKv('identity', keys);
   }
   const id = idFromPublicKey(keys.publicKey);

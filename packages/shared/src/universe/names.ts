@@ -12,9 +12,12 @@ const START_ONSETS = [
 /** Consonant groups between two vowels; single consonants are listed twice to keep names soft. */
 const MID_ONSETS = [
   'b', 'd', 'g', 'k', 'l', 'm', 'n', 'r', 's', 't', 'v', 'z', 'l', 'm', 'n', 'r', 's', 't',
-  'dr', 'th', 'sh', 'st', 'nd', 'rn', 'lt', 'rs', 'll', 'ss', 'nt', 'rv', 'lk',
+  'dr', 'th', 'sh', 'st', 'nd', 'lt', 'll', 'ss', 'nt', 'rv', 'ld', 'rm',
 ] as const;
-const VOWELS = ['a', 'e', 'i', 'o', 'u', 'a', 'e', 'i', 'o', 'a', 'e', 'ia', 'io', 'ae', 'ei', 'ou', 'y'] as const;
+/** Plain vowels, weighted toward the open ones. */
+const VOWELS = ['a', 'a', 'a', 'e', 'e', 'e', 'i', 'i', 'o', 'o', 'o', 'u', 'y'] as const;
+/** Vowel pairs; a name carries at most one. */
+const DIPHTHONGS = ['ia', 'io', 'ae', 'ei', 'ou', 'ea', 'au'] as const;
 /** What a name may end on after its last vowel. */
 const ENDINGS = ['', '', '', 'n', 'r', 's', 'x', 'l', 'th', 'm', 'k', 'nd', 'rn', 'n', 'r', 's'] as const;
 
@@ -43,13 +46,14 @@ const capitalise = (word: string): string => word.charAt(0).toUpperCase() + word
  */
 export function generateName(rng: Rng): string {
   for (let attempt = 0; attempt < 40; attempt++) {
-    const syllables = 2 + rng.weighted([6, 5, 1]);
+    const syllables = 2 + rng.weighted([10, 8, 1]);
+    const pairAt = rng.chance(0.3) ? rng.int(0, syllables - 1) : -1;
     let word = '';
     for (let i = 0; i < syllables; i++) {
       // Some names open on a vowel: "Aldera", "Ostrin".
       if (i === 0) word += rng.chance(0.16) ? '' : rng.pick(START_ONSETS);
       else word += rng.pick(MID_ONSETS);
-      word += rng.pick(VOWELS);
+      word += i === pairAt ? rng.pick(DIPHTHONGS) : rng.pick(VOWELS);
     }
     word += rng.pick(ENDINGS);
     if (word.length >= MIN_LETTERS && word.length <= MAX_LETTERS && !hasAwkwardRun(word)) return capitalise(word);
@@ -74,7 +78,10 @@ export function uniqueName(rng: Rng, taken: Set<string>, make: (rng: Rng) => str
 export function uniqueSystemName(rng: Rng, taken: Set<string>): string {
   let name = generateName(rng);
   for (let attempt = 0; attempt < 200 && taken.has(name); attempt++) name = generateName(rng);
-  while (taken.has(name)) name = (name.length > MAX_LETTERS - 2 ? name.slice(0, MAX_LETTERS - 2) : name) + rng.pick(['ra', 'no', 'li', 'ta', 've']);
+  while (taken.has(name)) {
+    const stem = name.length > MAX_LETTERS - 2 ? name.slice(0, MAX_LETTERS - 2) : name;
+    name = stem + rng.pick(['ra', 'no', 'li', 'ta', 've']);
+  }
   taken.add(name);
   return name;
 }

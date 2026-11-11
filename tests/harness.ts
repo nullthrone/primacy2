@@ -2,9 +2,15 @@
  * Test harness: real servers on ephemeral ports with a shared, manually advanced clock, so
  * minutes of simulated flight run in well under a second of wall time.
  */
-import { DT, UNIVERSE_EPOCH_MS } from '@primacy2/shared';
+import { DT, UNIVERSE_EPOCH_MS, publicKeyOf, sha256Hex, type KeyPair } from '@primacy2/shared';
 import { startServer, type PrimacyServer, type ServerConfig } from '@primacy2/server';
 import type { Bot } from './bot.ts';
+
+/** A fixed identity derived from a label, so a test server has the same id and sector on every run. */
+export function testKeys(label: string): KeyPair {
+  const secretKey = sha256Hex('primacy2-test:' + label);
+  return { secretKey, publicKey: publicKeyOf(secretKey) };
+}
 
 export class Cluster {
   /** Shared wall clock in milliseconds. */
@@ -16,7 +22,10 @@ export class Cluster {
   async start(over: Partial<ServerConfig>): Promise<PrimacyServer> {
     const server = await startServer(
       { host: '127.0.0.1', port: 0, dataDir: ':memory:', systems: 8, bootstrapWaitMs: 2_000, ...over },
-      { now: () => this.nowMs, autoTick: false, log: (m) => this.logs.push(`${over.name ?? '?'}: ${m}`) },
+      {
+        now: () => this.nowMs, autoTick: false, keys: testKeys(over.name ?? `server-${this.servers.length}`),
+        log: (m) => this.logs.push(`${over.name ?? '?'}: ${m}`),
+      },
     );
     this.servers.push(server);
     return server;

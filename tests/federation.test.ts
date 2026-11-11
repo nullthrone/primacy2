@@ -5,6 +5,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   Domain,
+  CRUISE_MIN_SPEED,
   FlightMode,
   MASS_LOCK_RADIUS,
   cargoTonnes,
@@ -145,7 +146,8 @@ describe('federation', () => {
     expect(speed).toBeLessThan(stats.maxSpeed * 1.03);
     expect(v3.dist(bot.self!.pos, start)).toBeGreaterThan(1000);
     bot.held.thrust = [0, 0, 0];
-    await c.run(240);
+    // Releasing the keys brakes with the retro thrusters, which are weaker than the main engine.
+    await c.run(Math.ceil((stats.maxSpeed / stats.accelBack + 2) * 30));
     expect(v3.len(bot.self!.vel)).toBeLessThan(2);
   });
 
@@ -160,7 +162,7 @@ describe('federation', () => {
     await c.until(() => bot.self?.mode === FlightMode.Cruise, 'cruise engaged', 300);
     bot.held.throttle = 1;
     await c.run(150);
-    expect(bot.self!.cruiseSpeed).toBeGreaterThan(100_000);
+    expect(bot.self!.cruiseSpeed).toBeGreaterThan(CRUISE_MIN_SPEED * 2);
   });
 
   it('fold jumps between systems of one server', async () => {

@@ -159,7 +159,8 @@ export function generateAsteroids(sys: SystemDef, site: SiteDef): AsteroidDef[] 
         // u * sqrt(u) concentrates the field toward the anchor.
         const r = extent * u * Math.sqrt(u);
         pos = [dir[0] * r, dir[1] * r * spec.flatten, dir[2] * r];
-        if (Math.hypot(pos[0], pos[1], pos[2]) - radius < ASTEROID_CLEAR_RADIUS) continue;
+        const keepOut = ASTEROID_CLEAR_RADIUS + radius;
+        if (pos[0] * pos[0] + pos[1] * pos[1] + pos[2] * pos[2] < keepOut * keepOut) continue;
         let free = true;
         for (let j = 0; j < idx; j++) {
           const o = out[j]!;

@@ -8,8 +8,8 @@
  *   moons orbit in that plane, which is the Kepler plane with `inc = tilt` and `node = 0`.
  * - `atmo.density` is the surface density relative to Earth's sea-level air (1 = 1.225 kg/m^3);
  *   `atmo.height` is the visible depth of the atmosphere in metres (about seven scale heights).
- * - `BodyDef.lum` of a black hole is the luminosity of its accretion disk, and `temp` the colour
- *   temperature of that disk.
+ * - `BodyDef.lum` of a black hole is the luminosity of its accretion disk, `temp` the colour
+ *   temperature of that disk and `rotPeriod` the orbital period of the disk's outer rim.
  */
 import {
   AU, C, CORE_REGION_RADIUS, DAY, DEFAULT_SITE_FRAME_RADIUS, EARTH_MASS, EARTH_RADIUS, FOLD_ARRIVAL_MIN,
@@ -426,6 +426,7 @@ function designBlackHole(rng: Rng): StarDesign {
   const rs = (2 * G * mass) / (C * C);
   const temp = rng.range(4500, 11_000);
   const color = blackbodyColor(temp);
+  const diskOuter = rng.logRange(1e9, 5e9);
   const star: StarDesign = {
     cls: 'BH',
     mass,
@@ -433,12 +434,12 @@ function designBlackHole(rng: Rng): StarDesign {
     temp,
     lum: rng.logRange(0.5, 5) * SOLAR_LUMINOSITY,
     color,
-    // Orbital period at the innermost stable orbit (3 rs), where the disk ends.
-    rotPeriod: orbitalPeriod(3 * rs, mass),
+    // What a distant observer sees turning is the rim of the disk; the horizon itself spins in milliseconds.
+    rotPeriod: orbitalPeriod(diskOuter, mass),
     tilt: rng.range(0, 0.5),
     scoopable: false,
     rs,
-    disk: { inner: 3 * rs, outer: rng.logRange(1e9, 5e9), color },
+    disk: { inner: 3 * rs, outer: diskOuter, color },
   };
   if (rng.chance(0.35)) star.jets = { length: rng.logRange(1e9, 4e9), color: jitterColor(rng, 0xa8b8ff, 0.08) };
   return star;
@@ -547,7 +548,7 @@ function choosePlanetClass(rng: Rng, teq: number, habitability: number, gasAllow
   } else if (teq >= HAB_TEQ_MAX) {
     w.desert = 42; w.rocky = 42; w.lava = teq > 650 ? 8 : 0; w.gas = 6; w.icegiant = 2;
   } else if (teq >= HAB_TEQ_MIN) {
-    w.terran = 32 * habitability; w.ocean = 22 * habitability; w.desert = 20; w.rocky = 16; w.gas = 8; w.icegiant = 2;
+    w.terran = 26 * habitability; w.ocean = 17 * habitability; w.desert = 22; w.rocky = 18; w.gas = 8; w.icegiant = 2;
   } else if (teq >= FROST_TEQ) {
     w.rocky = 40; w.desert = 28; w.gas = 20; w.icegiant = 6; w.ice = 6;
   } else if (teq >= 60) {
@@ -1195,7 +1196,8 @@ function buildSystem(serverId: string, seed: string, index: number, pos: Readonl
 
   // --- companion star (body 1) ---
   const rngCompanion = rngFor(seed, serverId, index, 'companion');
-  if (rngCompanion.chance(0.12)) {
+  // The lightest red dwarfs get no companion (see designCompanion), which brings the overall share to about 12 %.
+  if (rngCompanion.chance(0.15)) {
     const companion = designCompanion(rngCompanion, star);
     if (companion) {
       // Wide and nearly circular, so the primary and everything orbiting it stay outside the
