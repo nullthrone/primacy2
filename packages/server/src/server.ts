@@ -30,7 +30,7 @@ import {
 import { makeConfig, type ServerConfig } from './config.ts';
 import { Federation, type FetchLike } from './federation.ts';
 import type { GameModule } from './game.ts';
-import { createHttpHandler } from './http.ts';
+import { clientAddress, createHttpHandler } from './http.ts';
 import { defaultModules } from './modules/index.ts';
 import { Session } from './session.ts';
 import { Store } from './store.ts';
@@ -184,7 +184,22 @@ export async function startServer(over: Partial<ServerConfig> = {}, opts: Server
 
   handler = createHttpHandler(theWorld, fed, config.clientDir);
   const wss = new WebSocketServer({ server: http, path: '/ws', maxPayload: MAX_MESSAGE_BYTES, perMessageDeflate: false });
-  wss.on('connection', (ws) => new Session(ws, theWorld));
+  const perAddress = new Map<string, number>();
+  wss.on('connection', (ws, req) => {
+    const addr = clientAddress(req, config.trustProxy);
+    const open = perAddress.get(addr) ?? 0;
+    if (open >= config.maxConnectionsPerIp) {
+      ws.close(1013, 'Too many connections from your address.');
+      return;
+    }
+    perAddress.set(addr, open + 1);
+    ws.once('close', () => {
+      const left = (perAddress.get(addr) ?? 1) - 1;
+      if (left <= 0) perAddress.delete(addr);
+      else perAddress.set(addr, left);
+    });
+    new Session(ws, theWorld);
+  });
 
   let timer: ReturnType<typeof setInterval> | null = null;
   if (opts.autoTick !== false) {

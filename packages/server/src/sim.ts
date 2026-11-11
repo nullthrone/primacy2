@@ -57,7 +57,7 @@ export class SystemSim {
   /** Remaining ore fraction (0..1) per asteroid, per site id. Absent means untouched. */
   readonly asteroidLeft = new Map<number, Float32Array>();
   tickCount = 0;
-  /** Universe time of the tick being processed. */
+  /** Universe time the current ship states belong to: the end of the tick being processed. */
   time = 0;
   /** Consecutive ticks without any pilot; the world drops the simulation when this grows large. */
   idleTicks = 0;
@@ -242,7 +242,8 @@ export class SystemSim {
       const s = ship.state;
       ship.flags = 0;
       if (s.mode === FlightMode.Normal || s.mode === FlightMode.Cruise) {
-        const env = simulateShip(s, ship.input, ship.stats, this.def, t, dt);
+        // States belong to t - dt before the step and to t after it.
+        const env = simulateShip(s, ship.input, ship.stats, this.def, t - dt, dt);
         ship.hazards = hazardsAt(env, s, ship.stats);
         this.applyHazards(ship, t, dt);
         if (!ship.gone && s.chargeKind !== ChargeKind.None && s.charge >= 1) this.completeCharge(ship, t);

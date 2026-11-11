@@ -1030,7 +1030,8 @@ function buildSites(rng: Rng, sys: SystemDraft): { sites: SiteDef[]; stations: n
       host.used++;
     } else {
       // No world to orbit: a free-flying station around the primary, beyond the planets if there are any.
-      const base = extent > 0 && !isCompact(star.cls) ? extent * 1.25 : openSpaceRadius(star);
+      const open = openSpaceRadius(star);
+      const base = star.cls === 'NS' || star.cls === 'BH' ? open : Math.max(open, extent * 1.25);
       orbit = circularOrbit(0, star.mass, base * (1 + 0.18 * openSpaceUsed), rng.range(0, TWO_PI));
       natural = belts.length > 0 ? 'mining' : isCompact(star.cls) ? 'hightech' : 'industrial';
       openSpaceUsed++;
@@ -1042,7 +1043,8 @@ function buildSites(rng: Rng, sys: SystemDraft): { sites: SiteDef[]; stations: n
       if (hub || (developed && rng.chance(0.4))) economy = rng.chance(0.5) ? 'industrial' : 'hightech';
       else if (rng.chance(0.05)) economy = 'military';
     } else {
-      economy = natural !== 'agri' && rng.chance(0.5) ? natural : 'outpost';
+      // Outposts are too small for anything but digging and refining; the rest just keep travellers supplied.
+      economy = (natural === 'mining' || natural === 'refinery') && rng.chance(0.5) ? natural : 'outpost';
     }
 
     const site: Omit<SiteDef, 'id'> = {

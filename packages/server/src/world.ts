@@ -228,6 +228,16 @@ export class World {
     return { self: this.id, sectors };
   }
 
+  /**
+   * A site of a system was added or changed (for example a warp gate's progress): tells the pilots
+   * in that system and refreshes the server descriptor.
+   */
+  siteChanged(systemId: string, site: SiteDef): void {
+    const sim = this.sims.get(systemId);
+    if (sim) for (const p of sim.players) p.send({ t: 'site', system: systemId, site });
+    this.fed.onChange();
+  }
+
   broadcast(msg: S2C): void {
     for (const p of this.players.values()) p.send(msg);
   }
@@ -320,6 +330,9 @@ export class World {
     if (t.arrival.kind === 'gate' && (t.arrival.site === undefined || !findSite(this.defs.get(t.arrival.system)!, t.arrival.site))) {
       return { ok: false, msg: 'Transfer refused: unknown destination gate.' };
     }
+    // A ship can only arrive if it is not here already. Without this rule any server could replace
+    // the ship of a pilot who never left.
+    if (existing && existing.status === 'here') return { ok: false, msg: 'Transfer refused: your ship is already in this sector.' };
     if (!this.store.claimNonce(t.nonce, t.expiresAt + 60_000)) return { ok: false, msg: 'Transfer refused: ticket already used.' };
 
     let redeemed = false;
@@ -337,6 +350,9 @@ export class World {
 
     const passport = sanitizePassport(t.passport, playerId, { issuer: t.issuer, impoundCargo: trust === 'restricted' });
     passport.seq += 1;
+    // Only a trusted issuer is believed about where cargo came from. For everyone else the goods
+    // count as the issuer's own, so a foreign label cannot dodge the tariff.
+    if (trust !== 'trusted') for (const item of passport.ship.cargo) item.origin = t.issuer;
     const firstVisit = !existing;
     if (firstVisit) passport.stats.sectors += 1;
     const rec: PlayerRecord = existing ?? {
@@ -349,6 +365,11 @@ export class World {
     delete rec.away;
     rec.system = t.arrival.system;
     rec.ship = null;
+    // Recorded for other modules: hull and modules that arrived from a server that is not trusted
+    // were not paid for here and must not be refundable at full value.
+    rec.data.customs = { issuer: t.issuer, trust, at: now, loadout: structuredClone(passport.ship.loadout) };
+    // Persist before placing the ship: the issuer already regards the pilot as gone.
+    this.store.savePlayer(rec);
     return { ok: true, rec, arrival: t.arrival, from: issuer };
   }
 

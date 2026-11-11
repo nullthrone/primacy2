@@ -37,7 +37,7 @@ export const AIM_BUFFER_MAX = 0.6;
 export const AIM_GAIN = 14;
 /** Flight-assist velocity error time constant, seconds. */
 export const FA_TAU = 0.35;
-/** Speed above which acceleration is scaled by 1/gamma^3 (always applied; listed for reference). */
+/** Seconds a boost lasts, seconds until the next one, and the energy it costs. */
 export const BOOST_DURATION = 3.5;
 export const BOOST_COOLDOWN = 6;
 export const BOOST_ENERGY = 30;
@@ -82,6 +82,8 @@ export const FOLD_FUEL_PER_LY = 0.35;
 /** Arrival distance from the primary, in primary radii (stars) or metres floor. */
 export const FOLD_ARRIVAL_RADII = 14;
 export const FOLD_ARRIVAL_MIN = 4.0e9;
+/** Fold arrivals are placed far enough out that radiant heating stays below this (heat units per second). */
+export const FOLD_ARRIVAL_MAX_HEAT = 5;
 
 // --- zones / interest --------------------------------------------------------
 export const DEFAULT_SITE_FRAME_RADIUS = 250_000;

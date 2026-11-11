@@ -5,11 +5,13 @@
 import {
   CRUISE_MIN_SPEED,
   CRUISE_SAFE_DROP_SPEED,
+  FOLD_ARRIVAL_MAX_HEAT,
   FOLD_ARRIVAL_MIN,
   FOLD_ARRIVAL_RADII,
   FOLD_FUEL_BASE,
   FOLD_FUEL_PER_LY,
   G,
+  HEAT_FLUX_K,
   MASS_LOCK_RADIUS,
 } from '../constants.ts';
 import { forwardOf, quat, v3, type Vec3 } from '../math.ts';
@@ -170,6 +172,9 @@ export function foldArrivalDistance(sys: SystemDef): number {
   let d = Math.max(FOLD_ARRIVAL_RADII * primary.radius, FOLD_ARRIVAL_MIN);
   const rs = primary.rs ?? 0;
   if (rs > 0) d = Math.max(d, rs + Math.sqrt((G * primary.mass) / FOLD_ARRIVAL_MAX_GRAVITY));
+  // Hot, luminous stars would cook a small hull at 14 radii: move out until the heating is bearable.
+  const lum = primary.lum ?? 0;
+  if (lum > 0) d = Math.max(d, (HEAT_FLUX_K * Math.sqrt(lum / (4 * Math.PI))) / FOLD_ARRIVAL_MAX_HEAT);
   return d;
 }
 

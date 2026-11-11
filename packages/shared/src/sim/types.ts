@@ -174,6 +174,8 @@ export interface GravSource {
   isAnchor: boolean;
   /** Luminosity in watts (stars), else 0. Drives radiant heating. */
   lum: number;
+  /** True when a fuel scoop works in the corona of this body. Absent means no. */
+  scoopable?: boolean;
 }
 
 /** Everything about the surroundings that `stepShip` needs. Rebuilt every tick from the system and time. */

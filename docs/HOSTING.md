@@ -45,6 +45,10 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
 | `openPeering` | Whether servers you did not list may link with you. |
 | `defaultTrust`, `trust` | How arrivals from other servers are treated. See "Trust". |
 | `tariff` | Share of the sale price withheld on cargo imported from `neutral` servers. |
+| `gates` | Warp gates you want to build, e.g. `[{ "peer": "<server id>", "system": 4 }]`. See "Warp gates". |
+| `acceptGates`, `maxGates` | Whether linked servers may propose gates to you, and how many gates the sector may hold (default 6). |
+| `maxConnectionsPerIp` | Simultaneous connections from one address (default 16). |
+| `trustProxy` | Set to `true` behind a reverse proxy that sets `X-Forwarded-For`, so limits apply per player instead of per proxy. |
 | `dataDir` | Where the database lives (default `./data`). Back this directory up. |
 
 The same settings can be given on the command line (`npm run server -- --port=9000 --name="My Sector"`)
@@ -74,6 +78,14 @@ The position is decided once, on the first start, and stored in the database:
 Sectors that are too far apart for fold jumps can be bridged with a warp gate, which both servers
 have to build together.
 
+## Warp gates
+
+A warp gate joins one of your systems to a system of a linked server, whatever the distance.
+It is a joint project: list the other server under `gates`, and once it accepts, a construction site
+appears in both sectors. Pilots on each side deliver the materials and credits for their half at a
+station in the gate's system. The pair opens when both halves are complete, and goes dormant while
+the other server is offline.
+
 ## Trust
 
 Your server never accepts statistics from another server. A visiting ship is rebuilt from hull and
@@ -88,6 +100,11 @@ dropped. Credits never cross: each server keeps its own balance for every pilot.
 | `blocked` | Refused. The server also disappears from your galaxy map. |
 
 Server ids are shown at start-up and at `/api/status`.
+
+What trust cannot do: a server you accept arrivals from can still invent pilots and ships within the
+limits above (any hull from the catalog, one full hold of cargo per arrival). Tariffs, impounding and
+blocking are how you limit that. Link openly while you are exploring; tighten `defaultTrust` and
+`openPeering` once your economy matters to you.
 
 ## Identity and backups
 

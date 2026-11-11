@@ -34,12 +34,25 @@ export interface ServerConfig {
   /** Tariff rate on cargo imported from `neutral` peers, 0..1. */
   tariff: number;
   maxPlayers: number;
+  /** Simultaneous connections accepted from one address. */
+  maxConnectionsPerIp: number;
+  /** Set when the server runs behind a reverse proxy that sets X-Forwarded-For. */
+  trustProxy: boolean;
   /** Credits a new pilot starts with. */
   startCredits: number;
   /** Directory with the built client; served at `/`. */
   clientDir: string;
   /** Milliseconds to wait for a bootstrap peer before placing the sector standalone. */
   bootstrapWaitMs: number;
+  /**
+   * Warp gates this server wants to build. `peer` is the id of a linked server; `system` is the
+   * index of the local system that hosts this end (default: the one closest to the peer).
+   */
+  gates: { peer: string; system?: number }[];
+  /** Accept gate proposals from linked servers that are not `restricted` or `blocked`. */
+  acceptGates: boolean;
+  /** Upper limit of warp gates in this sector, proposed and accepted together. */
+  maxGates: number;
 }
 
 export const DEFAULT_CONFIG: ServerConfig = {
@@ -57,16 +70,24 @@ export const DEFAULT_CONFIG: ServerConfig = {
   trust: {},
   tariff: 0.12,
   maxPlayers: 200,
+  maxConnectionsPerIp: 16,
+  trustProxy: false,
   startCredits: 2_500,
   clientDir: resolve(import.meta.dirname, '../../client/dist'),
   bootstrapWaitMs: 8_000,
+  gates: [],
+  acceptGates: true,
+  maxGates: 6,
 };
 
 const TRUST_LEVELS = new Set(['trusted', 'neutral', 'restricted', 'blocked']);
 
 /** Merges overrides into the defaults and validates the result. Throws with a readable message. */
 export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
-  const c: ServerConfig = { ...DEFAULT_CONFIG, ...over, trust: { ...(over.trust ?? {}) }, peers: [...(over.peers ?? [])] };
+  const c: ServerConfig = {
+    ...DEFAULT_CONFIG, ...over,
+    trust: { ...(over.trust ?? {}) }, peers: [...(over.peers ?? [])], gates: [...(over.gates ?? [])],
+  };
   if (!c.publicUrl) c.publicUrl = `http://localhost:${c.port}`;
   c.publicUrl = c.publicUrl.replace(/\/+$/, '');
   const problems: string[] = [];
@@ -87,6 +108,13 @@ export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
   for (const p of c.peers) if (!isValidServerUrl(p.replace(/\/+$/, ''))) problems.push(`peer "${p}" is not a valid server URL`);
   c.peers = c.peers.map((p) => p.replace(/\/+$/, ''));
   if (!(c.tariff >= 0 && c.tariff <= 1)) problems.push('tariff must be 0..1');
+  for (const g of c.gates) {
+    if (!g || typeof g.peer !== 'string' || !/^[a-z2-7]{16}$/.test(g.peer)) problems.push('gates[].peer must be a server id');
+    else if (g.system !== undefined && !(Number.isInteger(g.system) && g.system >= 0 && g.system < c.systems)) {
+      problems.push(`gates[].system must be a system index below ${c.systems}`);
+    }
+  }
+  if (!Number.isInteger(c.maxGates) || c.maxGates < 0 || c.maxGates > 32) problems.push('maxGates must be 0..32');
   if (problems.length) throw new Error('Invalid configuration:\n  - ' + problems.join('\n  - '));
   return c;
 }

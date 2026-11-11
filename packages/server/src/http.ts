@@ -28,6 +28,35 @@ const MIME: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+/** Address of the client, honouring X-Forwarded-For only when the operator says a proxy sets it. */
+export function clientAddress(req: IncomingMessage, trustProxy: boolean): string {
+  if (trustProxy) {
+    const fwd = req.headers['x-forwarded-for'];
+    const first = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0]?.trim();
+    if (first) return first;
+  }
+  return req.socket.remoteAddress ?? 'unknown';
+}
+
+/** Fixed-window request counter per address. Signature checks are not free, so floods are cut off early. */
+class RateLimiter {
+  private readonly hits = new Map<string, { start: number; n: number }>();
+  constructor(
+    private readonly limit: number,
+    private readonly windowMs: number,
+  ) {}
+
+  allow(key: string, now: number): boolean {
+    if (this.hits.size > 10_000) this.hits.clear();
+    const h = this.hits.get(key);
+    if (!h || now - h.start >= this.windowMs) {
+      this.hits.set(key, { start: now, n: 1 });
+      return true;
+    }
+    return ++h.n <= this.limit;
+  }
+}
+
 function json(res: ServerResponse, status: number, body: unknown): void {
   const text = JSON.stringify(body);
   res.writeHead(status, {
@@ -66,6 +95,7 @@ function readBody(req: IncomingMessage): Promise<unknown> {
 export function createHttpHandler(world: World, fed: Federation, clientDir: string) {
   const root = resolve(clientDir);
   const hasClient = existsSync(join(root, 'index.html'));
+  const fedLimiter = new RateLimiter(240, 60_000);
 
   function serveStatic(req: IncomingMessage, res: ServerResponse, pathname: string): void {
     if (!hasClient) {
@@ -136,6 +166,9 @@ export function createHttpHandler(world: World, fed: Federation, clientDir: stri
         if (req.method === 'GET' && path === '/fed/descriptor') return json(res, 200, world.host.descriptor());
         if (req.method === 'GET' && path === '/fed/known') return json(res, 200, fed.knownList());
         if (req.method !== 'POST') return json(res, 405, { error: 'method not allowed' });
+        if (!fedLimiter.allow(clientAddress(req, world.config.trustProxy), world.host.now())) {
+          return json(res, 429, { error: 'too many requests' });
+        }
         const body = await readBody(req);
         if (path === '/fed/hello') return json(res, 200, await fed.onGossip(body, true));
         if (path === '/fed/gossip') return json(res, 200, await fed.onGossip(body, false));
