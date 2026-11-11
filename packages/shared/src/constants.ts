@@ -58,6 +58,21 @@ export const BODY_EXCLUSION_FACTOR = 1.04;
 /** Compact objects kill inside rs * this factor (innermost stable orbit). */
 export const COMPACT_KILL_FACTOR = 3;
 
+/** Tonnes of fuel per second at full cruise throttle. */
+export const CRUISE_FUEL_RATE = 0.0012;
+/** Turn rates in cruise are scaled by this factor. */
+export const CRUISE_TURN_FACTOR = 0.6;
+
+// --- heat and fuel scooping --------------------------------------------------
+/** Radiant heating in heat units per second = HEAT_FLUX_K * sqrt(flux in W/m^2). */
+export const HEAT_FLUX_K = 3.5e-3;
+/** A fuel scoop works within this many stellar radii of a scoopable star (centre distance). */
+export const SCOOP_MAX_RADII = 2.6;
+/** Hull damage per second per heat unit above the heat capacity. */
+export const OVERHEAT_DAMAGE = 0.6;
+/** Tidal stretch (m/s^2 across the hull) above which the hull takes damage. */
+export const TIDAL_DAMAGE_THRESHOLD = 12;
+
 // --- fold (inter-system jump) ------------------------------------------------
 export const FOLD_CHARGE_TIME = 8;
 export const FOLD_TUNNEL_TIME = 7;

@@ -1,5 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": [] },
-  "include": ["src"]
+  "compilerOptions": {
+    "types": []
+  },
+  "include": [
+    "src",
+    "env.d.ts"
+  ]
 }
