@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+data/
+.data/
+*.sqlite
+*.sqlite-*
+.env
+.vite/
+test-results/
+playwright-report/
+screenshots/
+*.blend1
+.DS_Store
+Thumbs.db
