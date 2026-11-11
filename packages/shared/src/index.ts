@@ -7,6 +7,7 @@ export * from './pilot.ts';
 export * from './federation.ts';
 export * from './protocol.ts';
 export * from './snapshot.ts';
+export * from './structures.ts';
 export * from './sim/types.ts';
 export * from './sim/ship.ts';
 export * from './sim/transitions.ts';
