@@ -19,7 +19,11 @@ mkdirSync(OUT, { recursive: true });
 
 function startServers() {
   return new Promise((resolve, reject) => {
-    const child = spawn('npx tsx scripts/dev.ts', { shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    // Every run plays in the same two sectors (see scripts/dev.ts). Universe 16 was picked by generating
+    // candidates: Alpha's capital is one jump of a starter drive from a secure Beta system with a
+    // station, and has a ground base on a rocky moon. Set the variable to try another universe.
+    const env = { ...process.env, PRIMACY2_FIXED_UNIVERSE: process.env.PRIMACY2_FIXED_UNIVERSE ?? '16' };
+    const child = spawn('npx tsx scripts/dev.ts', { shell: true, stdio: ['ignore', 'pipe', 'pipe'], env });
     let out = '';
     const timer = setTimeout(() => reject(new Error('servers did not start:\n' + out)), 60_000);
     const onData = (d) => {
