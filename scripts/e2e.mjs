@@ -170,7 +170,27 @@ function steerAtSite(page, siteId) {
     const v = g.view;
     const site = v?.sites.find((s) => s.def.id === id);
     if (!v || !v.self || !site) return null;
-    const p = g.project(site.rel);
+    // A planet or star between the ship and the station would force the drive out of cruise. When the
+    // straight line passes too close to one, aim at a point beside it instead.
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const t = site.rel;
+    const t2 = dot(t, t);
+    let aim = t;
+    let detour = null;
+    let worst = Infinity;
+    for (const b of v.bodies) {
+      const u = dot(b.rel, t) / t2;
+      if (u <= 0 || u >= 1) continue;
+      const side = [b.rel[0] - t[0] * u, b.rel[1] - t[1] * u, b.rel[2] - t[2] * u];
+      const miss = Math.hypot(...side);
+      if (miss >= b.def.radius * 2.2 || miss >= worst) continue;
+      worst = miss;
+      // Away from the line, on the side the body already lies; any sideways direction when it sits right on it.
+      const away = miss > 1 ? side.map((x) => -x / miss) : [t[1], -t[0], 0].map((x) => x / (Math.hypot(t[0], t[1]) || 1));
+      aim = [b.rel[0] + away[0] * b.def.radius * 2.6, b.rel[1] + away[1] * b.def.radius * 2.6, b.rel[2] + away[2] * b.def.radius * 2.6];
+      detour = b.def.name;
+    }
+    const p = g.project(aim);
     let off;
     if (p.behind) { g.input.addMouse(60, 0); off = Infinity; } else {
       const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
@@ -178,7 +198,7 @@ function steerAtSite(page, siteId) {
       off = Math.hypot(ex, ey);
     }
     const st = v.self.state;
-    return { off, dist: site.dist, mode: v.mode, speed: st.mode === 1 ? st.cruiseSpeed : Math.hypot(...st.vel), radius: site.def.radius ?? 300 };
+    return { off, dist: site.dist, mode: v.mode, speed: st.mode === 1 ? st.cruiseSpeed : Math.hypot(...st.vel), radius: site.def.radius ?? 300, detour };
   }, siteId);
 }
 
@@ -353,6 +373,7 @@ async function journey(browser, problems, steps) {
   let phase = 'cruise';
   let lastLog = 0;
   let shotApproach = false;
+  let lastEngage = 0;
   const t0 = Date.now();
   const deadline = t0 + 25 * 60_000;
   while (Date.now() < deadline) {
@@ -363,7 +384,7 @@ async function journey(browser, problems, steps) {
       if (now?.mode === MODE.destroyed) throw new ShipLost('the ship was shot down on the way to the station');
       await fail('lost sight of the station');
     }
-    if (Date.now() - lastLog > 10_000) { lastLog = Date.now(); log(`${phase}: ${JSON.stringify({ dist: Math.round(s.dist), speed: Math.round(s.speed), off: Math.round(s.off) })}`); }
+    if (Date.now() - lastLog > 10_000) { lastLog = Date.now(); log(`${phase}: ${JSON.stringify({ dist: Math.round(s.dist), speed: Math.round(s.speed), off: Math.round(s.off), detour: s.detour })}`); }
     if (s.mode === MODE.cruise) {
       const aligned = s.off < 140;
       // The speed may not exceed about a tenth of the distance per second, so the drop happens near the minimum speed.
@@ -372,7 +393,7 @@ async function journey(browser, problems, steps) {
       if (aligned && s.speed < ceiling * 0.5) want = 'KeyW';
       else if (s.speed > ceiling) want = 'KeyS';
       await throttleKeys(page, held, want);
-      if (s.dist < 12_000 && aligned) {
+      if (s.dist < 12_000 && aligned && !s.detour) {
         await throttleKeys(page, held, null);
         await page.evaluate(() => window.primacy2.game.toggleCruise());
         await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 5000 }).catch(() => fail('cruise did not drop at the station'));
@@ -381,6 +402,15 @@ async function journey(browser, problems, steps) {
         await shot('23-dropped-at-station');
       }
     } else if (s.mode === MODE.normal) {
+      if (phase === 'cruise' || (s.dist > 2_000_000 && Date.now() - lastEngage > 8000)) {
+        // The drive dropped out of cruise before the station (or has not been engaged yet): engage it again.
+        lastEngage = Date.now();
+        log(`out of cruise ${Math.round(s.dist)} m from the station at ${Math.round(s.speed)} m/s, engaging again`);
+        await throttleKeys(page, held, null);
+        await page.evaluate(() => window.primacy2.game.toggleCruise());
+        await page.waitForTimeout(5500);
+        continue;
+      }
       phase = 'approach';
       const closeEnough = s.radius + 1100;
       const goal = Math.min(500, Math.max(50, (s.dist - closeEnough) / 20));
