@@ -2,11 +2,15 @@
  * Galaxy map (fold destinations), navigation list (in-system targets) and the contacts list.
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { EntityKind, HULLS, computeShipStats, foldFuelCost, v3, type SystemSummary } from '@primacy2/shared';
+import {
+  EntityKind, HULLS, computeShipStats, foldFuelCost, v3,
+  type CargoItem, type SectorView, type SystemSummary,
+} from '@primacy2/shared';
 import type { GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { store } from '../state/store.ts';
 import { STAR_COLORS, fmtDistance } from './format.ts';
+import { TIER_COLOR, isTier, jumpForecast, tierLabel } from './trade.ts';
 
 function PanelHeader({ title }: { title: string }) {
   return (
@@ -14,6 +18,67 @@ function PanelHeader({ title }: { title: string }) {
       <h2>{title}</h2>
       <button onClick={() => (store.panel.value = null)}>{t('map.close')}</button>
     </header>
+  );
+}
+
+/**
+ * How the sector the pilot is in (`home`) treats another sector: the tier that applies, whether
+ * the rules match, and for a trade partner how many trade units of its goods are still accepted.
+ */
+function Relation({ sector, home }: { sector: SectorView; home: string }) {
+  const { tier, name } = sector;
+  if (!isTier(tier)) return null;
+  return (
+    <div class="relation">
+      <div class="row wrap">
+        <span class={`chip ${tier}`}>{tierLabel(tier)}</span>
+        <span class={`small ${sector.rulesMatch ? 'dim' : 'caution'}`}>{t(sector.rulesMatch ? 'map.rulesMatch' : 'map.rulesDiffer')}</span>
+      </div>
+      {/* A customs union needs both sides and the same rules; until then the sector is a partner. */}
+      {sector.trust === 'union' && tier !== 'union' && (
+        <div class="caution small">{t(sector.rulesMatch ? 'map.unionOneSided' : 'map.unionRules', { home, name })}</div>
+      )}
+      {tier === 'union' && <div class="dim small">{t('map.unionHere', { home, name })}</div>}
+      {tier === 'partner' && typeof sector.allowance === 'number' && (
+        <div class={`small ${sector.allowance > 0 ? '' : 'caution'}`}>
+          {t(sector.allowance > 0 ? 'map.allowance' : 'map.allowanceNone', { home, name, tu: fmt(Math.floor(sector.allowance)) })}
+        </div>
+      )}
+      {tier === 'visitor' && <div class="dim small">{t('map.visitorHere', { home, name })}</div>}
+      {tier === 'blocked' && <div class="caution small">{t('map.blockedHere', { home, name })}</div>}
+    </div>
+  );
+}
+
+/**
+ * What a jump into another sector does to the cargo and the ship. The galaxy view says how this
+ * sector rates the destination, not how the destination rates this one, so only an effective
+ * customs union (which is mutual) gives a full answer. For every other sector the lines say what
+ * holds whichever way the destination rates this sector, and name what depends on that rating.
+ */
+function Forecast({ sector, self, cargo, shipBound }: { sector: SectorView; self: string; cargo: readonly CargoItem[]; shipBound: boolean }) {
+  // No transfers are issued to a blocked sector; the relation block above already says so.
+  if (sector.tier === 'blocked') return null;
+  const name = sector.name;
+  const fc = jumpForecast(cargo, self, sector.id);
+  const union = sector.tier === 'union';
+  return (
+    <div class={`forecast ${union ? 'free' : ''}`}>
+      <h4>{t('map.forecast')}</h4>
+      {union && <div class="ok">{t('map.fcUnion')}</div>}
+      {fc.sealed > 0 && <div class="caution">{t('map.fcSealedStays', { n: fmt(fc.sealed) })}</div>}
+      {fc.third > 0 && <div class={union ? '' : 'caution'}>{t(union ? 'map.fcThirdUnion' : 'map.fcThirdSealed', { n: fmt(fc.third), name })}</div>}
+      {!union && fc.direct > 0 && <div class="caution">{t('map.fcDepends', { n: fmt(fc.direct), name })}</div>}
+      {union && shipBound && <div class="caution">{t('map.fcBoundStays')}</div>}
+      {!union && (
+        <>
+          <div class="caution">{t('map.fcShipBound', { name })}</div>
+          {/* Only a ship that is local here is recognised as local again when it comes back. */}
+          {!shipBound && <div class="dim">{t('map.fcShipReturn')}</div>}
+          <div class="dim">{t('map.fcClass', { name })}</div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -27,9 +92,13 @@ export function GalaxyMap({ api }: { api: GameApi }) {
   const cam = useRef({ x: here?.pos[0] ?? 0, z: here?.pos[2] ?? 0, scale: 14, drag: null as null | { x: number; y: number; moved: boolean } });
   const stats = pilot ? computeShipStats(pilot.passport.ship.loadout) : null;
   const range = stats?.jumpRange ?? 0;
-  const all: { sys: SystemSummary; sector: string; online: boolean }[] =
-    galaxy?.sectors.flatMap((s) => s.systems.map((sys) => ({ sys, sector: s.name, online: s.online }))) ?? [];
+  const all: { sys: SystemSummary; sector: SectorView }[] =
+    galaxy?.sectors.flatMap((s) => s.systems.map((sys) => ({ sys, sector: s }))) ?? [];
   const sel = all.find((a) => a.sys.id === selected) ?? null;
+  // The view is made by the sector the pilot is in; every relation on this map is seen from there.
+  const self = galaxy?.self ?? '';
+  const homeName = galaxy?.sectors.find((s) => s.id === self)?.name ?? store.serverName.value;
+  const others = galaxy?.sectors.filter((s) => s.id !== self) ?? [];
 
   const draw = (): void => {
     const c = canvas.current;
@@ -55,10 +124,22 @@ export function GalaxyMap({ api }: { api: GameApi }) {
       g.setLineDash(s.linked ? [] : [4, 6]);
       g.stroke();
       g.setLineDash([]);
+      // Every other sector carries a second line under its name: its relation to this sector,
+      // in the colour of that relation, and a note when its rules differ.
+      const relation = s.id !== galaxy.self && isTier(s.tier) ? s.tier : null;
+      const top = Y(s.pos[2]) - s.radius * v.scale;
       g.fillStyle = s.online ? 'rgba(127,233,255,0.8)' : 'rgba(200,200,200,0.5)';
       g.font = '600 14px Rajdhani, sans-serif';
       g.textAlign = 'center';
-      g.fillText(`${s.name}${s.online ? '' : ` (${t('map.offline')})`}`, X(s.pos[0]), Y(s.pos[2]) - s.radius * v.scale - 8);
+      g.fillText(`${s.name}${s.online ? '' : ` (${t('map.offline')})`}`, X(s.pos[0]), top - (relation ? 23 : 8));
+      if (relation) {
+        const rules = s.rulesMatch ? '' : ` · ${t('map.rulesDiffer')}`;
+        g.fillStyle = TIER_COLOR[relation];
+        g.globalAlpha = s.online ? 0.95 : 0.5;
+        g.font = '11px "Share Tech Mono", monospace';
+        g.fillText(`${tierLabel(relation)}${rules}`.toLocaleUpperCase(), X(s.pos[0]), top - 8);
+        g.globalAlpha = 1;
+      }
     }
     for (const s of galaxy.sectors) {
       for (const gate of s.gates) {
@@ -82,7 +163,7 @@ export function GalaxyMap({ api }: { api: GameApi }) {
       g.strokeStyle = 'rgba(125,255,168,0.5)';
       g.stroke();
     }
-    for (const { sys, online } of all) {
+    for (const { sys, sector } of all) {
       const x = X(sys.pos[0]);
       const y = Y(sys.pos[2]);
       if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
@@ -90,7 +171,7 @@ export function GalaxyMap({ api }: { api: GameApi }) {
       g.beginPath();
       g.arc(x, y, sys.stations > 0 ? 4.5 : 3, 0, Math.PI * 2);
       g.fillStyle = STAR_COLORS[sys.starClass] ?? '#fff';
-      g.globalAlpha = online ? (reach || sys.id === here?.id ? 1 : 0.6) : 0.3;
+      g.globalAlpha = sector.online ? (reach || sys.id === here?.id ? 1 : 0.6) : 0.3;
       g.fill();
       g.globalAlpha = 1;
       if (sys.id === here?.id || sys.id === selected || sys.id === store.foldTarget.value) {
@@ -138,6 +219,7 @@ export function GalaxyMap({ api }: { api: GameApi }) {
 
   const dist = sel && here ? v3.dist(here.pos, sel.sys.pos) : 0;
   const fuel = sel && stats ? foldFuelCost(dist, stats) : Infinity;
+  const abroad = sel !== null && sel.sector.id !== self;
   return (
     <div class="panel wide map">
       <PanelHeader title={t('map.galaxy')} />
@@ -176,13 +258,17 @@ export function GalaxyMap({ api }: { api: GameApi }) {
           {sel ? (
             <div class="stack">
               <h3>{sel.sys.name}</h3>
-              <div class="dim">{t('map.sector', { name: sel.sector })}</div>
+              <div class="dim">{t('map.sector', { name: sel.sector.name })}</div>
+              {abroad && <Relation sector={sel.sector} home={homeName} />}
               <div>{sel.sys.starClass} · {t(`map.security.${sel.sys.security}` as StringKey)} · {t('map.stations', { n: sel.sys.stations })}</div>
               {sel.sys.tags.length > 0 && <div class="dim">{sel.sys.tags.join(' · ')}</div>}
               {sel.sys.id === here?.id ? <div class="ok">{t('map.you')}</div> : (
                 <>
                   <div>{t('map.distance', { ly: fmt(dist, 1) })}</div>
                   <div class={Number.isFinite(fuel) ? '' : 'bad'}>{Number.isFinite(fuel) ? t('map.fuelCost', { t: fmt(fuel, 1) }) : t('map.outOfRange')}</div>
+                  {abroad && pilot && isTier(sel.sector.tier) && (
+                    <Forecast sector={sel.sector} self={self} cargo={pilot.passport.ship.cargo} shipBound={pilot.shipBound !== null} />
+                  )}
                   <button onClick={() => { api.setFoldTarget(sel.sys.id); setSelected(sel.sys.id); draw(); }}>{t('map.setDestination')}</button>
                   <button class="primary" disabled={!Number.isFinite(fuel)} onClick={() => { api.setFoldTarget(sel.sys.id); store.panel.value = null; api.capturePointer(); api.startFold(); }}>
                     {t('map.jump')}
@@ -191,6 +277,27 @@ export function GalaxyMap({ api }: { api: GameApi }) {
               )}
             </div>
           ) : <p class="dim">{t('map.help')}</p>}
+          {galaxy && (
+            <div class="sectors">
+              <h4>{t('map.sectors')}</h4>
+              {others.length === 0 && <div class="dim small">{t('map.noSectors')}</div>}
+              {others.map((s) => (
+                <div class="sector-row" key={s.id}>
+                  <div class="row wrap">
+                    <span>{s.name}</span>
+                    {isTier(s.tier) && <span class={`chip ${s.tier}`}>{tierLabel(s.tier)}</span>}
+                  </div>
+                  <div class="dim small">
+                    {[
+                      s.online ? null : t('map.offline'),
+                      isTier(s.tier) ? t(s.rulesMatch ? 'map.rulesMatch' : 'map.rulesDiffer') : null,
+                      s.tier === 'partner' && typeof s.allowance === 'number' ? t('map.accepts', { tu: fmt(Math.floor(s.allowance)) }) : null,
+                    ].filter((x) => x !== null).join(' · ')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </aside>
       </div>
     </div>

@@ -9,10 +9,38 @@ import {
 } from '@primacy2/shared';
 import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
-import { store } from '../state/store.ts';
+import { store, type Notice } from '../state/store.ts';
 import { bindKey, fmtDistance, fmtDuration, fmtSpeed } from './format.ts';
+import { holdInFlight } from './trade.ts';
 
-const NOTICE_MS = 7000;
+/** Shortest and longest time a notice stays on screen. */
+const NOTICE_MIN_MS = 7000;
+const NOTICE_MAX_MS = 24000;
+/**
+ * Notices about a refused jump or a sale cut short carry a reason the pilot has to read and act
+ * on. They get a heading in the pilot's language above the server's text, and stay at least this long.
+ */
+const NOTICE_HEAD = new Map<string, StringKey>([
+  ['fold_refused', 'notice.foldRefused'],
+  ['handoff_failed', 'notice.handoffFailed'],
+  ['sale_limited', 'notice.saleLimited'],
+  ['gate_refused', 'notice.gateRefused'],
+]);
+const NOTICE_HEADED_MS = 12000;
+/** How long the customs report stays up after arriving in another sector. */
+const ARRIVAL_MS = 25000;
+
+/** Time a notice stays: three seconds to notice it plus reading time for its length. */
+function noticeMs(n: Notice): number {
+  const reading = 3000 + n.text.length * 80;
+  return Math.min(NOTICE_MAX_MS, Math.max(NOTICE_HEAD.has(n.code) ? NOTICE_HEADED_MS : NOTICE_MIN_MS, reading));
+}
+
+/**
+ * The sector the HUD last saw the pilot in and when that changed. Kept outside the component so
+ * that it survives the HUD being taken down between two sectors.
+ */
+const arrival = { server: '', at: -Infinity };
 /** Heat as a fraction of capacity above which the HUD warns. */
 const HEAT_WARN = 0.85;
 /** A signature above this is a cruise drive, seen across the whole system. */
@@ -174,6 +202,7 @@ function flightHud(view: FrameView, api: GameApi) {
   const speed = cruise ? st.cruiseSpeed : v3.len(st.vel);
   const pilot = store.pilot.value;
   const cargo = pilot ? cargoTonnes(pilot.passport.ship.cargo) : 0;
+  const sealed = pilot ? holdInFlight(pilot.passport.ship.cargo, store.serverId.value, store.galaxy.value).sealed : 0;
 
   // Velocity vector marker: where the ship is actually going.
   let vel: { x: number; y: number } | null = null;
@@ -314,6 +343,13 @@ function flightHud(view: FrameView, api: GameApi) {
         <div class="big">{view.system.name}</div>
         <div class="dim">{t(`map.security.${view.system.security}` as StringKey)} · {store.serverName.value}</div>
         <div>{fmt(pilot?.credits ?? 0)} {t('hud.credits')} · {t('hud.cargo')} {cargo}/{Math.floor(stats.cargoCap)} t</div>
+        {/* Standing customs status: cargo that is worth nothing here, and a ship that refunds nothing here. */}
+        {(sealed > 0 || pilot?.shipBound) && (
+          <div class="customs-line">
+            {sealed > 0 && <span>{t('hud.sealed', { n: fmt(sealed) })}</span>}
+            {pilot?.shipBound && <span>{t('hud.shipBound')}</span>}
+          </div>
+        )}
       </div>
 
       {warnings.length > 0 && <div class="warnings">{warnings.map((x) => <div key={x}>{x}</div>)}</div>}
@@ -330,7 +366,15 @@ export function Hud({ api }: { api: GameApi }) {
   void store.frame.value;
   const view = api.view;
   const now = performance.now();
-  const notices = store.notices.value.filter((n) => now - n.at < NOTICE_MS);
+  // The market shows the outcome of a sale itself, in the pilot's language.
+  const atMarket = store.panel.value === 'station';
+  const notices = store.notices.value.filter((n) => now - n.at < noticeMs(n) && !(atMarket && n.code === 'sale_limited'));
+  // Coming from another sector starts the customs report; the first sector of a session does not.
+  const serverId = store.serverId.value;
+  if (serverId && serverId !== arrival.server) {
+    arrival.at = arrival.server ? now : -Infinity;
+    arrival.server = serverId;
+  }
   const handoff = store.phase.value === 'handoff';
   const folding = handoff || view?.mode === FlightMode.Fold;
   const foldName = handoff
@@ -346,9 +390,39 @@ export function Hud({ api }: { api: GameApi }) {
       {folding && <div class="overlay-text"><h2>{t('hud.folding', { dest: foldName })}</h2></div>}
       {view && view.mode === FlightMode.Dead && <Destroyed api={api} />}
       <div class="notices">
-        {notices.map((n) => <div class={`notice ${n.level}`} key={n.id}>{n.text}</div>)}
+        {!handoff && now - arrival.at < ARRIVAL_MS && <CustomsReport />}
+        {notices.map((n) => {
+          const head = NOTICE_HEAD.get(n.code);
+          return (
+            <div class={`notice ${n.level}`} key={n.id}>
+              {head && <b class="notice-head">{t(head)}</b>}
+              {n.text}
+            </div>
+          );
+        })}
       </div>
       <Chat api={api} />
+    </div>
+  );
+}
+
+/**
+ * What the customs of the sector just entered made of cargo and ship: tonnes sealed, tonnes that
+ * count as imports, and whether the ship is bound. Shows nothing when there is nothing to report.
+ */
+function CustomsReport() {
+  const pilot = store.pilot.value;
+  if (!pilot) return null;
+  const hold = holdInFlight(pilot.passport.ship.cargo, store.serverId.value, store.galaxy.value);
+  const bound = pilot.shipBound;
+  if (hold.sealed <= 0 && hold.imports <= 0 && !bound) return null;
+  const licence = Math.max(0, pilot.licence.cap - pilot.licence.used);
+  return (
+    <div class="notice customs-report">
+      <b class="notice-head">{t('hud.customs', { name: store.serverName.value })}</b>
+      {hold.sealed > 0 && <div>{t('hud.customsSealed', { n: fmt(hold.sealed) })}</div>}
+      {hold.imports > 0 && <div>{t('hud.customsImport', { n: fmt(hold.imports), tu: fmt(Math.floor(licence)) })}</div>}
+      {bound && <div>{t(bound.hull && bound.slots.every(Boolean) ? 'hud.customsBound' : 'hud.customsBoundPart')}</div>}
     </div>
   );
 }

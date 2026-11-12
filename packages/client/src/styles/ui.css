@@ -87,9 +87,46 @@
 .slot { border-left: 2px solid var(--line); padding: 0.4em 0.8em; margin-bottom: 0.6em; display: flex; flex-direction: column; gap: 0.3em; align-items: flex-start; }
 .list { display: flex; flex-direction: column; gap: 0.25em; }
 #ui .list button { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 0.8em; text-align: left; clip-path: none; }
-.map-body { display: grid; grid-template-columns: 1fr 17em; gap: 1em; min-height: 0; }
+.map-body { display: grid; grid-template-columns: 1fr 21em; gap: 1em; min-height: 0; }
 .map-body canvas { width: 100%; height: 64vh; background: radial-gradient(circle at 50% 50%, #081425, #03070e); border: 1px solid var(--line); cursor: grab; }
-.map-body aside { display: flex; flex-direction: column; gap: 0.6em; }
+.map-body aside { display: flex; flex-direction: column; gap: 0.6em; max-height: 64vh; overflow: auto; padding-right: 0.3em; }
+
+/* Trade between sectors. One colour per meaning in every panel and on the map:
+   green passes freely, cyan trades within limits, amber has no value here, red does not enter. */
+#ui .caution { color: var(--amber); }
+.chip { display: inline-block; padding: 0 0.5em; border: 1px solid currentColor; font-size: 0.82em; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.chip.union, .chip.free { color: var(--green); }
+.chip.partner, .chip.import { color: var(--cyan); }
+.chip.visitor, .chip.sealed, .chip.bound { color: var(--amber); }
+.chip.blocked { color: var(--red); }
+.origins h4, .untraded h4, .forecast h4, .sectors h4 { font-size: 0.8em; color: var(--dim); }
+
+/* Market: import licence gauge and the origins of foreign cargo side by side above the table. */
+.customs { display: grid; grid-template-columns: minmax(18em, 2fr) 3fr; gap: 0.6em 1.6em; align-items: start; padding: 0.2em 0 0.8em; }
+.licence { display: flex; flex-direction: column; gap: 0.25em; }
+.licence-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; letter-spacing: 0.06em; }
+.gauge { display: block; height: 0.55em; background: rgba(127, 233, 255, 0.12); border: 1px solid rgba(127, 233, 255, 0.25); }
+.gauge-fill { display: block; height: 100%; background: var(--cyan); }
+/* No licence yet: an outline only. Licence used up: the empty track turns amber. */
+.gauge.none { border-style: dashed; }
+.gauge.spent { border-color: var(--amber); background: rgba(255, 179, 71, 0.12); }
+.origins { display: flex; flex-direction: column; gap: 0.25em; }
+.panel .origins th { position: static; background: none; }
+/* Foreign lots stand under their commodity; the row above drops its rule so the two read as one. */
+.panel tr.has-lots td { border-bottom: none; }
+.panel tr.lots td { padding: 0 0.5em 0.4em 1.6em; }
+.lot-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1em 0.7em; font-size: 0.9em; }
+.untraded { display: flex; flex-direction: column; gap: 0.3em; margin-top: 0.8em; padding: 0.4em 0.8em; border-left: 2px solid var(--line); }
+.sale-note { padding: 0.3em 0.8em; border-left: 2px solid currentColor; }
+.bound-note { margin: 0 0 0.6em; padding: 0.3em 0.8em; border-left: 2px solid var(--amber); color: var(--dim); font-size: 0.9em; }
+.slot.bound-ship { border-left-color: var(--amber); }
+
+/* Galaxy map: relation of the selected sector, what a jump there does, and the list of sectors. */
+.relation { display: flex; flex-direction: column; gap: 0.25em; align-self: stretch; }
+.forecast { display: flex; flex-direction: column; gap: 0.3em; align-self: stretch; padding: 0.4em 0.7em; border-left: 2px solid var(--amber); font-size: 0.9em; line-height: 1.25; }
+.forecast.free { border-left-color: var(--green); }
+.sectors { display: flex; flex-direction: column; gap: 0.45em; margin-top: auto; padding-top: 0.6em; border-top: 1px solid var(--line); }
+.sector-row .row { justify-content: space-between; }
 
 /* HUD */
 .hud { position: absolute; inset: 0; overflow: hidden; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9), 0 0 2px #000; }
@@ -174,10 +211,16 @@
 .insurance .short { color: var(--amber); }
 .insurance-note { margin-top: 0.4em; padding-top: 0.6em; border-top: 1px solid var(--line); }
 .warnings { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); text-align: center; color: var(--red); font-size: 1.3em; font-weight: 700; letter-spacing: 0.18em; animation: pulse 1s infinite; }
-.notices { position: absolute; left: 50%; top: 4vh; transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.3em; align-items: center; }
-.notice { padding: 0.25em 1em; background: var(--glass); border: 1px solid var(--line); }
+/* Notices lie above open panels (the z-index lifts them over the backdrop) and wrap instead of running off the screen. */
+.notices { position: absolute; left: 50%; top: 4vh; z-index: 5; transform: translateX(-50%); width: max-content; max-width: 92vw; display: flex; flex-direction: column; gap: 0.3em; align-items: center; }
+.notice { max-width: min(46em, 92vw); padding: 0.25em 1em; background: var(--glass); border: 1px solid var(--line); text-align: center; }
 .notice.warn { border-color: var(--amber); color: var(--amber); }
 .notice.danger { border-color: var(--red); color: var(--red); }
+.notice-head { display: block; font-size: 0.82em; font-weight: 700; letter-spacing: 0.16em; }
+/* The customs report after arriving in a sector: several full sentences, so it reads left to right. */
+.notice.customs-report { display: flex; flex-direction: column; gap: 0.25em; padding: 0.5em 1em; border-color: var(--amber); text-align: left; }
+.customs-report .notice-head { color: var(--amber); }
+.customs-line { display: flex; gap: 1em; color: var(--amber); font-size: 0.9em; letter-spacing: 0.1em; }
 #ui button.capture { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); font-size: 1.2em; background: var(--glass); }
 .keys { position: absolute; right: 2vw; bottom: 2vh; font-size: 0.82em; color: var(--dim); }
 .overlay-text { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1em; align-items: center; justify-content: center; pointer-events: none; }
@@ -193,4 +236,4 @@
 @keyframes pulse { 50% { opacity: 0.45; } }
 @keyframes heat-rise { to { background-position-x: 0.8em; } }
 @media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
-@media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .settings { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .map-body aside { max-height: none; } .settings { grid-template-columns: 1fr; } .customs { grid-template-columns: 1fr; } }
