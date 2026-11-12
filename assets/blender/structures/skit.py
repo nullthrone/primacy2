@@ -23,12 +23,12 @@ def polar(r, deg, z=0.0):
     return (r * math.cos(a), r * math.sin(a), z)
 
 
-def radial(m, part, n=None, phase=0.0, angles=None):
-    """Merge copies of `part` rotated about +Z into the model (n evenly spaced, or `angles`)."""
+def radial(m, part, n=None, phase=0.0, angles=None, axis='Z'):
+    """Merge copies of `part` rotated about `axis` into the model (n evenly spaced, or `angles`)."""
     angs = angles if angles is not None else [phase + 360.0 * k / n for k in range(n)]
     for a in angs:
         b = part.bm.copy()
-        bmesh.ops.transform(b, matrix=Matrix.Rotation(math.radians(a), 4, 'Z'), verts=b.verts)
+        bmesh.ops.transform(b, matrix=Matrix.Rotation(math.radians(a), 4, axis), verts=b.verts)
         m._merge(b)
         b.free()
     part.bm.free()
@@ -208,7 +208,7 @@ def fit(obs, colliders, bound):
 
 def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, export=True, preview=True,
            direction=(0.5, -0.72, 0.62), zoom=1.2, preview_radius=None, target=(0, 0, 0), children=(),
-           require=(), merge=0.0, fit_skip=('portal',)):
+           require=(), merge=0.0, fit_skip=('portal',), preview_hide=()):
     """Finalize, add child meshes, check collider fit, export, verify and render one preview."""
     t0 = time.time()
     m.finalize(sharp_angle=sharp, ao=ao, ao_distance=ao_distance, merge_dist=merge)
@@ -231,8 +231,14 @@ def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, 
                    materials=v['materials'])
     if preview:
         path = os.path.join(L.PREVIEW_DIR, m.key + '.png')
-        L.render_preview(m.key, 'front34', preview_radius or m.radius or st['bounding_radius'],
-                         direction=direction, target=target, zoom=zoom, path=path)
+        for nm, ob in kids:
+            ob.hide_render = nm in preview_hide
+        try:
+            L.render_preview(m.key, 'front34', preview_radius or m.radius or st['bounding_radius'],
+                             direction=direction, target=target, zoom=zoom, path=path)
+        finally:
+            for nm, ob in kids:
+                ob.hide_render = False
         rep['preview'] = path
     rep['seconds'] = round(time.time() - t0, 1)
     return rep

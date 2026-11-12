@@ -69,8 +69,8 @@ PALETTE = {
                             emission=(0.05, 0.85, 1.0), strength=3.0),
     # structures and props
     'rock': dict(color=(0.17, 0.14, 0.12), metallic=0.0, roughness=0.95),
-    'portal': dict(color=(0.02, 0.3, 0.42), metallic=0.0, roughness=0.4,
-                   emission=(0.1, 0.8, 1.0), strength=2.5),
+    'portal': dict(color=(0.01, 0.12, 0.2), metallic=0.0, roughness=0.4,
+                   emission=(0.04, 0.5, 0.75), strength=1.0),
     'cockpit_frame': dict(color=(0.028, 0.03, 0.034), metallic=0.7, roughness=0.5),
     'cockpit_panel': dict(color=(0.075, 0.08, 0.09), metallic=0.3, roughness=0.65),
 }

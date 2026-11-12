@@ -128,7 +128,7 @@ export function glare(flux: number, params: ViewParams): { sizePx: number; gain:
   const l10 = Math.log10(Math.max(flux, 1e-12));
   const res = params.height / 1080;
   return {
-    sizePx: Math.min(260, Math.max(6, 70 * Math.pow(10, 0.25 * l10))) * res,
-    gain: Math.min(30, Math.max(3, 14 * Math.pow(10, 0.2 * l10))),
+    sizePx: Math.min(300, Math.max(12, 110 * Math.pow(10, 0.22 * l10))) * res,
+    gain: Math.min(40, Math.max(4, 20 * Math.pow(10, 0.2 * l10))),
   };
 }

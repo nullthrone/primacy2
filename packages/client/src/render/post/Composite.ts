@@ -152,8 +152,8 @@ void main() {
     float pulse = 0.85 + 0.15 * sin(uTime * (6.0 + 10.0 * uCharge));
     float edge = smoothstep(0.25, 1.0, rad);
     vec3 tint = uChargeKind > 1.5 ? vec3(0.55, 0.35, 1.3) : vec3(0.25, 0.75, 1.25);
-    col += tint * edge * uCharge * uCharge * 0.55 * pulse;
-    col += tint * uCharge * 0.22 * exp(-rad * rad / (0.0015 + 0.02 * uCharge * uCharge)) * pulse;
+    col += tint * edge * edge * uCharge * uCharge * 0.22 * pulse;
+    col += tint * uCharge * 0.16 * exp(-rad * rad / (0.001 + 0.008 * uCharge * uCharge)) * pulse;
     if (uChargeKind > 1.5) col += vec3(1.0, 0.9, 1.3) * pow(uCharge, 4.0) * 0.004 / (rad * rad + 0.0008);
   }
 

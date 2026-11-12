@@ -175,7 +175,7 @@ class PlanetVisual implements Visual {
     }
     // Too small to resolve: a point whose brightness follows apparent size and phase.
     const pointFade = 1 - smoothstep(1.5, 3.0, px);
-    const gain = Math.min(3, Math.max(def.kind === 'moon' ? 0.12 : 0.3, 1.6 * Math.sqrt(px))) * (0.3 + 0.7 * lit) * pointFade;
+    const gain = Math.min(3, Math.max(def.kind === 'moon' ? 0.12 : 0.5, 1.8 * Math.sqrt(px))) * (0.3 + 0.7 * lit) * pointFade;
     const res = params.height / 1080;
     this.point.set(this.center, params, 8 * res, 0, 1.2 * res, gain, 0.06);
   }
@@ -246,9 +246,11 @@ class StarVisual implements Visual {
       vertexShader: WORLD_VERT, fragmentShader: STAR_FRAG,
       uniforms: {
         uCenter: { value: this.center }, uRadius: { value: 1 }, uPix: { value: 0.001 }, uFade: { value: 1 },
-        uRot: { value: new Matrix3() }, uColor: { value: new Vector3(c[0], c[1], c[2]) }, uTime: { value: 0 },
+        // The surface colour is more saturated than the light the star casts, so its class shows.
+        uRot: { value: new Matrix3() }, uTime: { value: 0 },
+        uColor: { value: new Vector3(Math.pow(c[0], 1.6), Math.pow(c[1], 1.6), Math.pow(c[2], 1.6)) },
         // Bright enough to bloom, low enough that granulation and the darker limb survive tone mapping.
-        uSeed: { value: seedFloat(def.seed) }, uOct: { value: 6 }, uGain: { value: 1.2 + 2.2 * hot },
+        uSeed: { value: seedFloat(def.seed) }, uOct: { value: 6 }, uGain: { value: 1.05 + 2.0 * hot },
       },
       ...NO_DEPTH,
     });
@@ -282,8 +284,9 @@ class StarVisual implements Visual {
     const size = Math.max(g.sizePx, px * 3.2);
     // Up close the disc itself is the light; the corona around it is toned down.
     const t = smoothstep(3, 40, px);
-    const gain = g.gain * (1 - t) + 1.3 * t;
-    this.glow.set(this.center, params, size, px, Math.max(1.3 * (params.height / 1080), (size - px) * 0.035), gain, 0.3);
+    const gain = g.gain * (1 - t) + 0.4 * t;
+    const sigma = Math.max(1.3 * (params.height / 1080), (size - px) * (0.035 + 0.09 * t));
+    this.glow.set(this.center, params, size, px, sigma, gain, 0.4);
   }
 
   dispose(): void {
@@ -426,6 +429,7 @@ const BELT_TINT = { rock: [0.55, 0.47, 0.40], metal: [0.52, 0.56, 0.62], ice: [0
 class BeltVisual {
   readonly points: Points;
   private readonly material: ShaderMaterial;
+  private readonly tint: Vector3;
 
   constructor(private readonly def: BeltDef, quality: number) {
     const count = quality === 0 ? 5000 : quality === 1 ? 10000 : 18000;
@@ -451,9 +455,10 @@ class BeltVisual {
     geo.setAttribute('position', new BufferAttribute(pos, 3));
     geo.setAttribute('aRand', new BufferAttribute(rand, 1));
     const tint = BELT_TINT[def.kind];
+    this.tint = new Vector3(tint[0], tint[1], tint[2]).multiplyScalar(0.11);
     this.material = new ShaderMaterial({
       vertexShader: BELT_VERT, fragmentShader: BELT_FRAG,
-      uniforms: { uColor: { value: new Vector3(tint[0], tint[1], tint[2]).multiplyScalar(0.11) }, uPx: { value: 1.5 }, uNear: { value: 1 } },
+      uniforms: { uColor: { value: this.tint.clone() }, uPx: { value: 1.5 }, uNear: { value: 1 } },
       blending: AdditiveBlending, ...NO_DEPTH,
     });
     this.points = new Points(geo, this.material);
@@ -472,6 +477,9 @@ class BeltVisual {
     const k = 5000 / (parent.dist + this.def.outer);
     this.points.position.set(parent.rel[0] * k, parent.rel[1] * k, parent.rel[2] * k);
     this.points.scale.setScalar(this.def.outer * k);
+    // Seen edge-on all points pile up into a thin line, so the belt is dimmed there.
+    const above = Math.abs(parent.rel[1]) / Math.max(parent.dist, 1);
+    (this.material.uniforms.uColor!.value as Vector3).copy(this.tint).multiplyScalar(0.3 + 0.7 * smoothstep(0.03, 0.35, above));
     this.material.uniforms.uPx!.value = 1.6 * (params.height / 1080);
     this.material.uniforms.uNear!.value = this.def.outer * 0.004 * k;
   }

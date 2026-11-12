@@ -87,12 +87,17 @@ vec4 diskSample(vec3 pc, vec3 rd) {
 
   // Temperature falls outward: blue-white at the inner edge, amber, then dull red dust.
   float heat = clamp(1.0 - lr + n * 0.10, 0.0, 1.0);
-  vec3 col = mix(vec3(0.42, 0.045, 0.008), vec3(1.0, 0.25, 0.035), smoothstep(0.20, 0.55, heat));
+  vec3 col = mix(vec3(0.55, 0.085, 0.018), vec3(1.0, 0.25, 0.035), smoothstep(0.20, 0.55, heat));
   col = mix(col, vec3(1.0, 0.47, 0.12), smoothstep(0.55, 0.84, heat));
   col = mix(col, vec3(1.0, 0.80, 0.52), smoothstep(0.84, 0.95, heat));
   col = mix(col, vec3(0.82, 0.90, 1.0), smoothstep(0.95, 1.0, heat));
-  float edge = smoothstep(0.0, 0.035, lr) * (1.0 - smoothstep(0.80, 1.0, lr));
-  float inten = 5.5 * exp(-lr * 6.0) * (0.03 + 0.97 * streak * streak * streak) * edge;
+  // The hot part is tiny on the scale of the whole disk; beyond it lies dull red dust that fades
+  // out linearly toward the outer edge, so the disk keeps its full extent from far away.
+  float x = r / uOuter;
+  float edge = smoothstep(0.0, 0.035, lr) * (1.0 - smoothstep(0.55, 1.0, x));
+  float hot = 5.5 * exp(-lr * 6.0) * (0.03 + 0.97 * streak * streak * streak);
+  float dust = 0.55 * exp(-x * 2.5) * smoothstep(0.35, 0.75, lr) * (0.06 + 0.94 * streak * streak);
+  float inten = (hot + dust) * edge;
 
   // Doppler beaming and gravitational redshift: the side moving toward the viewer is brighter and bluer.
   float beta = sqrt(0.5 / max(r, 1.0));
@@ -102,7 +107,7 @@ vec4 diskSample(vec3 pc, vec3 rd) {
   col *= mix(vec3(1.0), vec3(0.72, 1.0, 1.5), clamp((shift - 1.0) * 1.3, -1.0, 1.0));
 
   // Mostly opaque: the dark lanes between the streaks are dust that hides the stars behind.
-  float alpha = clamp(mix(0.55 + 0.30 * streak, 1.0, smoothstep(0.80, 0.50, lr)) * edge, 0.0, 1.0);
+  float alpha = clamp(mix(0.74 + 0.25 * streak, 1.0, smoothstep(0.80, 0.50, lr)) * edge, 0.0, 1.0);
   return vec4(col * uColor * inten * alpha, alpha);
 }
 
@@ -254,10 +259,12 @@ export class BlackHoleVisual implements Visual {
       u.uPix!.value = params.pixAngle;
       u.uFade!.value = smoothstep(1.5, 4, px);
     }
-    // Unresolved, the disk's light is a point like any star's.
+    // Nearly all of the disk's light comes from its innermost few hundred Schwarzschild radii.
+    // While that core is smaller than a few pixels it is drawn as a glare, like any star.
     const flux = effectiveLum(this.def) / (4 * Math.PI * body.dist * body.dist) / 1361;
     const g = glare(flux, params);
-    const fade = 1 - smoothstep(3, 60, px);
+    const corePx = (300 * this.rs) / body.dist / params.pixAngle;
+    const fade = 1 - smoothstep(2, 12, corePx);
     this.glow.set(this.center, params, g.sizePx, 0, Math.max(1.1, g.sizePx * 0.03), g.gain * fade, 0.3);
   }
 

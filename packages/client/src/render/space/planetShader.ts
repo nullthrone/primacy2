@@ -46,12 +46,14 @@ float ringDensity(float r, float blur) {
   if (r <= uRing.x || r >= uRing.y) return 0.0;
   float x = (r - uRing.x) / (uRing.y - uRing.x);
   float s = uRing.z;
-  float broad = 0.12 + 0.88 * smoothstep(0.2, 0.8, n1(x * 4.0 + s) * 0.65 + n1(x * 9.0 + s * 1.3) * 0.35);
-  float mid = 0.45 + 0.55 * n1(x * 23.0 + s * 2.0);
+  float broad = 0.25 + 0.75 * smoothstep(0.15, 0.75, n1(x * 4.0 + s) * 0.6 + n1(x * 9.0 + s * 1.3) * 0.4);
+  float mid = 0.35 + 0.65 * n1(x * 23.0 + s * 2.0);
   // Fine ringlets fade out when they get thinner than a pixel.
   float fine = mix(0.60 + 0.40 * n1(x * 95.0 + s * 3.0), 0.8, clamp(blur * 95.0, 0.0, 1.0));
   float hair = mix(0.75 + 0.25 * n1(x * 380.0 + s * 5.0), 0.875, clamp(blur * 380.0, 0.0, 1.0));
-  float d = broad * mid * fine * hair * 1.45;
+  float d = broad * mid * fine * hair * 1.6;
+  // Scattered narrow gaps.
+  d *= 1.0 - 0.85 * smoothstep(0.62, 0.70, n1(x * 31.0 + s * 7.0)) * (1.0 - clamp(blur * 31.0, 0.0, 1.0));
   float g1 = 0.50 + 0.25 * hash11(s + 1.0);
   float g2 = 0.15 + 0.20 * hash11(s + 2.0);
   d *= smoothstep(0.012, 0.022, abs(x - g1)) * (0.25 + 0.75 * smoothstep(0.004, 0.010, abs(x - g2)));
@@ -463,11 +465,11 @@ void main() {
   float sunSide = dot(uSunDir, uRingN);
   bool lit = sunSide * -dn > 0.0;
   // Seen from the unlit side, thin parts glow with transmitted light and dense parts stay dark.
-  float amount = lit ? 0.22 + 0.78 * smoothstep(0.0, 0.85, dens) : 0.10 + 2.0 * dens * (1.0 - dens) * (1.0 - dens);
+  float amount = lit ? 0.30 + 0.70 * smoothstep(0.0, 0.7, dens) : 0.10 + 2.0 * dens * (1.0 - dens) * (1.0 - dens);
   float fwd = pow(max(dot(d, uSunDir), 0.0), 6.0);
   float x = (r - uRing.x) / (uRing.y - uRing.x);
-  vec3 tone = mix(vec3(1.05, 0.92, 0.80), vec3(1.7, 1.66, 1.62), n1(x * 9.0 + uRing.z * 4.0));
-  vec3 col = mix(uRingColor, vec3(0.9), 0.3) * tone * uSun * amount * (1.0 + (lit ? 0.4 : 1.6) * fwd) * (0.55 + 0.45 * smoothstep(0.0, 0.3, abs(sunSide)));
+  vec3 tone = mix(vec3(0.90, 0.78, 0.66), vec3(1.45, 1.42, 1.38), n1(x * 9.0 + uRing.z * 4.0));
+  vec3 col = mix(uRingColor, vec3(1.0), 0.45) * tone * uSun * amount * (1.0 + (lit ? 0.4 : 1.6) * fwd) * (0.8 + 0.2 * smoothstep(0.0, 0.3, abs(sunSide)));
   col = col * (0.03 + 0.97 * shadow);
   // A slanted view passes through more ring material.
   float alpha = 1.0 - pow(1.0 - min(dens * 1.15, 0.98), 1.0 / max(abs(dn), 0.2));

@@ -141,7 +141,8 @@ def build(export=True, preview=True, ao=True):
     m.props['p2_bound'] = BOUND
     rep = K.finish(m, COLLIDERS, BOUND, ao=ao, ao_distance=30.0, export=export, preview=preview,
                    children=[('scaffold', build_scaffold(), {}), ('portal', build_portal(), dict(double_sided=True))],
-                   fit_skip=('portal', 'scaffold'), direction=(0.45, -0.75, 0.5), zoom=1.0)
+                   fit_skip=('portal', 'scaffold'), preview_hide=('scaffold',),
+                   direction=(0.45, -0.75, 0.5), zoom=1.0)
     if export:
         js = L.read_glb(L.glb_path(KEY))[0]
         rep['portal_double_sided'] = any(mt.get('name') == 'portal' and mt.get('doubleSided')
