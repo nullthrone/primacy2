@@ -274,22 +274,29 @@ async function journey(browser, problems, steps) {
     const range = v.self.stats.jumpRange;
     const all = [];
     for (const sec of v.galaxy.sectors) {
-      for (const sys of sec.systems) all.push({ id: sys.id, name: sys.name, pos: sys.pos, stations: sys.stations, sector: sec.id, sectorName: sec.name, tier: sec.tier, own: sec.id === v.galaxy.self });
+      for (const sys of sec.systems) all.push({ id: sys.id, name: sys.name, pos: sys.pos, stations: sys.stations, security: sys.security, sector: sec.id, sectorName: sec.name, tier: sec.tier, own: sec.id === v.galaxy.self });
     }
     const dist = (a, b) => Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]);
     const start = all.find((x) => x.id === v.system.id);
+    // Breadth first over the home sector's systems, so every path has the fewest jumps. Goals are the
+    // systems with a station in another sector; the safest class wins (pirates fly in the others), then the shortest path.
     const prev = new Map([[start.id, null]]);
+    const depth = new Map([[start.id, 0]]);
     const queue = [start];
-    let goal = null;
-    while (queue.length && !goal) {
+    const goals = [];
+    while (queue.length) {
       const a = queue.shift();
       for (const b of all) {
         if (prev.has(b.id) || dist(a, b) > range) continue;
         prev.set(b.id, a);
-        if (!b.own && b.stations > 0) { goal = b; break; }
+        depth.set(b.id, depth.get(a.id) + 1);
+        if (!b.own) { if (b.stations > 0) goals.push(b); continue; }
         queue.push(b);
       }
     }
+    const rank = { secure: 0, frontier: 1, lawless: 2 };
+    goals.sort((p, q) => (rank[p.security] ?? 3) - (rank[q.security] ?? 3) || depth.get(p.id) - depth.get(q.id));
+    const goal = goals[0];
     if (!goal) return { range, hops: [] };
     const hops = [];
     for (let x = goal; prev.get(x.id); x = prev.get(x.id)) hops.unshift({ ...x, ly: dist(prev.get(x.id), x) });
@@ -298,7 +305,7 @@ async function journey(browser, problems, steps) {
   if (!route.hops.length) throw new Error(`no route with jumps of ${route.range} ly leads to a station in the other sector`);
   const dest = route.hops[route.hops.length - 1];
   const betaId = dest.sector;
-  log(`route: ${route.hops.map((h) => `${h.name} (${h.ly.toFixed(1)} ly)`).join(' -> ')}, drive range ${route.range} ly, ${dest.sectorName} rated ${dest.tier}`);
+  log(`route: ${route.hops.map((h) => `${h.name} (${h.ly.toFixed(1)} ly, ${h.security})`).join(' -> ')}, drive range ${route.range} ly, ${dest.sectorName} rated ${dest.tier}`);
   for (const hop of route.hops) {
     const last = hop === dest;
     await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, hop.id);
@@ -673,7 +680,7 @@ try {
       break;
     } catch (err) {
       if (!(err instanceof ShipLost) || attempt >= 3) throw err;
-      console.log();
+      console.log(`journey: ${err.message}; starting over with a new pilot (attempt ${attempt + 1})`);
     }
   }
 } catch (err) {
