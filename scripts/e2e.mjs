@@ -250,42 +250,63 @@ async function journey(browser, problems, steps) {
 
   await page.evaluate(() => window.primacy2.game.cmd({ k: 'galaxy' }));
   await page.waitForFunction(() => (window.primacy2.game.view?.galaxy?.sectors.length ?? 0) > 1, null, { timeout: 8000 });
-  const target = await page.evaluate(() => {
+  // The fewest jumps from here to a system with a station in another sector, each within the drive's range.
+  // (From the home system the nearest system of Beta is out of reach, so the route has a stop in Alpha's own sector.)
+  const route = await page.evaluate(() => {
     const v = window.primacy2.game.view;
-    const here = v.system.pos;
     const range = v.self.stats.jumpRange;
-    const found = [];
+    const all = [];
     for (const sec of v.galaxy.sectors) {
-      if (sec.id === v.galaxy.self) continue;
-      for (const sys of sec.systems) {
-        const d = Math.hypot(sys.pos[0] - here[0], sys.pos[1] - here[1], sys.pos[2] - here[2]);
-        if (sys.stations > 0 && d <= range) found.push({ sector: sec.id, sectorName: sec.name, tier: sec.tier, id: sys.id, name: sys.name, ly: d });
+      for (const sys of sec.systems) all.push({ id: sys.id, name: sys.name, pos: sys.pos, stations: sys.stations, sector: sec.id, sectorName: sec.name, tier: sec.tier, own: sec.id === v.galaxy.self });
+    }
+    const dist = (a, b) => Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]);
+    const start = all.find((x) => x.id === v.system.id);
+    const prev = new Map([[start.id, null]]);
+    const queue = [start];
+    let goal = null;
+    while (queue.length && !goal) {
+      const a = queue.shift();
+      for (const b of all) {
+        if (prev.has(b.id) || dist(a, b) > range) continue;
+        prev.set(b.id, a);
+        if (!b.own && b.stations > 0) { goal = b; break; }
+        queue.push(b);
       }
     }
-    found.sort((a, b) => a.ly - b.ly);
-    return { range, found: found.slice(0, 5) };
+    if (!goal) return { range, hops: [] };
+    const hops = [];
+    for (let x = goal; prev.get(x.id); x = prev.get(x.id)) hops.unshift({ ...x, ly: dist(prev.get(x.id), x) });
+    return { range, hops };
   });
-  if (!target.found.length) throw new Error(`no system with a station in the other sector is within jump range (${target.range} ly)`);
-  const dest = target.found[0];
+  if (!route.hops.length) throw new Error(`no route with jumps of ${route.range} ly leads to a station in the other sector`);
+  const dest = route.hops[route.hops.length - 1];
   const betaId = dest.sector;
-  log(`fold target ${dest.name} (${dest.id}) in ${dest.sectorName}, ${dest.ly.toFixed(1)} ly of ${target.range.toFixed(1)} ly range, rated ${dest.tier}`);
-  await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, dest.id);
-  try {
-    await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-  } catch {
-    // The start was refused. Ask the server directly to learn why.
-    const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), dest.id);
-    if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-    else throw new Error(`the fold jump was refused: ${r.err}`);
+  log(`route: ${route.hops.map((h) => `${h.name} (${h.ly.toFixed(1)} ly)`).join(' -> ')}, drive range ${route.range} ly, ${dest.sectorName} rated ${dest.tier}`);
+  for (const hop of route.hops) {
+    const last = hop === dest;
+    await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, hop.id);
+    try {
+      await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+    } catch {
+      // The start was refused. Ask the server directly to learn why.
+      const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), hop.id);
+      if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+      else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
+    }
+    await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.15, null, { timeout: 60_000 }).catch(() => fail('the fold tunnel never opened'));
+    if (last) {
+      await page.waitForTimeout(400);
+      await shot('21-fold-tunnel');
+    }
+    await page.waitForFunction((id) => {
+      const v = window.primacy2.game.view;
+      return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
+    }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
+    await page.waitForTimeout(600);
+    log(`arrived at ${hop.name}`);
   }
-  await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.15, null, { timeout: 60_000 }).catch(() => fail('the fold tunnel never opened'));
-  await page.waitForTimeout(400);
-  await shot('21-fold-tunnel');
-  await page.waitForFunction((beta) => {
-    const v = window.primacy2.game.view;
-    return !!v && v.galaxy?.self === beta && v.system.id.startsWith(`${beta}:`) && v.self !== null;
-  }, betaId, { timeout: 120_000 }).catch(() => fail('the pilot never arrived in the other sector'));
-  await page.waitForTimeout(1500);
+  await page.waitForFunction((beta) => window.primacy2.game.view?.galaxy?.self === beta, betaId, { timeout: 20_000 }).catch(() => fail('the page is not connected to the other sector'));
+  await page.waitForTimeout(1000);
   await shot('22-arrival-at-beta');
   log(`arrived: ${JSON.stringify(await stateDump())}`);
 
