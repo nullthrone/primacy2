@@ -6,8 +6,14 @@
  * That is why this file is restricted. It uses only the four basic operations, Math.sqrt,
  * Math.floor, Math.abs, Math.min, Math.max, Math.imul and bit operations on 32-bit integers: all of
  * these are exactly specified. Math.sin, cos, exp, pow, log and hypot, the `**` operator and random
- * numbers are not, and must not be used here (a test scans this file for them). Nothing in the
- * sampling path allocates.
+ * numbers are not, and must not be used here (a test scans this file for them).
+ *
+ * Nothing in the sampling path allocates, not even behind the scenes. An engine may put a number
+ * on the heap when it crosses a call that is not inlined, as an argument or as a result, or when it
+ * is kept in a variable outside a function. So the functions on that path take their fractional
+ * arguments from the typed array `R` and leave their results there: a typed array element is never
+ * boxed. It reads a little unusually; it is what keeps a mesh bake of a million samples from
+ * producing gigabytes of garbage.
  *
  * The height is evaluated on the 3D point `direction * radius`, in metres, in body-fixed axes, so
  * there are no seams and no poles. It is the sum of
@@ -144,6 +150,33 @@ const CRATER_RIM_HEIGHT = 0.2;
 /** Craters keep at least this fraction of their fresh depth; most are near it, few are fresh. */
 const CRATER_WORN = 0.18;
 
+/**
+ * Arguments and results of the functions on the sampling path (see the note on allocation at the
+ * top of the file). Each function says which elements it reads and which it writes.
+ */
+const R = new Float64Array(17);
+/** Results: of `noise3`, of `lines`, of `craters` (height in metres, tone) and of `sample` (height, tone). */
+const NOISE = 0;
+const LINES = 1;
+const CRATER_H = 2;
+const CRATER_TONE = 3;
+const OUT_H = 4;
+const OUT_TONE = 5;
+/** Arguments of `noise3`: the point in lattice units. */
+const AX = 6;
+const AY = 7;
+const AZ = 8;
+/** Arguments of `sample`: the unit direction and the detail in metres. `craters` reads them too. */
+const UX = 9;
+const UY = 10;
+const UZ = 11;
+const DETAIL = 12;
+/** Set by `sample` for `craters` and `lines`: the point direction * radius in metres, and the crater depth scale. */
+const PX = 13;
+const PY = 14;
+const PZ = 15;
+const DEPTH = 16;
+
 const KX = 0x27d4eb2f;
 const KY = 0x165667b1;
 const KZ = 0x9e3779b1;
@@ -167,10 +200,14 @@ function grad(h: number, x: number, y: number, z: number): number {
 }
 
 /**
- * Gradient lattice noise in -1..1 with one feature per unit of the coordinates. The same input
- * gives the same bits on every machine.
+ * Gradient lattice noise in -1..1 with one feature per unit of the coordinates: reads the point
+ * from `R[AX]`, `R[AY]`, `R[AZ]` and writes the value to `R[NOISE]`. The same input gives the same
+ * bits on every machine.
  */
-function noise3(x: number, y: number, z: number, seed: number): number {
+function noise3(seed: number): void {
+  const x = R[AX]!;
+  const y = R[AY]!;
+  const z = R[AZ]!;
   const fx = Math.floor(x);
   const fy = Math.floor(y);
   const fz = Math.floor(z);
@@ -207,7 +244,7 @@ function noise3(x: number, y: number, z: number, seed: number): number {
   const c0 = a0 + (a1 - a0) * v;
   const c1 = b0 + (b1 - b0) * v;
   const n = c0 + (c1 - c0) * w;
-  return n < -1 ? -1 : n > 1 ? 1 : n;
+  R[NOISE] = n < -1 ? -1 : n > 1 ? 1 : n;
 }
 
 /** 0 below `lo`, 1 above `hi`, a smooth step between. */
@@ -359,10 +396,10 @@ export function terrainParams(body: Pick<BodyDef, 'seed' | 'cls' | 'radius'>, pa
     const inner = Math.max(0, pad.radius) / radius;
     const width = Math.max(1, pad.blend) / radius;
     // The pad sits at the height the untouched ground has at its centre.
-    sample(base, pad.dir[0], pad.dir[1], pad.dir[2], 0);
+    sampleAt(base, pad.dir[0], pad.dir[1], pad.dir[2], 0);
     built.push({
       x: pad.dir[0], y: pad.dir[1], z: pad.dir[2],
-      inner, width, inner2: inner * inner, outer2: (inner + width) * (inner + width), height: outH,
+      inner, width, inner2: inner * inner, outer2: (inner + width) * (inner + width), height: R[OUT_H]!,
     });
   }
   return { ...base, pads: built };
@@ -406,18 +443,20 @@ export function terrainSkipped(p: TerrainParams, detail: number): number {
 /** Diameter (m) of the largest crater of the class with cell size `cell`. */
 const craterClassSize = (cell: number): number => 2 * CRATER_OUTER_MAX * CRATER_RIM_MAX * cell;
 
-// Results of `sample`. Module-level so that sampling allocates nothing.
-let outH = 0;
-let outTone = 0;
-// Results of `craters`.
-let craterH = 0;
-let craterTone = 0;
-
 /**
- * Adds up the craters of every class at the point (px, py, pz) = direction * radius, whose unit
- * direction is (nx, ny, nz). `depthScale` scales every crater (plains are flooded and keep less).
+ * Adds up the craters of every class at the point `R[PX..PZ]` = direction * radius, whose unit
+ * direction is `R[UX..UZ]`, into `R[CRATER_H]` (metres) and `R[CRATER_TONE]`. `R[DEPTH]` scales
+ * every crater (plains are flooded and keep less); `R[DETAIL]` is the smallest crater wanted.
  */
-function craters(p: TerrainParams, px: number, py: number, pz: number, nx: number, ny: number, nz: number, detail: number, depthScale: number): void {
+function craters(p: TerrainParams): void {
+  const px = R[PX]!;
+  const py = R[PY]!;
+  const pz = R[PZ]!;
+  const nx = R[UX]!;
+  const ny = R[UY]!;
+  const nz = R[UZ]!;
+  const detail = R[DETAIL]!;
+  const depthScale = R[DEPTH]!;
   let height = 0;
   let tone = 0;
   const r = p.radius;
@@ -510,26 +549,49 @@ function craters(p: TerrainParams, px: number, py: number, pz: number, nx: numbe
     }
     height += bowl + rim;
   }
-  craterH = height;
-  craterTone = tone;
+  R[CRATER_H] = height;
+  R[CRATER_TONE] = tone;
 }
 
 /**
- * Ridged noise stretched along `dir`: narrow crests `lineShort` apart and `lineLong` long.
- * Returns 0..1, 1 on the crest.
+ * Ridged noise at the point `R[PX..PZ]`, stretched along the direction at index `at` of
+ * `lineDir`: narrow crests `lineShort` apart and `lineLong` long. Writes 0..1 to `R[LINES]`, 1 on
+ * the crest.
  */
-function lines(p: TerrainParams, px: number, py: number, pz: number, at: number, seed: number): number {
+function lines(p: TerrainParams, at: number, seed: number): void {
+  const px = R[PX]!;
+  const py = R[PY]!;
+  const pz = R[PZ]!;
   const wx = p.lineDir[at]!;
   const wy = p.lineDir[at + 1]!;
   const wz = p.lineDir[at + 2]!;
   const along = (px * wx + py * wy + pz * wz) * (1 / p.lineLong - 1 / p.lineShort);
   const inv = 1 / p.lineShort;
-  const n = noise3(px * inv + wx * along + 7.31, py * inv + wy * along + 1.77, pz * inv + wz * along + 4.19, seed);
-  return 1 - Math.abs(n);
+  R[AX] = px * inv + wx * along + 7.31;
+  R[AY] = py * inv + wy * along + 1.77;
+  R[AZ] = pz * inv + wz * along + 4.19;
+  noise3(seed);
+  R[LINES] = 1 - Math.abs(R[NOISE]!);
 }
 
-/** Evaluates height and tone for the unit direction (x, y, z) into `outH` and `outTone`. */
-function sample(p: TerrainParams, x: number, y: number, z: number, detail: number): void {
+/** `sample` for callers off the hot path: sets its arguments and runs it. */
+function sampleAt(p: TerrainParams, x: number, y: number, z: number, detail: number): void {
+  R[UX] = x;
+  R[UY] = y;
+  R[UZ] = z;
+  R[DETAIL] = detail;
+  sample(p);
+}
+
+/**
+ * Evaluates height and tone for the unit direction `R[UX..UZ]` at the detail `R[DETAIL]` into
+ * `R[OUT_H]` and `R[OUT_TONE]`.
+ */
+function sample(p: TerrainParams): void {
+  const x = R[UX]!;
+  const y = R[UY]!;
+  const z = R[UZ]!;
+  const detail = R[DETAIL]!;
   // Pads first: inside the flat part nothing else matters.
   let padWeight = 0;
   let padHeight = 0;
@@ -541,8 +603,8 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     const d2 = dx * dx + dy * dy + dz * dz;
     if (d2 >= pad.outer2) continue;
     if (d2 <= pad.inner2) {
-      outH = pad.height;
-      outTone = 0.5;
+      R[OUT_H] = pad.height;
+      R[OUT_TONE] = 0.5;
       return;
     }
     const t = (Math.sqrt(d2) - pad.inner) / pad.width;
@@ -557,6 +619,9 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
   const px = x * r;
   const py = y * r;
   const pz = z * r;
+  R[PX] = px;
+  R[PY] = py;
+  R[PZ] = pz;
 
   // Continents.
   let cont = 0;
@@ -564,7 +629,11 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     const lambda = p.contLambda[i]!;
     if (lambda < detail) break;
     const f = 1 / lambda;
-    cont += p.contWeight[i]! * noise3(px * f + 0.5 + i * 0.37, py * f + 0.25 + i * 0.61, pz * f + 0.75 + i * 0.13, p.contSeed[i]!);
+    R[AX] = px * f + 0.5 + i * 0.37;
+    R[AY] = py * f + 0.25 + i * 0.61;
+    R[AZ] = pz * f + 0.75 + i * 0.13;
+    noise3(p.contSeed[i]!);
+    cont += p.contWeight[i]! * R[NOISE]!;
   }
   cont *= 2;
   if (cont > 1) cont = 1;
@@ -577,14 +646,22 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
   let mtn = 0;
   if (p.mtnAmp > 0 && p.mtnMaskLambda >= detail) {
     const f = 1 / p.mtnMaskLambda;
-    const mask = smooth(0.1, 0.5, 2 * noise3(px * f + 3.3, py * f + 8.1, pz * f + 5.7, p.mtnMaskSeed)) * high;
+    R[AX] = px * f + 3.3;
+    R[AY] = py * f + 8.1;
+    R[AZ] = pz * f + 5.7;
+    noise3(p.mtnMaskSeed);
+    const mask = smooth(0.1, 0.5, 2 * R[NOISE]!) * high;
     if (mask > 0) {
       let ridge = 0;
       for (let i = 0; i < p.mtnLambda.length; i++) {
         const lambda = p.mtnLambda[i]!;
         if (lambda < detail) break;
         const g = 1 / lambda;
-        const n = 1 - Math.abs(noise3(px * g + 0.5 + i * 0.29, py * g + 0.5 + i * 0.53, pz * g + 0.5 + i * 0.71, p.mtnSeed[i]!));
+        R[AX] = px * g + 0.5 + i * 0.29;
+        R[AY] = py * g + 0.5 + i * 0.53;
+        R[AZ] = pz * g + 0.5 + i * 0.71;
+        noise3(p.mtnSeed[i]!);
+        const n = 1 - Math.abs(R[NOISE]!);
         ridge += p.mtnWeight[i]! * n * n;
       }
       mtn = mask * ridge;
@@ -600,15 +677,21 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     const lambda = p.roughLambda[i]!;
     if (lambda < detail) break;
     const f = 1 / lambda;
-    const n = noise3(px * f + 0.5 + i * 0.41, py * f + 0.5 + i * 0.17, pz * f + 0.5 + i * 0.83, p.roughSeed[i]!);
+    R[AX] = px * f + 0.5 + i * 0.41;
+    R[AY] = py * f + 0.5 + i * 0.17;
+    R[AZ] = pz * f + 0.5 + i * 0.83;
+    noise3(p.roughSeed[i]!);
+    const n = R[NOISE]!;
     rough += p.roughAmp[i]! * n;
     if (i === 1) mottle = n;
   }
   h += rough * roughFactor;
 
   // Craters, flooded and shallow in the plains.
-  craters(p, px, py, pz, x, y, z, detail, 0.5 + 0.5 * high);
-  h += craterH;
+  R[DEPTH] = 0.5 + 0.5 * high;
+  craters(p);
+  h += R[CRATER_H]!;
+  const craterTone = R[CRATER_TONE]!;
 
   // Tone: dark plains against bright highlands, with bright fresh craters.
   let tone: number;
@@ -616,8 +699,10 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     // Two sets of long ridges; dust gathers on them, so they are dark against the ice.
     let crest = 0;
     if (p.lineShort >= detail) {
-      const a = lines(p, px, py, pz, 0, p.lineSeed);
-      const b = lines(p, px, py, pz, 3, p.lineSeed ^ 0x5bd1e995);
+      lines(p, 0, p.lineSeed);
+      const a = R[LINES]!;
+      lines(p, 3, p.lineSeed ^ 0x5bd1e995);
+      const b = R[LINES]!;
       // The eighth power leaves narrow crests with smooth ice between them.
       const a2 = a * a;
       const b2 = b * b;
@@ -634,9 +719,14 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     let dune = 0;
     if (p.lineShort >= detail) {
       const f = 1 / p.lineMaskLambda;
-      const mask = smooth(0.0, 0.35, 2 * noise3(px * f + 2.2, py * f + 6.6, pz * f + 9.9, p.lineMaskSeed)) * (1 - mtn);
+      R[AX] = px * f + 2.2;
+      R[AY] = py * f + 6.6;
+      R[AZ] = pz * f + 9.9;
+      noise3(p.lineMaskSeed);
+      const mask = smooth(0.0, 0.35, 2 * R[NOISE]!) * (1 - mtn);
       if (mask > 0) {
-        const a = lines(p, px, py, pz, 0, p.lineSeed);
+        lines(p, 0, p.lineSeed);
+        const a = R[LINES]!;
         dune = mask * a * a;
         h += p.lineAmp * dune;
       }
@@ -661,8 +751,8 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
     h += (padHeight - h) * padWeight;
     tone += (0.5 - tone) * padWeight;
   }
-  outH = h;
-  outTone = tone < 0 ? 0 : tone > 1 ? 1 : tone;
+  R[OUT_H] = h;
+  R[OUT_TONE] = tone < 0 ? 0 : tone > 1 ? 1 : tone;
 }
 
 /**
@@ -672,19 +762,29 @@ function sample(p: TerrainParams, x: number, y: number, z: number, detail: numbe
  * this is the full function, the one ships collide with.
  */
 export function terrainHeight(p: TerrainParams, x: number, y: number, z: number, detail = 0): number {
-  sample(p, x, y, z, detail);
-  return outH;
+  R[UX] = x;
+  R[UY] = y;
+  R[UZ] = z;
+  R[DETAIL] = detail;
+  sample(p);
+  return R[OUT_H]!;
 }
 
 /**
  * Like `terrainHeight`, and also gives the tone for shading from the same pass: writes the height
  * (m) into `out[0]` and the tone into `out[1]`. The tone is 0..1: dark plains against bright
  * highlands, bright fresh craters with rays, dark ridges on ice, pale dune crests.
+ * With a `Float64Array` as `out` a caller gets both without a single allocation; this is the
+ * function for baking meshes.
  */
 export function terrainSample(p: TerrainParams, x: number, y: number, z: number, detail: number, out: { [index: number]: number }): void {
-  sample(p, x, y, z, detail);
-  out[0] = outH;
-  out[1] = outTone;
+  R[UX] = x;
+  R[UY] = y;
+  R[UZ] = z;
+  R[DETAIL] = detail;
+  sample(p);
+  out[0] = R[OUT_H]!;
+  out[1] = R[OUT_TONE]!;
 }
 
 /**
@@ -714,7 +814,8 @@ export function terrainRelief(p: TerrainParams, x: number, y: number, z: number,
   const e2y = z * e1x - x * e1z;
   const e2z = x * e1y - y * e1x;
 
-  const centre = terrainHeight(p, x, y, z, detail);
+  sampleAt(p, x, y, z, detail);
+  const centre = R[OUT_H]!;
   const step = radius / p.radius;
   const k = 1 / Math.sqrt(1 + step * step);
   let worst = 0;
@@ -724,8 +825,8 @@ export function terrainRelief(p: TerrainParams, x: number, y: number, z: number,
     const c = diagonal ? 0.7071067811865476 : 1;
     const a = (i === 0 ? 1 : i === 4 ? -1 : i === 2 || i === 6 ? 0 : i === 1 || i === 7 ? c : -c) * step;
     const b = (i === 2 ? 1 : i === 6 ? -1 : i === 0 || i === 4 ? 0 : i === 1 || i === 3 ? c : -c) * step;
-    const h = terrainHeight(p, (x + e1x * a + e2x * b) * k, (y + e1y * a + e2y * b) * k, (z + e1z * a + e2z * b) * k, detail);
-    const d = Math.abs(h - centre);
+    sampleAt(p, (x + e1x * a + e2x * b) * k, (y + e1y * a + e2y * b) * k, (z + e1z * a + e2z * b) * k, detail);
+    const d = Math.abs(R[OUT_H]! - centre);
     if (d > worst) worst = d;
   }
   return worst;
@@ -761,10 +862,14 @@ export function terrainNormal(p: TerrainParams, x: number, y: number, z: number,
   // Four points half a baseline away, brought back onto the unit sphere.
   const half = (0.5 * baseline) / p.radius;
   const k = 1 / Math.sqrt(1 + half * half);
-  const g1 = (terrainHeight(p, (x + e1x * half) * k, (y + e1y * half) * k, (z + e1z * half) * k, detail)
-    - terrainHeight(p, (x - e1x * half) * k, (y - e1y * half) * k, (z - e1z * half) * k, detail)) / baseline;
-  const g2 = (terrainHeight(p, (x + e2x * half) * k, (y + e2y * half) * k, (z + e2z * half) * k, detail)
-    - terrainHeight(p, (x - e2x * half) * k, (y - e2y * half) * k, (z - e2z * half) * k, detail)) / baseline;
+  sampleAt(p, (x + e1x * half) * k, (y + e1y * half) * k, (z + e1z * half) * k, detail);
+  const a1 = R[OUT_H]!;
+  sampleAt(p, (x - e1x * half) * k, (y - e1y * half) * k, (z - e1z * half) * k, detail);
+  const g1 = (a1 - R[OUT_H]!) / baseline;
+  sampleAt(p, (x + e2x * half) * k, (y + e2y * half) * k, (z + e2z * half) * k, detail);
+  const a2 = R[OUT_H]!;
+  sampleAt(p, (x - e2x * half) * k, (y - e2y * half) * k, (z - e2z * half) * k, detail);
+  const g2 = (a2 - R[OUT_H]!) / baseline;
 
   const nx = x - e1x * g1 - e2x * g2;
   const ny = y - e1y * g1 - e2y * g2;
