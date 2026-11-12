@@ -61,7 +61,8 @@ export type C2S =
 // Server -> client
 // ---------------------------------------------------------------------------------------------
 
-export const EntityKind = { Ship: 1, Loot: 2, Missile: 3, Station: 4, Gate: 5 } as const;
+/** `Wreck` is what a destroyed ship leaves behind; its `model` is the hull id of that ship. */
+export const EntityKind = { Ship: 1, Loot: 2, Missile: 3, Station: 4, Gate: 5, Wreck: 6 } as const;
 export type EntityKind = (typeof EntityKind)[keyof typeof EntityKind];
 
 /** Bit flags in a snapshot entity. */
@@ -106,6 +107,8 @@ export type GameEvent =
   | { e: 'mine'; from: number; ast: number; at: Vec3 }
   /** Remaining ore fraction of an asteroid changed (0 = depleted). */
   | { e: 'ast'; ast: number; left: number }
+  /** A salvage beam from ship `from` is cutting up wreck `id`; `at` is the point on the wreck it touches. */
+  | { e: 'salvage'; from: number; id: number; at: Vec3 }
   | { e: 'cruise'; id: number; on: boolean; at: Vec3 }
   | { e: 'fold'; id: number; out: boolean; at: Vec3 }
   | { e: 'dock'; id: number; docked: boolean }
