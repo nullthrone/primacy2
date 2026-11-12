@@ -242,7 +242,7 @@ export const en = {
   'map.fcDepends': '{n} t count as imports there if {name} rates this sector a trade partner. If it admits this sector as visitors only, they are sealed. This map does not show its rating.',
   'map.fcShipBound': 'Your ship will be bound there: hull and modules refund nothing in {name}, unless it recognises the ship as its own.',
   'map.fcShipReturn': 'Back here it counts as local again, as long as hull and modules are the same.',
-  'map.fcClass': '{name} may limit the ship class. This is checked when the fold drive has charged, before fuel is spent.',
+  'map.fcClass': '{name} may limit the ship class. Its published limit is checked when the fold drive has charged; {name} checks again on arrival.',
   'map.sectors': 'Other sectors',
   'map.noSectors': 'No other sector is known here.',
   'map.accepts': 'accepts {tu} TU',

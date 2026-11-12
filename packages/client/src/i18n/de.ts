@@ -244,7 +244,7 @@ export const de: Partial<Record<StringKey, string>> = {
   'map.fcDepends': '{n} t gelten dort als Import, wenn {name} diesen Sektor als Handelspartner führt. Lässt {name} diesen Sektor nur zu Besuch ein, werden sie versiegelt. Die Karte zeigt diese Einstufung nicht.',
   'map.fcShipBound': 'Dein Schiff wird dort gebunden: Rumpf und Module bringen in {name} keine Erstattung, es sei denn, der Sektor erkennt das Schiff als sein eigenes.',
   'map.fcShipReturn': 'Zurück hier gilt es wieder als lokal, solange Rumpf und Module dieselben sind.',
-  'map.fcClass': '{name} kann die Schiffsklasse begrenzen. Geprüft wird, sobald der Faltantrieb geladen ist, bevor Treibstoff verbraucht wird.',
+  'map.fcClass': '{name} kann die Schiffsklasse begrenzen. Die veröffentlichte Grenze wird geprüft, sobald der Faltantrieb geladen ist; {name} prüft bei der Ankunft erneut.',
   'map.sectors': 'Andere Sektoren',
   'map.noSectors': 'Hier ist kein anderer Sektor bekannt.',
   'map.accepts': 'nimmt noch {tu} HE an',

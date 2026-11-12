@@ -17,16 +17,16 @@ export const WRECK_LIFETIME = 900;
 /** Wrecks a zone keeps; the oldest goes first. */
 export const MAX_WRECKS = 12;
 /** Tonnes of scrap per tonne-thousand of hull mass: one tonne per this many kilograms. */
-const KG_PER_SCRAP_TONNE = 4000;
+export const KG_PER_SCRAP_TONNE = 4000;
 /** Chance that a fitted module survives as salvageable parts. */
-const PART_CHANCE = 0.4;
+export const PART_CHANCE = 0.4;
 /** Tonnes released per second per point of mining laser damage. */
 const TONNES_PER_POWER = 0.1;
 /** Seconds between beam events sent to clients. */
 const EVENT_EVERY = 0.25;
 
 /** What a recovered module turns into. Existing commodities stand in for the salvaged parts. */
-const PART_FOR_SLOT: Record<string, string> = {
+export const PART_FOR_SLOT: Record<string, string> = {
   weapon: 'machinery', thruster: 'machinery', shield: 'electronics', fold: 'electronics',
   reactor: 'reactor_parts', utility: 'alloys',
 };

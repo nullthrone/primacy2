@@ -301,7 +301,7 @@ describe('sinks: ships', () => {
     expect(contents.map((x) => x.c)).toEqual(['scrap']);
   });
 
-  it('a respawn keeps a bound ship bound; the free starter is local', async () => {
+  it('a respawn keeps a bound ship bound; the free starter is a handout and stays bound', async () => {
     let bot = await newPilot(P, 'Insured', 'delver');
     bot = await travel(bot, P, H);
     const p = dock(H, bot);
@@ -316,7 +316,9 @@ describe('sinks: ships', () => {
     p.sim!.destroy(p.ship!, null);
     p.rec.credits = 0;
     expect(await run(H, p, { k: 'respawn' })).toMatchObject({ ok: true, data: { starter: true } });
-    expect(H.world.pilotView(p).shipBound).toBeNull();
+    // Nothing the free starter carries is worth credits (tests/review.test.ts checks the refund).
+    expect(H.world.pilotView(p).shipBound?.hull).toBe(true);
+    expect(H.world.pilotView(p).shipBound?.slots.every(Boolean)).toBe(true);
   });
 
   it('the fold command refuses a hull above the destination class limit before the charge starts', async () => {

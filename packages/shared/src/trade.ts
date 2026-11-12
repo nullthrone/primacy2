@@ -134,6 +134,36 @@ export function attributeLot(lot: CargoItem, r: ArrivalRules): CargoItem {
   return out(lot.origin, true);
 }
 
+/**
+ * Splits an arriving hold into the goods the pilot is taking back home and the rest. `left` is the
+ * trade value of local, unsealed cargo this pilot carried out (see `DepartedShip.cargo`). Lots that
+ * claim this server's label, are not sealed, and fit under that value, whole tonnes at a time, come
+ * back as local goods; everything else (other labels, sealed lots, more than was carried out, other
+ * goods worth more) goes on to `attributeCargo` as usual. A server that returns different goods
+ * under this server's label gains nothing: the value that left is the most that can return.
+ */
+export function recogniseReturning(
+  cargo: readonly CargoItem[], self: string, left: number,
+): { back: CargoItem[]; rest: CargoItem[]; value: number } {
+  const back: CargoItem[] = [];
+  const rest: CargoItem[] = [];
+  let value = 0;
+  let room = Number.isFinite(left) && left > 0 ? left : 0;
+  for (const lot of cargo) {
+    const price = tradeUnits(lot.c, 1);
+    if (lot.sealed || lot.origin !== self || !(price > 0) || room < price) {
+      rest.push(lot);
+      continue;
+    }
+    const n = Math.min(lot.n, Math.floor(room / price));
+    back.push({ c: lot.c, n, origin: self });
+    room -= n * price;
+    value += n * price;
+    if (n < lot.n) rest.push({ c: lot.c, n: lot.n - n, origin: lot.origin });
+  }
+  return { back, rest, value };
+}
+
 /** Attributes every lot of an arriving hold and merges lots that end up alike. */
 export function attributeCargo(cargo: readonly CargoItem[], r: ArrivalRules): CargoItem[] {
   const out: CargoItem[] = [];
@@ -217,6 +247,8 @@ export interface DepartedShip {
   modules: (string | null)[];
   /** The binding the ship had when it left. */
   bound: ShipBinding;
+  /** Trade units of local, unsealed cargo the ship carried out; it may come back as local goods, up to this value. */
+  cargo?: number;
 }
 
 /**

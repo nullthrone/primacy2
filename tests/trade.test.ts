@@ -341,14 +341,15 @@ describe('trade model: cargo', () => {
     bot = await travel(bot, H, P);
     expect(exportsTo(ID.P)).toBe(before + 10 * PRICE);
     expect(hold(P, bot)).toEqual([lot(10, ID.H), sealedFood]);
-    // Back: Home's own goods return as the partner's import, not as local goods.
+    // Back: the pilot left with these goods, so they are his own again and the export is taken back.
     bot = await travel(bot, P, H);
-    expect(hold(H, bot)).toEqual([lot(10, ID.P), sealedFood]);
-    // Out and back again with the same goods: nothing more is booked, on either side.
+    expect(hold(H, bot)).toEqual([lot(10, ID.H), sealedFood]);
+    expect(exportsTo(ID.P)).toBe(before);
+    // Out and back again with the same goods: nothing is left booked, on either side.
     bot = await travel(bot, H, P);
     bot = await travel(bot, P, H);
-    expect(hold(H, bot)).toEqual([lot(10, ID.P), sealedFood]);
-    expect(exportsTo(ID.P)).toBe(before + 10 * PRICE);
+    expect(hold(H, bot)).toEqual([lot(10, ID.H), sealedFood]);
+    expect(exportsTo(ID.P)).toBe(before);
     expect(P.world.trade.ledger(ID.H).exports).toBe(partnerBefore);
   });
 

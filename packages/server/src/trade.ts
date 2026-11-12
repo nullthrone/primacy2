@@ -431,10 +431,24 @@ export function markShipLocal(rec: PlayerRecord): void {
 }
 
 /** Remembers the ship a pilot leaves with, so it can be recognised when it comes back. */
-export function recordDeparture(rec: PlayerRecord): void {
+export function recordDeparture(rec: PlayerRecord, self: string): void {
   const lo = normalizeLoadout(rec.passport.ship.loadout);
   const bound = fullBinding(rec) ?? { hull: false, slots: lo.modules.map(() => false) };
-  rec.data.departed = { hull: lo.hull, modules: [...lo.modules], bound } satisfies DepartedShip;
+  // The local goods on board are remembered by value too, so that they are this pilot's own again when they come back.
+  const cargo = cargoTradeUnits(rec.passport.ship.cargo.filter((it) => it.origin === self && !it.sealed));
+  rec.data.departed = { hull: lo.hull, modules: [...lo.modules], bound, cargo } satisfies DepartedShip;
+}
+
+/**
+ * The ship in `rec` was handed to the pilot without being paid for here (the free starter after a
+ * death): nothing on it refunds when sold or swapped, and it yields nothing as a wreck. Buying a
+ * hull or fitting a module here clears the mark again, as for any bound part.
+ */
+export function markShipBound(rec: PlayerRecord, self: string, at: number): void {
+  const lo = normalizeLoadout(rec.passport.ship.loadout);
+  rec.data.customs = {
+    issuer: self, trust: 'visitor', at, loadout: structuredClone(lo), bound: { hull: true, slots: lo.modules.map(() => true) },
+  } satisfies CustomsRecord;
 }
 
 /** The ship the pilot last left with, or null when there is no usable record. */

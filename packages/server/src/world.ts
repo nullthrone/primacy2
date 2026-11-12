@@ -12,6 +12,10 @@ import {
   UNIVERSE_EPOCH_MS,
   HULLS,
   attributeCargo,
+  type CargoItem,
+  addLot,
+  recogniseReturning,
+  type ArrivalRules,
   bindArrivingShip,
   effectiveTier,
   findSite,
@@ -314,6 +318,7 @@ export class World {
         // The pilot came back before the ticket was redeemed: void it. A later redemption attempt fails.
         rec.status = 'here';
         delete rec.away;
+        delete rec.data.departed;
       } else if (rec.status === 'away' && rec.away) {
         const dest = this.fed.known.get(rec.away.server);
         const reachable = dest && this.host.now() - dest.lastSeen < PEER_TIMEOUT_MS * 4;
@@ -329,6 +334,7 @@ export class World {
         this.trade.unbookExport(rec.away.server, rec.away.exported ?? 0);
         rec.status = 'here';
         delete rec.away;
+        delete rec.data.departed;
       }
     }
 
@@ -398,9 +404,17 @@ export class World {
 
     passport.seq += 1;
     // Decide what every lot counts as here: local, free, an import against a partner's balance, or sealed.
-    passport.ship.cargo = attributeCargo(passport.ship.cargo, {
-      self: this.id, issuer: t.issuer, issuerTier: tier, tierOf: (id) => this.fed.tierOf(id),
-    });
+    // Goods this pilot carried out come back as local goods, up to the value that left, and the
+    // export booked for them is taken back: they never stayed away. A customs union member's labels
+    // are believed anyway.
+    const left = tier !== 'union' && existing ? (departedShip(existing)?.cargo ?? 0) : 0;
+    const own = recogniseReturning(passport.ship.cargo, this.id, left);
+    const rules: ArrivalRules = { self: this.id, issuer: t.issuer, issuerTier: tier, tierOf: (id) => this.fed.tierOf(id) };
+    const arrived: CargoItem[] = [];
+    for (const lot of own.back) addLot(arrived, lot.c, lot.n, lot.origin, false);
+    for (const lot of attributeCargo(own.rest, rules)) addLot(arrived, lot.c, lot.n, lot.origin, lot.sealed === true);
+    passport.ship.cargo = arrived;
+    if (own.value > 0 && existing?.away) this.trade.unbookExport(existing.away.server, Math.min(own.value, existing.away.exported ?? 0));
     const firstVisit = !existing;
     if (firstVisit) passport.stats.sectors += 1;
     const rec: PlayerRecord = existing ?? {
@@ -654,7 +668,7 @@ export class World {
     // that leaves into the customs union gets no record: it is local there, may be sold there,
     // and comes back on the union member's word.
     if (this.fed.tierOf(dest.id) === 'union') delete p.rec.data.departed;
-    else recordDeparture(p.rec);
+    else recordDeparture(p.rec, this.id);
     // Remember where the ship was, so a cancelled or failed transfer puts it back there.
     this.save(p);
     p.rec.status = 'transit';
