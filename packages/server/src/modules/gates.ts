@@ -338,7 +338,7 @@ export const gatesModule: GameModule = {
         // Gate progress is value: the cargo passes the trade model, so sealed cargo is refused
         // and imports are limited by the partner's trade balance and the pilot's licence.
         const taken = world.trade.takeCargo(p, cmd.c, give);
-        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
+        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin, p));
         project.paidMaterials[cmd.c] = (project.paidMaterials[cmd.c] ?? 0) + taken.n;
         value += taken.n * (COMMODITIES[cmd.c]?.price ?? 0);
       }

@@ -47,7 +47,14 @@ export interface ServerConfig {
   tradeCredits: Record<string, number>;
   /** Extra credit line while an active warp gate links this server and the partner. */
   gateTradeCredit: number;
-  /** Trade units of imports a pilot may have absorbed per credit of non-trade income earned here. */
+  /**
+   * Trade units of imports every pilot may have absorbed here without having earned anything yet:
+   * about one small hold, so that a first trade run into a partner sector can be sold. All pilots
+   * together stay within the partner's trade balance, which is what bounds a flood of new pilots;
+   * 0 makes every pilot earn the licence first.
+   */
+  importLicenceBase: number;
+  /** Trade units of imports a pilot may have absorbed per credit of non-trade income earned here, on top of the base. */
   importLicenceRate: number;
   /**
    * Largest hull, as a hull id, that a ship from a partner or from a visitor may have; hulls with
@@ -97,6 +104,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
   tradeCredit: 50_000,
   tradeCredits: {},
   gateTradeCredit: 250_000,
+  importLicenceBase: 2_000,
   importLicenceRate: 1,
   shipLimit: defaultShipLimit(),
   insuranceRate: 0.05,
@@ -157,6 +165,7 @@ export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
     else if (!isUnits(units)) problems.push(`tradeCredits.${id} must be a number of trade units, 0 or more`);
   }
   if (!isUnits(c.gateTradeCredit)) problems.push('gateTradeCredit must be a number of trade units, 0 or more');
+  if (!isUnits(c.importLicenceBase)) problems.push('importLicenceBase must be a number of trade units, 0 or more');
   if (!(typeof c.importLicenceRate === 'number' && c.importLicenceRate >= 0 && c.importLicenceRate <= 1000)) {
     problems.push('importLicenceRate must be 0..1000');
   }

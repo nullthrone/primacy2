@@ -14,6 +14,8 @@ import {
   HULLS,
   absorbable,
   cargoTradeUnits,
+  licenceCap,
+  localGoods,
   lotStatus,
   normalizeLoadout,
   remainingAllowance,
@@ -180,8 +182,9 @@ export class TradeBook {
 
   /** The pilot's import licence in trade units: what it allows in total and what has been used. */
   licence(p: Player): { cap: number; used: number } {
+    const cfg = this.world.config;
     const a = this.account(p.rec);
-    return { cap: Math.max(0, a.income) * this.world.config.importLicenceRate, used: a.used };
+    return { cap: licenceCap(a, cfg.importLicenceRate, cfg.importLicenceBase), used: a.used };
   }
 
   /**
@@ -203,7 +206,8 @@ export class TradeBook {
   }
 
   private budget(p: Player): Budget {
-    return { licence: remainingLicence(this.account(p.rec), this.world.config.importLicenceRate), allowance: new Map() };
+    const cfg = this.world.config;
+    return { licence: remainingLicence(this.account(p.rec), cfg.importLicenceRate, cfg.importLicenceBase), allowance: new Map() };
   }
 
   /** Judges one lot against what is left of the budget and reserves what it takes. */
@@ -301,8 +305,8 @@ export class TradeBook {
     return { lots, n: want - left, limit, limitOrigin };
   }
 
-  /** Words for a pilot whose cargo was not, or not fully, taken. */
-  explain(limit: TakeResult['limit'], origin: string | null): string {
+  /** Words for a pilot whose cargo was not, or not fully, taken. With `p`, a licence that never existed is told apart from one that is used up. */
+  explain(limit: TakeResult['limit'], origin: string | null, p?: Player): string {
     const name = origin ? (this.world.fed.known.get(origin)?.desc.name ?? origin.slice(0, 6)) : 'that sector';
     switch (limit) {
       case 'sealed':
@@ -310,7 +314,9 @@ export class TradeBook {
       case 'allowance':
         return `The trade balance with ${name} is exhausted: this sector takes no more of its goods until more has been exported there.`;
       case 'licence':
-        return 'Your import licence is used up. Missions, bounties, survey data and mining in this sector extend it.';
+        return p && !(this.licence(p).cap > 0)
+          ? 'You have no import licence in this sector yet. Missions, bounties, survey data and mining here earn one.'
+          : 'Your import licence is used up. Missions, bounties, survey data and mining in this sector extend it.';
       case 'missing':
         return 'You do not carry that much.';
       default:
@@ -434,9 +440,9 @@ export function markShipLocal(rec: PlayerRecord): void {
 export function recordDeparture(rec: PlayerRecord, self: string): void {
   const lo = normalizeLoadout(rec.passport.ship.loadout);
   const bound = fullBinding(rec) ?? { hull: false, slots: lo.modules.map(() => false) };
-  // The local goods on board are remembered by value too, so that they are this pilot's own again when they come back.
-  const cargo = cargoTradeUnits(rec.passport.ship.cargo.filter((it) => it.origin === self && !it.sealed));
-  rec.data.departed = { hull: lo.hull, modules: [...lo.modules], bound, cargo } satisfies DepartedShip;
+  // The local goods on board are remembered too, commodity by commodity, so that they are this pilot's own again when they come back.
+  const goods = localGoods(rec.passport.ship.cargo, self);
+  rec.data.departed = { hull: lo.hull, modules: [...lo.modules], bound, goods } satisfies DepartedShip;
 }
 
 /**

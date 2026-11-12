@@ -30,14 +30,18 @@ interface SaleNote {
   res: SellResult;
 }
 
-/** Reads the reply data of a sell command; null when it is not in the shape this client knows. */
+/**
+ * Reads the reply data of a sell command; null when it is not in the shape this client knows.
+ * A sale the trade rules refused outright carries only the limit that stopped it: nothing was sold.
+ */
 function asSellResult(data: unknown): SellResult | null {
   if (!data || typeof data !== 'object') return null;
   const d = data as Partial<SellResult>;
-  if (typeof d.n !== 'number' || typeof d.total !== 'number') return null;
+  const refused = d.n === undefined && isSaleLimit(d.limit);
+  if (!refused && (typeof d.n !== 'number' || typeof d.total !== 'number')) return null;
   return {
-    n: d.n,
-    total: d.total,
+    n: refused ? 0 : d.n!,
+    total: refused ? 0 : d.total!,
     tariff: typeof d.tariff === 'number' ? d.tariff : 0,
     limit: isSaleLimit(d.limit) ? d.limit : null,
     limitOrigin: typeof d.limitOrigin === 'string' ? d.limitOrigin : null,
@@ -164,8 +168,9 @@ export function Station({ api }: { api: GameApi }) {
   // A sale keeps its reply: it says how much was sold, the tariff withheld and which limit cut it short.
   const sell = async (c: string, want: number): Promise<void> => {
     const res = await api.cmd({ k: 'sell', c, n: want });
-    setError(res.ok ? null : res.err);
-    const data = res.ok ? asSellResult(res.data) : null;
+    // A refusal that names a trade limit is shown like a sale cut short, in the pilot's language.
+    const data = asSellResult(res.data);
+    setError(res.ok || data ? null : res.err);
     setSale(data ? { c, want, res: data } : null);
     if (res.ok) void api.cmd({ k: 'station' });
   };
@@ -219,13 +224,17 @@ export function Station({ api }: { api: GameApi }) {
       {error && <div class="bad">{error}</div>}
       {active === 'market' && sale && (
         <div class={`sale-note ${sale.res.limit ? 'caution' : 'ok'}`}>
-          <div>
-            {t('station.sold', { n: fmt(sale.res.n), name: commodityName(sale.c), total: fmt(sale.res.total) })}
-            {sale.res.tariff > 0 && ` ${t('station.soldTariff', { tariff: fmt(sale.res.tariff) })}`}
-          </div>
+          {sale.res.n > 0 && (
+            <div>
+              {t('station.sold', { n: fmt(sale.res.n), name: commodityName(sale.c), total: fmt(sale.res.total) })}
+              {sale.res.tariff > 0 && ` ${t('station.soldTariff', { tariff: fmt(sale.res.tariff) })}`}
+            </div>
+          )}
           {sale.res.limit && (
             <div>
-              {t('station.soldShort', { n: fmt(sale.res.n), want: fmt(sale.want) })}{' '}
+              {sale.res.n > 0
+                ? t('station.soldShort', { n: fmt(sale.res.n), want: fmt(sale.want) })
+                : t('station.soldNone', { name: commodityName(sale.c) })}{' '}
               {limitText(sale.res.limit, sale.res.limitOrigin ? originName(sale.res.limitOrigin) : '?')}
             </div>
           )}

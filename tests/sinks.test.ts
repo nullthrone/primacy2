@@ -173,9 +173,30 @@ describe('sinks: imports and the licence', () => {
 
     expect(await run(H, p, { k: 'missionComplete', id })).toMatchObject({ ok: true });
     expect(hold(H, bot)).toEqual([]);
-    // Completing the delivery earned its own reward (900) as well.
-    expect(licenceOf(H, p)).toEqual({ cap: 4 * PRICE + 10 + 900, used: 4 * PRICE });
+    // The shipment was the partner's goods, so its reward (900) is trade revenue and earns no licence.
+    expect(licenceOf(H, p)).toEqual({ cap: 4 * PRICE + 10, used: 4 * PRICE });
     expect(H.world.trade.ledger(ID.P).imports).toBeGreaterThanOrEqual(4 * PRICE);
+  });
+
+  it('imported ore handed in for a mining mission does not feed the licence it uses; only the share made here counts', async () => {
+    let bot = await newPilot(P, 'OreRunner');
+    load(P, bot, [{ c: ORE, n: 6, origin: ID.P }]);
+    bot = await travel(bot, P, H);
+    const p = dock(H, bot);
+    const ore = COMMODITIES[ORE]!.price;
+    H.world.trade.creditIncome(p, 6 * ore, 'bounty');
+    // Two missions of two tonnes each, paying well above the ore's value as mining missions do.
+    const reward = Math.round(2 * ore * 1.7);
+    for (let i = 0; i < 2; i++) {
+      const id = giveMission(H, p, { kind: 'mining', c: ORE, n: 2, reward });
+      expect(await run(H, p, { k: 'missionComplete', id })).toMatchObject({ ok: true });
+    }
+    expect(licenceOf(H, p)).toEqual({ cap: 6 * ore, used: 4 * ore });
+    // One tonne mined here and one imported: half the reward is income.
+    load(H, bot, [{ c: ORE, n: 1, origin: ID.H }, { c: ORE, n: 1, origin: ID.P }]);
+    const mixed = giveMission(H, p, { kind: 'mining', c: ORE, n: 2, reward: 1000 });
+    expect(await run(H, p, { k: 'missionComplete', id: mixed })).toMatchObject({ ok: true });
+    expect(licenceOf(H, p)).toEqual({ cap: 6 * ore + 500, used: 5 * ore });
   });
 
   it('the deposit of a delivery is not income; only the reward is', async () => {

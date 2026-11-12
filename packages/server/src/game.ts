@@ -215,7 +215,8 @@ export function newShip(id: number, name: string, loadout: Loadout, stats: ShipS
   };
 }
 
-export type CommandResult = { ok: true; data?: unknown } | { ok: false; err: string };
+/** `data` on a failure is machine-readable detail about the refusal (for a sale: which trade limit stopped it). */
+export type CommandResult = { ok: true; data?: unknown } | { ok: false; err: string; data?: unknown };
 export type CommandHandler<K extends Command['k'] = Command['k']> = (
   player: Player,
   cmd: Extract<Command, { k: K }>,
@@ -223,7 +224,7 @@ export type CommandHandler<K extends Command['k'] = Command['k']> = (
 ) => CommandResult | Promise<CommandResult>;
 
 export const ok = (data?: unknown): CommandResult => ({ ok: true, data });
-export const fail = (err: string): CommandResult => ({ ok: false, err });
+export const fail = (err: string, data?: unknown): CommandResult => (data === undefined ? { ok: false, err } : { ok: false, err, data });
 
 /**
  * A gameplay module. The core calls these hooks; every hook is optional.

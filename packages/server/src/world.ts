@@ -404,11 +404,10 @@ export class World {
 
     passport.seq += 1;
     // Decide what every lot counts as here: local, free, an import against a partner's balance, or sealed.
-    // Goods this pilot carried out come back as local goods, up to the value that left, and the
-    // export booked for them is taken back: they never stayed away. A customs union member's labels
-    // are believed anyway.
-    const left = tier !== 'union' && existing ? (departedShip(existing)?.cargo ?? 0) : 0;
-    const own = recogniseReturning(passport.ship.cargo, this.id, left);
+    // Goods this pilot carried out come back as local goods, commodity by commodity up to the tonnes
+    // that left, whatever was sealed on the way, and the export booked for them is taken back:
+    // they never stayed away.
+    const own = recogniseReturning(passport.ship.cargo, this.id, existing ? departedShip(existing)?.goods : null);
     const rules: ArrivalRules = { self: this.id, issuer: t.issuer, issuerTier: tier, tierOf: (id) => this.fed.tierOf(id) };
     const arrived: CargoItem[] = [];
     for (const lot of own.back) addLot(arrived, lot.c, lot.n, lot.origin, false);

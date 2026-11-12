@@ -169,14 +169,21 @@ export const missionsModule: GameModule = {
       const m = d.active[i];
       if (!m) return fail('No such mission.');
       let pay = m.reward;
+      /** The part of the reward that counts as non-trade income. */
+      let earned = m.reward;
       if (m.kind === 'delivery' || m.kind === 'mining') {
         if (m.destSystem !== at.sim.def.id || m.destSite !== at.site.id) return fail(`This has to be delivered to ${m.destName}.`);
         if (!m.c || !m.n || p.cargoCount(m.c) < m.n) return fail('You do not carry the full shipment.');
         // The shipment is turned into mission progress, so it passes the trade model like a sale:
         // sealed cargo is refused, imports are limited by the partner's balance and the licence.
         const taken = world.trade.takeCargo(p, m.c, m.n, { exact: true });
-        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
+        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin, p));
         pay += m.deposit;
+        // A shipment filled with goods from elsewhere is a sale by another name: only the share
+        // that was made here earns licence. Otherwise imported ore handed in for a mining mission
+        // would earn more licence than it uses, and the licence would bound nothing.
+        const made = taken.lots.reduce((sum, lot) => sum + (lot.origin === world.id ? lot.n : 0), 0);
+        earned = m.reward * (made / taken.n);
       } else if (m.kind === 'bounty') {
         if ((m.progress ?? 0) < (m.n ?? 1)) return fail(`Only ${m.progress ?? 0} of ${m.n} confirmed so far.`);
       } else if (m.kind === 'survey') {
@@ -186,7 +193,7 @@ export const missionsModule: GameModule = {
       }
       p.rec.credits += pay;
       // Only the reward is income; the deposit is the pilot's own money coming back.
-      world.trade.creditIncome(p, m.reward, 'mission');
+      world.trade.creditIncome(p, earned, 'mission');
       d.done.push(m.id);
       d.active.splice(i, 1);
       p.notice('info', 'mission_done', `Mission complete: ${pay} credits paid.`);

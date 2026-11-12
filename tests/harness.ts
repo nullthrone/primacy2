@@ -21,7 +21,8 @@ export class Cluster {
 
   async start(over: Partial<ServerConfig>): Promise<PrimacyServer> {
     const server = await startServer(
-      { host: '127.0.0.1', port: 0, dataDir: ':memory:', systems: 8, bootstrapWaitMs: 2_000, ...over },
+      // No base licence in the tests: they count the licence exactly. The base has its own test in trade.test.ts.
+      { host: '127.0.0.1', port: 0, dataDir: ':memory:', systems: 8, bootstrapWaitMs: 2_000, importLicenceBase: 0, ...over },
       {
         now: () => this.nowMs, autoTick: false, keys: testKeys(over.name ?? `server-${this.servers.length}`),
         log: (m) => this.logs.push(`${over.name ?? '?'}: ${m}`),

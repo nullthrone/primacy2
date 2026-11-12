@@ -197,6 +197,7 @@ export const de: Partial<Record<StringKey, string>> = {
   'station.sold': '{n} t {name} für {total} cr verkauft.',
   'station.soldTariff': 'Einbehaltener Zoll: {tariff} cr.',
   'station.soldShort': 'Nur {n} von {want} t verkauft.',
+  'station.soldNone': 'Kein {name} verkauft.',
   'station.bound': 'Gebunden',
   'station.boundNothing': 'bringt hier keine Erstattung',
   'station.boundNote': 'Gebundene Teile kamen von außerhalb der Zollunion herein. Sie bringen bei Verkauf oder Tausch in diesem Sektor keine Erstattung, und das Wrack liefert weder Schrott noch Teile.',

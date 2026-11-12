@@ -128,7 +128,7 @@ export class Connection {
             if (p) {
               this.pending.delete(m.id);
               window.clearTimeout(p.timer);
-              p.resolve(m.ok ? { ok: true, data: m.data } : { ok: false, err: m.err ?? 'Refused.' });
+              p.resolve(m.ok ? { ok: true, data: m.data } : { ok: false, err: m.err ?? 'Refused.', data: m.data });
             }
             return;
           }

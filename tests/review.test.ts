@@ -133,13 +133,40 @@ describe('review: the honest pilot', () => {
     expect(byOrigin(hold(H, bot))).toEqual(byOrigin([lot(10, ID.H), lot(10, ID.P)]));
   });
 
-  it('a sealed lot is never recognised as the pilot\'s own', async () => {
+  it('his own goods come home usable although a sector on the way sealed them, but only as many tonnes as left', async () => {
     let bot = await newPilot(H, 'SealedBack');
     load(H, bot, [lot(4, ID.H)]);
     bot = await travel(bot, H, P);
-    load(P, bot, [lot(4, ID.H, true)]);
+    // What a sector that admits visitors only does to every lot; two tonnes more than left come back.
+    load(P, bot, [lot(6, ID.H, true)]);
     bot = await travel(bot, P, H);
-    expect(hold(H, bot)).toEqual([lot(4, ID.H, true)]);
+    expect(hold(H, bot)).toEqual([lot(4, ID.H), lot(2, ID.H, true)]);
+    const p = dock(H, bot);
+    expect(await sell(H, p, 6)).toMatchObject({ ok: true, data: { n: 4, limit: 'sealed' } });
+  });
+
+  it('comes back from a sector Home rates visitor with his own goods usable, and nothing else', async () => {
+    let bot = await newPilot(H, 'Tourist');
+    load(H, bot, [lot(3, ID.H)]);
+    bot = await travel(bot, H, C);
+    // The visitor's operator adds minted goods under Home's label and under his own.
+    load(C, bot, [lot(3, ID.H), lot(5, ID.H, false, 'iron_ore'), lot(2, ID.C)]);
+    bot = await travel(bot, C, H);
+    expect(byOrigin(hold(H, bot))).toEqual(byOrigin([lot(3, ID.H), lot(5, ID.H, true, 'iron_ore'), lot(2, ID.C, true)]));
+  });
+
+  it('goods of another kind under the label of Home are not his own, whatever they are worth', async () => {
+    let bot = await newPilot(H, 'Alchemist');
+    load(H, bot, [lot(1, ID.H)]);
+    const before = exportsTo(ID.P);
+    bot = await travel(bot, H, P);
+    // One tonne of medicine left; the partner hands back the same value in ore under Home's label.
+    const ore = Math.floor(PRICE / COMMODITIES.iron_ore!.price);
+    load(P, bot, [lot(ore, ID.H, false, 'iron_ore')]);
+    bot = await travel(bot, P, H);
+    // The ore is the partner's import, and the medicine stays exported.
+    expect(hold(H, bot)).toEqual([lot(ore, ID.P, false, 'iron_ore')]);
+    expect(exportsTo(ID.P)).toBe(before + PRICE);
   });
 
   it('a ticket that is voided leaves no recognition behind', async () => {

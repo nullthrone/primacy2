@@ -177,7 +177,7 @@ export class Session implements Connection {
         }
         void this.world.handleCommand(p, msg.c).then((res) => {
           if (this.state !== 'ready') return;
-          this.sendMsg(res.ok ? { t: 'res', id: msg.id, ok: true, data: res.data } : { t: 'res', id: msg.id, ok: false, err: res.err });
+          this.sendMsg(res.ok ? { t: 'res', id: msg.id, ok: true, data: res.data } : { t: 'res', id: msg.id, ok: false, err: res.err, data: res.data });
         });
         return;
       }

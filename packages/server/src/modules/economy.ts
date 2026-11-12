@@ -435,7 +435,7 @@ export const economyModule: GameModule = {
       // The trade books decide how much of it may be sold here: sealed cargo never, imports only
       // within the partner's trade balance and the pilot's licence. What passes leaves the hold.
       const taken = world.trade.takeCargo(p, row.c, n);
-      if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
+      if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin, p), { limit: taken.limit, limitOrigin: taken.limitOrigin });
       // Each stack is priced where the previous one left the stock, then taxed by its origin.
       let stock = row.stock;
       let gross = 0;
@@ -455,7 +455,7 @@ export const economyModule: GameModule = {
       saveMarket(world, market);
       world.pushPilot(p);
       world.pushStation(p);
-      if (taken.limit) p.notice('warn', 'sale_limited', `Only ${sold} t sold. ${world.trade.explain(taken.limit, taken.limitOrigin)}`);
+      if (taken.limit) p.notice('warn', 'sale_limited', `Only ${sold} t sold. ${world.trade.explain(taken.limit, taken.limitOrigin, p)}`);
       return ok({
         n: sold, total: pay, tariff: Math.floor(gross) - pay, limit: taken.limit, limitOrigin: taken.limitOrigin,
       } satisfies SellResult);

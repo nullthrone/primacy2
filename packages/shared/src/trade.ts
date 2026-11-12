@@ -134,32 +134,53 @@ export function attributeLot(lot: CargoItem, r: ArrivalRules): CargoItem {
   return out(lot.origin, true);
 }
 
+/** Tonnes by commodity of the local, unsealed cargo of a hold: what a departing ship carries out as its own goods. */
+export function localGoods(cargo: readonly CargoItem[], self: string): Record<string, number> {
+  const goods: Record<string, number> = {};
+  for (const lot of cargo) {
+    if (lot.origin !== self || lot.sealed || !(lot.n > 0) || !Object.hasOwn(COMMODITIES, lot.c)) continue;
+    goods[lot.c] = (Object.hasOwn(goods, lot.c) ? goods[lot.c]! : 0) + lot.n;
+  }
+  return goods;
+}
+
 /**
- * Splits an arriving hold into the goods the pilot is taking back home and the rest. `left` is the
- * trade value of local, unsealed cargo this pilot carried out (see `DepartedShip.cargo`). Lots that
- * claim this server's label, are not sealed, and fit under that value, whole tonnes at a time, come
- * back as local goods; everything else (other labels, sealed lots, more than was carried out, other
- * goods worth more) goes on to `attributeCargo` as usual. A server that returns different goods
- * under this server's label gains nothing: the value that left is the most that can return.
+ * Splits an arriving hold into the goods the pilot is taking back home and the rest. `left` is
+ * what this pilot carried out as local goods, in tonnes by commodity (see `DepartedShip.goods`).
+ * Lots that carry this server's label come back as local goods, commodity by commodity, up to the
+ * tonnes that left; everything else (other labels, other commodities, more than was carried out)
+ * goes on to `attributeCargo` as usual.
+ *
+ * - The match is by commodity, not by value: otherwise a round trip through another server would
+ *   turn the cheapest local goods into any other goods of the same value, as local goods, without
+ *   tariff, licence or trade balance.
+ * - A seal set on the way does not count against the pilot's own goods: a sector that only admits
+ *   visitors seals everything, and the goods must still be worth something at home. What can
+ *   return is bounded by what left, so a seal adds nothing to that bound.
  */
 export function recogniseReturning(
-  cargo: readonly CargoItem[], self: string, left: number,
+  cargo: readonly CargoItem[], self: string, left: Readonly<Record<string, number>> | null | undefined,
 ): { back: CargoItem[]; rest: CargoItem[]; value: number } {
   const back: CargoItem[] = [];
   const rest: CargoItem[] = [];
   let value = 0;
-  let room = Number.isFinite(left) && left > 0 ? left : 0;
+  const room = new Map<string, number>();
+  if (left && typeof left === 'object') {
+    for (const [c, n] of Object.entries(left)) {
+      if (Object.hasOwn(COMMODITIES, c) && Number.isFinite(n) && n >= 1) room.set(c, Math.floor(n));
+    }
+  }
   for (const lot of cargo) {
-    const price = tradeUnits(lot.c, 1);
-    if (lot.sealed || lot.origin !== self || !(price > 0) || room < price) {
+    const free = lot.origin === self ? (room.get(lot.c) ?? 0) : 0;
+    const n = Math.min(Math.floor(lot.n), free);
+    if (!(n > 0)) {
       rest.push(lot);
       continue;
     }
-    const n = Math.min(lot.n, Math.floor(room / price));
     back.push({ c: lot.c, n, origin: self });
-    room -= n * price;
-    value += n * price;
-    if (n < lot.n) rest.push({ c: lot.c, n: lot.n - n, origin: lot.origin });
+    room.set(lot.c, free - n);
+    value += tradeUnits(lot.c, n);
+    if (n < lot.n) rest.push(lot.sealed ? { c: lot.c, n: lot.n - n, origin: lot.origin, sealed: true } : { c: lot.c, n: lot.n - n, origin: lot.origin });
   }
   return { back, rest, value };
 }
@@ -199,9 +220,14 @@ export interface LicenceAccount {
   used: number;
 }
 
-/** Trade units of imports a pilot may still have absorbed: rate times non-trade income, less what was used. */
-export function remainingLicence(licence: LicenceAccount, rate: number): number {
-  return Math.max(0, licence.income * rate - licence.used);
+/** A pilot's whole import licence in trade units: the base every pilot has, plus rate times non-trade income. */
+export function licenceCap(licence: LicenceAccount, rate: number, base = 0): number {
+  return Math.max(0, base) + Math.max(0, licence.income) * Math.max(0, rate);
+}
+
+/** Trade units of imports a pilot may still have absorbed: the whole licence less what was used. */
+export function remainingLicence(licence: LicenceAccount, rate: number, base = 0): number {
+  return Math.max(0, licenceCap(licence, rate, base) - licence.used);
 }
 
 /** Why a lot could not be absorbed in full. */
@@ -247,8 +273,8 @@ export interface DepartedShip {
   modules: (string | null)[];
   /** The binding the ship had when it left. */
   bound: ShipBinding;
-  /** Trade units of local, unsealed cargo the ship carried out; it may come back as local goods, up to this value. */
-  cargo?: number;
+  /** Local, unsealed cargo the ship carried out, in tonnes by commodity; that much may come back as local goods. */
+  goods?: Record<string, number>;
 }
 
 /**

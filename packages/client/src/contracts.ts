@@ -197,7 +197,8 @@ export interface GameRenderer {
 // Game API used by the UI
 // ---------------------------------------------------------------------------------------------
 
-export type CmdReply = { ok: true; data?: unknown } | { ok: false; err: string };
+/** `data` on a refusal is machine-readable detail, when the server gives any (for a sale: the trade limit that stopped it). */
+export type CmdReply = { ok: true; data?: unknown } | { ok: false; err: string; data?: unknown };
 
 export interface ScreenPoint {
   /** CSS pixels from the top-left of the view. */

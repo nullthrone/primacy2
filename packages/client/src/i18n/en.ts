@@ -195,6 +195,7 @@ export const en = {
   'station.sold': 'Sold {n} t {name} for {total} cr.',
   'station.soldTariff': 'Tariff withheld: {tariff} cr.',
   'station.soldShort': 'Only {n} of {want} t sold.',
+  'station.soldNone': 'No {name} sold.',
   'station.bound': 'Bound',
   'station.boundNothing': 'refunds nothing here',
   'station.boundNote': 'Bound parts came in from outside the customs union. They refund nothing when sold or swapped in this sector, and the wreck leaves no scrap or parts.',

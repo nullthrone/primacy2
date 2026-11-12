@@ -128,7 +128,7 @@ afterAll(async () => {
 describe('trade model: configuration and books', () => {
   it('has the documented defaults and validates the new keys', () => {
     expect(makeConfig()).toMatchObject({
-      defaultTrust: 'visitor', tradeCredit: 50_000, tradeCredits: {}, gateTradeCredit: 250_000, importLicenceRate: 1,
+      defaultTrust: 'visitor', tradeCredit: 50_000, tradeCredits: {}, gateTradeCredit: 250_000, importLicenceBase: 2_000, importLicenceRate: 1,
       shipLimit: { partner: null, visitor: 'drover' },
     });
     expect(() => makeConfig({ defaultTrust: 'neutral' as never })).toThrow(/"neutral" is now called "partner"/);
@@ -140,6 +140,7 @@ describe('trade model: configuration and books', () => {
     expect(() => makeConfig({ tradeCredits: { [ID.P]: Number.NaN } })).toThrow(/tradeCredits/);
     expect(() => makeConfig({ gateTradeCredit: -5 })).toThrow(/gateTradeCredit/);
     expect(() => makeConfig({ importLicenceRate: -1 })).toThrow(/importLicenceRate/);
+    expect(() => makeConfig({ importLicenceBase: -1 })).toThrow(/importLicenceBase/);
     expect(() => makeConfig({ shipLimit: { partner: 'made_up', visitor: null } })).toThrow(/shipLimit\.partner/);
     expect(makeConfig({ shipLimit: { partner: 'wayfarer', visitor: null } }).shipLimit).toEqual({ partner: 'wayfarer', visitor: null });
   });
@@ -407,6 +408,18 @@ describe('trade model: cargo', () => {
       H.config.importLicenceRate = 1;
     }
     expect(hold(H, bot)).toEqual([lot(4, ID.P)]);
+    // The base every pilot has comes on top of what was earned, and is used up like the rest.
+    H.config.importLicenceBase = 2 * PRICE;
+    try {
+      expect(H.world.pilotView(p).licence).toEqual({ cap: 5 * PRICE + 50, used: 6 * PRICE });
+      H.config.importLicenceBase = 5 * PRICE;
+      p.addCargo(GOOD, 4, ID.P, false);
+      expect(await sell(H, p, 8)).toMatchObject({ ok: true, data: { n: 2, limit: 'licence', limitOrigin: ID.P } });
+      expect(H.world.pilotView(p).licence).toEqual({ cap: 8 * PRICE + 50, used: 8 * PRICE });
+    } finally {
+      H.config.importLicenceBase = 0;
+    }
+    load(H, bot, [lot(4, ID.P)]);
 
     // A rating that is lowered later takes effect on goods already in the hold.
     H.world.trade.creditIncome(p, 1_000_000, 'mission');
