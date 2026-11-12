@@ -121,6 +121,9 @@ export const coreModule: GameModule = {
       if (cmd.system === sim.def.id) return fail('You are already in that system.');
       const target = world.resolveSystem(cmd.system);
       if (!target) return fail('Unknown system.');
+      // The destination's published class limit: refuse before the charge starts and fuel is spent.
+      const refusal = target.server ? world.entryRefusal(p, target.server) : null;
+      if (refusal) return fail(refusal);
       const distance = v3.dist(sim.def.pos, target.pos);
       const cost = foldFuelCost(distance, ship.stats);
       if (!Number.isFinite(cost)) return fail(`Out of range: ${distance.toFixed(1)} ly, drive reaches ${ship.stats.jumpRange.toFixed(1)} ly.`);

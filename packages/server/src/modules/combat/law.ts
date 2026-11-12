@@ -105,6 +105,9 @@ export function onKill(sim: SystemSim, killer: Ship | null, victim: Ship): void 
     }
     if (kp && reward > 0) {
       kp.rec.credits = Math.max(0, Math.floor(kp.rec.credits)) + reward;
+      // Only bounties on NPCs count towards the import licence: a bounty on a pilot can be farmed
+      // by two colluding pilots, each with a free key.
+      if (!vp) sim.world.trade.creditIncome(kp, reward, 'bounty');
       kp.notice('info', 'bounty_paid', `Bounty collected: ${reward} cr for ${victim.name}.`);
     }
     return;

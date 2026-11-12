@@ -172,7 +172,10 @@ export const missionsModule: GameModule = {
       if (m.kind === 'delivery' || m.kind === 'mining') {
         if (m.destSystem !== at.sim.def.id || m.destSite !== at.site.id) return fail(`This has to be delivered to ${m.destName}.`);
         if (!m.c || !m.n || p.cargoCount(m.c) < m.n) return fail('You do not carry the full shipment.');
-        p.removeCargo(m.c, m.n);
+        // The shipment is turned into mission progress, so it passes the trade model like a sale:
+        // sealed cargo is refused, imports are limited by the partner's balance and the licence.
+        const taken = world.trade.takeCargo(p, m.c, m.n, { exact: true });
+        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
         pay += m.deposit;
       } else if (m.kind === 'bounty') {
         if ((m.progress ?? 0) < (m.n ?? 1)) return fail(`Only ${m.progress ?? 0} of ${m.n} confirmed so far.`);
@@ -182,6 +185,8 @@ export const missionsModule: GameModule = {
         return fail('This mission cannot be completed here.');
       }
       p.rec.credits += pay;
+      // Only the reward is income; the deposit is the pilot's own money coming back.
+      world.trade.creditIncome(p, m.reward, 'mission');
       d.done.push(m.id);
       d.active.splice(i, 1);
       p.notice('info', 'mission_done', `Mission complete: ${pay} credits paid.`);

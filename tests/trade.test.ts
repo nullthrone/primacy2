@@ -153,6 +153,33 @@ describe('trade model: configuration and books', () => {
     });
   });
 
+  it('the credit line is the default or the per-server entry, plus a bonus only while an active gate links the two', () => {
+    const book = H.world.trade;
+    expect(book.creditLine(ID.C)).toBe(50_000);
+    expect(book.creditLine(ID.P)).toBe(1_000_000);
+    const site = H.world.capital().site;
+    const saved = site.gate;
+    const gate = (peer: string, state: 'planned' | 'building' | 'active' | 'dormant') => ({
+      linkId: 'test-link', peer, remoteSystem: `${peer}:0`, state, progress: 1, remoteProgress: 1,
+    });
+    try {
+      for (const state of ['planned', 'building', 'dormant'] as const) {
+        site.gate = gate(ID.P, state);
+        expect(book.creditLine(ID.P)).toBe(1_000_000);
+      }
+      site.gate = gate(ID.P, 'active');
+      expect(book.creditLine(ID.P)).toBe(1_000_000 + H.config.gateTradeCredit);
+      // The gate leads to the partner; nobody else gains from it.
+      expect(book.creditLine(ID.C)).toBe(50_000);
+      const l = book.ledger(ID.P);
+      expect(book.allowance(ID.P)).toBe(l.exports + 1_000_000 + 250_000 - l.imports);
+    } finally {
+      if (saved) site.gate = saved;
+      else delete site.gate;
+    }
+    expect(book.creditLine(ID.P)).toBe(1_000_000);
+  });
+
   it('the ledger is kept in the store', () => {
     const store = new Store(':memory:');
     expect(store.loadLedger(ID.P)).toEqual({ exports: 0, imports: 0 });
@@ -454,8 +481,8 @@ describe('trade model: ships', () => {
     expect(abroad.slots.every((x) => x)).toBe(true);
     bot = await travel(bot, P, H);
     let p = playerOf(H, bot);
-    const slots = p.rec.passport.ship.loadout.modules.length;
-    expect(H.world.pilotView(p).shipBound).toEqual({ hull: false, slots: Array.from({ length: slots }, () => false) });
+    expect(H.world.pilotView(p).shipBound).toBeNull();
+    expect(isHullBound(p.rec)).toBe(false);
 
     // Second trip: one module is replaced at the partner's.
     bot = await travel(bot, H, P);
@@ -493,9 +520,7 @@ describe('trade model: ships', () => {
     let direct = await newPilot(H, 'UnionReturner');
     direct = await travel(direct, H, U);
     direct = await travel(direct, U, H);
-    const b = H.world.pilotView(playerOf(H, direct)).shipBound!;
-    expect(b.hull).toBe(false);
-    expect(b.slots.some((x) => x)).toBe(false);
+    expect(H.world.pilotView(playerOf(H, direct)).shipBound).toBeNull();
   });
 
   it('a ship above the class limit is refused at the origin, and at the destination when the origin does not check', async () => {

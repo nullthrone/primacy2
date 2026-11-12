@@ -5,6 +5,7 @@
  */
 import { HULLS, MODULES, starterLoadout, FlightMode, type Loadout } from '@primacy2/shared';
 import { fail, ok, type GameModule, type Player } from '../game.ts';
+import { markShipLocal } from '../trade.ts';
 import type { World } from '../world.ts';
 
 /** Catalog price of a hull and everything fitted to it. */
@@ -37,6 +38,9 @@ export const insuranceModule: GameModule = {
         // Nothing is charged; the pilot starts over with the free hull and its stock fit.
         p.rec.passport.ship.loadout = starterLoadout();
         p.refit();
+        // The free starter is issued here, so nothing on it is bound. A ship that is replaced for
+        // the deductible stays as bound as it was.
+        markShipLocal(p.rec);
       }
       if (!world.respawn(p)) return fail('You are not dead.');
       // Repaired and refuelled: the ship leaves the yard with full tanks.

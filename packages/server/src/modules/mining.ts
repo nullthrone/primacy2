@@ -2,7 +2,7 @@
  * Mining: lasers cut ore out of asteroids at belt, ring and anomaly sites. The ore floats out as
  * cargo canisters that any ship can scoop, so mining invites both cooperation and piracy.
  */
-import { Button, EntityFlag, EntityKind, FlightMode, findSite, forwardOf, v3, weaponEnergyMul, type AsteroidDef, type GameEvent } from '@primacy2/shared';
+import { Button, EntityFlag, EntityKind, FlightMode, findSite, forwardOf, tradeUnits, v3, weaponEnergyMul, type AsteroidDef, type GameEvent } from '@primacy2/shared';
 import type { GameModule, Player, Ship } from '../game.ts';
 import type { SystemSim } from '../sim.ts';
 
@@ -135,7 +135,11 @@ export const miningModule: GameModule = {
         }
         while (cut.buffer >= 1) {
           cut.buffer -= 1;
-          if (ship.player) ship.player.rec.passport.stats.mined += 1;
+          if (ship.player) {
+            ship.player.rec.passport.stats.mined += 1;
+            // Ore extracted here counts as income for the import licence, in trade units.
+            sim.world.trade.creditIncome(ship.player, tradeUnits(rock.ore, 1), 'mining');
+          }
           if (pods < 0) {
             pods = 0;
             for (const o of sim.objects.values()) if (o.anchor === zone && o.kind === EntityKind.Loot) pods++;

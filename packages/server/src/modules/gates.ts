@@ -335,9 +335,12 @@ export const gatesModule: GameModule = {
         const need = c.materials[cmd.c]! - (project.paidMaterials[cmd.c] ?? 0);
         const give = Math.min(cmd.n, need, p.cargoCount(cmd.c));
         if (give <= 0) return fail(need <= 0 ? 'The gate needs no more of that.' : 'You do not carry that material.');
-        p.removeCargo(cmd.c, give);
-        project.paidMaterials[cmd.c] = (project.paidMaterials[cmd.c] ?? 0) + give;
-        value += give * (COMMODITIES[cmd.c]?.price ?? 0);
+        // Gate progress is value: the cargo passes the trade model, so sealed cargo is refused
+        // and imports are limited by the partner's trade balance and the pilot's licence.
+        const taken = world.trade.takeCargo(p, cmd.c, give);
+        if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
+        project.paidMaterials[cmd.c] = (project.paidMaterials[cmd.c] ?? 0) + taken.n;
+        value += taken.n * (COMMODITIES[cmd.c]?.price ?? 0);
       }
       if (value <= 0) return fail('Nothing to contribute.');
       const entry = project.contributors[p.id] ?? { name: p.name, value: 0 };

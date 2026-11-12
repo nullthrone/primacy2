@@ -241,7 +241,8 @@ export interface PilotView {
   licence: { cap: number; used: number };
   /**
    * Parts of the ship that are bound here (brought from a server outside the customs union):
-   * they refund nothing and leave no scrap or parts. Null when nothing is bound.
+   * they refund nothing and leave no scrap or parts. `slots` has one entry per slot of the hull.
+   * Null when nothing on the ship is bound.
    */
   shipBound: ShipBinding | null;
 }

@@ -53,7 +53,7 @@ import type { Federation, KnownServer } from './federation.ts';
 import { Player, newShip, type CommandHandler, type CommandResult, type Connection, type GameModule, type Ship } from './game.ts';
 import { SystemSim } from './sim.ts';
 import type { PlayerRecord, Store } from './store.ts';
-import { TradeBook, departedShip, fullBinding, isHullBound, recordDeparture, shipLimitPrices, type CustomsRecord } from './trade.ts';
+import { TradeBook, boundParts, departedShip, isHullBound, recordDeparture, shipLimitPrices, type CustomsRecord } from './trade.ts';
 
 export interface WorldHost {
   readonly id: string;
@@ -202,7 +202,7 @@ export class World {
       homeSystem: p.rec.homeSystem,
       rebuy: 0,
       licence: this.trade.licence(p),
-      shipBound: fullBinding(p.rec),
+      shipBound: boundParts(p.rec),
     };
     for (const m of this.modules) m.pilotView?.(p, view);
     return view;
@@ -644,9 +644,8 @@ export class World {
     const now = this.host.now();
     const nonce = randomNonce();
     // The ticket says which parts of the ship are bound here; a customs union member passes that on.
-    const bound = fullBinding(p.rec);
-    const passport: Passport =
-      bound && (bound.hull || bound.slots.includes(true)) ? { ...p.rec.passport, ship: { ...p.rec.passport.ship, bound } } : p.rec.passport;
+    const bound = boundParts(p.rec);
+    const passport: Passport = bound ? { ...p.rec.passport, ship: { ...p.rec.passport.ship, bound } } : p.rec.passport;
     const ticket = issueTicket(
       { issuer: this.id, dest: dest.id, playerKey: p.rec.key, passport, arrival, nonce, nowMs: now },
       this.host.keys,

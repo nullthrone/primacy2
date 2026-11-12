@@ -408,6 +408,12 @@ export function fullBinding(rec: PlayerRecord): ShipBinding | null {
   return { hull: b.hull, slots: Array.from({ length: count }, (_, i) => (b.slots[i] ?? b.hull) === true) };
 }
 
+/** The bound parts of the pilot's ship, one entry per slot; null when nothing on it is bound. */
+export function boundParts(rec: PlayerRecord): ShipBinding | null {
+  const b = fullBinding(rec);
+  return b && (b.hull || b.slots.includes(true)) ? b : null;
+}
+
 /** Whatever sits in `slot` from now on was bought here (or the slot is empty). */
 export function markSlotLocal(rec: PlayerRecord, slot: number): void {
   const b = shipBinding(rec);

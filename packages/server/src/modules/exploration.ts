@@ -88,6 +88,7 @@ export const explorationModule: GameModule = {
       const value = pendingValue(p, world);
       if (value <= 0) return fail('You have no survey data to sell.');
       p.rec.credits += value;
+      world.trade.creditIncome(p, value, 'data');
       for (const s of d.scans) d.sold.push(s.key);
       if (d.sold.length > 5000) d.sold.splice(0, d.sold.length - 5000);
       d.scans = [];

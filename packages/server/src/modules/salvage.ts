@@ -10,6 +10,7 @@ import {
 } from '@primacy2/shared';
 import type { GameModule, Ship, SimObject } from '../game.ts';
 import type { SystemSim } from '../sim.ts';
+import { isHullBound, isSlotBound } from '../trade.ts';
 
 /** How long a wreck lasts, universe seconds. */
 export const WRECK_LIFETIME = 900;
@@ -81,10 +82,16 @@ function makeWreck(sim: SystemSim, ship: Ship): void {
   // A pilot's stock starter ship is what insurance hands out for free, so it yields no scrap and no
   // parts: otherwise two pilots could destroy and salvage free ships for credits.
   const worthless = !!ship.player && isStockStarter(ship);
-  if (!worthless) addStack(contents, 'scrap', Math.max(1, Math.round((hull?.mass ?? 0) / KG_PER_SCRAP_TONNE)), sim.world.id);
+  // Bound parts were not paid for here (they came with a ship from another server) and yield nothing.
+  const rec = ship.player?.rec;
+  const hullBound = !!rec && isHullBound(rec);
+  if (!worthless && !hullBound) addStack(contents, 'scrap', Math.max(1, Math.round((hull?.mass ?? 0) / KG_PER_SCRAP_TONNE)), sim.world.id);
   const rng = sim.world.random();
-  for (const id of worthless ? [] : ship.loadout.modules) {
+  const fitted = worthless ? [] : ship.loadout.modules;
+  for (let slot = 0; slot < fitted.length; slot++) {
+    const id = fitted[slot];
     if (typeof id !== 'string' || !Object.hasOwn(MODULES, id)) continue;
+    if (rec && isSlotBound(rec, slot)) continue;
     if (rng.range(0, 1) < PART_CHANCE) addStack(contents, PART_FOR_SLOT[MODULES[id]!.slot] ?? 'alloys', 1, sim.world.id);
   }
 
