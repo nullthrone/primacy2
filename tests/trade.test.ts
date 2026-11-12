@@ -268,8 +268,6 @@ describe('trade model: cargo', () => {
     expect(H.world.trade.ledger(ID.C).imports).toBe(0);
   });
 
-  it.todo('a sealed shipment cannot complete a delivery or mining mission (needs missionComplete wired to takeCargo)');
-
   it('sealed cargo stays sealed in the wreck of the ship, in the pods cut from it, and is gone after respawn', async () => {
     let bot = await newPilot(C, 'Wrecked');
     load(C, bot, [lot(5, ID.H)]);

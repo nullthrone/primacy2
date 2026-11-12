@@ -77,7 +77,10 @@ jump across. [docs/HOSTING.md](docs/HOSTING.md) covers configuration, reachabili
   ticket. A receiving server rebuilds every ship from ids with its own rules, so a dishonest server
   cannot hand out impossible ships.
 - **Economy:** credits are local to each server. Value moves between servers as cargo in a hold, and
-  each operator decides how far to trust each neighbour (tariffs, impounding, blocking).
+  each operator rates every neighbour as union, partner, visitor or blocked. A server trusts only its
+  own books: goods from a partner sell within a trade balance and a per-pilot licence earned from
+  missions, bounties, survey data and mining, goods from a visitor are sealed, and ships from outside a
+  customs union refund nothing. See `docs/ARCHITECTURE.md`.
 - **Warp gates** bridge sectors that are too far apart to jump between. Both servers have to fund
   their half of the pair.
 

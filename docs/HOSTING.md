@@ -1,8 +1,7 @@
 # Hosting a sector
 
-> Early development: peering, sector placement, handoff and trust levels work today. Warp gate
-> construction and tariffs on sales are configured as described here but not implemented yet, and
-> there is no playable client so far.
+> Early development: peering, sector placement, handoff, trade ratings, warp gates and tariffs work
+> today.
 
 Every PRIMACY2 server adds a sector of star systems to the shared galaxy. You need Node.js 22.13 or
 newer; there is nothing to compile.
@@ -29,8 +28,8 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
   "systems": 16,
   "peers": ["https://another-sector.example.net"],
   "openPeering": true,
-  "defaultTrust": "neutral",
-  "trust": { "<server id>": "trusted" },
+  "defaultTrust": "visitor",
+  "trust": { "<server id>": "partner" },
   "tariff": 0.12,
   "maxPlayers": 200,
   "insuranceRate": 0.05
@@ -48,8 +47,13 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
 | `position` | `[x, y, z]` in light years to place the sector yourself. See "Where your sector appears". |
 | `peers` | Servers to link with on start. |
 | `openPeering` | Whether servers you did not list may link with you. |
-| `defaultTrust`, `trust` | How arrivals from other servers are treated. See "Trust". |
-| `tariff` | Share of the sale price withheld on cargo imported from `neutral` servers. |
+| `defaultTrust`, `trust` | How you rate other servers: `partner`, `visitor` or `blocked` as the default, and any of those or `union` per server id in `trust`. See "Trust". `defaultTrust: "union"` is refused. |
+| `tariff` | Share of the sale price withheld on imported cargo from `partner` servers (default 0.12). Union goods pay none. |
+| `tradeCredit` | Trade units (tonnes times catalog price) a partner may be in deficit with you: imports from it may exceed what you exported to it by this much (default 50000). |
+| `tradeCredits` | The same per server, e.g. `{ "<server id>": 200000 }`. Replaces `tradeCredit` for that server. |
+| `gateTradeCredit` | Extra credit line, added while an active warp gate links you to that server (default 250000). |
+| `importLicenceRate` | How many trade units of imports a pilot may sell or deliver per unit of non-trade income earned on your server (default 1). |
+| `shipLimit` | Largest hull allowed to enter, as a hull id, per tier: `{ "partner": null, "visitor": "drover" }`. `null` means no limit. The default keeps the two dearest hulls out of visitors' reach. |
 | `gates` | Warp gates you want to build, e.g. `[{ "peer": "<server id>", "system": 4 }]`. See "Warp gates". |
 | `acceptGates`, `maxGates` | Whether linked servers may propose gates to you, and how many gates the sector may hold (default 6). |
 | `insuranceRate` | Deductible a pilot pays to get a destroyed ship back, as a share (0 to 1, default 0.05) of the catalog price of hull and fitted modules. A pilot who cannot pay gets the free starter ship and keeps their credits. Set 0 for free replacements. |
@@ -98,19 +102,54 @@ Your server never accepts statistics from another server. A visiting ship is reb
 module ids using your own catalog, cargo is cut to what the hull can carry, and unknown items are
 dropped. Credits never cross: each server keeps its own balance for every pilot.
 
-| Level | Arrivals from that server |
+Because any operator can give himself goods and ships on his own server, you cannot check what a
+visitor carries. Instead you rate each server, and the rating limits what its cargo and ships can turn
+into on yours.
+
+| Rating | Arrivals from that server |
 |---|---|
-| `trusted` | Accepted. Their cargo sells at full price. |
-| `neutral` | Accepted. Their cargo pays your tariff when sold. |
-| `restricted` | The ship is accepted, its cargo is impounded. |
+| `union` | Goods and ships move freely, no tariff. Only in force when you rate each other union and publish the same rules fingerprint; otherwise treated as `partner`. |
+| `partner` | Cargo is an import: it sells at your tariff, within the trade balance and the pilot's import licence. Ships are bound: they refund nothing in the shipyard. |
+| `visitor` (default) | The pilot may enter, but all cargo is sealed: it can be carried out again or jettisoned, nothing else. Ships are bound. |
 | `blocked` | Refused. The server also disappears from your galaxy map. |
 
 Server ids are shown at start-up and at `/api/status`.
 
-What trust cannot do: a server you accept arrivals from can still invent pilots and ships within the
-limits above (any hull from the catalog, one full hold of cargo per arrival). Tariffs, impounding and
-blocking are how you limit that. Link openly while you are exploring; tighten `defaultTrust` and
-`openPeering` once your economy matters to you.
+### Rating a peer
+
+Put the id in `trust`:
+
+```json
+{ "trust": { "<id of a neighbour you trade with>": "partner", "<id of a nuisance>": "blocked" } }
+```
+
+Restart the server for the change to apply. Cargo already in a hold is judged at the moment it is
+used, so lowering a rating takes effect on goods that arrived earlier.
+
+For a partner you can set a bigger credit line in `tradeCredits`. A partner's goods sell only as far
+as you have exported goods to it (or its credit line reaches), and only as far as the pilot has earned
+here through missions, bounties on NPCs, survey data and mining. The pilot's station view shows the
+allowance, and the pilot view shows the licence.
+
+### Forming a customs union
+
+A union is for operators who know and trust each other. Both operators:
+
+1. Rate the other server `union` in `trust`.
+2. Run the same version of the game with the same catalog and constants. Your rules fingerprint is in
+   your descriptor under `trade.fingerprint`; if the two differ, the relation stays `partner`.
+
+Whichever side changes a rule or updates the game first breaks the union until the other follows.
+Inside a union ships and goods move freely, so a member that cheats can give everyone in the union
+anything: only join operators you would trust with your economy.
+
+### What trust cannot do
+
+A partner you rate can still invent goods on its own server and sell them to you, within the credit
+line, the licence and the tariff; a union member can do it without limits. Visitors cannot sell
+anything. Link openly while you are exploring; rate partners one by one once your economy matters to
+you, and leave `defaultTrust` at `visitor`. A ship's class limit (`shipLimit`) is published in your
+descriptor, so a pilot is told before the jump when his ship is too large for your sector.
 
 ## Identity and backups
 

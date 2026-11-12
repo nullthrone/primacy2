@@ -34,6 +34,19 @@ the same name) under `packages/server/src/modules/` and is registered in `module
   `Object.hasOwn`, amounts as positive integers within what the pilot actually owns or can afford.
 - Credits are integers and local to the server. No operation may create credits or cargo from nothing
   except the documented sources (mission rewards, mining, production).
+- Every conversion of cargo into value goes through the trade model. A command that takes cargo from
+  a pilot's hold and gives credits, mission progress, gate progress or anything else in return must
+  call `world.trade.takeCargo(p, c, n)` (or `absorb` on lots it handles itself) and use the number of
+  tonnes it returns, not the number the pilot asked for. Sealed cargo is never taken, imports are
+  limited by the partner's trade balance and the pilot's import licence, and `world.trade.explain`
+  gives the sentence for the pilot when nothing was taken. `removeCargo` is for moving cargo only
+  (jettison, wrecks, pods).
+- Non-trade income is credited where it is earned with `world.trade.creditIncome(p, amount, source)`:
+  mission rewards (not returned deposits), bounties on NPCs, survey data, and ore at the moment a laser
+  extracts it (in trade units). Never for the sale of cargo, refunds or deposits.
+- A part that came with a ship from another server is bound: use `isHullBound` and `isSlotBound`
+  before refunding a hull or module or leaving scrap and parts in a wreck, and `markSlotLocal` or
+  `markShipLocal` after the pilot buys one here.
 - A module must not assume another module is present.
 - Keep hooks cheap: `preStep` and `postStep` run thirty times per second for every active system.
 
@@ -43,7 +56,7 @@ the same name) under `packages/server/src/modules/` and is registered in `module
   (`EntityKind.Wreck`, `model` = hull id, `name` = "Wreck of <ship>"). It holds the ship's whole
   cargo (origins kept), scrap in proportion to hull mass (new commodity `scrap`) and, by chance,
   parts for fitted modules (existing commodities stand in). A pilot's stock starter ship (the free
-  insurance replacement) yields no scrap and no parts. Module state is `WreckData` in
+  insurance replacement) yields no scrap and no parts, and neither does a bound hull or module. Module state is `WreckData` in
   `SimObject.data` (`wreckData(o)` reads it). A wreck lasts `WRECK_LIFETIME` (900 s of universe time),
   a zone keeps at most `MAX_WRECKS` (12), the oldest first. Wrecks are not subject to detection.
   The snapshot sends a wreck's `fill` (fraction of contents left) as its hull value.
@@ -58,4 +71,5 @@ the same name) under `packages/server/src/modules/` and is registered in `module
   nothing and keeps hull and fit. Respawning returns the pilot to the home station, repaired and with
   full tanks, for `deductible(loadout, rate)` = `round(rate * (hull price + fitted module prices))`.
   The rate is the server config value `insuranceRate` (default 0.05). A pilot who cannot pay gets the
-  free starter ship and keeps their credits. `PilotView.rebuy` is the deductible the pilot would pay now.
+  free starter ship (local, not bound) and keeps their credits; a ship replaced for the deductible
+  keeps its binding. `PilotView.rebuy` is the deductible the pilot would pay now.

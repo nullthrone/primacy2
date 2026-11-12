@@ -139,15 +139,89 @@ Any server may be hostile. A receiving server therefore never accepts raw statis
 ship capabilities are re-derived from hull and module ids using its own catalog, cargo is clamped to
 capacity, and unknown ids are dropped.
 
-Credits are **local to each server**. Value moves between servers as physical cargo, which bounds
-what a hostile server can inject to one cargo hold per visit. Operators assign each peer a trust level:
+That is not enough, because an operator can change the code of his own server and give himself any
+goods or ships, and no other server can check how goods came to be. So every server trusts only its
+own books and limits what foreign goods and ships can turn into here. Credits are local to each
+server; value moves between servers only as cargo and ships, and the rules below decide what those
+are worth on arrival.
 
-| Level | Effect on arrivals |
+**Tiers.** A server rates every other server: `union`, `partner`, `visitor` or `blocked`. A server the
+operator has not rated is a visitor (`defaultTrust`).
+
+| Tier | Effect |
 |---|---|
-| `trusted` | Passport accepted; cargo sells at full price. |
-| `neutral` (default) | Passport accepted after sanitising; imported cargo pays a tariff. |
-| `restricted` | Ship accepted, cargo impounded. |
-| `blocked` | Handoff refused. |
+| `union` | Goods and ships move freely, no tariff, no balance. It takes effect only when both servers rate each other union and publish the same rules fingerprint; otherwise the relation is treated as `partner`. |
+| `partner` | Trade under the trade balance below, plus the tariff on sales. |
+| `visitor` | Pilots may enter, but all their cargo is sealed. |
+| `blocked` | No entry. |
+
+The ids a server rates union or partner, the class limits and the fingerprint are published in its
+descriptor (`trade`), so the origin server can refuse a jump before it starts.
+
+**Attribution on arrival.** The tier of the server that issued the transfer ticket decides what each
+cargo lot is called here. A lot that is already sealed stays sealed, whoever sends it.
+
+- From a visitor, every lot is sealed and keeps its label.
+- From a partner, a lot labelled with the issuer's id or with this server's id (own goods coming back)
+  becomes an import attributed to the issuer. A lot with any other label is sealed, so goods cannot be
+  washed through an honest server in between.
+- From a union member, labels are believed, and each label is rated by this server's own tier for that
+  label: this server's id is local, a union member's id is free, a partner's id is an import against
+  that partner's balance, anything else is sealed. A label is never rewritten to the sender's id.
+
+What a lot counts as is decided at the moment of use (sealed mark first, then own id is local, then
+the current tier of the label), so a rating changed later applies to goods already in the hold.
+
+**Sealed cargo.** Sealed cargo cannot be turned into value here in any way. It can be carried out
+again or jettisoned. The mark stays through jettison, scooping, wrecks, pods cut from wrecks, merging
+cargo, saving and the transfer ticket. It also stays on every later server, even back home, because
+otherwise minted goods could be given the label of a server that believes them. Lots merge only when
+commodity, label and seal all match.
+
+**Trade balance.** For every partner this server keeps, in its own books and in trade units (tonnes
+times the commodity's catalog price):
+
+    imports absorbed from P  <=  exports to P  +  credit line of P
+
+An export is local, unsealed cargo on a transfer ticket to P, booked only when P redeems the ticket,
+and taken back if the pilot is recalled because P went silent. An import is absorbed when it is turned
+into value here: sold, delivered for a mission, donated to a gate. The credit line is `tradeCredit`, or
+the entry for that server in `tradeCredits`, plus `gateTradeCredit` while an active warp gate links the
+two servers. Imports from union members and from this server itself are not counted.
+
+**Import licence.** Per pilot, imports can be absorbed only up to `importLicenceRate` times the
+pilot's non-trade income earned on this server: mission rewards (not the returned deposit), bounties
+on NPCs, the sale of exploration data and the trade-unit value of ore the pilot mines here. Trade
+revenue does not count and there is no base allowance, because free key pairs would multiply it.
+Union goods need no licence. A sale or delivery is filled in whole tonnes up to the smaller of the
+partner's remaining allowance and the pilot's remaining licence, and the reply says which limit applied.
+
+**Bound ships.** A ship that arrives from a server that is not a union member is bound: hull and fitted
+modules refund nothing when sold or swapped here, and its wreck yields no scrap and no parts. A ship
+from a union member is bound only where that member says so. Parts the pilot buys here become local.
+This server remembers the hull and modules of each ship that leaves it (except into a union) and
+recognises the same ship on return: what matches, and was local then, is local again, so an honest
+pilot does not lose the home ship by visiting a neighbour. The free starter ship issued after a
+destruction is local; a ship replaced for the deductible stays as bound as it was.
+
+**Class limits.** Each tier has a limit on the largest hull, by catalog price, that may enter
+(`shipLimit`; none for union). The limits are published, so the origin refuses the fold command before
+any fuel is spent; the destination checks again before it redeems the ticket. A ship the destination
+recognises as its own is exempt.
+
+**Rules fingerprint.** A hash of the catalog tables and every constant in `shared/constants.ts`,
+including the game and protocol versions. Two servers form a customs union only if both publish the
+same fingerprint, so a changed rule or a version bump dissolves the union until both sides update.
+Server settings such as the tariff are not part of it.
+
+**What the model does not prevent.**
+
+- A lying union member. A union is for operators who know each other: a member that mints goods or
+  ships gives them to every other member for free.
+- A cheat who plays as an ideal trader within the limits. A dishonest partner can still sell goods it
+  invented, up to the balance and the pilot's licence; the limits are what bound it. Exposure to one
+  partner is its credit line plus what it has really bought from this server.
+- Free key pairs: every new pilot starts with `startCredits` here, as before.
 
 ### Wrecks, salvage and insurance
 
@@ -155,9 +229,9 @@ A ship destroyed in normal space leaves a wreck for 900 seconds (a zone keeps at
 goes first). The wreck holds the ship's whole cargo with the origin of each stack, scrap in proportion
 to hull mass and, by chance, parts for fitted modules. Scrap and parts are the only goods that enter
 the economy this way. A pilot's stock starter ship, which insurance hands out for free, leaves none, so
-it cannot be destroyed and salvaged for credits. A pilot with a mining laser cuts a wreck open with
+it cannot be destroyed and salvaged for credits; neither does a bound hull or a bound module. A pilot with a mining laser cuts a wreck open with
 the tool trigger and its contents float out as ordinary cargo pods that anyone can scoop; origins
-travel with the goods, so tariffs still apply when they are sold. Cargo is conserved from the kill to
+travel with the goods, and so does the seal, so tariffs and the trade balance still apply when they are sold. Cargo is conserved from the kill to
 the pods. A ship destroyed in cruise or in a fold tunnel leaves no wreck and its cargo is lost.
 
 Destruction charges nothing. The `respawn` command returns the pilot to their home station in the same
@@ -171,7 +245,7 @@ and keeps their credits. Credits stay local to each server, as before.
 - The server simulates at `TICK_RATE` (30 Hz) and sends a snapshot every `SNAPSHOT_EVERY` ticks.
 - The client sends one `ShipInput` per tick, predicts its own ship with the same `stepShip`
   and reconciles against the acknowledged input sequence. Other entities are interpolated.
-- The protocol version is 2. The snapshot's own-ship block carries the power setting (`pips`) and the
+- The protocol version is 3. The snapshot's own-ship block carries the power setting (`pips`) and the
   ship's heat signature (`sig`).
 - Snapshot entity positions are float32 offsets from the recipient's own position; the recipient's
   own state is float64.
