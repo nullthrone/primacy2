@@ -155,7 +155,10 @@ async function steerUntil(page, mode, done, timeoutMs) {
 
 /** The cheapest commodity in the catalog (24 per tonne): a small load costs little and needs little licence. */
 const CARGO = { id: 'ice', name: 'Water Ice', tonnes: 4 };
-const MODE = { normal: 0, cruise: 1, docked: 3 };
+const MODE = { normal: 0, cruise: 1, docked: 3, destroyed: 4 };
+
+/** The pilot's ship was destroyed on the way (pirates are about in Beta's frontier systems): the journey can be tried again. */
+class ShipLost extends Error {}
 
 /** Reads the number out of a piece of interface text such as "12,345 cr". */
 const digits = (text) => Number(String(text).replace(/[^\d]/g, ''));
@@ -342,8 +345,12 @@ async function journey(browser, problems, steps) {
   const deadline = t0 + 25 * 60_000;
   while (Date.now() < deadline) {
     const s = await steerAtSite(page, station.id);
-    if (!s) await fail('lost sight of the station');
-    if (s.mode === MODE.docked) break;
+    if (!s) {
+      const now = await stateDump();
+      if (now?.mode === MODE.docked) break;
+      if (now?.mode === MODE.destroyed) throw new ShipLost('the ship was shot down on the way to the station');
+      await fail('lost sight of the station');
+    }
     if (Date.now() - lastLog > 10_000) { lastLog = Date.now(); log(`${phase}: ${JSON.stringify({ dist: Math.round(s.dist), speed: Math.round(s.speed), off: Math.round(s.off) })}`); }
     if (s.mode === MODE.cruise) {
       const aligned = s.off < 140;
@@ -353,7 +360,7 @@ async function journey(browser, problems, steps) {
       if (aligned && s.speed < ceiling * 0.5) want = 'KeyW';
       else if (s.speed > ceiling) want = 'KeyS';
       await throttleKeys(page, held, want);
-      if (s.dist < 30_000 && aligned) {
+      if (s.dist < 12_000 && aligned) {
         await throttleKeys(page, held, null);
         await page.evaluate(() => window.primacy2.game.toggleCruise());
         await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 5000 }).catch(() => fail('cruise did not drop at the station'));
@@ -364,7 +371,7 @@ async function journey(browser, problems, steps) {
     } else if (s.mode === MODE.normal) {
       phase = 'approach';
       const closeEnough = s.radius + 1100;
-      const goal = Math.min(250, Math.max(50, (s.dist - closeEnough) / 20));
+      const goal = Math.min(500, Math.max(50, (s.dist - closeEnough) / 20));
       let want = null;
       if (s.dist > closeEnough + 200 && s.speed < goal - 15) want = 'KeyW';
       else if (s.speed > goal + 15 || (s.dist <= closeEnough + 200 && s.speed > 60)) want = 'KeyS';
