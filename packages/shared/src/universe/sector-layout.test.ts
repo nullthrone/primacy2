@@ -3,7 +3,7 @@ import { CORE_REGION_RADIUS, DEFAULT_SECTOR_RADIUS } from '../constants.ts';
 import { v3, type Vec3 } from '../math.ts';
 import { Rng } from '../prng.ts';
 import {
-  chooseSectorCenter, MIN_SYSTEM_SEPARATION_LY, nearestPair, SECTOR_FLATTENING, sectorOffsets, systemEdgeFraction,
+  chooseSectorCenter, MAX_NEIGHBOUR_HOP_LY, MIN_SYSTEM_SEPARATION_LY, nearestPair, SECTOR_FLATTENING, sectorOffsets, systemEdgeFraction,
   type PlacementArgs, type PlacementPeer,
 } from './generate.ts';
 
@@ -60,14 +60,20 @@ describe('sectorOffsets', () => {
     expect(sectorOffsets('server', 'seed', 19, 20)).not.toEqual(base);
   });
 
-  it('places each system on the shell given by systemEdgeFraction', () => {
-    for (const radius of [5, 18, 90]) {
-      const offsets = sectorOffsets('shellserver', 'shell', radius, 64);
-      offsets.forEach((o, i) => {
-        const fraction = Math.hypot(o[0], o[1] / SECTOR_FLATTENING, o[2]) / radius;
-        expect(fraction).toBeCloseTo(systemEdgeFraction('shellserver', 'shell', i), 10);
-      });
+  it('keeps every system within one short hop of an earlier one, for any seed and count', () => {
+    for (let k = 0; k < 40; k++) {
+      for (const radius of [8, DEFAULT_SECTOR_RADIUS, 60]) {
+        const offsets = sectorOffsets('hop-server-' + k, 'hop-seed-' + k, radius, 64);
+        for (let i = 1; i < offsets.length; i++) {
+          let nearest = Infinity;
+          for (let j = 0; j < i; j++) nearest = Math.min(nearest, v3.dist(offsets[i]!, offsets[j]!));
+          expect(nearest, 'system ' + i + ', radius ' + radius + ', sector ' + k).toBeLessThanOrEqual(MAX_NEIGHBOUR_HOP_LY + 1e-9);
+        }
+      }
     }
+  });
+
+  it('gives every system a remoteness between 0 and 1, lowest for the capital', () => {
     for (let i = 0; i < 200; i++) {
       const f = systemEdgeFraction('shellserver', 'shell', i);
       expect(f).toBeGreaterThanOrEqual(0);
@@ -76,10 +82,10 @@ describe('sectorOffsets', () => {
     }
   });
 
-  it('fills the whole sector, flattened along Y', () => {
+  it('spreads through the sector, flattened along Y', () => {
     const offsets = Array.from({ length: 20 }, (_, k) => sectorOffsets(`fill${k}`, 'fill', 18, 64)).flat();
     const spread = (axis: number): number => Math.sqrt(offsets.reduce((s, o) => s + o[axis]! * o[axis]!, 0) / offsets.length);
-    expect(Math.max(...offsets.map((o) => v3.len(o)))).toBeGreaterThan(0.95 * 18);
+    expect(Math.max(...offsets.map((o) => v3.len(o)))).toBeGreaterThan(0.8 * 18);
     expect(spread(0) / spread(2)).toBeGreaterThan(0.85);
     expect(spread(0) / spread(2)).toBeLessThan(1.18);
     expect(spread(1) / spread(0)).toBeGreaterThan(SECTOR_FLATTENING * 0.85);

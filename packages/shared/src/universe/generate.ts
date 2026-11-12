@@ -51,10 +51,10 @@ export const ANOMALY_MAX_GRAVITY = 2;
 // ---------------------------------------------------------------------------------------------
 
 /**
- * How far out in its sector a system lies, 0 (centre) to 1 (edge), measured in the flattened
- * metric of the sector ellipsoid. Depends only on (serverId, seed, index), so a system knows it
- * without knowing the sector radius; `sectorOffsets` places the system exactly on that shell.
- * System 0, the capital, stays within 12 % of the radius.
+ * How remote a system counts as, 0 (heartland) to 1 (fringe). Depends only on (serverId, seed,
+ * index), so a system knows it without knowing the sector layout; it drives security levels.
+ * It is a property of the system, not its geometric distance from the sector centre.
+ * System 0, the capital, is always below 0.12.
  */
 export function systemEdgeFraction(serverId: string, seed: string, index: number): number {
   const u = rngFor(seed, serverId, 'edge', index).float();
@@ -71,29 +71,55 @@ const isClear = (pos: Readonly<Vec3>, placed: readonly Vec3[], separation: numbe
 };
 
 /**
+ * Longest distance (light years) between a system and its nearest lower-numbered neighbour.
+ * It is below the jump range of the starter hull, so every system of a sector can be reached
+ * from its capital without leaving the sector.
+ */
+export const MAX_NEIGHBOUR_HOP_LY = 6.5;
+
+/**
  * Positions of the systems of a sector relative to its centre (light years), index-aligned with
  * system indices. Independent of where the sector is placed, so a server can generate offsets
- * first and choose its centre afterwards. Systems keep a minimum separation of about 2 ly.
+ * first and choose its centre afterwards.
  *
- * The offsets fill an ellipsoid flattened along Y (`SECTOR_FLATTENING`), so |offset| <= radius.
- * Offset `i` depends only on (serverId, seed, radius, i) and the offsets before it, never on `count`.
+ * The sector grows outward from the capital: system 0 lies near the centre and every later system
+ * is placed within MAX_NEIGHBOUR_HOP_LY of an earlier one, at least MIN_SYSTEM_SEPARATION_LY from
+ * all others. Offset i depends only on (serverId, seed, radius) and earlier indices, never on count.
+ * The offsets stay inside an ellipsoid flattened along Y (`SECTOR_FLATTENING`), so |offset| <= radius.
  */
 export function sectorOffsets(serverId: string, seed: string, radius: number, count: number): Vec3[] {
   const out: Vec3[] = [];
+  const inside = (q: Readonly<Vec3>): boolean => Math.hypot(q[0], q[1] / SECTOR_FLATTENING, q[2]) <= radius;
+  const hopMax = Math.min(MAX_NEIGHBOUR_HOP_LY, radius * 1.2);
   for (let i = 0; i < count; i++) {
-    const shell = systemEdgeFraction(serverId, seed, i) * radius;
     const rng = rngFor(seed, serverId, 'offset', i);
+    if (i === 0) {
+      const d = rng.unitVector();
+      const r = 0.12 * radius * rng.float();
+      out.push([d[0] * r, d[1] * r * SECTOR_FLATTENING, d[2] * r]);
+      continue;
+    }
     let separation = MIN_SYSTEM_SEPARATION_LY;
-    let pos: Vec3 = [0, 0, 0];
-    // Only the direction is resampled; the separation is relaxed when a round finds no free spot,
-    // which happens only in sectors too small for their system count.
+    let pos: Vec3 | null = null;
+    // The separation is relaxed when a round finds no free spot, which happens only in sectors
+    // too small for their system count.
     search: for (let round = 0; round < 48; round++) {
       for (let attempt = 0; attempt < 24; attempt++) {
+        const base = out[rng.int(0, out.length - 1)]!;
         const d = rng.unitVector();
-        pos = [d[0] * shell, d[1] * shell * SECTOR_FLATTENING, d[2] * shell];
-        if (isClear(pos, out, separation)) break search;
+        const hop = rng.range(Math.min(separation, hopMax * 0.5), hopMax);
+        const cand: Vec3 = [base[0] + d[0] * hop, base[1] + d[1] * hop * SECTOR_FLATTENING, base[2] + d[2] * hop];
+        if (inside(cand) && isClear(cand, out, separation)) {
+          pos = cand;
+          break search;
+        }
       }
       separation *= 0.8;
+    }
+    // Unreachable in practice; keeps the function total without ever stacking two systems.
+    if (!pos) {
+      const base = out[0]!;
+      pos = [base[0] * 0.5 + 1e-3 * i, base[1] * 0.5, base[2] * 0.5 - 1e-3 * i];
     }
     out.push(pos);
   }

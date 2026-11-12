@@ -78,7 +78,7 @@ export const FOLD_CHARGE_TIME = 8;
 export const FOLD_TUNNEL_TIME = 7;
 /** Fuel (tonnes) per jump = FOLD_FUEL_BASE + FOLD_FUEL_PER_LY * distance * (distance / range). */
 export const FOLD_FUEL_BASE = 0.4;
-export const FOLD_FUEL_PER_LY = 0.35;
+export const FOLD_FUEL_PER_LY = 0.18;
 /** Arrival distance from the primary, in primary radii (stars) or metres floor. */
 export const FOLD_ARRIVAL_RADII = 14;
 export const FOLD_ARRIVAL_MIN = 4.0e9;

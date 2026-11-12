@@ -50,7 +50,7 @@ describe('station, outpost and faction names', () => {
     for (let i = 0; i < 400; i++) {
       const s = stationName(rng);
       expect(s).toMatch(/^(Port [A-Z][a-z]+|[A-Z][a-z]+ (Station|Hub|Reach|Terminal|Anchorage|Citadel))$/);
-      stations.add(s.replace(/[A-Z][a-z]+/, (m) => (['Port', 'Station', 'Hub', 'Reach', 'Terminal', 'Anchorage', 'Citadel'].includes(m) ? m : '*')));
+      stations.add(s.split(' ').find((w) => ['Port', 'Station', 'Hub', 'Reach', 'Terminal', 'Anchorage', 'Citadel'].includes(w))!);
       const o = outpostName(rng);
       expect(o).toMatch(/^(Camp [A-Z][a-z]+|[A-Z][a-z]+ (Outpost|Depot|Rest|Waystation|Rig))$/);
       outposts.add(o.split(' ').find((w) => ['Camp', 'Outpost', 'Depot', 'Rest', 'Waystation', 'Rig'].includes(w))!);
@@ -60,7 +60,7 @@ describe('station, outpost and faction names', () => {
       for (const name of [s, o, f]) expect(name.length).toBeLessThanOrEqual(48);
     }
     // Every pattern is used.
-    expect(stations.has('Port *')).toBe(true);
+    expect(stations.size).toBe(7);
     expect(outposts.size).toBe(6);
     expect(factions.size).toBeGreaterThan(390);
   });

@@ -8,8 +8,12 @@ There is no central server, no account system and nothing to install to play.
 
 PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 
-> Status: early development. The federation core, the flight model and the procedural universe are
-> in place and covered by tests; gameplay systems and the client are being built on top.
+> **Status: early development, not playable yet.**
+> Working and covered by tests: identities and signatures, transfer tickets and server handoff,
+> peering and gossip, sector placement, the flight model, the procedural universe, docking, cruise
+> and fold jumps on the server.
+> Not built yet: the browser client (renderer, controls, interface), 3D models, trading, combat,
+> mining, missions and warp gates. Sections below describe the design these are being built to.
 
 ## Play
 

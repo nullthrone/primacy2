@@ -8,6 +8,7 @@ import {
   CRUISE_MIN_SPEED,
   FlightMode,
   MASS_LOCK_RADIUS,
+  absolutePosition,
   cargoTonnes,
   computeShipStats,
   generateKeyPair,
@@ -68,6 +69,7 @@ async function foldTo(s: PrimacyServer, b: Bot, system: string): Promise<void> {
   refuel(s, b);
   const res = await cmd(b, { k: 'fold', system });
   expect(res, `fold to ${system}`).toMatchObject({ ok: true });
+  await c.until(() => b.self?.mode === FlightMode.Fold, `tunnel to ${system}`, 600);
   await c.until(() => b.system?.id === system && b.self?.mode === FlightMode.Cruise, `arrival in ${system}`, 900);
 }
 
@@ -172,7 +174,7 @@ describe('federation', () => {
     expect(bot.system!.id).toBe(border.a.id);
     // Arrival is in cruise, well clear of the primary.
     const primary = bot.system!.bodies[0]!;
-    expect(v3.len(bot.self!.pos)).toBeGreaterThan(primary.radius * 2);
+    expect(v3.len(absolutePosition(bot.self!, bot.system!, bot.snap!.time))).toBeGreaterThan(primary.radius * 2);
     expect(await cmd(bot, { k: 'fold', system: 'aaaaaaaaaaaaaaaa:0' })).toMatchObject({ ok: false });
   });
 
@@ -205,7 +207,8 @@ describe('federation', () => {
   it('rejects replayed, tampered, stolen and misdirected tickets', async () => {
     const replay = await refused(B.url, { keys: bot.keys, ticket: usedTicket });
     expect(replay.authFail).toMatchObject({ code: 'ticket' });
-    expect(replay.authFail!.msg).toMatch(/already used/);
+    // The pilot is on B right now, so a second arrival is refused before the nonce is even looked at.
+    expect(replay.authFail!.msg).toMatch(/already in this sector/);
 
     const tampered = structuredClone(usedTicket);
     tampered.body.passport.ship.loadout.hull = 'bulwark';
@@ -264,6 +267,14 @@ describe('federation', () => {
     bot = home;
   });
 
+  it('a used ticket cannot be replayed after the pilot has left again', async () => {
+    // The pilot is no longer on B, so only the nonce record stands between the old ticket and a second ship.
+    const replay = await refused(B.url, { keys: bot.keys, ticket: usedTicket });
+    expect(replay.authFail).toMatchObject({ code: 'ticket' });
+    expect(replay.authFail!.msg).toMatch(/already used/);
+    expect(B.store.loadPlayer(bot.id)?.status).toBe('away');
+  });
+
   it('returning to the origin before the ticket is used voids it', async () => {
     refuel(A, bot);
     expect(await cmd(bot, { k: 'fold', system: border.b.id })).toMatchObject({ ok: true });
@@ -279,6 +290,24 @@ describe('federation', () => {
     expect(late.authFail).toMatchObject({ code: 'ticket' });
     expect(late.authFail!.msg).toMatch(/did not confirm/);
     bot = back;
+  });
+
+  it('signing in again continues from the live state, not from the last save', async () => {
+    const saved = A.store.loadPlayer(bot.id)!.ship!;
+    bot.held.throttle = 1;
+    await c.run(90);
+    const before = v3.clone(bot.self!.pos);
+    const moved = v3.dist(before, saved.pos);
+    expect(moved).toBeGreaterThan(1_000_000);
+    c.bots.delete(bot);
+    const again = c.track(await Bot.connect(A.url, { keys: bot.keys, name: bot.name }));
+    await c.run(2);
+    expect(bot.closed || bot.kicked !== null).toBe(true);
+    expect(again.self!.anchor).toBe(bot.self!.anchor);
+    // The new session starts where the old one was, far from the stale saved position.
+    expect(v3.dist(again.self!.pos, saved.pos)).toBeGreaterThan(moved * 0.9);
+    expect(A.world.players.size).toBe(1);
+    bot = again;
   });
 
   it('gossip spreads sectors beyond direct links', async () => {

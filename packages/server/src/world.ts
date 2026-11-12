@@ -254,47 +254,54 @@ export class World {
     if (this.players.size >= this.config.maxPlayers && !this.players.has(playerId)) {
       return { ok: false, code: 'full', msg: 'This sector is full.' };
     }
-    let rec = this.store.loadPlayer(playerId);
+    // The live record of a pilot who is online is newer than the stored one.
+    const online = this.players.get(playerId);
+    let rec = online ? online.rec : this.store.loadPlayer(playerId);
     let arrival: Arrival | null = null;
     let from: KnownServer | null = null;
 
     if (ticket) {
+      // A pilot who is online here is refused inside acceptTicket (the ship is already here),
+      // so a bad ticket never disturbs the running session.
       const res = await this.acceptTicket(ticket, key, playerId, rec);
       if (!res.ok) return { ok: false, code: 'ticket', msg: res.msg };
       rec = res.rec;
       arrival = res.arrival;
       from = res.from;
-    } else if (!rec) {
-      const cap = this.capital();
-      rec = {
-        id: playerId, key, passport: newPassport(playerId, name, this.id), credits: this.config.startCredits,
-        status: 'here', system: cap.system.id, ship: null, homeSystem: cap.system.id, homeSite: cap.site.id,
-        data: {}, createdAt: this.host.now(), updatedAt: this.host.now(),
-      };
-    } else if (rec.status === 'transit') {
-      // The pilot came back before the ticket was redeemed: void it. A later redemption attempt fails.
-      rec.status = 'here';
-      delete rec.away;
-    } else if (rec.status === 'away' && rec.away) {
-      const dest = this.fed.known.get(rec.away.server);
-      const reachable = dest && this.host.now() - dest.lastSeen < PEER_TIMEOUT_MS * 4;
-      if (dest && reachable) {
-        return {
-          ok: false, code: 'elsewhere', msg: `Your ship is in ${dest.desc.name}.`,
-          redirect: { server: dest.id, url: dest.desc.url },
-        };
+    } else {
+      // One connection per pilot: a newer login replaces the older one. The old session is logged
+      // out first so its state is saved, and the new session continues from that saved record.
+      if (online) {
+        const oldConn = online.conn;
+        this.logout(online);
+        oldConn?.close('Signed in from another connection.');
+        rec = this.store.loadPlayer(playerId);
       }
-      // The sector the pilot left for is gone: restore the ship as it was when it departed.
-      this.host.log(`recalling ${rec.passport.name}: sector ${rec.away.server} is unreachable`);
-      rec.status = 'here';
-      delete rec.away;
-    }
-
-    // One connection per pilot: a newer login replaces the older one.
-    const old = this.players.get(playerId);
-    if (old) {
-      old.conn?.close('Signed in from another connection.');
-      this.detach(old);
+      if (!rec) {
+        const cap = this.capital();
+        rec = {
+          id: playerId, key, passport: newPassport(playerId, name, this.id), credits: this.config.startCredits,
+          status: 'here', system: cap.system.id, ship: null, homeSystem: cap.system.id, homeSite: cap.site.id,
+          data: {}, createdAt: this.host.now(), updatedAt: this.host.now(),
+        };
+      } else if (rec.status === 'transit') {
+        // The pilot came back before the ticket was redeemed: void it. A later redemption attempt fails.
+        rec.status = 'here';
+        delete rec.away;
+      } else if (rec.status === 'away' && rec.away) {
+        const dest = this.fed.known.get(rec.away.server);
+        const reachable = dest && this.host.now() - dest.lastSeen < PEER_TIMEOUT_MS * 4;
+        if (dest && reachable) {
+          return {
+            ok: false, code: 'elsewhere', msg: `Your ship is in ${dest.desc.name}.`,
+            redirect: { server: dest.id, url: dest.desc.url },
+          };
+        }
+        // The sector the pilot left for is gone: restore the ship as it was when it departed.
+        this.host.log(`recalling ${rec.passport.name}: sector ${rec.away.server} is unreachable`);
+        rec.status = 'here';
+        delete rec.away;
+      }
     }
 
     const player = new Player(rec);

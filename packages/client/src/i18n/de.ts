@@ -1,5 +1,6 @@
 import type { StringKey } from './en.ts';
 
-export const de: Record<StringKey, string> = {
+/** German strings. Keys missing here fall back to English. */
+export const de: Partial<Record<StringKey, string>> = {
   'app.title': 'PRIMACY2',
 };

@@ -6,7 +6,7 @@ import { store } from '../state/store.ts';
 import { de } from './de.ts';
 import { en, type StringKey } from './en.ts';
 
-const tables: Record<'en' | 'de', Record<StringKey, string>> = { en, de };
+const tables: Record<'en' | 'de', Partial<Record<StringKey, string>>> = { en, de };
 
 export function t(key: StringKey, params?: Record<string, string | number>): string {
   const table = tables[store.settings.value.lang] ?? en;

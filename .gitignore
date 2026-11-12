@@ -13,3 +13,4 @@ screenshots/
 *.blend1
 .DS_Store
 Thumbs.db
+assets/blender/*.blend

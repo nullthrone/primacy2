@@ -1,5 +1,9 @@
 # Hosting a sector
 
+> Early development: peering, sector placement, handoff and trust levels work today. Warp gate
+> construction and tariffs on sales are configured as described here but not implemented yet, and
+> there is no playable client so far.
+
 Every PRIMACY2 server adds a sector of star systems to the shared galaxy. You need Node.js 22.13 or
 newer; there is nothing to compile.
 
