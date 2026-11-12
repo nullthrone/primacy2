@@ -1,6 +1,8 @@
 import type { Quat, Vec3 } from '../math.ts';
+import type { TerrainParams } from '../universe/terrain.ts';
 
-export const FlightMode = { Normal: 0, Cruise: 1, Fold: 2, Docked: 3, Dead: 4 } as const;
+/** `Landed`: standing on the ground of a landable body, in its surface frame. */
+export const FlightMode = { Normal: 0, Cruise: 1, Fold: 2, Docked: 3, Dead: 4, Landed: 5 } as const;
 export type FlightMode = (typeof FlightMode)[keyof typeof FlightMode];
 
 export const ChargeKind = { None: 0, Cruise: 1, Fold: 2 } as const;
@@ -55,10 +57,14 @@ export interface ShipState {
   mode: FlightMode;
   /** Anchor id the position is relative to; -1 while in `Fold`. */
   anchor: number;
-  /** Metres, relative to the anchor, in non-rotating system axes. */
+  /**
+   * Metres, relative to the anchor, in the axes of the anchor frame: non-rotating system axes for
+   * body and orbital site anchors, the rotating body-fixed axes for a surface anchor.
+   */
   pos: Vec3;
-  /** Metres per second relative to the anchor. In cruise this is `forward * cruiseSpeed`. */
+  /** Metres per second in the anchor frame (over the ground in a surface frame). In cruise this is `forward * cruiseSpeed`. */
   vel: Vec3;
+  /** Orientation in the axes of the anchor frame. */
   rot: Quat;
   /** Ship-local angular velocity, rad/s. */
   angVel: Vec3;
@@ -129,6 +135,8 @@ export interface ShipStats {
   mass: number;
   /** Collision radius in metres. */
   radius: number;
+  /** Metres from the ship origin down to its lowest point: how high the origin stands when landed. */
+  belly: number;
   accelFwd: number;
   accelBack: number;
   accelLat: number;
@@ -187,6 +195,26 @@ export interface GravSource {
   lum: number;
   /** True when a fuel scoop works in the corona of this body. Absent means no. */
   scoopable?: boolean;
+  /**
+   * Landable bodies only. `enter`: centre distance (m) below which normal flight uses the body's
+   * surface frame. `ceiling`: centre distance below which cruise ends (the highest possible
+   * ground plus CRUISE_CEILING_MARGIN). Such a body has no exclusion radius; its terrain is the limit.
+   */
+  surface?: { enter: number; ceiling: number };
+}
+
+/** The ground under a ship whose anchor is a surface frame. */
+export interface StepGround {
+  /** Body id. */
+  body: number;
+  /** Mean radius of the body, metres. */
+  radius: number;
+  /** Centre distance (m) above which no ground can be: radius plus the highest terrain. */
+  top: number;
+  /** Centre distance (m) above which normal flight goes back to the non-rotating body frame. */
+  exit: number;
+  /** Terrain constants; the type lives in `universe/terrain.ts`. */
+  terrain: TerrainParams;
 }
 
 /** Everything about the surroundings that `stepShip` needs. Rebuilt every tick from the system and time. */
@@ -194,12 +222,25 @@ export interface StepEnv {
   /** Universe time of the tick. */
   t: number;
   anchor: number;
+  /** Gravitating bodies, positions in the axes of the anchor frame. */
   sources: GravSource[];
+  /** Angular velocity of the anchor frame in its own axes, rad/s. Absent for a non-rotating frame. */
+  omega?: Vec3;
+  /** Present when the anchor is a surface frame. */
+  ground?: StepGround;
+  /**
+   * Written by `stepShip` when `ground` is present: how hard the ship hit the ground this tick,
+   * as the speed in m/s in excess of what a landing allows (0 for no contact, a landing or a
+   * touch within the limits). The server turns it into hull damage.
+   */
+  impact?: number;
+  /** Set by `simulateShip` on the environment it returns when cruise ended this tick because the ship came below a ceiling. */
+  cruiseDrop?: boolean;
 }
 
 /** Environmental dangers at a ship's position, evaluated by the server after each step. */
 export interface Hazards {
-  /** Body the ship is inside of (below the exclusion radius), or -1. */
+  /** Body the ship is inside of (below the exclusion radius), or -1. Never a landable body: there the terrain is the limit. */
   insideBody: number;
   /** True inside the lethal radius of a compact object. */
   lethal: boolean;

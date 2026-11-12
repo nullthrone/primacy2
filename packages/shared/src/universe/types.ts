@@ -81,7 +81,8 @@ export interface BeltDef {
   seed: number;
 }
 
-export type SiteKind = 'station' | 'outpost' | 'belt' | 'ring' | 'beacon' | 'gate' | 'anomaly';
+/** `base` is a ground base on a landable body; every other kind orbits. */
+export type SiteKind = 'station' | 'outpost' | 'belt' | 'ring' | 'beacon' | 'gate' | 'anomaly' | 'base';
 export type StationService = 'market' | 'outfit' | 'shipyard' | 'missions' | 'repair' | 'refuel' | 'cartography';
 export type EconomyType = 'agri' | 'mining' | 'refinery' | 'industrial' | 'hightech' | 'military' | 'outpost';
 export type GateState = 'planned' | 'building' | 'active' | 'dormant';
@@ -103,14 +104,21 @@ export interface GateInfo {
 /**
  * A site is a point of interest with its own anchor frame: ships arriving there share a zone.
  * Site anchor ids are `SITE_ID_BASE + n`.
+ *
+ * A ground site (`ground` set) stands on a landable body instead. It has no zone of its own:
+ * ships near it fly in the surface frame of the body, and only a docked ship has the site as
+ * its anchor. Use `anchorState` for where it is; its `orbit` says nothing but the body.
  */
 export interface SiteDef {
   id: number;
   kind: SiteKind;
   name: string;
-  /** Orbit around `orbit.parent` (a body id). */
+  /**
+   * Orbit around `orbit.parent` (a body id). For a ground site the parent is the body it stands
+   * on and the orbit is empty (`a` = 0), so code that only reads the parent keeps working.
+   */
   orbit: OrbitDef;
-  /** Radius of the site's zone in metres. */
+  /** Radius of the site's zone in metres; 0 for a ground site. */
   frameRadius: number;
   seed: number;
   /** Model key, e.g. `station_ring`. Present for stations, outposts, gates and beacons. */
@@ -123,6 +131,8 @@ export interface SiteDef {
   /** For `belt` sites: the belt this site lies in. For `ring` sites the parent body's rings are used. */
   beltId?: number;
   gate?: GateInfo;
+  /** Ground sites only: the body and the centre of the pad in its body-fixed axes, metres from the body centre. */
+  ground?: { body: number; pos: Vec3 };
 }
 
 export type Security = 'secure' | 'frontier' | 'lawless';
@@ -136,9 +146,9 @@ export interface SystemSummary {
   pos: Vec3;
   starClass: StarClass;
   security: Security;
-  /** Number of dockable stations and outposts. */
+  /** Number of dockable stations, outposts and ground bases. */
   stations: number;
-  /** Notable features for the map, e.g. `['blackhole', 'belt', 'gate']`. */
+  /** Notable features for the map, e.g. `['blackhole', 'belt', 'gate', 'base']`. */
   tags: string[];
 }
 

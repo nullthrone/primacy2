@@ -5,9 +5,10 @@
  * Axes: the reference plane is XZ and +Y is north. A textbook orbit computed with z up
  * (xs, ys, zs) maps to system axes as (xs, zs, -ys), which keeps the frame right-handed.
  */
-import { G, SITE_ID_BASE } from '../constants.ts';
-import { v3, type Vec3 } from '../math.ts';
-import type { OrbitDef, SiteDef, StateVector, SystemDef } from './types.ts';
+import { G, SITE_ID_BASE, SURFACE_FRAME_MAX, SURFACE_FRAME_MIN, SURFACE_FRAME_RADII, SURFACE_ID_BASE } from '../constants.ts';
+import { clamp, quat, v3, type Quat, type Vec3 } from '../math.ts';
+import { isLandable } from './terrain.ts';
+import type { BodyDef, OrbitDef, SiteDef, StateVector, SystemDef } from './types.ts';
 
 const TWO_PI = Math.PI * 2;
 
@@ -94,7 +95,66 @@ export function allBodyStates(sys: SystemDef, t: number): StateVector[] {
   return out;
 }
 
-/** The site with this anchor id, or undefined (also for body ids). */
+// ---------------------------------------------------------------------------------------------
+// Body rotation
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * Unit rotation axis of a body in system axes: +Y rotated about +X by `tilt`. A negative
+ * `rotPeriod` means the body spins clockwise seen from the tip of this axis. Rings lie in the
+ * plane normal to it.
+ */
+export function bodySpinAxis(body: { tilt: number }): Vec3 {
+  return [0, Math.cos(body.tilt), Math.sin(body.tilt)];
+}
+
+/**
+ * Rotation of a body at universe time `t`: the quaternion that turns body-fixed axes into system
+ * axes. The body-fixed +Y axis is the spin axis; the body has turned by `t / rotPeriod` turns
+ * about it, and the axis is then tilted about system +X by `tilt`. This is the one definition
+ * of how bodies turn: the surface frame, the terrain and the renderer all follow it.
+ */
+export function bodyRotation(body: Pick<BodyDef, 'tilt' | 'rotPeriod'>, t: number): Quat {
+  // Only the fraction of a turn matters, which keeps the angle exact after years of universe time.
+  const turns = body.rotPeriod !== 0 ? (t / body.rotPeriod) % 1 : 0;
+  const spin = turns * Math.PI;
+  const tilt = body.tilt / 2;
+  return quat.mul([Math.sin(tilt), 0, 0, Math.cos(tilt)], [0, Math.sin(spin), 0, Math.cos(spin)]);
+}
+
+/** Signed spin rate of a body about its axis in rad/s; in body-fixed axes the angular velocity is `[0, rate, 0]`. */
+export const bodySpinRate = (body: Pick<BodyDef, 'rotPeriod'>): number => (body.rotPeriod !== 0 ? TWO_PI / body.rotPeriod : 0);
+
+/** Angular velocity vector of a body in system axes, rad/s. */
+export function bodyAngularVelocity(body: Pick<BodyDef, 'tilt' | 'rotPeriod'>): Vec3 {
+  return v3.scale(bodySpinAxis(body), bodySpinRate(body));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Anchors and frames
+// ---------------------------------------------------------------------------------------------
+
+/** Anchor id of the co-rotating surface frame of a body. */
+export const surfaceAnchor = (bodyId: number): number => SURFACE_ID_BASE + bodyId;
+
+/** True for the id of a surface frame (whether or not the body exists). */
+export const isSurfaceAnchor = (anchorId: number): boolean => anchorId >= SURFACE_ID_BASE && anchorId < SITE_ID_BASE;
+
+/** The body of a body anchor or of a surface anchor; -1 for sites and for no anchor. */
+export function anchorBody(anchorId: number): number {
+  if (!(anchorId >= 0) || anchorId >= SITE_ID_BASE) return -1;
+  return anchorId < SURFACE_ID_BASE ? anchorId : anchorId - SURFACE_ID_BASE;
+}
+
+/**
+ * Height (m) above the mean radius of a landable body below which a ship in normal flight is in
+ * the surface frame: a tenth of the radius, between 60 and 300 km. It goes back to the
+ * non-rotating body frame above SURFACE_FRAME_EXIT times this height.
+ */
+export const surfaceFrameAltitude = (body: Pick<BodyDef, 'radius'>): number =>
+  clamp(SURFACE_FRAME_RADII * body.radius, SURFACE_FRAME_MIN, SURFACE_FRAME_MAX);
+
+/** The site with this anchor id, or undefined (also for body and surface ids). */
 export function findSite(sys: SystemDef, anchorId: number): SiteDef | undefined {
   if (anchorId < SITE_ID_BASE) return undefined;
   const direct = sys.sites[anchorId - SITE_ID_BASE];
@@ -102,24 +162,111 @@ export function findSite(sys: SystemDef, anchorId: number): SiteDef | undefined 
   return sys.sites.find((s) => s.id === anchorId);
 }
 
-/** True when `anchorId` names an existing body or site of the system. */
+/** True when `anchorId` names an existing body, the surface frame of a landable body, or a site of the system. */
 export function isValidAnchor(sys: SystemDef, anchorId: number): boolean {
   if (!Number.isInteger(anchorId) || anchorId < 0) return false;
-  return anchorId < SITE_ID_BASE ? anchorId < sys.bodies.length : findSite(sys, anchorId) !== undefined;
+  if (anchorId < SURFACE_ID_BASE) return anchorId < sys.bodies.length;
+  if (anchorId < SITE_ID_BASE) {
+    const body = sys.bodies[anchorId - SURFACE_ID_BASE];
+    return body !== undefined && isLandable(body);
+  }
+  return findSite(sys, anchorId) !== undefined;
 }
 
-/** Barycentric state of an anchor: a body (`id < SITE_ID_BASE`) or a site. Throws on unknown ids. */
-export function anchorState(sys: SystemDef, anchorId: number, t: number): StateVector {
-  if (anchorId < SITE_ID_BASE) return bodyState(sys, anchorId, t);
+/**
+ * Orientation of a ground site on its body: turns the site's own axes (+Y up along the pad
+ * normal, -Z toward the body's north, or toward body-fixed +X at a pole) into body-fixed axes.
+ */
+export function groundSiteRotation(site: SiteDef): Quat {
+  const up = v3.normalize(site.ground ? site.ground.pos : [0, 1, 0]);
+  // North along the ground: the spin axis with its vertical part removed.
+  let north: Vec3 = [-up[1] * up[0], 1 - up[1] * up[1], -up[1] * up[2]];
+  if (v3.lenSq(north) < 1e-6) north = [1 - up[0] * up[0], -up[0] * up[1], -up[0] * up[2]];
+  return quat.lookRotation(north, up);
+}
+
+/** A frame of reference: where its origin is and how its axes lie and turn. */
+export interface AnchorFrame {
+  /** Barycentric position of the origin, metres. */
+  pos: Vec3;
+  /** Barycentric velocity of the origin, m/s. */
+  vel: Vec3;
+  /** Turns vectors in frame axes into system axes. The identity for a non-rotating frame. */
+  rot: Quat;
+  /** Angular velocity of the frame in system axes, rad/s. Zero for a non-rotating frame. */
+  omega: Vec3;
+}
+
+/** True when positions relative to this anchor are in rotating axes: a surface frame or a ground site. */
+export function isRotatingAnchor(sys: SystemDef, anchorId: number): boolean {
+  if (anchorId < SURFACE_ID_BASE) return false;
+  if (anchorId < SITE_ID_BASE) return true;
+  return findSite(sys, anchorId)?.ground !== undefined;
+}
+
+/**
+ * The frame of an anchor at universe time `t`. Body anchors and orbital sites move with their
+ * anchor without turning. A surface anchor has its origin at the body centre and turns with the
+ * body. A ground site has its origin at the centre of its pad, its axes as `groundSiteRotation`
+ * says, and turns with the body too. Throws on unknown ids.
+ */
+export function anchorFrame(sys: SystemDef, anchorId: number, t: number): AnchorFrame {
+  if (anchorId >= 0 && anchorId < SURFACE_ID_BASE) {
+    const st = bodyState(sys, anchorId, t);
+    return { pos: st.pos, vel: st.vel, rot: [0, 0, 0, 1], omega: [0, 0, 0] };
+  }
+  if (anchorId >= SURFACE_ID_BASE && anchorId < SITE_ID_BASE) {
+    const body = sys.bodies[anchorId - SURFACE_ID_BASE];
+    if (!body || !isLandable(body)) throw new Error(`unknown anchor ${anchorId}`);
+    const st = bodyState(sys, body.id, t);
+    return { pos: st.pos, vel: st.vel, rot: bodyRotation(body, t), omega: bodyAngularVelocity(body) };
+  }
   const site = findSite(sys, anchorId);
   if (!site) throw new Error(`unknown anchor ${anchorId}`);
+  if (site.ground) {
+    const body = sys.bodies[site.ground.body];
+    if (!body) throw new Error(`unknown anchor ${anchorId}`);
+    const st = bodyState(sys, body.id, t);
+    const rot = bodyRotation(body, t);
+    const omega = bodyAngularVelocity(body);
+    // The pad is carried around by the body: its velocity is the body's plus omega x r.
+    const offset = quat.rotate(rot, site.ground.pos);
+    return {
+      pos: v3.add(st.pos, offset),
+      vel: v3.add(st.vel, v3.cross(omega, offset)),
+      rot: quat.mul(rot, groundSiteRotation(site)),
+      omega,
+    };
+  }
+  const parent = bodyState(sys, site.orbit.parent, t);
+  const s = orbitState(site.orbit, t);
+  return { pos: v3.add(parent.pos, s.pos), vel: v3.add(parent.vel, s.vel), rot: [0, 0, 0, 1], omega: [0, 0, 0] };
+}
+
+/**
+ * Barycentric position and velocity of the origin of an anchor: a body, the surface frame of a
+ * body (the body centre), an orbital site, or a ground site (the true moving position of its
+ * pad). Throws on unknown ids.
+ */
+export function anchorState(sys: SystemDef, anchorId: number, t: number): StateVector {
+  if (anchorId < SURFACE_ID_BASE) return bodyState(sys, anchorId, t);
+  if (anchorId < SITE_ID_BASE) {
+    if (!isValidAnchor(sys, anchorId)) throw new Error(`unknown anchor ${anchorId}`);
+    return bodyState(sys, anchorId - SURFACE_ID_BASE, t);
+  }
+  const site = findSite(sys, anchorId);
+  if (!site) throw new Error(`unknown anchor ${anchorId}`);
+  if (site.ground) {
+    const f = anchorFrame(sys, anchorId, t);
+    return { pos: f.pos, vel: f.vel };
+  }
   const parent = bodyState(sys, site.orbit.parent, t);
   const s = orbitState(site.orbit, t);
   return { pos: v3.add(parent.pos, s.pos), vel: v3.add(parent.vel, s.vel) };
 }
 
 export function anchorName(sys: SystemDef, anchorId: number): string {
-  if (anchorId < SITE_ID_BASE) return sys.bodies[anchorId]?.name ?? 'Unknown';
+  if (anchorId < SITE_ID_BASE) return sys.bodies[anchorBody(anchorId)]?.name ?? 'Unknown';
   return findSite(sys, anchorId)?.name ?? 'Unknown';
 }
 
@@ -154,18 +301,27 @@ export function pickCruiseAnchor(sys: SystemDef, absPos: Readonly<Vec3>, t: numb
 }
 
 /**
- * The anchor for a ship entering normal space at `absPos`: the nearest site whose `frameRadius`
- * contains the position, otherwise `pickCruiseAnchor`.
+ * The anchor for a ship entering normal space at `absPos`: the nearest orbital site whose
+ * `frameRadius` contains the position; otherwise the body of `pickCruiseAnchor`, or its surface
+ * frame when that body is landable and the position is below `surfaceFrameAltitude`.
+ * A ground site is never an anchor for flight.
  */
 export function pickNormalAnchor(sys: SystemDef, absPos: Readonly<Vec3>, t: number): number {
   let best = -1;
   let bestDist = Infinity;
   for (const site of sys.sites) {
+    if (site.ground) continue;
     const d = v3.dist(absPos, anchorState(sys, site.id, t).pos);
     if (d < site.frameRadius && d < bestDist) {
       best = site.id;
       bestDist = d;
     }
   }
-  return best >= 0 ? best : pickCruiseAnchor(sys, absPos, t);
+  if (best >= 0) return best;
+  const bodyId = pickCruiseAnchor(sys, absPos, t);
+  const body = sys.bodies[bodyId]!;
+  if (isLandable(body) && v3.dist(absPos, bodyState(sys, bodyId, t).pos) < body.radius + surfaceFrameAltitude(body)) {
+    return surfaceAnchor(bodyId);
+  }
+  return bodyId;
 }

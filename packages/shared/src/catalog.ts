@@ -29,6 +29,11 @@ export interface HullDef {
   /** Dry mass in kg. */
   mass: number;
   radius: number;
+  /**
+   * Metres from the ship origin down to its lowest point; the origin stands this high above the
+   * ground when landed. For now 0.3 * radius for every hull, until it is measured from the models.
+   */
+  belly: number;
   accelFwd: number;
   accelBack: number;
   accelLat: number;
@@ -131,7 +136,7 @@ export interface Loadout {
 export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   wisp: {
     id: 'wisp', name: 'Wisp', role: 'multirole', model: 'ship_wisp', price: 18_000,
-    mass: 40_000, radius: 9,
+    mass: 40_000, radius: 9, belly: 2.7,
     accelFwd: 38, accelBack: 26, accelLat: 22, accelVert: 22,
     maxSpeed: 260, boostSpeed: 370,
     turnPitch: 58 * DEG, turnYaw: 44 * DEG, turnRoll: 115 * DEG, angAccel: 260 * DEG,
@@ -143,7 +148,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   lancet: {
     id: 'lancet', name: 'Lancet', role: 'fighter', model: 'ship_lancet', price: 95_000,
-    mass: 55_000, radius: 10,
+    mass: 55_000, radius: 10, belly: 3,
     accelFwd: 56, accelBack: 38, accelLat: 34, accelVert: 34,
     maxSpeed: 330, boostSpeed: 460,
     turnPitch: 74 * DEG, turnYaw: 54 * DEG, turnRoll: 135 * DEG, angAccel: 340 * DEG,
@@ -155,7 +160,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   drover: {
     id: 'drover', name: 'Drover', role: 'freighter', model: 'ship_drover', price: 260_000,
-    mass: 320_000, radius: 24,
+    mass: 320_000, radius: 24, belly: 7.2,
     accelFwd: 20, accelBack: 14, accelLat: 10, accelVert: 10,
     maxSpeed: 185, boostSpeed: 255,
     turnPitch: 26 * DEG, turnYaw: 20 * DEG, turnRoll: 52 * DEG, angAccel: 90 * DEG,
@@ -167,7 +172,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   delver: {
     id: 'delver', name: 'Delver', role: 'miner', model: 'ship_delver', price: 205_000,
-    mass: 180_000, radius: 17,
+    mass: 180_000, radius: 17, belly: 5.1,
     accelFwd: 27, accelBack: 19, accelLat: 16, accelVert: 16,
     maxSpeed: 215, boostSpeed: 295,
     turnPitch: 36 * DEG, turnYaw: 28 * DEG, turnRoll: 72 * DEG, angAccel: 130 * DEG,
@@ -179,7 +184,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   wayfarer: {
     id: 'wayfarer', name: 'Wayfarer', role: 'explorer', model: 'ship_wayfarer', price: 440_000,
-    mass: 120_000, radius: 16,
+    mass: 120_000, radius: 16, belly: 4.8,
     accelFwd: 34, accelBack: 24, accelLat: 20, accelVert: 20,
     maxSpeed: 255, boostSpeed: 355,
     turnPitch: 46 * DEG, turnYaw: 34 * DEG, turnRoll: 92 * DEG, angAccel: 180 * DEG,
@@ -191,7 +196,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'gunship', model: 'ship_bulwark', price: 1_350_000,
-    mass: 420_000, radius: 26,
+    mass: 420_000, radius: 26, belly: 7.8,
     accelFwd: 25, accelBack: 18, accelLat: 14, accelVert: 14,
     maxSpeed: 225, boostSpeed: 305,
     turnPitch: 31 * DEG, turnYaw: 23 * DEG, turnRoll: 62 * DEG, angAccel: 110 * DEG,
@@ -438,6 +443,7 @@ export function computeShipStats(input: Loadout): ShipStats {
     hull: hull.id,
     mass,
     radius: hull.radius,
+    belly: hull.belly,
     accelFwd: hull.accelFwd * accel,
     accelBack: hull.accelBack * accel,
     accelLat: hull.accelLat * accel,

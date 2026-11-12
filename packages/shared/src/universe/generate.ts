@@ -19,11 +19,14 @@ import {
 import { clamp, v3, type Vec3 } from '../math.ts';
 import { hashCombine, hashString, rngFor, type Rng } from '../prng.ts';
 import { factionName, moonLetter, outpostName, romanNumeral, stationName, uniqueName, uniqueSystemName } from './names.ts';
-import { circularOrbit, orbitalPeriod, soiRadius } from './orbits.ts';
+import { bodySpinAxis, circularOrbit, orbitalPeriod, soiRadius } from './orbits.ts';
 import type {
   BeltDef, BeltKind, BodyDef, EconomyType, GateInfo, OrbitDef, PlanetClass, SectorParams, Security, SiteDef,
   StarClass, StationService, SystemDef, SystemSummary,
 } from './types.ts';
+
+// The spin axis convention lives with the rest of the rotation code in orbits.ts.
+export { bodySpinAxis };
 
 const TWO_PI = Math.PI * 2;
 /** Stefan-Boltzmann constant, W m^-2 K^-4. */
@@ -1186,15 +1189,6 @@ export function sectorSystemNames(serverId: string, seed: string, count: number)
   const out: string[] = [];
   for (let i = 0; i < count; i++) out.push(uniqueSystemName(rngFor(seed, serverId, 'name', i), taken));
   return out;
-}
-
-/**
- * Unit rotation axis of a body in system axes: +Y rotated about +X by `tilt`. A negative
- * `rotPeriod` means the body spins clockwise seen from the tip of this axis. Rings lie in the
- * plane normal to it.
- */
-export function bodySpinAxis(body: { tilt: number }): Vec3 {
-  return [0, Math.cos(body.tilt), Math.sin(body.tilt)];
 }
 
 /** Security of a system: the capital is secure, the rest grow more lawless toward the sector edge. */
