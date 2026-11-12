@@ -3,7 +3,8 @@
 //   npm run build && node scripts/e2e.mjs
 //
 // Starts two linked servers (scripts/dev.ts), opens the game in GPU-accelerated headless Chromium,
-// logs in, undocks, meets a second pilot who opens fire, flies, engages cruise and opens the maps.
+// logs in, undocks, is shot down by a second pilot, comes back through insurance, engages cruise
+// and opens the maps.
 // Screenshots go to screenshots/e2e/.
 // Exits with code 1 when a step fails or the page logged an error.
 import { spawn, spawnSync } from 'node:child_process';
@@ -68,65 +69,64 @@ async function targetPlayer(page) {
 }
 
 /**
- * Keeps the nose on the locked target until `done` says so or the time is up. `done` receives the
- * distance to the target and the pilot's own distance from the zone anchor, both in metres.
+ * One steering step toward a point: the locked target, or with `away` the point opposite the
+ * station of the current zone. Returns how far the point is from the middle of the view in pixels
+ * (Infinity while it is behind the camera), or null when there is nothing to steer at.
  */
-async function steerUntil(page, done, timeoutMs) {
+function steerStep(page, away) {
+  return page.evaluate((awayFromStation) => {
+    const g = window.primacy2.game;
+    const v = g.view;
+    let rel = null;
+    if (awayFromStation) rel = v?.zone ? [-v.zone[0], -v.zone[1], -v.zone[2]] : null;
+    else rel = v?.ents.find((e) => e.id === v.targetId)?.rel ?? null;
+    if (!rel) return null;
+    const p = g.project(rel);
+    if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
+    const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
+    // A gentle gain: the ship works its aim off at its own turn rate, and whatever is still queued
+    // when the point reaches the middle would carry the nose past it.
+    g.input.addMouse(ex * 0.2, ey * 0.2);
+    return Math.hypot(ex, ey);
+  }, away);
+}
+
+/** Steers until the point has stayed within `tolerance` pixels of the middle for half a second. */
+async function settle(page, away, tolerance, timeoutMs) {
   const t0 = Date.now();
+  let held = 0;
   while (Date.now() - t0 < timeoutMs) {
-    const v = await page.evaluate(() => {
-      const g = window.primacy2.game;
-      const view = g.view;
-      const ent = view?.ents.find((e) => e.id === view.targetId);
-      if (!ent || !view.self) return null;
-      const p = g.project(ent.rel);
-      if (p.behind) g.input.addMouse(300, 0);
-      else g.input.addMouse((p.x - window.innerWidth / 2) * 0.35, (p.y - window.innerHeight / 2) * 0.35);
-      return { dist: Math.hypot(...ent.rel), own: Math.hypot(...view.self.state.pos) };
-    });
-    if (v && done(v)) return true;
-    await page.waitForTimeout(120);
+    const off = await steerStep(page, away);
+    held = off !== null && off < tolerance ? held + 1 : 0;
+    if (held >= 5) return true;
+    await page.waitForTimeout(100);
   }
   return false;
 }
 
 /** Turns the nose until the station of the current zone is straight behind the ship. */
-async function aimAwayFromStation(page, timeoutMs = 20_000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeoutMs) {
-    const off = await page.evaluate(() => {
-      const g = window.primacy2.game;
-      const zone = g.view?.zone;
-      if (!zone) return null;
-      const p = g.project([-zone[0], -zone[1], -zone[2]]);
-      if (p.behind) { g.input.addMouse(300, 0); return Infinity; }
-      const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
-      g.input.addMouse(ex * 0.35, ey * 0.35);
-      return Math.hypot(ex, ey);
-    });
-    if (off !== null && off < 60) return true;
-    await page.waitForTimeout(120);
-  }
-  return false;
-}
+const aimAwayFromStation = (page, timeoutMs = 30_000) => settle(page, true, 70, timeoutMs);
 
 /** Steers with the mouse hook until the locked target sits in the middle of the view. */
-async function aimAtTarget(page, timeoutMs = 20_000) {
+const aimAtTarget = (page, timeoutMs = 30_000) => settle(page, false, 28, timeoutMs);
+
+/**
+ * Keeps the nose on the locked target until `done` says so (returns true), the target is gone
+ * (returns 'lost') or the time is up (returns false). `done` receives the distance to the target
+ * and the pilot's own distance from the zone anchor, both in metres.
+ */
+async function steerUntil(page, done, timeoutMs) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
-    const off = await page.evaluate(() => {
-      const g = window.primacy2.game;
-      const v = g.view;
-      const ent = v?.ents.find((e) => e.id === v.targetId);
-      if (!ent) return null;
-      const p = g.project(ent.rel);
-      if (p.behind) { g.input.addMouse(300, 0); return Infinity; }
-      const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
-      g.input.addMouse(ex * 0.35, ey * 0.35);
-      return Math.hypot(ex, ey);
+    if ((await steerStep(page, false)) === null) return 'lost';
+    const v = await page.evaluate(() => {
+      const view = window.primacy2.game.view;
+      const ent = view?.ents.find((e) => e.id === view.targetId);
+      return ent && view.self ? { dist: Math.hypot(...ent.rel), own: Math.hypot(...view.self.state.pos) } : null;
     });
-    if (off !== null && off < 24) return true;
-    await page.waitForTimeout(120);
+    if (!v) return 'lost';
+    if (done(v)) return true;
+    await page.waitForTimeout(100);
   }
   return false;
 }
@@ -182,13 +182,7 @@ try {
 
   // The first pilot turns away from the station, flies out of its mass lock, where weapons are
   // free, and stops there.
-  if (!(await aimAwayFromStation(page))) {
-    const dbg = await page.evaluate(() => {
-      const g = window.primacy2.game; const v = g.view;
-      return { mode: v?.mode, zone: v?.zone, self: !!v?.self, p: v?.zone ? g.project([-v.zone[0], -v.zone[1], -v.zone[2]]) : null, panel: document.querySelector('.panel')?.className ?? null };
-    });
-    throw new Error('could not turn away from the station: ' + JSON.stringify(dbg));
-  }
+  if (!(await aimAwayFromStation(page))) throw new Error('could not turn away from the station');
   await page.keyboard.down('KeyW');
   await page.waitForTimeout(4000);
   const flying = await state();
@@ -218,28 +212,55 @@ try {
     watch();
   });
 
-  // The second pilot gives chase, closes to gun range outside the mass lock and opens fire.
+  // The second pilot gives chase, closes to gun range outside the mass lock and shoots the first
+  // pilot down. A starter ship does not survive that for long.
   if (!(await targetPlayer(page2))) throw new Error('the second pilot does not see the first');
   await page2.keyboard.down('KeyW');
   await page2.keyboard.down('ShiftLeft');
   const closed = await steerUntil(page2, (v) => v.dist < 1400 && v.own > 4700, 90_000);
   await page2.keyboard.up('ShiftLeft');
   await page2.keyboard.up('KeyW');
-  if (!closed) throw new Error('the second pilot could not close in on the first');
+  if (closed !== true) throw new Error(`the second pilot could not close in on the first (${closed})`);
   if (!(await aimAtTarget(page2))) throw new Error('the second pilot could not aim at the first');
+  if (await targetPlayer(page)) await aimAtTarget(page, 6000);
   await page2.mouse.move(800, 450);
   await page2.mouse.down();
-  const firing = steerUntil(page2, () => false, 2400);
-  await page2.waitForTimeout(1200);
+  await page2.waitForTimeout(450);
   await page2.screenshot({ path: `${OUT}/07-wingman-fires.png` });
-  if (await targetPlayer(page)) await aimAtTarget(page, 6000);
   await shot('08-under-fire');
-  await firing;
+  const kill = await steerUntil(page2, () => false, 40_000);
   await page2.mouse.up();
+  if (kill !== 'lost') throw new Error('the first pilot survived forty seconds of fire');
+  await page2.waitForTimeout(150);
+  await page2.screenshot({ path: `${OUT}/09-kill.png` });
+  await page2.waitForTimeout(2600);
+  await page2.screenshot({ path: `${OUT}/10-wreck.png` });
+  const wreck = await page2.evaluate(() => window.primacy2.game.view.ents.filter((e) => e.info.kind === 6).length);
+  if (wreck < 1) throw new Error('the destroyed ship left no wreck');
   const combat = await page.evaluate(() => window.__combat);
   if (!(combat.shot > 0 && combat.hit > 0)) throw new Error(`the first pilot saw no shots or hits: ${JSON.stringify(combat)}`);
   console.log(`combat events seen by the first pilot: ${JSON.stringify(combat)}`);
   await context2.close();
+
+  // Insurance: the first pilot returns to the home station in a replacement ship and sets out again.
+  await page.waitForFunction(() => { const v = window.primacy2.game.view; return !v?.self || v.mode === 4; }, null, { timeout: 10_000 });
+  await page.waitForTimeout(800);
+  await shot('11-destroyed');
+  await page.getByRole('button', { name: /home station/i }).click();
+  await page.waitForFunction(() => window.primacy2.game.view?.mode === 3, null, { timeout: 15_000 });
+  await page.waitForTimeout(1200);
+  await shot('12-rebuilt-at-station');
+  await undock(page);
+  if (!(await aimAwayFromStation(page))) throw new Error('could not turn away from the station after the respawn');
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('ShiftLeft');
+  await page.waitForFunction(() => {
+    const self = window.primacy2.game.view?.self;
+    if (!self) throw new Error('the pilot lost the replacement ship');
+    return Math.hypot(...self.state.pos) > 4600;
+  }, null, { timeout: 60_000 });
+  await page.keyboard.up('ShiftLeft');
+  await page.keyboard.up('KeyW');
 
   await page.keyboard.press('KeyJ');
   await page.waitForFunction(() => window.primacy2.game.view?.mode === 1, null, { timeout: 15_000 });
@@ -248,18 +269,18 @@ try {
   await page.keyboard.up('KeyW');
   const cruising = await state();
   if (!(cruising.cruise > 60_000)) throw new Error(`cruise did not accelerate: ${JSON.stringify(cruising)}`);
-  await shot('09-cruise');
+  await shot('13-cruise');
 
   await page.keyboard.press('KeyM');
   await page.waitForSelector('.panel.map canvas', { timeout: 5000 });
   await page.waitForTimeout(800);
-  await shot('10-galaxy-map');
+  await shot('14-galaxy-map');
   await page.keyboard.press('Escape');
 
   await page.keyboard.press('KeyN');
   await page.waitForSelector('.panel.narrow .list', { timeout: 5000 });
   await page.waitForTimeout(400);
-  await shot('11-navigation');
+  await shot('15-navigation');
   await page.keyboard.press('Escape');
 
   const fps = await page.evaluate(() => new Promise((resolve) => {
