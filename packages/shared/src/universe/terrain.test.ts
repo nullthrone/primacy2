@@ -164,6 +164,29 @@ describe('bounds and tone', () => {
     }
   });
 
+  it('holds the bounds whatever the parts add up to', () => {
+    // The same bodies with continents and mountains twenty times as high: the sum of the parts is far
+    // outside the bounds, and the height still is not.
+    for (let b = 0; b < 3; b++) {
+      const p = NATURAL[b]!;
+      const inflated: TerrainParams = { ...p, contAmp: p.contAmp * 20, mtnAmp: p.mtnAmp * 20 };
+      const rng = new Rng(150 + b);
+      let min = Infinity;
+      let max = -Infinity;
+      for (let i = 0; i < 10_000; i++) {
+        const d = direction(rng);
+        const h = terrainHeight(inflated, d[0], d[1], d[2]);
+        if (h < min) min = h;
+        if (h > max) max = h;
+      }
+      expect(min).toBeGreaterThanOrEqual(terrainMin(p));
+      expect(max).toBeLessThanOrEqual(terrainMax(p));
+      // It did press against them: well beyond the knee at three quarters of each bound.
+      expect(max).toBeGreaterThan(0.95 * terrainMax(p));
+      expect(min).toBeLessThan(0.9 * terrainMin(p));
+    }
+  });
+
   it('is true to scale: a few kilometres of relief on a body a thousand kilometres across', () => {
     expect(terrainMax(NATURAL[0]!) - terrainMin(NATURAL[0]!)).toBeGreaterThan(5_000);
     expect(terrainMax(NATURAL[0]!) - terrainMin(NATURAL[0]!)).toBeLessThan(20_000);
@@ -218,6 +241,46 @@ describe('continuity', () => {
       }
       // The walks did cross real slopes, so the limit above was a test and not a formality.
       expect(steepest).toBeGreaterThan(0.2);
+    }
+  });
+
+  it('has no step where a crater enters or leaves the lattice cells around a point', () => {
+    // A crater is looked for in the 2 x 2 x 2 lattice cells nearest to a point. Which cells those
+    // are changes where a coordinate of the point passes the middle of a cell. A crater that still
+    // reached that far would vanish there, so the height is compared a hair on either side.
+    for (let b = 0; b < 3; b++) {
+      const p = NATURAL[b]!;
+      const rng = new Rng(350 + b);
+      let crossings = 0;
+      for (const cell of p.craterCell) {
+        for (let i = 0; i < 400; i++) {
+          const d = direction(rng);
+          const axis = i % 3;
+          const u = (axis + 1) % 3;
+          const w = (axis + 2) % 3;
+          if (Math.abs(d[axis]!) > 0.8) continue;
+          // The nearest middle of a cell along this axis, and the two points a hair either side of it.
+          const middle = (Math.floor((d[axis]! * p.radius) / cell) + 0.5) * cell;
+          const hair = 1e-6 * cell;
+          const side = (coordinate: number): [number, number, number] => {
+            const c = coordinate / p.radius;
+            const k = Math.sqrt((1 - c * c) / (d[u]! * d[u]! + d[w]! * d[w]!));
+            const out: [number, number, number] = [0, 0, 0];
+            out[axis] = c;
+            out[u] = d[u]! * k;
+            out[w] = d[w]! * k;
+            return out;
+          };
+          const lo = side(middle - hair);
+          const hi = side(middle + hair);
+          if (!(lo[axis]! * p.radius < middle && hi[axis]! * p.radius > middle)) continue;
+          const run = p.radius * Math.sqrt((hi[0] - lo[0]) ** 2 + (hi[1] - lo[1]) ** 2 + (hi[2] - lo[2]) ** 2);
+          const dh = Math.abs(terrainHeight(p, hi[0], hi[1], hi[2]) - terrainHeight(p, lo[0], lo[1], lo[2]));
+          if (dh > 6 * run + 1e-9) throw new Error(`body ${b}, cell ${cell} m: step of ${dh} m over ${run} m`);
+          crossings++;
+        }
+      }
+      expect(crossings).toBeGreaterThan(200 * p.craterCell.length);
     }
   });
 
@@ -357,8 +420,33 @@ describe('ground a ship can stand on', () => {
     }
   });
 
-  it('has craters: hollows with raised rims, which a slope measured straight across would miss', () => {
-    // Somewhere on the saturated rocky moon a 300 m circle lies well above or below its centre.
+  it('has craters: closed hollows, many on a rocky body, few on ice, none without the crater lattice', () => {
+    /** Points (of 8000) that lie at least 15 m below all eight points of a 300 m circle around them. */
+    const hollows = (p: TerrainParams): number => {
+      const rng = new Rng(13);
+      const ring: [number, number, number][] = [];
+      let count = 0;
+      for (let i = 0; i < 8000; i++) {
+        const d = direction(rng);
+        const t1 = tangent(d, rng);
+        const t2: [number, number, number] = [d[1] * t1[2] - d[2] * t1[1], d[2] * t1[0] - d[0] * t1[2], d[0] * t1[1] - d[1] * t1[0]];
+        const centre = terrainHeight(p, d[0], d[1], d[2]);
+        ring.length = 0;
+        for (const [a, b] of [[1, 0], [0.7071, 0.7071], [0, 1], [-0.7071, 0.7071], [-1, 0], [-0.7071, -0.7071], [0, -1], [0.7071, -0.7071]] as const) {
+          ring.push(along(d, [t1[0] * a + t2[0] * b, t1[1] * a + t2[1] * b, t1[2] * a + t2[2] * b], 300, p.radius));
+        }
+        if (ring.every((r) => terrainHeight(p, r[0], r[1], r[2]) >= centre + 15)) count++;
+      }
+      return count;
+    };
+    const rocky = hollows(NATURAL[0]!);
+    const ice = hollows(NATURAL[1]!);
+    // The same rocky body with no crater in any lattice cell: noise alone makes no such hollows.
+    const bare = hollows({ ...NATURAL[0]!, craterDensity: 0 });
+    expect(rocky).toBeGreaterThan(20);
+    expect(bare).toBeLessThan(3);
+    expect(ice).toBeLessThan(0.3 * rocky);
+    // A slope measured straight across such a hollow misses it; the relief around the point does not.
     const rng = new Rng(13);
     let deepest = 0;
     for (let i = 0; i < 3000; i++) {

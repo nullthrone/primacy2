@@ -332,8 +332,9 @@ describe('crossing between the body frame and the surface frame', () => {
 describe('landing', () => {
   it('lands from a gentle descent: on the ground, upright, heading kept, at rest', () => {
     const s = shipAbove(PAD_UP, 40);
-    // Heading somewhere, and leaning a little.
-    s.rot = quat.mul(quat.mul(s.rot, quat.fromAxisAngle([0, 1, 0], 0.7)), quat.fromAxisAngle([1, 0, 0], 0.2));
+    // Heading somewhere, and leaning a little: nose up and one wing low.
+    s.rot = quat.mul(quat.mul(quat.mul(s.rot, quat.fromAxisAngle([0, 1, 0], 0.7)), quat.fromAxisAngle([1, 0, 0], 0.2)), quat.fromAxisAngle([0, 0, 1], 0.15));
+    expect(v3.dist(upOf(s.rot), PAD_UP)).toBeGreaterThan(0.2);
     const heading = forwardOf(s.rot);
     const { impact } = descend(s, 3);
     expect(s.mode).toBe(FlightMode.Landed);
@@ -384,6 +385,17 @@ describe('landing', () => {
     expect(v3.dist(rel0, rel1)).toBeGreaterThan(1e6);
     expect(s.energy).toBe(wisp.energyMax);
     expect(s.shield).toBe(wisp.shieldMax);
+    // A landed ship is still in the world: its tick has the whole environment, for the star's heat
+    // on its hull and for whatever the server asks about the place it stands on.
+    const env = simulateShip(s, NONE, wisp, sys, end, DT);
+    expect(env.anchor).toBe(SURFACE);
+    expect(env.sources.length).toBe(sys.bodies.length);
+    expect(env.ground).toBeDefined();
+    expect(env.impact).toBe(0);
+    const hz = hazardsAt(env, s, wisp);
+    expect(hz.heatInflux).toBeGreaterThan(0.05);
+    expect(hz.insideBody).toBe(-1);
+    expect(hz.dominantBody).toBe(LANDING_PLANET);
   });
 
   it('has a low heat signature on the ground', () => {
