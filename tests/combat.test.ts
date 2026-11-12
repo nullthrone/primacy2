@@ -1,0 +1,548 @@
+/**
+ * Combat and NPC tests: a real server world on a manually advanced clock, with ships placed
+ * directly into the simulation so every situation is exact and repeatable.
+ */
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import {
+  Button,
+  DT,
+  EntityFlag,
+  EntityKind,
+  FlightMode,
+  MASS_LOCK_RADIUS,
+  computeShipStats,
+  newPassport,
+  newShipState,
+  quat,
+  starterLoadout,
+  v3,
+  type GameEvent,
+  type Loadout,
+  type S2C,
+  type Security,
+  type SiteDef,
+  type SystemDef,
+  type Vec3,
+} from '@primacy2/shared';
+import { Player, newShip, type GameModule, type PlayerRecord, type PrimacyServer, type Ship, type SystemSim, type World } from '@primacy2/server';
+import { Cluster } from './harness.ts';
+
+const c = new Cluster();
+let S: PrimacyServer;
+let world: World;
+let npcModule: GameModule;
+let npcIndex = -1;
+/** A station or outpost and the system it is in. */
+let port: { def: SystemDef; site: SiteDef };
+/** An asteroid field and the system it is in. */
+let field: { def: SystemDef; site: SiteDef };
+
+const spies = new WeakMap<SystemSim, GameEvent[]>();
+const securityBefore = new Map<SystemDef, Security>();
+let pilots = 0;
+
+/** Events emitted in a simulation since the list was last cleared. */
+function eventsOf(sim: SystemSim): GameEvent[] {
+  let evs = spies.get(sim);
+  if (!evs) {
+    const list: GameEvent[] = (evs = []);
+    const emit = sim.emit.bind(sim);
+    sim.emit = (zone, ev) => {
+      list.push(ev);
+      emit(zone, ev);
+    };
+    spies.set(sim, evs);
+  }
+  return evs;
+}
+
+const shots = (evs: GameEvent[], from: number) => evs.filter((e): e is Extract<GameEvent, { e: 'shot' }> => e.e === 'shot' && e.from === from);
+const hits = (evs: GameEvent[], id: number) => evs.filter((e): e is Extract<GameEvent, { e: 'hit' }> => e.e === 'hit' && e.id === id);
+
+/** Advances the server synchronously: no sockets are involved in these tests. */
+function run(ticks: number): void {
+  for (let i = 0; i < ticks; i++) {
+    c.nowMs += DT * 1000;
+    S.tick();
+  }
+}
+
+function setSecurity(sim: SystemSim, level: Security): void {
+  if (!securityBefore.has(sim.def)) securityBefore.set(sim.def, sim.def.security);
+  sim.def.security = level;
+}
+
+/** Places an unmanned ship at rest, nose toward -Z. */
+function place(sim: SystemSim, fit: string | Loadout, zone: number, pos: Vec3, name = 'Drone'): Ship {
+  const loadout = typeof fit === 'string' ? starterLoadout(fit) : fit;
+  const stats = computeShipStats(loadout);
+  const state = newShipState(stats);
+  state.anchor = zone;
+  state.pos = v3.clone(pos);
+  const ship = newShip(world.allocId(), name, loadout, stats, state);
+  sim.addShip(ship);
+  return ship;
+}
+
+interface TestPilot {
+  ship: Ship;
+  p: Player;
+  notices: Extract<S2C, { t: 'notice' }>[];
+}
+
+/** Places a ship flown by a pilot who has a record and a (recording) connection but no socket. */
+function pilot(sim: SystemSim, hull: string, zone: number, pos: Vec3, credits = 10_000): TestPilot {
+  const id = `test-pilot-${++pilots}`;
+  const passport = newPassport(id, `Pilot ${pilots}`, world.id);
+  passport.ship.loadout = starterLoadout(hull);
+  const rec: PlayerRecord = {
+    id, key: id, passport, credits, status: 'here', system: sim.def.id, ship: null,
+    homeSystem: null, homeSite: null, data: {}, createdAt: 0, updatedAt: 0,
+  };
+  const p = new Player(rec);
+  const notices: TestPilot['notices'] = [];
+  p.conn = {
+    send(text) {
+      const m = JSON.parse(text) as S2C;
+      if (m.t === 'notice') notices.push(m);
+    },
+    sendBinary() {},
+    close() {},
+  };
+  const ship = place(sim, passport.ship.loadout, zone, pos, p.name);
+  ship.player = p;
+  ship.cargo = passport.ship.cargo;
+  p.ship = ship;
+  p.sim = sim;
+  sim.addShip(ship);
+  return { ship, p, notices };
+}
+
+/** Makes a ship survive any amount of fire, with shields that stay down. */
+function harden(ship: Ship): void {
+  ship.stats = { ...ship.stats, hullMax: 1e7 };
+  ship.state.hull = 1e7;
+}
+
+/** Leaves a ship one hit from destruction. */
+function weaken(ship: Ship): void {
+  ship.state.hull = 1;
+  ship.state.shield = 0;
+  ship.state.shieldDelay = 1e6;
+}
+
+const law = (t: TestPilot) => t.p.rec.data.combat as { bounty: number; wantedUntil: number } | undefined;
+
+/** A spot well outside the weapons lock of a port. */
+const OPEN: Vec3 = [20_000, 0, 0];
+const ahead = (p: Vec3, metres: number): Vec3 => [p[0], p[1], p[2] - metres];
+
+beforeAll(async () => {
+  S = await c.start({ name: 'Combat', seed: 'combat' });
+  world = S.world;
+  // NPCs would wander into the firing lines; they get their own tests below.
+  npcIndex = world.modules.findIndex((m) => m.name === 'npc');
+  npcModule = world.modules[npcIndex]!;
+  world.modules.splice(npcIndex, 1);
+
+  for (const def of world.defs.values()) {
+    for (const site of def.sites) {
+      if (!port && (site.kind === 'station' || site.kind === 'outpost')) port = { def, site };
+      if (!field && (site.kind === 'belt' || site.kind === 'ring' || site.kind === 'anomaly')) {
+        if (world.sim(def.id).asteroids(site.id).length > 0) field = { def, site };
+      }
+    }
+  }
+  expect(port, 'the test sector has a station or outpost').toBeTruthy();
+  expect(field, 'the test sector has an asteroid field').toBeTruthy();
+});
+
+afterEach(() => {
+  for (const sim of world.sims.values()) {
+    for (const ship of [...sim.ships.values()]) sim.removeShip(ship);
+    sim.objects.clear();
+    const evs = spies.get(sim);
+    if (evs) evs.length = 0;
+  }
+  for (const [def, level] of securityBefore) def.security = level;
+  securityBefore.clear();
+});
+
+afterAll(async () => {
+  await c.stop();
+});
+
+describe('weapons', () => {
+  it('fires at the rate of the weapon and no faster', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    const ship = place(sim, 'wisp', port.site.id, OPEN);
+    // Two Pulse Laser I, four shots per second each.
+    expect(ship.stats.weapons.map((w) => w.id)).toEqual(['pulse_1', 'pulse_1']);
+    ship.stats = { ...ship.stats, energyMax: 1000 };
+    ship.state.energy = 1000;
+    ship.input.buttons = Button.Fire1;
+    run(30);
+    const mine = shots(evs, ship.id);
+    expect(mine.filter((s) => s.slot === 0)).toHaveLength(4);
+    expect(mine.filter((s) => s.slot === 1)).toHaveLength(4);
+    expect(ship.flags & EntityFlag.Firing).toBeTruthy();
+    run(90);
+    // Over four seconds the average rate is exact: 16 shots per mount.
+    expect(shots(evs, ship.id).filter((s) => s.slot === 0)).toHaveLength(16);
+
+    // The secondary trigger fires nothing on a ship without secondary weapons.
+    evs.length = 0;
+    ship.input.buttons = Button.Fire2;
+    run(30);
+    expect(shots(evs, ship.id)).toHaveLength(0);
+    expect(ship.flags & EntityFlag.Firing).toBe(0);
+  });
+
+  it('spends energy, builds heat and stops when either runs out', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    const firing = place(sim, 'wisp', port.site.id, OPEN);
+    const idle = place(sim, 'wisp', port.site.id, [OPEN[0], 500, 0]);
+    firing.input.buttons = Button.Fire1;
+    run(15);
+    expect(shots(evs, firing.id).length).toBeGreaterThan(0);
+    expect(firing.state.energy).toBeLessThan(idle.state.energy);
+    expect(firing.state.heat).toBeGreaterThan(idle.state.heat);
+
+    // A flat reactor: one shot needs 2.6 energy.
+    const flat = place(sim, 'wisp', port.site.id, [OPEN[0], 1000, 0]);
+    flat.stats = { ...flat.stats, energyRegen: 0 };
+    flat.state.energy = 2;
+    flat.input.buttons = Button.Fire1;
+    // A ship at its heat limit: one more shot would overheat it.
+    const hot = place(sim, 'wisp', port.site.id, [OPEN[0], 1500, 0]);
+    hot.stats = { ...hot.stats, cooling: 0 };
+    hot.state.heat = hot.stats.heatCap - 0.5;
+    hot.input.buttons = Button.Fire1;
+    run(30);
+    expect(shots(evs, flat.id)).toHaveLength(0);
+    expect(flat.state.energy).toBe(2);
+    expect(shots(evs, hot.id)).toHaveLength(0);
+    expect(hot.flags & EntityFlag.Firing).toBe(0);
+  });
+
+  it('hits a locked target ahead and misses when the nose points away', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    const target = place(sim, 'bulwark', port.site.id, ahead(OPEN, 800));
+    expect(target.stats.shieldMax).toBeGreaterThan(50);
+    const shooter = place(sim, 'wisp', port.site.id, OPEN);
+    shooter.target = target.id;
+    shooter.input.buttons = Button.Fire1;
+    run(10);
+    const fired = shots(evs, shooter.id);
+    expect(fired.length).toBeGreaterThan(0);
+    expect(fired.every((s) => s.to === target.id)).toBe(true);
+    // The impact point lies on the target's hull sphere.
+    expect(v3.dist(fired[0]!.at, target.state.pos)).toBeCloseTo(target.stats.radius, 0);
+    expect(hits(evs, target.id).every((h) => h.by === shooter.id && h.shield)).toBe(true);
+    expect(target.state.shield).toBeLessThan(target.stats.shieldMax);
+    expect(target.state.hull).toBe(target.stats.hullMax);
+    expect(target.lastHitBy).toBe(shooter.id);
+
+    // Same lock, nose turned a quarter turn away: far outside the gimbal.
+    shooter.input.buttons = 0;
+    run(1);
+    const shieldBefore = target.state.shield;
+    evs.length = 0;
+    shooter.state.rot = quat.fromAxisAngle([0, 1, 0], Math.PI / 2);
+    shooter.input.buttons = Button.Fire1;
+    run(10);
+    const wide = shots(evs, shooter.id);
+    expect(wide.length).toBeGreaterThan(0);
+    expect(wide.every((s) => s.to === undefined)).toBe(true);
+    expect(v3.dist(wide[0]!.at, shooter.state.pos)).toBeGreaterThan(2900);
+    expect(hits(evs, target.id)).toHaveLength(0);
+    expect(target.state.shield).toBeGreaterThanOrEqual(shieldBefore);
+  });
+
+  it('an asteroid between shooter and target stops the shot', () => {
+    const sim = arena(field, 'lawless');
+    const evs = eventsOf(sim);
+    const rocks = sim.asteroids(field.site.id);
+    // A rock with free space in front of and behind it along Z.
+    const clear = (p: Vec3) => rocks.every((r) => v3.dist(r.pos, p) > r.radius + 60);
+    const rock = rocks.find((r) => r.radius >= 12 && clear([r.pos[0], r.pos[1], r.pos[2] + r.radius + 250]) && clear([r.pos[0], r.pos[1], r.pos[2] - r.radius - 250]));
+    expect(rock, 'a rock with clear space on both sides').toBeTruthy();
+    const from: Vec3 = [rock!.pos[0], rock!.pos[1], rock!.pos[2] + rock!.radius + 250];
+    const behind: Vec3 = [rock!.pos[0], rock!.pos[1], rock!.pos[2] - rock!.radius - 250];
+    const target = place(sim, 'bulwark', field.site.id, behind);
+    const shooter = place(sim, 'drover', field.site.id, from);
+    shooter.target = target.id;
+    shooter.input.buttons = Button.Fire1;
+    run(20);
+    const fired = shots(evs, shooter.id);
+    expect(fired.length).toBeGreaterThan(0);
+    expect(fired.every((s) => s.to === undefined)).toBe(true);
+    // The beam ends on the surface of the rock.
+    expect(v3.dist(fired[0]!.at, rock!.pos)).toBeCloseTo(rock!.radius, 0);
+    expect(hits(evs, target.id)).toHaveLength(0);
+    expect(target.state.shield).toBe(target.stats.shieldMax);
+  });
+
+  it('shields absorb before the hull, each with its multiplier', () => {
+    const sim = arena(port, 'lawless');
+    const target = place(sim, 'bulwark', port.site.id, ahead(OPEN, 600));
+    // One Pulse Laser I: 13 damage, x1.25 against shields, x0.8 against hull.
+    const shooter = place(sim, 'drover', port.site.id, OPEN);
+    expect(shooter.stats.weapons).toHaveLength(1);
+    shooter.target = target.id;
+    const full = target.stats.shieldMax;
+    shooter.input.buttons = Button.Fire1;
+    run(1);
+    shooter.input.buttons = 0;
+    expect(target.state.shield).toBeCloseTo(full - 13 * 1.25, 6);
+    expect(target.state.hull).toBe(target.stats.hullMax);
+
+    // 10 shield points left take 8 damage; the remaining 5 reach the hull as 4.
+    run(10);
+    target.state.shield = 10;
+    target.state.shieldDelay = 1e6;
+    shooter.input.buttons = Button.Fire1;
+    run(1);
+    shooter.input.buttons = 0;
+    expect(target.state.shield).toBe(0);
+    expect(target.state.hull).toBeCloseTo(target.stats.hullMax - 4, 6);
+  });
+
+  it('a missile homes on a slow target and expires when it finds nothing', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    // A gunship carrying nothing but its Seeker Rack.
+    const fit = starterLoadout('bulwark');
+    fit.modules = fit.modules.map((m) => (m && (m.startsWith('pulse') || m.startsWith('cannon')) ? null : m));
+    const shooter = place(sim, fit, port.site.id, OPEN);
+    expect(shooter.stats.weapons.map((w) => w.kind)).toEqual(['missile']);
+    // The target sits off to one side and creeps along: the missile has to turn.
+    const target = place(sim, 'drover', port.site.id, [OPEN[0] + 600, 200, OPEN[2] - 2500]);
+    target.input.throttle = 0.3;
+    shooter.target = target.id;
+    shooter.input.buttons = Button.Fire2;
+    run(1);
+    shooter.input.buttons = 0;
+    const missiles = () => [...sim.objects.values()].filter((o) => o.kind === EntityKind.Missile);
+    expect(missiles()).toHaveLength(1);
+    expect(shots(evs, shooter.id)).toHaveLength(1);
+    const before = target.state.shield + target.state.hull;
+    let ticks = 0;
+    while (missiles().length > 0 && ticks < 14 * 30 + 10) {
+      run(1);
+      ticks++;
+    }
+    expect(hits(evs, target.id)).toHaveLength(1);
+    expect(hits(evs, target.id)[0]!.by).toBe(shooter.id);
+    expect(target.state.shield + target.state.hull).toBeLessThan(before);
+    expect(ticks).toBeLessThan(10 * 30);
+
+    // No lock: the next missile flies straight until its motor burns out.
+    evs.length = 0;
+    shooter.target = null;
+    shooter.state.rot = quat.fromAxisAngle([0, 1, 0], Math.PI);
+    run(120);
+    shooter.input.buttons = Button.Fire2;
+    run(1);
+    shooter.input.buttons = 0;
+    expect(missiles()).toHaveLength(1);
+    run(13 * 30);
+    expect(missiles()).toHaveLength(1);
+    run(2 * 30);
+    expect(missiles()).toHaveLength(0);
+    expect(evs.filter((e) => e.e === 'hit')).toHaveLength(0);
+  });
+
+  it('weapons stay locked next to a station in a secure system', () => {
+    const sim = arena(port, 'secure');
+    const evs = eventsOf(sim);
+    const near: Vec3 = [MASS_LOCK_RADIUS - 500, 0, 0];
+    const me = pilot(sim, 'wisp', port.site.id, near);
+    const target = place(sim, 'bulwark', port.site.id, ahead(near, 500));
+    me.ship.target = target.id;
+    me.ship.input.buttons = Button.Fire1;
+    run(60);
+    expect(shots(evs, me.ship.id)).toHaveLength(0);
+    expect(me.ship.flags & EntityFlag.Firing).toBe(0);
+    expect(target.state.shield).toBe(target.stats.shieldMax);
+    // The pilot is told why, but not on every tick.
+    expect(me.notices.filter((n) => n.code === 'weapons_locked')).toHaveLength(1);
+    run(120);
+    expect(me.notices.filter((n) => n.code === 'weapons_locked')).toHaveLength(2);
+
+    // The same spot in a frontier system is free-fire.
+    setSecurity(sim, 'frontier');
+    run(10);
+    expect(shots(evs, me.ship.id).length).toBeGreaterThan(0);
+    expect(target.state.shield).toBeLessThan(target.stats.shieldMax);
+  });
+
+  it('docked ships cannot be shot or damaged', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    const docked = place(sim, 'drover', port.site.id, ahead(OPEN, 400));
+    docked.state.mode = FlightMode.Docked;
+    const shooter = place(sim, 'wisp', port.site.id, OPEN);
+    shooter.target = docked.id;
+    shooter.input.buttons = Button.Fire1;
+    run(15);
+    expect(shots(evs, shooter.id).length).toBeGreaterThan(0);
+    expect(shots(evs, shooter.id).every((s) => s.to === undefined)).toBe(true);
+    sim.damage(docked, 500, { by: shooter });
+    expect(docked.state.hull).toBe(docked.stats.hullMax);
+    expect(docked.state.shield).toBe(docked.stats.shieldMax);
+    expect(docked.gone).toBe(false);
+  });
+});
+
+describe('law', () => {
+  it('secure space: assault makes wanted, murder costs more, and the bounty pays out', () => {
+    const sim = arena(port, 'secure');
+    const victim = pilot(sim, 'wisp', port.site.id, ahead(OPEN, 600));
+    const attacker = pilot(sim, 'wisp', port.site.id, OPEN);
+    harden(victim.ship);
+    run(31);
+    expect(attacker.ship.wanted).toBe(false);
+    attacker.ship.target = victim.ship.id;
+    attacker.ship.input.buttons = Button.Fire1;
+    run(2);
+    expect(law(attacker)).toMatchObject({ bounty: 400 });
+    expect(law(attacker)!.wantedUntil).toBeGreaterThan(sim.time + 590);
+    expect(attacker.ship.wanted).toBe(true);
+    expect(attacker.notices.some((n) => n.code === 'wanted')).toBe(true);
+    // A long burst is still one assault.
+    run(60);
+    expect(law(attacker)!.bounty).toBe(400);
+
+    weaken(victim.ship);
+    run(10);
+    expect(victim.ship.state.mode).toBe(FlightMode.Dead);
+    expect(law(attacker)!.bounty).toBe(5400);
+    expect(attacker.p.rec.passport.stats.kills).toBe(1);
+    expect(world.pilotView(attacker.p)).toMatchObject({ bounty: 5400, wanted: true });
+    expect(world.pilotView(victim.p)).toMatchObject({ bounty: 0, wanted: false });
+    // The victim pays the insurance excess: 5 % of a stock Wisp worth 55 000 cr.
+    expect(victim.p.rec.credits).toBe(10_000 - 2_750);
+
+    // A bounty hunter may now destroy the attacker without penalty and collects.
+    attacker.ship.input.buttons = 0;
+    const hunter = pilot(sim, 'lancet', port.site.id, [OPEN[0], 0, 600]);
+    hunter.ship.target = attacker.ship.id;
+    hunter.ship.input.buttons = Button.Fire1;
+    weaken(attacker.ship);
+    run(10);
+    expect(attacker.ship.state.mode).toBe(FlightMode.Dead);
+    expect(hunter.p.rec.credits).toBe(10_000 + 5_400);
+    expect(hunter.p.rec.passport.stats.kills).toBe(1);
+    expect(hunter.ship.wanted).toBe(false);
+    expect(law(hunter)?.bounty ?? 0).toBe(0);
+    expect(law(attacker)).toMatchObject({ bounty: 0, wantedUntil: 0 });
+    expect(attacker.ship.wanted).toBe(false);
+    expect(attacker.p.rec.credits).toBe(10_000 - 2_750);
+  });
+
+  it('the wanted status lapses after ten minutes', () => {
+    const sim = arena(port, 'secure');
+    const victim = place(sim, 'bulwark', port.site.id, ahead(OPEN, 600));
+    const attacker = pilot(sim, 'wisp', port.site.id, OPEN);
+    attacker.ship.target = victim.id;
+    attacker.ship.input.buttons = Button.Fire1;
+    run(3);
+    attacker.ship.input.buttons = 0;
+    expect(attacker.ship.wanted).toBe(true);
+    c.nowMs += 601_000;
+    run(31);
+    expect(attacker.ship.wanted).toBe(false);
+    expect(world.pilotView(attacker.p)).toMatchObject({ bounty: 400, wanted: false });
+  });
+
+  it('frontier space: only the kill counts, and self-defence is no crime', () => {
+    const sim = arena(port, 'frontier');
+    const victim = pilot(sim, 'wisp', port.site.id, ahead(OPEN, 600));
+    const attacker = pilot(sim, 'wisp', port.site.id, OPEN);
+    harden(victim.ship);
+    attacker.ship.target = victim.ship.id;
+    attacker.ship.input.buttons = Button.Fire1;
+    run(40);
+    expect(victim.ship.lastHitBy).toBe(attacker.ship.id);
+    expect(law(attacker)?.bounty ?? 0).toBe(0);
+    expect(attacker.ship.wanted).toBe(false);
+
+    // The victim shoots back and destroys the aggressor: no bounty for defending oneself.
+    attacker.ship.input.buttons = 0;
+    victim.ship.state.rot = quat.fromAxisAngle([0, 1, 0], Math.PI);
+    victim.ship.target = attacker.ship.id;
+    victim.ship.input.buttons = Button.Fire1;
+    weaken(attacker.ship);
+    run(10);
+    expect(attacker.ship.state.mode).toBe(FlightMode.Dead);
+    expect(law(victim)?.bounty ?? 0).toBe(0);
+    expect(victim.ship.wanted).toBe(false);
+
+    // An unprovoked kill puts 2500 cr on the killer's head.
+    victim.ship.input.buttons = 0;
+    const bystander = place(sim, 'drover', port.site.id, [OPEN[0], 0, OPEN[2] - 600 + 500]);
+    victim.ship.target = bystander.id;
+    weaken(bystander);
+    victim.ship.input.buttons = Button.Fire1;
+    run(10);
+    expect(bystander.gone).toBe(true);
+    expect(law(victim)).toMatchObject({ bounty: 2500 });
+    expect(victim.ship.wanted).toBe(true);
+  });
+
+  it('lawless space: nobody keeps score', () => {
+    const sim = arena(port, 'lawless');
+    const victim = pilot(sim, 'wisp', port.site.id, ahead(OPEN, 600));
+    const attacker = pilot(sim, 'wisp', port.site.id, OPEN);
+    attacker.ship.target = victim.ship.id;
+    attacker.ship.input.buttons = Button.Fire1;
+    weaken(victim.ship);
+    run(40);
+    expect(victim.ship.state.mode).toBe(FlightMode.Dead);
+    expect(law(attacker)?.bounty ?? 0).toBe(0);
+    expect(attacker.ship.wanted).toBe(false);
+    expect(world.pilotView(attacker.p)).toMatchObject({ bounty: 0, wanted: false });
+    expect(attacker.p.rec.passport.stats.kills).toBe(1);
+  });
+});
+
+describe('destruction', () => {
+  it('drops up to half of the cargo as loot, in at most six pods', () => {
+    const sim = arena(port, 'lawless');
+    const loot = () => [...sim.objects.values()].filter((o) => o.kind === EntityKind.Loot);
+    const hauler = place(sim, 'drover', port.site.id, OPEN);
+    hauler.cargo = [
+      { c: 'food', n: 10, origin: world.id },
+      { c: 'alloys', n: 5, origin: 'elsewhere' },
+      { c: 'not-a-commodity', n: 40, origin: world.id },
+    ];
+    run(1);
+    sim.destroy(hauler, null);
+    expect(hauler.gone).toBe(true);
+    const pods = loot();
+    expect(pods.map((o) => [o.info.c, o.info.n])).toEqual([['food', 5], ['alloys', 2]]);
+    for (const o of pods) {
+      expect(o.anchor).toBe(port.site.id);
+      expect(v3.len(o.vel)).toBeLessThanOrEqual(15);
+      expect(v3.dist(o.pos, OPEN)).toBeLessThan(50);
+    }
+    // The origin travels with the goods.
+    expect(pods[1]!.data).toMatchObject({ origins: [{ c: 'alloys', n: 2, origin: 'elsewhere' }] });
+
+    sim.objects.clear();
+    const full = place(sim, 'drover', port.site.id, [OPEN[0], 2000, 0]);
+    full.cargo = ['food', 'water', 'alloys', 'polymers', 'ceramics', 'machinery', 'textiles', 'medicine'].map((id) => ({ c: id, n: 4, origin: world.id }));
+    sim.destroy(full, null);
+    expect(loot()).toHaveLength(6);
+    expect(loot().reduce((sum, o) => sum + (o.info.n ?? 0), 0)).toBeLessThanOrEqual(16);
+
+    // A pilot with empty pockets pays what they have, never more.
+    const broke = pilot(sim, 'wisp', port.site.id, [OPEN[0], 4000, 0], 120);
+    sim.destroy(broke.ship, null);
+    expect(broke.p.rec.credits).toBe(0);
+  });
+});

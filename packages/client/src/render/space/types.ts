@@ -17,14 +17,17 @@ export interface ViewParams {
 }
 
 /**
- * Rotation axis of a body in system axes (unit vector). Rings, accretion disks and jets are laid
- * out around it. The universe definition gives only the tilt angle; the direction of the tilt is
- * derived from the body's seed so it is stable.
+ * Rotation axis of a body in system axes (unit vector): +Y tilted toward +Z by the body's tilt.
+ * Rings, accretion disks and jets are laid out around it. This matches the generated universe,
+ * where ring sites and moons orbit with inclination = tilt and ascending node 0.
  */
 export function bodyAxis(def: BodyDef): Vec3 {
-  const az = ((def.seed * 0.6180339887) % 1) * Math.PI * 2;
-  const s = Math.sin(def.tilt);
-  return [s * Math.cos(az), Math.cos(def.tilt), s * Math.sin(az)];
+  return [0, Math.cos(def.tilt), Math.sin(def.tilt)];
+}
+
+/** A body's seed reduced to a small float that is safe to use as a noise offset in shaders. */
+export function seedFloat(seed: number): number {
+  return ((seed >>> 0) % 9973) / 9973 * 60;
 }
 
 /** FNV-1a hash of a string, as an unsigned 32-bit integer. */

@@ -306,12 +306,15 @@ function fire(sim: SystemSim, ship: Ship, buttons: number, dt: number): boolean 
 /** Counts weapon cooldowns down and fires the mounts of every ship holding a trigger. */
 export function stepWeapons(sim: SystemSim, dt: number): void {
   for (const ship of sim.ships.values()) {
+    const mounts = ship.stats.weapons;
+    if (mounts.length === 0) continue;
     const cd = ship.cooldowns;
-    if (cd.length === 0) continue;
     const buttons = ship.input.buttons & FIRE_MASK;
     const held = buttons !== 0 && !ship.gone && ship.state.mode === FlightMode.Normal;
-    for (let i = 0; i < cd.length; i++) {
-      const v = cd[i]!;
+    for (let i = 0; i < mounts.length; i++) {
+      // The cooldowns of mining tools belong to the mining module.
+      if (mounts[i]!.group === 3) continue;
+      const v = cd[i] ?? 0;
       // While the trigger is held the overshoot below zero is kept for this tick, so the next
       // cooldown can start from it; otherwise the weapon simply becomes ready.
       if (v > 0) cd[i] = held ? v - dt : Math.max(0, v - dt);
@@ -321,7 +324,7 @@ export function stepWeapons(sim: SystemSim, dt: number): void {
     ship.flags &= ~EntityFlag.Firing;
     if (!held) continue;
     if (fire(sim, ship, buttons, dt)) ship.flags |= EntityFlag.Firing;
-    for (let i = 0; i < cd.length; i++) if (cd[i]! < 0) cd[i] = 0;
+    for (let i = 0; i < mounts.length; i++) if (mounts[i]!.group !== 3 && cd[i]! < 0) cd[i] = 0;
   }
 }
 

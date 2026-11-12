@@ -78,6 +78,8 @@ interface Market {
   t: number;
   /** Universe time of the last write to the store. */
   savedAt: number;
+  /** Stocks have moved since the last write. */
+  dirty: boolean;
   rows: Map<string, Row>;
 }
 
@@ -151,6 +153,7 @@ function saveMarket(world: World, m: Market): void {
   const doc: MarketDoc = { v: 1, t: m.t, stock };
   world.store.putDoc('market', m.key, doc);
   m.savedAt = m.t;
+  m.dirty = false;
 }
 
 /** Moves every stock toward its target by the universe time since the last step. Returns whether anything moved. */
@@ -166,6 +169,7 @@ function recover(m: Market, now: number): boolean {
     row.stock += d;
     moved = true;
   }
+  if (moved) m.dirty = true;
   return moved;
 }
 
@@ -187,7 +191,7 @@ function marketOf(world: World, system: SystemDef, site: SiteDef): Market | null
         if (typeof s === 'number' && Number.isFinite(s) && s >= 0) row.stock = s;
       }
     }
-    m = { key, t, savedAt: t, rows };
+    m = { key, t, savedAt: t, dirty: false, rows };
     all.set(key, m);
     if (!doc) saveMarket(world, m);
   }
@@ -211,8 +215,12 @@ function buyCost(row: Row, n: number): number {
 
 /** Credits (before tariff and rounding) the station pays for `n` tonnes added on top of `stock`. */
 function sellValue(row: Row, stock: number, n: number): number {
+  const whole = Math.floor(n);
   let sum = 0;
-  for (let i = 0; i < n; i++) sum += midPrice(row, stock + i + 0.5);
+  for (let i = 0; i < whole; i++) sum += midPrice(row, stock + i + 0.5);
+  // Cargo is kept in whole tonnes; a fractional stack is still never paid as a full tonne.
+  const part = n - whole;
+  if (part > 0) sum += part * midPrice(row, stock + whole + part / 2);
   return sum * (1 - SPREAD);
 }
 
@@ -376,8 +384,8 @@ export const economyModule: GameModule = {
   worldTick(world) {
     const now = world.time();
     for (const m of marketsOf(world).values()) {
-      const moved = recover(m, now);
-      if (moved && now - m.savedAt >= SAVE_INTERVAL_SECONDS) saveMarket(world, m);
+      recover(m, now);
+      if (m.dirty && now - m.savedAt >= SAVE_INTERVAL_SECONDS) saveMarket(world, m);
     }
   },
 
