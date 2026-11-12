@@ -208,12 +208,18 @@ def fit(obs, colliders, bound):
 
 def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, export=True, preview=True,
            direction=(0.5, -0.72, 0.62), zoom=1.2, preview_radius=None, target=(0, 0, 0), children=(),
-           require=(), merge=0.0, fit_skip=('portal',), preview_hide=()):
-    """Finalize, add child meshes, check collider fit, export, verify and render one preview."""
+           require=(), merge=0.0, fit_skip=('portal',), preview_hide=(), post=None):
+    """Finalize, add child meshes, check collider fit, export, verify and render one preview.
+
+    post(m) runs on the finished mesh object after the ambient occlusion bake and before the
+    export; generators use it to multiply tints into the "Col" attribute.
+    """
     t0 = time.time()
     m.finalize(sharp_angle=sharp, ao=ao, ao_distance=ao_distance, merge_dist=merge)
     if 'Col' not in m.object.data.color_attributes:
         white_col(m.object.data)
+    if post is not None:
+        post(m)
     kids = []
     for name, sub, kw in children:
         kids.append((name, child_mesh(m, name, sub, **kw)))

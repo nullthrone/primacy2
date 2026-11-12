@@ -43,9 +43,10 @@ SEP = ':'  # in-file empties are named "<key>:<name>" and renamed for export
 BUDGETS = {
     'ship': (6000, 20000),
     'station': (0, 50000),
-    'gate': (0, 25000),
+    'gate': (0, 30000),
     'prop': (0, 3000),
     'asteroid': (800, 2500),
+    'debris': (100, 650),
     'cockpit': (0, 6000),
 }
 MAX_GLB_BYTES = 2 * 1024 * 1024
@@ -68,7 +69,8 @@ PALETTE = {
     'emissive_accent': dict(color=(0.05, 0.75, 0.9), metallic=0.0, roughness=0.5,
                             emission=(0.05, 0.85, 1.0), strength=3.0),
     # structures and props
-    'rock': dict(color=(0.17, 0.14, 0.12), metallic=0.0, roughness=0.95),
+    # The rock albedo is the brightest tone; the asteroids' vertex colours only darken it.
+    'rock': dict(color=(0.34, 0.31, 0.28), metallic=0.0, roughness=0.95),
     'portal': dict(color=(0.01, 0.12, 0.2), metallic=0.0, roughness=0.4,
                    emission=(0.04, 0.5, 0.75), strength=1.0),
     'cockpit_frame': dict(color=(0.028, 0.03, 0.034), metallic=0.7, roughness=0.5),
@@ -1400,8 +1402,48 @@ def _aim(ob, direction):
     ob.rotation_euler = (-Vector(direction)).to_track_quat('Z', 'Y').to_euler()
 
 
-def render_preview(key, view, radius, direction=None, target=(0, 0, 0), zoom=1.0, path=None, debug_ao=False):
-    """Render assets/blender/previews/<key>_<view>.png with EEVEE."""
+@contextmanager
+def _col_in_materials(key, enable=True):
+    """Preview only: multiply the "Col" attribute into the base colour of the model's materials,
+    which is how the game shades them. The node trees are put back afterwards, so the materials
+    stay plain Principled values for the export."""
+    added = []
+    col = bpy.data.collections.get(PREFIX + key)
+    meshes = [ob for ob in col.objects if ob.type == 'MESH'] if col is not None else []
+    if enable and meshes and all('Col' in ob.data.color_attributes for ob in meshes):
+        mats = []
+        for ob in meshes:
+            for mat in ob.data.materials:
+                if mat is not None and mat not in mats:
+                    mats.append(mat)
+        for mat in mats:
+            nt = mat.node_tree
+            bsdf = next((n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED'), None) if nt else None
+            if bsdf is None or bsdf.inputs['Base Color'].is_linked:
+                continue
+            att = nt.nodes.new('ShaderNodeAttribute')
+            att.attribute_name = 'Col'
+            mul = nt.nodes.new('ShaderNodeVectorMath')
+            mul.operation = 'MULTIPLY'
+            mul.inputs[1].default_value = tuple(bsdf.inputs['Base Color'].default_value)[:3]
+            nt.links.new(att.outputs['Color'], mul.inputs[0])
+            nt.links.new(mul.outputs[0], bsdf.inputs['Base Color'])
+            added.append((nt, att, mul))
+    try:
+        yield
+    finally:
+        for nt, att, mul in added:
+            nt.nodes.remove(mul)
+            nt.nodes.remove(att)
+
+
+def render_preview(key, view, radius, direction=None, target=(0, 0, 0), zoom=1.0, path=None, debug_ao=False,
+                   show_col=True):
+    """Render assets/blender/previews/<key>_<view>.png with EEVEE.
+
+    show_col shades the model with its vertex colours (ambient occlusion and tints) multiplied
+    into the material colours, as the game does.
+    """
     cam, lights = setup_stage()
     d = Vector(direction or VIEWS[view]).normalized()
     tgt = Vector(target)
@@ -1430,7 +1472,8 @@ def render_preview(key, view, radius, direction=None, target=(0, 0, 0), zoom=1.0
             vl.material_override = _ao_debug_material()
         sc.render.filepath = path
         try:
-            bpy.ops.render.render(write_still=True, scene=sc.name)
+            with _col_in_materials(key, show_col and not debug_ao):
+                bpy.ops.render.render(write_still=True, scene=sc.name)
         finally:
             vl.material_override = prev_override
     return path
