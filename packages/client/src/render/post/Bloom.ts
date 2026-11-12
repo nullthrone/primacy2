@@ -91,7 +91,7 @@ export class Bloom {
       const rt = this.down[i]!;
       dm.tSrc!.value = src;
       (dm.uTexel!.value as Vector2).set(1 / sw, 1 / sh);
-      dm.uThreshold!.value = i === 0 ? 1.0 : 0;
+      dm.uThreshold!.value = i === 0 ? 1.1 : 0;
       pass.render(renderer, this.downMat, rt);
       src = rt.texture; sw = rt.width; sh = rt.height;
     }

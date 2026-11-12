@@ -58,14 +58,14 @@ float speedLines(vec2 pc, float rad, float t) {
     float id = floor(fa);
     float h = h21(vec2(id, 3.0 + float(k) * 7.0));
     float h2 = h21(vec2(id, 19.0 + float(k) * 5.0));
-    if (h2 < 0.45) continue;
+    if (h2 < 0.6) continue;
     float life = fract(h + t * (0.35 + h2 * 0.9));
-    float head = 0.06 + life * life * 1.25;
-    float len = (0.03 + 0.3 * life) * (0.3 + uCruise);
+    float head = 0.14 + life * life * 1.2;
+    float len = (0.02 + 0.22 * life) * (0.3 + uCruise);
     float along = smoothstep(head - len, head, rad) * (1.0 - smoothstep(head, head + 0.01, rad));
     float across = abs(fract(fa) - 0.5) * rad * 6.2831853 / count;
-    float line = 1.0 - smoothstep(0.0, 0.0011 + 0.0012 * life, across);
-    acc += along * line * (0.3 + life);
+    float line = 1.0 - smoothstep(0.0, 0.0007 + 0.0009 * life, across);
+    acc += along * line * (0.15 + life) * 0.6;
   }
   return acc;
 }
@@ -73,26 +73,30 @@ float speedLines(vec2 pc, float rad, float t) {
 // Fold tunnel: streaked walls flowing past the viewer toward a bright exit point.
 vec3 tunnel(vec2 pc, float rad, float t) {
   float a = atan(pc.y, pc.x);
-  float z = 0.42 / (rad + 0.045);
-  float tw = a + z * 0.22 + t * 0.12;
+  // Depth along the tunnel: the centre of the screen is far ahead.
+  float z = 0.5 / (rad + 0.06);
+  float tw = a + z * 0.35 + t * 0.10;
   vec2 cs = vec2(cos(tw), sin(tw));
-  float flow = z + t * 2.6;
-  float s1 = n3(vec3(cs * 2.2, flow * 0.55));
-  float s2 = n3(vec3(cs * 7.0 + 5.0, flow * 1.3));
-  float s3 = n3(vec3(cs * 19.0 - 3.0, flow * 0.35));
-  float s4 = n3(vec3(cs * 41.0 + 9.0, flow * 0.22));
-  float wall = smoothstep(0.02, 0.55, rad);
-  vec3 deep = vec3(0.02, 0.05, 0.30);
-  vec3 mid = vec3(0.16, 0.30, 1.0);
-  vec3 violet = vec3(0.55, 0.22, 1.0);
-  vec3 col = mix(deep, mix(mid, violet, s2), s1 * s1) * (0.35 + 1.6 * s1 * s2);
-  col += mid * pow(s2, 3.0) * 1.2;
-  col += vec3(0.75, 0.9, 1.4) * smoothstep(0.66, 0.92, s3) * 1.6;
-  col += vec3(1.0, 0.95, 1.2) * smoothstep(0.74, 0.95, s4) * 1.4;
-  float ring = pow(0.5 + 0.5 * sin(z * 5.0 + t * 7.0), 10.0);
-  col += mid * ring * 0.35;
-  col *= 0.15 + 1.25 * wall;
-  col += vec3(0.85, 0.93, 1.3) * (0.010 / (rad * rad + 0.0035));
+  float flow = z + t * 2.2;
+  // Cloudy walls, stretched along the tunnel, with thin bright filaments.
+  float c1 = n3(vec3(cs * 1.6, flow * 0.8));
+  float c2 = n3(vec3(cs * 4.5 + 5.0, flow * 1.9));
+  float clouds = c1 * 0.65 + c2 * 0.35;
+  float f1 = n3(vec3(cs * 13.0 - 3.0, flow * 0.5));
+  float f2 = n3(vec3(cs * 37.0 + 9.0, flow * 0.3));
+  float fil = smoothstep(0.72, 0.95, f1) * 0.8 + smoothstep(0.80, 0.97, f2) * 1.2;
+  vec3 deep = vec3(0.012, 0.02, 0.10);
+  vec3 blue = vec3(0.08, 0.20, 0.85);
+  vec3 violet = vec3(0.42, 0.12, 0.85);
+  vec3 col = mix(deep, mix(blue, violet, c2), smoothstep(0.35, 0.8, clouds)) * (0.25 + 0.9 * clouds);
+  col += vec3(0.55, 0.75, 1.5) * fil * (0.4 + 0.6 * clouds);
+  // Rings of light rushing past.
+  float ring = pow(0.5 + 0.5 * sin(z * 7.0 + t * 9.0), 24.0);
+  col += vec3(0.35, 0.5, 1.3) * ring * 0.6 * smoothstep(0.05, 0.4, rad);
+  // Fog toward the far end, then the light of the exit.
+  float wall = smoothstep(0.0, 0.45, rad);
+  col *= 0.08 + 0.92 * wall * wall;
+  col += vec3(0.75, 0.88, 1.4) * 0.006 / (rad * rad + 0.002);
   return col;
 }
 
@@ -140,7 +144,7 @@ void main() {
 
   if (uCruise > 0.002) {
     col *= mix(vec3(1.0), vec3(0.86, 0.96, 1.22), uCruise * 0.6);
-    col += vec3(0.55, 0.75, 1.3) * speedLines(pc, rad, uTime) * uCruise * 0.9;
+    col += vec3(0.55, 0.75, 1.3) * speedLines(pc, rad, uTime) * uCruise;
     col += vec3(0.25, 0.45, 1.0) * uCruise * 0.05 * exp(-rad * rad * 14.0);
   }
 
@@ -219,7 +223,7 @@ export class Composite {
     const u = this.material.uniforms;
     u.tScene!.value = scene;
     u.tBloom!.value = bloom ?? scene;
-    u.uBloom!.value = bloom ? 0.3 : 0;
+    u.uBloom!.value = bloom ? 0.22 : 0;
     (u.uRes!.value as Vector2).set(width, height);
     u.uTime!.value = clock % 3600;
     u.uCruise!.value = Math.min(1, Math.max(0, fx.cruise));

@@ -186,10 +186,10 @@ def build_spokes(m, acc):
 
 def build(export=True, preview=True, ao=True):
     m = L.Model(KEY, 'station', BOUND)
-    acc = m.variant('hull_accent', color=(0.85, 0.42, 0.04), metallic=0.5, roughness=0.45)
+    acc = m.variant('hull_accent', color=(0.62, 0.27, 0.03), metallic=0.55, roughness=0.42)
     build_ring(m, acc)
     build_hub(m, acc)
     build_spokes(m, acc)
     m.props['p2_bound'] = BOUND
     return K.finish(m, COLLIDERS, BOUND, ao=ao, ao_distance=60.0, export=export, preview=preview,
-                    direction=(0.5, -0.72, 0.62), zoom=1.15, require=('dock_0',))
+                    direction=(0.5, -0.72, 0.62), zoom=1.0, require=('dock_0',))

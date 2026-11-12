@@ -236,3 +236,31 @@ def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, 
         rep['preview'] = path
     rep['seconds'] = round(time.time() - t0, 1)
     return rep
+
+
+def contact_sheet(keys, name, cols=2, scale=2):
+    """Tile the previews of `keys` into previews/_sheet_<name>.png (downscaled) for a quick look."""
+    tiles = []
+    for k in keys:
+        img = bpy.data.images.load(os.path.join(L.PREVIEW_DIR, k + '.png'), check_existing=False)
+        w, h = img.size
+        px = np.zeros(w * h * 4, dtype=np.float32)
+        img.pixels.foreach_get(px)
+        bpy.data.images.remove(img)
+        tiles.append(px.reshape(h, w, 4)[::scale, ::scale])
+    th, tw = tiles[0].shape[:2]
+    rows = (len(tiles) + cols - 1) // cols
+    sheet = np.zeros((rows * th, cols * tw, 4), dtype=np.float32)
+    sheet[..., 3] = 1.0
+    for i, a in enumerate(tiles):
+        r, c = divmod(i, cols)
+        y0 = (rows - 1 - r) * th
+        sheet[y0:y0 + th, c * tw:(c + 1) * tw] = a
+    path = os.path.join(L.PREVIEW_DIR, '_sheet_%s.png' % name)
+    out = bpy.data.images.new('p2_sheet', cols * tw, rows * th, alpha=False)
+    out.pixels.foreach_set(sheet.ravel())
+    out.filepath_raw = path
+    out.file_format = 'PNG'
+    out.save()
+    bpy.data.images.remove(out)
+    return path

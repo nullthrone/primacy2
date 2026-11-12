@@ -175,9 +175,9 @@ class PlanetVisual implements Visual {
     }
     // Too small to resolve: a point whose brightness follows apparent size and phase.
     const pointFade = 1 - smoothstep(1.5, 3.0, px);
-    const gain = Math.min(2.2, Math.max(0.10, 0.12 + px * px * 0.9)) * (0.25 + 0.75 * lit) * pointFade;
+    const gain = Math.min(3, Math.max(def.kind === 'moon' ? 0.12 : 0.3, 1.6 * Math.sqrt(px))) * (0.3 + 0.7 * lit) * pointFade;
     const res = params.height / 1080;
-    this.point.set(this.center, params, 7 * res, 0, 1.15 * res, gain, 0.05);
+    this.point.set(this.center, params, 8 * res, 0, 1.2 * res, gain, 0.06);
   }
 
   dispose(): void {
@@ -220,10 +220,10 @@ void main() {
   float fine = uOct >= 6 ? fbm(p * 28.0 + vec3(0.0, t * 6.0, 0.0), 3) : 0.0;
   float spotField = fbm(p * 0.55 + 13.0 + t * 0.15, lo);
   float spots = smoothstep(0.26, 0.40, spotField) * smoothstep(0.75, 0.40, abs(nb.y));
-  float bright = 0.80 + 0.40 * cells + 0.45 * (gran - 0.45) + 0.15 * fine;
+  float bright = 0.78 + 0.55 * cells + 0.70 * (gran - 0.45) + 0.20 * fine;
   bright += 0.35 * smoothstep(0.10, 0.0, abs(spotField - 0.22));
   // Limb darkening; the limb is also cooler and redder.
-  float limb = 0.30 + 0.70 * pow(ndv, 0.6);
+  float limb = 0.22 + 0.78 * pow(ndv, 0.7);
   vec3 col = mix(uColor, uColor * vec3(1.0, 0.55, 0.30), (1.0 - ndv) * 0.5) * bright * limb;
   col *= 1.0 - 0.8 * spots;
   gl_FragColor = vec4(col * uGain, cov * uFade);
@@ -247,7 +247,8 @@ class StarVisual implements Visual {
       uniforms: {
         uCenter: { value: this.center }, uRadius: { value: 1 }, uPix: { value: 0.001 }, uFade: { value: 1 },
         uRot: { value: new Matrix3() }, uColor: { value: new Vector3(c[0], c[1], c[2]) }, uTime: { value: 0 },
-        uSeed: { value: seedFloat(def.seed) }, uOct: { value: 6 }, uGain: { value: 4.5 + 6 * hot },
+        // Bright enough to bloom, low enough that granulation and the darker limb survive tone mapping.
+        uSeed: { value: seedFloat(def.seed) }, uOct: { value: 6 }, uGain: { value: 1.2 + 2.2 * hot },
       },
       ...NO_DEPTH,
     });
@@ -279,7 +280,10 @@ class StarVisual implements Visual {
     const flux = effectiveLum(def) / (4 * Math.PI * body.dist * body.dist) / 1361;
     const g = glare(flux, params);
     const size = Math.max(g.sizePx, px * 3.2);
-    this.glow.set(this.center, params, size, px, Math.max(1.1 * (params.height / 1080), (size - px) * 0.035), g.gain, 0.32);
+    // Up close the disc itself is the light; the corona around it is toned down.
+    const t = smoothstep(3, 40, px);
+    const gain = g.gain * (1 - t) + 1.3 * t;
+    this.glow.set(this.center, params, size, px, Math.max(1.3 * (params.height / 1080), (size - px) * 0.035), gain, 0.3);
   }
 
   dispose(): void {
@@ -373,7 +377,7 @@ class NeutronVisual implements Visual {
     const g = glare(flux, params);
     const res = params.height / 1080;
     // The star itself is never resolved: a hard white core inside a blue glare.
-    this.glow.set(this.center, params, g.sizePx * 0.8, 0, Math.max(1.3 * res, g.sizePx * 0.02), g.gain * 2.2, 0.22);
+    this.glow.set(this.center, params, g.sizePx * 0.8, 0, Math.max(1.3 * res, g.sizePx * 0.02), g.gain * 0.5, 0.22);
     const length = this.def.jets ? this.def.jets.length * k : 0;
     const visible = length / SAFE_DIST / params.pixAngle > 3;
     for (const mesh of this.jets) {
@@ -449,7 +453,7 @@ class BeltVisual {
     const tint = BELT_TINT[def.kind];
     this.material = new ShaderMaterial({
       vertexShader: BELT_VERT, fragmentShader: BELT_FRAG,
-      uniforms: { uColor: { value: new Vector3(tint[0], tint[1], tint[2]).multiplyScalar(0.16) }, uPx: { value: 1.5 }, uNear: { value: 1 } },
+      uniforms: { uColor: { value: new Vector3(tint[0], tint[1], tint[2]).multiplyScalar(0.11) }, uPx: { value: 1.5 }, uNear: { value: 1 } },
       blending: AdditiveBlending, ...NO_DEPTH,
     });
     this.points = new Points(geo, this.material);

@@ -60,7 +60,7 @@ float diskNoise(float a, float l, float fp) {
     float keep = 1.0 - smoothstep(0.12, 0.45, fp * 4.5 * f);
     if (keep <= 0.0) break;
     s += amp * keep * gnoise(vec3(cs * 1.7 * f, l * 4.5 * f + 3.1 * float(i)));
-    amp *= 0.56;
+    amp *= 0.66;
     f *= 2.2;
   }
   return s;
@@ -83,16 +83,16 @@ vec4 diskSample(vec3 pc, vec3 rd) {
   float na = diskNoise(spiral - om * (ta - 8.0), l, fp);
   float nb = diskNoise(spiral - om * (tb - 8.0) + 2.4, l + 7.0, fp);
   float n = mix(nb, na, wa);
-  float streak = clamp(0.5 + n * 1.45, 0.0, 1.0);
+  float streak = clamp(0.5 + n * 1.25, 0.0, 1.0);
 
   // Temperature falls outward: blue-white at the inner edge, amber, then dull red dust.
   float heat = clamp(1.0 - lr + n * 0.10, 0.0, 1.0);
-  vec3 col = mix(vec3(0.45, 0.05, 0.01), vec3(1.0, 0.28, 0.045), smoothstep(0.15, 0.50, heat));
-  col = mix(col, vec3(1.0, 0.55, 0.17), smoothstep(0.50, 0.78, heat));
-  col = mix(col, vec3(1.0, 0.85, 0.62), smoothstep(0.78, 0.92, heat));
-  col = mix(col, vec3(0.80, 0.90, 1.0), smoothstep(0.92, 1.0, heat));
+  vec3 col = mix(vec3(0.42, 0.045, 0.008), vec3(1.0, 0.25, 0.035), smoothstep(0.20, 0.55, heat));
+  col = mix(col, vec3(1.0, 0.47, 0.12), smoothstep(0.55, 0.84, heat));
+  col = mix(col, vec3(1.0, 0.80, 0.52), smoothstep(0.84, 0.95, heat));
+  col = mix(col, vec3(0.82, 0.90, 1.0), smoothstep(0.95, 1.0, heat));
   float edge = smoothstep(0.0, 0.035, lr) * (1.0 - smoothstep(0.80, 1.0, lr));
-  float inten = 9.0 * exp(-lr * 6.5) * (0.05 + 0.95 * streak * streak) * edge;
+  float inten = 5.5 * exp(-lr * 6.0) * (0.03 + 0.97 * streak * streak * streak) * edge;
 
   // Doppler beaming and gravitational redshift: the side moving toward the viewer is brighter and bluer.
   float beta = sqrt(0.5 / max(r, 1.0));
@@ -102,7 +102,7 @@ vec4 diskSample(vec3 pc, vec3 rd) {
   col *= mix(vec3(1.0), vec3(0.72, 1.0, 1.5), clamp((shift - 1.0) * 1.3, -1.0, 1.0));
 
   // Mostly opaque: the dark lanes between the streaks are dust that hides the stars behind.
-  float alpha = clamp((0.60 + 0.40 * streak) * mix(0.70, 0.98, smoothstep(0.85, 0.30, lr)) * edge, 0.0, 1.0);
+  float alpha = clamp(mix(0.55 + 0.30 * streak, 1.0, smoothstep(0.80, 0.50, lr)) * edge, 0.0, 1.0);
   return vec4(col * uColor * inten * alpha, alpha);
 }
 

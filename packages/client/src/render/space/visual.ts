@@ -72,7 +72,7 @@ void main() {
     rays = max(1.0 + uRays * a * smoothstep(0.0, 0.2, e), 0.0);
   }
   // Over the disc of a resolved star the sprite only adds a thin veil.
-  float inside = mix(0.3, 1.0, smoothstep(uCore * 0.8, uCore, r));
+  float inside = mix(0.07, 1.0, smoothstep(uCore * 0.85, uCore, r));
   gl_FragColor = vec4(uColor * uGain * (core + halo * rays) * win * inside, 1.0);
 }
 `;
@@ -129,6 +129,6 @@ export function glare(flux: number, params: ViewParams): { sizePx: number; gain:
   const res = params.height / 1080;
   return {
     sizePx: Math.min(260, Math.max(6, 70 * Math.pow(10, 0.25 * l10))) * res,
-    gain: Math.min(3, Math.max(0.5, 2.2 * Math.pow(10, 0.12 * l10))),
+    gain: Math.min(30, Math.max(3, 14 * Math.pow(10, 0.2 * l10))),
   };
 }

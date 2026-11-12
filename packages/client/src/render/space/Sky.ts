@@ -42,7 +42,7 @@ vec3 brightStars(vec3 d, vec3 seed, float sigma, vec3 galN) {
   float lat = dot(d, galN);
   float dens = 0.35 + 0.65 * exp(-lat * lat / 0.16);
   return starLayer(d, 36.0, 0.20, min(sigma * 1.3, 0.0020), 0.10, 9.0, 6.0, seed.x * 91.0)
-       + starLayer(d, 80.0, 0.42 * dens, min(sigma, 0.0011), 0.012, 1.3, 5.0, seed.y * 57.0);
+       + starLayer(d, 80.0, 0.34 * dens, min(sigma, 0.0011), 0.012, 1.3, 5.0, seed.y * 57.0);
 }
 `;
 
@@ -53,6 +53,7 @@ uniform vec3 uSeed;
 uniform vec3 uGalN;
 uniform vec3 uGalC;
 uniform float uSigma;
+uniform float uDustFreq;
 uniform vec3 uNebDir[${NEBULAE}];
 uniform vec3 uNebCol[${NEBULAE}];
 uniform vec3 uNebCol2[${NEBULAE}];
@@ -79,8 +80,10 @@ void main() {
 
   // Unresolved star dust, denser toward the galactic plane.
   float dens = 0.20 + 0.50 * wide + 0.55 * band * clumps;
-  vec3 dust = starLayer(d, 220.0, 0.30 * dens, uSigma, 0.02, 0.5, 3.0, uSeed.z * 33.0);
-  dust += starLayer(d, 390.0, 0.34 * dens, uSigma * 0.9, 0.012, 0.22, 3.0, uSeed.x * 13.0 + 5.0);
+  // The peaks of fine noise make round specks about a texel wide, with no grid to clip them.
+  float s1 = max(gnoise(d * uDustFreq + uSeed.z * 50.0), 0.0);
+  float s2 = max(gnoise(d * uDustFreq * 1.7 + uSeed.x * 31.0 + 17.0), 0.0);
+  vec3 dust = mix(vec3(1.0, 0.86, 0.72), vec3(0.80, 0.88, 1.0), smoothstep(-0.2, 0.2, n2)) * (pow(s1, 6.0) * 1.3 + pow(s2, 6.0) * 0.7) * dens;
   col = (col + dust) * (1.0 - 0.90 * lanes);
 
   for (int i = 0; i < ${NEBULAE}; i++) {
@@ -201,6 +204,7 @@ export class Sky {
         uGalN: { value: galN },
         uGalC: { value: new Vector3(0.84, -0.42, 0).normalize() },
         uSigma: { value: 0.001 },
+        uDustFreq: { value: 300 },
         uNebDir: { value: vecs() },
         uNebCol: { value: vecs() },
         uNebCol2: { value: vecs() },
@@ -228,7 +232,7 @@ export class Sky {
 
   /** Bakes the sky again when the system, the quality or the set of known neighbour systems changed. */
   update(renderer: WebGLRenderer, system: SystemDef, galaxy: GalaxyView | null, quality: number): void {
-    const size = quality === 0 ? 512 : 1024;
+    const size = quality === 0 ? 768 : 1024;
     let count = 0, sum = 0;
     if (galaxy) {
       for (const sector of galaxy.sectors) {
@@ -275,6 +279,7 @@ export class Sky {
     const u = this.bakeMat.uniforms;
     (u.uSeed!.value as Vector3).set(rnd(), rnd(), rnd());
     u.uSigma!.value = texel * 0.8;
+    u.uDustFreq!.value = 0.42 / texel;
     const dirs = u.uNebDir!.value as Vector3[];
     const cols = u.uNebCol!.value as Vector3[];
     const cols2 = u.uNebCol2!.value as Vector3[];

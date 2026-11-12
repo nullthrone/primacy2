@@ -51,7 +51,7 @@ float ringDensity(float r, float blur) {
   // Fine ringlets fade out when they get thinner than a pixel.
   float fine = mix(0.60 + 0.40 * n1(x * 95.0 + s * 3.0), 0.8, clamp(blur * 95.0, 0.0, 1.0));
   float hair = mix(0.75 + 0.25 * n1(x * 380.0 + s * 5.0), 0.875, clamp(blur * 380.0, 0.0, 1.0));
-  float d = broad * mid * fine * hair * 1.9;
+  float d = broad * mid * fine * hair * 1.45;
   float g1 = 0.50 + 0.25 * hash11(s + 1.0);
   float g2 = 0.15 + 0.20 * hash11(s + 2.0);
   d *= smoothstep(0.012, 0.022, abs(x - g1)) * (0.25 + 0.75 * smoothstep(0.004, 0.010, abs(x - g2)));
@@ -199,15 +199,15 @@ Surf surface(vec3 nb, vec3 sunB) {
   float plates = ridged(p * 1.25 + w * 0.9, uOct);
   float crack = smoothstep(0.62, 0.90, plates);
   float fine = smoothstep(0.68, 0.93, ridged(p * 4.3 + w * 1.3 + 3.0, uOct));
-  float seas = smoothstep(0.10, 0.30, fbm(p * 0.65 + 31.0, lo));
+  float seas = smoothstep(0.18, 0.40, fbm(p * 0.65 + 31.0, lo));
   float churn = clamp(0.5 + 0.9 * fbm(p * 4.0 + vec3(0.0, uTime * 0.03, 0.0) + w, lo), 0.0, 1.0);
-  float heat = clamp(crack * 0.9 + fine * 0.45 + seas * (0.30 + 0.70 * churn), 0.0, 1.0);
+  float heat = clamp(crack * 0.8 + fine * 0.35 + seas * (0.15 + 0.75 * churn * churn), 0.0, 1.0);
   float crust = fbm(p * 6.0, uOct);
   s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);
   float flick = 0.88 + 0.12 * gnoise(p * 5.0 + vec3(uTime * 0.2));
   vec3 glow = mix(vec3(0.9, 0.06, 0.0), vec3(2.2, 0.55, 0.04), smoothstep(0.15, 0.6, heat));
   glow = mix(glow, vec3(5.0, 2.6, 0.7), smoothstep(0.6, 1.0, heat));
-  s.emission = glow * heat * heat * flick * 1.4;
+  s.emission = glow * heat * heat * flick * 1.1;
   s.height = crust * 0.25 + plates * 0.15 - (crack * 0.9 + fine * 0.45) * 0.4;
   s.bump = 1.2;
   return s;
@@ -293,7 +293,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   s.height = land * (elev * 0.5 + mount * 0.35);
   s.bump = 0.9;
   float pop = smoothstep(0.42, 0.62, 0.5 + fbm(p * 5.0 + 40.0, lo)) * smoothstep(0.25, 0.5, temp) * (1.0 - smoothstep(0.3, 0.6, mount));
-  float grain = uOct >= 6 ? smoothstep(0.55, 0.9, 0.5 + 0.9 * gnoise(p * 150.0)) * 1.4 : 0.3;
+  float grain = uOct >= 6 ? smoothstep(0.55, 0.9, 0.5 + 0.9 * gnoise(p * 150.0)) * 1.4 : 0.10;
   s.night = land * pop * grain * uPar.w;
   s.cloud = cloudAt(nb) * 0.95;
   s.cloudShadow = uOct >= 5 ? cloudAt(normalize(nb + sunB * 0.02)) : s.cloud;
@@ -372,20 +372,20 @@ void main() {
   if (s.spec > 0.0) {
     vec3 hv = normalize(uSunDir - d);
     float nh = max(dot(mix(n, nn, 0.5), hv), 0.0);
-    float sp = pow(nh, s.gloss) * min(s.gloss / 180.0, 1.6) + 0.06 * pow(nh, 18.0);
+    float sp = pow(nh, s.gloss) * min(s.gloss / 300.0, 1.1) + 0.05 * pow(nh, 18.0);
     col += sun * s.spec * sp * (1.0 - s.cloud) * step(0.0, geo);
   }
   if (s.cloud > 0.0 || s.cloudShadow > 0.0) {
     col *= 1.0 - 0.55 * s.cloudShadow * (1.0 - s.cloud);
-    float cl = max((geo + 0.12) / 1.12, 0.0);
-    vec3 cc = mix(vec3(1.0, 0.50, 0.28), vec3(0.96), smoothstep(-0.02, 0.28, geo));
+    float cl = max((geo + 0.06) / 1.06, 0.0);
+    vec3 cc = mix(vec3(1.0, 0.50, 0.28), vec3(0.96), smoothstep(-0.02, 0.11, geo));
     col = mix(col, cc * sun * cl, s.cloud);
   }
   col += s.night * vec3(1.0, 0.58, 0.22) * 1.6 * (1.0 - s.cloud) * smoothstep(0.02, -0.14, geo);
   if (uAtmo > 0.0) {
     // Haze over the disc: thicker toward the limb, tinted orange along the terminator.
     float rim = pow(1.0 - ndv, 3.0);
-    float day = smoothstep(-0.22, 0.30, geo);
+    float day = smoothstep(-0.10, 0.28, geo);
     col = col * (1.0 - uAtmo * 0.35 * rim) + uAtmoColor * sun * uAtmo * day * (0.06 + 0.75 * rim);
     col += vec3(1.0, 0.36, 0.12) * sun * uAtmo * 0.10 * exp(-geo * geo / 0.008) * (0.25 + rim);
   }
@@ -463,14 +463,14 @@ void main() {
   float sunSide = dot(uSunDir, uRingN);
   bool lit = sunSide * -dn > 0.0;
   // Seen from the unlit side, thin parts glow with transmitted light and dense parts stay dark.
-  float amount = lit ? 0.50 + 0.50 * dens : 0.10 + 2.0 * dens * (1.0 - dens) * (1.0 - dens);
+  float amount = lit ? 0.22 + 0.78 * smoothstep(0.0, 0.85, dens) : 0.10 + 2.0 * dens * (1.0 - dens) * (1.0 - dens);
   float fwd = pow(max(dot(d, uSunDir), 0.0), 6.0);
   float x = (r - uRing.x) / (uRing.y - uRing.x);
-  vec3 tone = mix(vec3(0.95, 0.80, 0.66), vec3(1.5, 1.45, 1.4), n1(x * 9.0 + uRing.z * 4.0));
-  vec3 col = uRingColor * tone * uSun * amount * (1.0 + (lit ? 0.4 : 1.6) * fwd) * (0.30 + 0.70 * smoothstep(0.0, 0.3, abs(sunSide)));
+  vec3 tone = mix(vec3(1.05, 0.92, 0.80), vec3(1.7, 1.66, 1.62), n1(x * 9.0 + uRing.z * 4.0));
+  vec3 col = mix(uRingColor, vec3(0.9), 0.3) * tone * uSun * amount * (1.0 + (lit ? 0.4 : 1.6) * fwd) * (0.55 + 0.45 * smoothstep(0.0, 0.3, abs(sunSide)));
   col = col * (0.03 + 0.97 * shadow);
   // A slanted view passes through more ring material.
-  float alpha = 1.0 - pow(1.0 - dens * 0.92, 1.0 / max(abs(dn), 0.2));
+  float alpha = 1.0 - pow(1.0 - min(dens * 1.15, 0.98), 1.0 / max(abs(dn), 0.2));
   gl_FragColor = vec4(col, alpha * uRing.w * (1.0 - occl) * uFade);
 }
 `;
