@@ -13,8 +13,12 @@ process.emitWarning = ((warning: string | Error, ...rest: unknown[]) => {
   (emitWarning as (...a: unknown[]) => void)(warning, ...rest);
 }) as typeof process.emitWarning;
 
-const alpha = await startServer({ name: 'Alpha Reach', port: 8420, seed: 'alpha', dataDir: '.data/alpha' });
-const beta = await startServer({ name: 'Beta Expanse', port: 8421, seed: 'beta', dataDir: '.data/beta', peers: [alpha.url] });
+// The two servers rate each other partner (the default would be visitor, with all cargo sealed),
+// so trade, tariffs and the trade balance can be tried between them.
+const alpha = await startServer({ name: 'Alpha Reach', port: 8420, seed: 'alpha', dataDir: '.data/alpha', defaultTrust: 'partner' });
+const beta = await startServer({
+  name: 'Beta Expanse', port: 8421, seed: 'beta', dataDir: '.data/beta', peers: [alpha.url], defaultTrust: 'partner',
+});
 await beta.peer();
 
 console.log('');
