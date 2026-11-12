@@ -698,7 +698,8 @@ export class World {
     // published default here; if `dest` rates this server differently in private, it says so on arrival.
     const theirs = publishedRating(dest.desc, this.id);
     if (theirs === null) return null;
-    const tier = effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
+    // A published default of blocked may hide a private rating; the visitor limit is the least that applies.
+    const tier = theirs === 'blocked' ? 'visitor' : effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
     const cap = shipLimitFor(tier, dest.desc.trade?.shipLimit);
     const hull = p.rec.passport.ship.loadout.hull;
     if (hullAllowed(hull, cap)) return null;
@@ -706,7 +707,7 @@ export class World {
     // that sector recognises it on arrival, so it is let go.
     const customs = p.rec.data.customs as Partial<CustomsRecord> | undefined;
     if (customs && customs.issuer === dest.id && customs.loadout?.hull === hull && isHullBound(p.rec)) return null;
-    return `Jump refused: ${classLimitText(dest.desc.name, tier, cap)}. Your ${HULLS[hull]?.name ?? hull} is above that class.`;
+    return `${classLimitText(dest.desc.name, tier, cap)}. Your ${HULLS[hull]?.name ?? hull} is above that class.`;
   }
 
   /** Respawns a dead pilot docked at their home station with a repaired ship. */

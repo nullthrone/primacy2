@@ -297,7 +297,9 @@ describe('trade model: cargo', () => {
 
   it('shuttling the same goods out and back does not raise the allowance; neither does a ticket that is never redeemed', async () => {
     let bot = await newPilot(H, 'Shuttle');
-    load(H, bot, [lot(10, ID.H)]);
+    // A sealed lot rides along: it is never an export, and its mark survives every step below.
+    const sealedFood: CargoItem = { c: 'food', n: 1, origin: ID.H, sealed: true };
+    load(H, bot, [lot(10, ID.H), sealedFood]);
     const before = exportsTo(ID.P);
     const partnerBefore = P.world.trade.ledger(ID.H).exports;
 
@@ -307,20 +309,20 @@ describe('trade model: cargo', () => {
     expect(exportsTo(ID.P)).toBe(before);
     bot = c.track(await Bot.connect(H.url, { keys: bot.keys, name: bot.name }));
     await c.run(2);
-    expect(hold(H, bot)).toEqual([lot(10, ID.H)]);
+    expect(hold(H, bot)).toEqual([lot(10, ID.H), sealedFood]);
     expect(exportsTo(ID.P)).toBe(before);
 
     // Out for real: booked once, when the partner redeems the ticket.
     bot = await travel(bot, H, P);
     expect(exportsTo(ID.P)).toBe(before + 10 * PRICE);
-    expect(hold(P, bot)).toEqual([lot(10, ID.H)]);
+    expect(hold(P, bot)).toEqual([lot(10, ID.H), sealedFood]);
     // Back: Home's own goods return as the partner's import, not as local goods.
     bot = await travel(bot, P, H);
-    expect(hold(H, bot)).toEqual([lot(10, ID.P)]);
+    expect(hold(H, bot)).toEqual([lot(10, ID.P), sealedFood]);
     // Out and back again with the same goods: nothing more is booked, on either side.
     bot = await travel(bot, H, P);
     bot = await travel(bot, P, H);
-    expect(hold(H, bot)).toEqual([lot(10, ID.P)]);
+    expect(hold(H, bot)).toEqual([lot(10, ID.P), sealedFood]);
     expect(exportsTo(ID.P)).toBe(before + 10 * PRICE);
     expect(P.world.trade.ledger(ID.H).exports).toBe(partnerBefore);
   });
@@ -379,6 +381,16 @@ describe('trade model: cargo', () => {
       H.config.importLicenceRate = 1;
     }
     expect(hold(H, bot)).toEqual([lot(4, ID.P)]);
+
+    // A rating that is lowered later takes effect on goods already in the hold.
+    H.world.trade.creditIncome(p, 1_000_000, 'mission');
+    H.config.trust[ID.P] = 'visitor';
+    try {
+      expect(await sell(H, p, 4)).toMatchObject({ ok: false, err: expect.stringMatching(/sealed/) });
+    } finally {
+      H.config.trust[ID.P] = 'partner';
+    }
+    expect(await sell(H, p, 4)).toMatchObject({ ok: true, data: { n: 4, limit: null } });
   });
 
   it("a customs union exists only when mutual and the fingerprints match; a union member's label for a visitor stays sealed", async () => {
