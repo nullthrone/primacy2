@@ -13,20 +13,36 @@ import {
   C,
   COMPACT_KILL_FACTOR,
   CRUISE_CHARGE_TIME,
+  CRUISE_EXIT_SPEED,
   CRUISE_FUEL_RATE,
+  CRUISE_GROUND_MIN_SPEED,
   CRUISE_MIN_SPEED,
   CRUISE_PROXIMITY_K,
   CRUISE_TURN_FACTOR,
   FA_TAU,
   FOLD_CHARGE_TIME,
   G,
+  GROUND_FRICTION,
+  GROUND_RESTITUTION,
   HEAT_FLUX_K,
+  LAND_MAX_SIDE,
+  LAND_MAX_SINK,
+  LAND_MAX_SLOPE_DEG,
+  LAND_MAX_TILT_DEG,
+  LIFTOFF_SPEED,
+  LIFTOFF_THRUST,
   SCOOP_MAX_RADII,
   SITE_ID_BASE,
+  SURFACE_ID_BASE,
 } from '../constants.ts';
-import { approach, clamp, forwardOf, quat, v3, type Vec3 } from '../math.ts';
-import { allBodyStates, anchorState, findSite, orbitState, pickCruiseAnchor } from '../universe/orbits.ts';
+import { approach, clamp, forwardOf, quat, v3, type Quat, type Vec3 } from '../math.ts';
+import {
+  allBodyStates, anchorFrame, anchorState, bodyRotation, bodySpinRate, findSite, orbitState, pickCruiseAnchor, surfaceAnchor,
+} from '../universe/orbits.ts';
+import { systemSurfaces } from '../universe/surface.ts';
+import { terrainHeight, terrainNormal } from '../universe/terrain.ts';
 import type { SystemDef } from '../universe/types.ts';
+import { reanchor } from './frames.ts';
 import { DEFAULT_PIPS, engineMul, normalizePips, shieldRegenMul } from './power.ts';
 import { SILENT_COOLING, SILENT_REACTOR_HEAT, SILENT_SHIELD_DRAIN, shipSignature } from './signature.ts';
 import {
@@ -62,6 +78,12 @@ const CRUISE_TAU_DOWN = 0.6;
 const GRAVITY_INNER_RS = 1.5;
 /** Pending aim smaller than this is treated as worked off, radians. */
 const AIM_EPSILON = 1e-9;
+/** Steepest ground a ship can stand on, as rise over run. */
+const LAND_MAX_SLOPE = Math.tan((LAND_MAX_SLOPE_DEG * Math.PI) / 180);
+/** Smallest cosine of the angle between the ship's up axis and the ground normal at which it can touch down. */
+const LAND_MIN_UPRIGHT = Math.cos((LAND_MAX_TILT_DEG * Math.PI) / 180);
+/** The ground normal under a ship is measured over its footprint, but over at least this many metres. */
+const GROUND_BASELINE_MIN = 10;
 
 const ORIGIN: Readonly<Vec3> = [0, 0, 0];
 
@@ -111,43 +133,75 @@ export function newShipState(stats: ShipStats): ShipState {
 }
 
 /**
- * Gathers the gravitating bodies of a system as seen from an anchor frame at time `t`.
- * The returned sources are `StepSource` objects. Throws on an unknown anchor id.
+ * Gathers the gravitating bodies of a system as seen from an anchor frame at time `t`, with their
+ * positions in the axes of that frame. For a surface anchor the environment also carries the
+ * frame's angular velocity and the ground. The returned sources are `StepSource` objects.
+ * Throws on an unknown anchor id.
  */
 export function buildStepEnv(sys: SystemDef, anchorId: number, t: number): StepEnv {
   const states = allBodyStates(sys, t);
+  const surfaces = systemSurfaces(sys);
   // The frame origin is a body position plus, for sites, the site's offset from its parent body.
   // Subtracting the body first keeps the parent's position relative to a site exact.
   let base: Readonly<Vec3>;
   let offset: Readonly<Vec3> | null = null;
-  if (anchorId < SITE_ID_BASE) {
+  /** Turns frame axes into system axes; null for a frame that does not turn. */
+  let rot: Quat | null = null;
+  const env: StepEnv = { t, anchor: anchorId, sources: [] };
+  // The body whose pull is felt in full: the one the frame is centred on.
+  let centre = -1;
+  if (anchorId < SURFACE_ID_BASE) {
     const st = states[anchorId];
     if (!st) throw new Error(`unknown anchor ${anchorId}`);
     base = st.pos;
+    centre = anchorId;
+  } else if (anchorId < SITE_ID_BASE) {
+    const id = anchorId - SURFACE_ID_BASE;
+    const body = sys.bodies[id];
+    const surface = surfaces[id];
+    if (!body || !surface) throw new Error(`unknown anchor ${anchorId}`);
+    base = states[id]!.pos;
+    centre = id;
+    rot = bodyRotation(body, t);
+    // The body-fixed +Y axis is the spin axis.
+    env.omega = [0, bodySpinRate(body), 0];
+    env.ground = { body: id, radius: surface.radius, top: surface.top, exit: surface.exit, terrain: surface.terrain };
+    env.impact = 0;
   } else {
     const site = findSite(sys, anchorId);
     const parent = site ? states[site.orbit.parent] : undefined;
     if (!site || !parent) throw new Error(`unknown anchor ${anchorId}`);
     base = parent.pos;
-    offset = orbitState(site.orbit, t).pos;
+    if (site.ground) {
+      // A ground site is the anchor of docked ships only. Its frame is the pad, which turns with the body.
+      const frame = anchorFrame(sys, anchorId, t);
+      offset = v3.sub(frame.pos, parent.pos);
+      rot = frame.rot;
+      env.omega = quat.unrotate(frame.rot, frame.omega);
+    } else {
+      offset = orbitState(site.orbit, t).pos;
+    }
   }
-  const sources: StepSource[] = [];
   for (let i = 0; i < sys.bodies.length; i++) {
     const b = sys.bodies[i]!;
-    const pos = v3.sub(states[i]!.pos, base);
+    let pos = v3.sub(states[i]!.pos, base);
     if (offset) v3.addScaledIn(pos, offset, -1);
-    sources.push({
+    if (rot) pos = quat.unrotate(rot, pos);
+    const src: StepSource = {
       bodyId: i,
       mu: G * b.mass,
       pos,
       radius: b.radius,
       rs: b.rs ?? 0,
-      isAnchor: i === anchorId,
+      isAnchor: i === centre,
       lum: b.lum ?? 0,
       scoopable: b.scoopable === true,
-    });
+    };
+    const surface = surfaces[i];
+    if (surface) src.surface = surface;
+    env.sources.push(src);
   }
-  return { t, anchor: anchorId, sources };
+  return env;
 }
 
 /** Magnitude (m/s^2) of the pull of `src` at centre distance `r` > 0 metres. Always finite. */
@@ -200,6 +254,36 @@ export function gravityAt(env: StepEnv, pos: Readonly<Vec3>): Vec3 {
 }
 
 /**
+ * Adds to `out` what a frame turning at `omega` (rad/s, frame axes) makes a ship at `pos` moving
+ * at `vel` feel: the Coriolis acceleration -2 omega x v and the centrifugal acceleration
+ * -omega x (omega x r).
+ */
+function addFrameForces(out: Vec3, omega: Readonly<Vec3>, pos: Readonly<Vec3>, vel: Readonly<Vec3>): void {
+  const wx = omega[0];
+  const wy = omega[1];
+  const wz = omega[2];
+  out[0] -= 2 * (wy * vel[2] - wz * vel[1]);
+  out[1] -= 2 * (wz * vel[0] - wx * vel[2]);
+  out[2] -= 2 * (wx * vel[1] - wy * vel[0]);
+  const w2 = wx * wx + wy * wy + wz * wz;
+  const wr = wx * pos[0] + wy * pos[1] + wz * pos[2];
+  out[0] += pos[0] * w2 - wx * wr;
+  out[1] += pos[1] * w2 - wy * wr;
+  out[2] += pos[2] * w2 - wz * wr;
+}
+
+/**
+ * Acceleration (m/s^2) of a ship in free fall at `pos` with velocity `vel`, in the anchor frame:
+ * `gravityAt`, and in a turning frame (a surface frame) the Coriolis and centrifugal terms as
+ * well. This is what normal flight integrates and what flight assist cancels.
+ */
+export function accelerationAt(env: StepEnv, pos: Readonly<Vec3>, vel: Readonly<Vec3>): Vec3 {
+  const a = gravityAt(env, pos);
+  if (env.omega) addFrameForces(a, env.omega, pos, vel);
+  return a;
+}
+
+/**
  * Time dilation factor in (0, 1]: sqrt(1 - rs/r) for the strongest compact source times
  * sqrt(1 - v^2/c^2). Never below 0.02.
  */
@@ -222,16 +306,43 @@ const cruiseSurface = (src: Readonly<GravSource>): number =>
   src.rs > 0 ? Math.max(src.radius, src.rs * COMPACT_KILL_FACTOR) : src.radius;
 
 /**
- * Maximum cruise speed at `pos`: limited by the distance to the surface of every body,
- * clamped to [CRUISE_MIN_SPEED, stats.cruiseMax].
+ * The cruise speed that landable bodies allow at `pos`: CRUISE_PROXIMITY_K times the height above
+ * the nearest ceiling, and never less than CRUISE_GROUND_MIN_SPEED. Infinity without such a body.
+ */
+function groundCruiseLimit(env: StepEnv, pos: Readonly<Vec3>): number {
+  let limit = Infinity;
+  for (const src of env.sources) {
+    if (!src.surface) continue;
+    const l = CRUISE_PROXIMITY_K * Math.max(0, v3.dist(pos, src.pos) - src.surface.ceiling);
+    if (l < limit) limit = l;
+  }
+  return limit > CRUISE_GROUND_MIN_SPEED ? limit : CRUISE_GROUND_MIN_SPEED;
+}
+
+/**
+ * Maximum cruise speed at `pos`: limited by the distance to the surface of every body and clamped
+ * to [CRUISE_MIN_SPEED, stats.cruiseMax]. A landable body limits by the height above its ceiling
+ * instead and lets the limit fall to CRUISE_GROUND_MIN_SPEED, so a pilot can fly down in cruise.
  */
 export function cruiseSpeedLimit(env: StepEnv, pos: Readonly<Vec3>, stats: ShipStats): number {
   let limit = stats.cruiseMax;
   for (const src of env.sources) {
+    if (src.surface) continue;
     const l = CRUISE_PROXIMITY_K * Math.max(0, v3.dist(pos, src.pos) - cruiseSurface(src));
     if (l < limit) limit = l;
   }
-  return limit > CRUISE_MIN_SPEED ? limit : CRUISE_MIN_SPEED;
+  if (!(limit > CRUISE_MIN_SPEED)) limit = CRUISE_MIN_SPEED;
+  const ground = groundCruiseLimit(env, pos);
+  return ground < limit ? ground : limit;
+}
+
+/**
+ * Lowest cruise speed at `pos`, the speed at zero throttle: CRUISE_MIN_SPEED, or what a landable
+ * body allows there when that is less.
+ */
+export function cruiseSpeedFloor(env: StepEnv, pos: Readonly<Vec3>): number {
+  const ground = groundCruiseLimit(env, pos);
+  return ground < CRUISE_MIN_SPEED ? ground : CRUISE_MIN_SPEED;
 }
 
 /**
@@ -248,7 +359,10 @@ export function heatInfluxAt(env: StepEnv, pos: Readonly<Vec3>): number {
   return sum;
 }
 
-/** Environmental dangers at the position of a ship. Pure; the server turns the result into damage. */
+/**
+ * Environmental dangers at the position of a ship. Pure; the server turns the result into damage.
+ * `gravity` is the pull of the bodies alone, without what a turning frame adds.
+ */
 export function hazardsAt(env: StepEnv, s: ShipState, stats: ShipStats): Hazards {
   let insideBody = -1;
   let lethal = false;
@@ -258,7 +372,8 @@ export function hazardsAt(env: StepEnv, s: ShipState, stats: ShipStats): Hazards
   const scratch: Vec3 = [0, 0, 0];
   for (const src of env.sources) {
     const r = v3.dist(s.pos, src.pos);
-    if (insideBody < 0 && r < src.radius * BODY_EXCLUSION_FACTOR) insideBody = src.bodyId;
+    // A landable body has no exclusion radius: its terrain is the limit, and `stepShip` enforces it.
+    if (insideBody < 0 && !src.surface && r < src.radius * BODY_EXCLUSION_FACTOR) insideBody = src.bodyId;
     if (src.rs > 0 && r < src.rs * COMPACT_KILL_FACTOR) lethal = true;
     // Difference in pull between nose and tail of a hull 2 * radius long; the 1 m floor keeps it finite.
     const rt = Math.max(r, 1);
@@ -334,7 +449,8 @@ function stepRotation(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats
 }
 
 /**
- * Normal flight: boost, thrust (flight assist or raw), gravity, relativistic limits, integration.
+ * Normal flight: boost, thrust (flight assist or raw), gravity (in a surface frame with the
+ * Coriolis and centrifugal terms), relativistic limits, integration.
  * Returns the thruster output of the tick as a fraction of the hull's rated forward acceleration
  * (above 1 with boost, extra engine power or several axes at once); it feeds the heat signature.
  */
@@ -349,7 +465,8 @@ function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, 
   const eng = engineMul(s.pips);
   const k = (boosting ? stats.boostAccel : 1) * eng;
 
-  const g = gravityAt(env, s.pos);
+  // Everything a ship in free fall feels in this frame; flight assist cancels all of it.
+  const g = accelerationAt(env, s.pos, s.vel);
   const brake = (input.buttons & Button.Brake) !== 0;
   const tx = unit(input.thrust[0]);
   const ty = unit(input.thrust[1]);
@@ -411,12 +528,14 @@ function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, 
 /** Cruise flight: speed follows the throttle under the proximity limit; gravity is ignored. */
 function stepCruise(s: ShipState, stats: ShipStats, env: StepEnv, dts: number): void {
   const limit = cruiseSpeedLimit(env, s.pos, stats);
+  // CRUISE_MIN_SPEED everywhere except close above a landable body, where the limit itself is lower.
+  const floor = limit < CRUISE_MIN_SPEED ? limit : CRUISE_MIN_SPEED;
   const throttle = clamp(s.throttle, 0, 1);
-  const target = s.fuel > 0 ? Math.max(CRUISE_MIN_SPEED, throttle * limit) : CRUISE_MIN_SPEED;
+  const target = s.fuel > 0 ? Math.max(floor, throttle * limit) : floor;
   const tau = target > s.cruiseSpeed ? CRUISE_TAU_UP : CRUISE_TAU_DOWN;
   const speed = s.cruiseSpeed + (target - s.cruiseSpeed) * (1 - Math.exp(-dts / tau));
   // The proximity limit is hard: it applies at once, however slowly the drive would spool down.
-  s.cruiseSpeed = clamp(speed, CRUISE_MIN_SPEED, limit);
+  s.cruiseSpeed = clamp(speed, floor, limit);
 
   const fwd = forwardOf(s.rot);
   s.vel[0] = fwd[0] * s.cruiseSpeed;
@@ -436,6 +555,88 @@ function stepCruise(s: ShipState, stats: ShipStats, env: StepEnv, dts: number): 
       }
     }
   }
+}
+
+// Scratch for the ground normal; `groundContact` allocates nothing.
+const groundNormal: Vec3 = [0, 0, 0];
+
+/**
+ * Ground contact for a ship in normal flight in a surface frame, after its position was
+ * integrated. The ship touches when its belly is at or below the terrain beneath it. A gentle touch
+ * on ground that is level enough, with the ship upright, becomes `Landed`: the ship is set on
+ * the ground, upright on the ground normal with its heading kept, at rest. Anything else is a
+ * collision: the ship is lifted out of the ground, keeps GROUND_RESTITUTION of its speed into the
+ * ground as a bounce and loses GROUND_FRICTION of its speed along it. `env.impact` receives the
+ * speed in excess of what a landing allows.
+ */
+function groundContact(s: ShipState, stats: ShipStats, env: StepEnv): void {
+  const ground = env.ground!;
+  const x = s.pos[0];
+  const y = s.pos[1];
+  const z = s.pos[2];
+  const r2 = x * x + y * y + z * z;
+  // Above the highest ground there can be, the terrain need not be asked.
+  const reach = ground.top + stats.belly;
+  if (r2 >= reach * reach) return;
+  // The direction must come out the same on every machine, hence the plain square root.
+  const r = Math.sqrt(r2);
+  const ux = r > 0 ? x / r : 0;
+  const uy = r > 0 ? y / r : 1;
+  const uz = r > 0 ? z / r : 0;
+  const floor = ground.radius + terrainHeight(ground.terrain, ux, uy, uz) + stats.belly;
+  if (r >= floor) return;
+
+  // Touching. The ship origin goes back up to where its belly meets the ground.
+  s.pos[0] = ux * floor;
+  s.pos[1] = uy * floor;
+  s.pos[2] = uz * floor;
+  const n = groundNormal;
+  const slope = terrainNormal(ground.terrain, ux, uy, uz, Math.max(2 * stats.radius, GROUND_BASELINE_MIN), n);
+  const vn = s.vel[0] * n[0] + s.vel[1] * n[1] + s.vel[2] * n[2];
+  const sx = s.vel[0] - vn * n[0];
+  const sy = s.vel[1] - vn * n[1];
+  const sz = s.vel[2] - vn * n[2];
+  const sink = vn < 0 ? -vn : 0;
+  const side = Math.sqrt(sx * sx + sy * sy + sz * sz);
+  const up = quat.rotate(s.rot, [0, 1, 0]);
+  const upright = up[0] * n[0] + up[1] * n[1] + up[2] * n[2];
+
+  if (sink <= LAND_MAX_SINK && side <= LAND_MAX_SIDE && slope <= LAND_MAX_SLOPE && upright >= LAND_MIN_UPRIGHT) {
+    // Heading kept: the nose direction with its part along the normal removed.
+    const fwd = forwardOf(s.rot);
+    const fn = fwd[0] * n[0] + fwd[1] * n[1] + fwd[2] * n[2];
+    const rot = quat.lookRotation([fwd[0] - fn * n[0], fwd[1] - fn * n[1], fwd[2] - fn * n[2]], n);
+    s.rot[0] = rot[0];
+    s.rot[1] = rot[1];
+    s.rot[2] = rot[2];
+    s.rot[3] = rot[3];
+    s.mode = FlightMode.Landed;
+    standStill(s);
+    return;
+  }
+
+  // A collision: bounce off the ground and scrape along it.
+  const keep = 1 - GROUND_FRICTION;
+  const bounce = vn < 0 ? -GROUND_RESTITUTION * vn : vn;
+  s.vel[0] = sx * keep + bounce * n[0];
+  s.vel[1] = sy * keep + bounce * n[1];
+  s.vel[2] = sz * keep + bounce * n[2];
+  const hard = Math.max(0, sink - LAND_MAX_SINK);
+  const scrape = Math.max(0, side - LAND_MAX_SIDE);
+  env.impact = Math.sqrt(hard * hard + scrape * scrape);
+}
+
+/** A ship standing on the ground does not move, turn or carry pending aim. */
+function standStill(s: ShipState): void {
+  s.vel[0] = 0;
+  s.vel[1] = 0;
+  s.vel[2] = 0;
+  s.angVel[0] = 0;
+  s.angVel[1] = 0;
+  s.angVel[2] = 0;
+  s.aim[0] = 0;
+  s.aim[1] = 0;
+  s.cruiseSpeed = 0;
 }
 
 /**
@@ -466,13 +667,20 @@ function stepSystems(s: ShipState, stats: ShipStats, heatInflux: number, dts: nu
 
 /**
  * Advances `s` in place by `dt` seconds of universe time.
- * Handles `Normal` and `Cruise` flight; in `Fold`, `Docked` and `Dead` only timers and regeneration run.
+ * Handles `Normal` and `Cruise` flight and `Landed`; in `Fold`, `Docked` and `Dead` only timers and
+ * regeneration run.
+ *
+ * In a surface frame (`env.ground` present) normal flight collides with the terrain and may end in
+ * `Landed`; `env.impact` is written each tick. A landed ship stays exactly where it is until the
+ * pilot thrusts up (above LIFTOFF_THRUST) or fires the boost; no other input moves it.
  */
 export function stepShip(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, env: StepEnv, dt: number): void {
   if (!(dt > 0) || dt === Infinity) return;
   s.pips = normalizePips(input.pips);
+  if (env.ground) env.impact = 0;
   const cruising = s.mode === FlightMode.Cruise;
-  if (!cruising && s.mode !== FlightMode.Normal) {
+  const landed = s.mode === FlightMode.Landed;
+  if (!cruising && !landed && s.mode !== FlightMode.Normal) {
     // Not flying: a held silent-running button has no effect, and there is nothing to detect.
     s.dilation = 1;
     stepSystems(s, stats, 0, dt, false);
@@ -480,12 +688,34 @@ export function stepShip(s: ShipState, input: Readonly<ShipInput>, stats: ShipSt
     return;
   }
 
+  const silent = (input.buttons & Button.Silent) !== 0;
+  if (landed) {
+    const boost = (input.buttons & Button.Boost) !== 0 && s.boostCd <= 0 && s.energy >= BOOST_ENERGY;
+    if (unit(input.thrust[1]) > LIFTOFF_THRUST || boost) {
+      // Lift-off: a hop along the ship's up axis, which is the ground normal, then normal flight
+      // from this very tick on.
+      const up = quat.rotate(s.rot, [0, LIFTOFF_SPEED, 0]);
+      s.vel[0] = up[0];
+      s.vel[1] = up[1];
+      s.vel[2] = up[2];
+      s.mode = FlightMode.Normal;
+    } else {
+      // Standing on the ground: nothing moves, the systems run as in flight.
+      s.dilation = dilationAt(env, s.pos, ORIGIN);
+      s.fa = (input.buttons & Button.FaOff) === 0;
+      s.throttle = unit(input.throttle);
+      standStill(s);
+      stepSystems(s, stats, heatInfluxAt(env, s.pos), dt * s.dilation, silent);
+      s.sig = shipSignature(s, stats, 0, silent);
+      return;
+    }
+  }
+
   // Cruise speed is not a physical velocity, so only gravity slows the ship's clock there.
   s.dilation = dilationAt(env, s.pos, cruising ? ORIGIN : s.vel);
   const dts = dt * s.dilation;
   s.fa = (input.buttons & Button.FaOff) === 0;
   s.throttle = unit(input.throttle);
-  const silent = (input.buttons & Button.Silent) !== 0;
 
   let thrust = 0;
   if (cruising) {
@@ -494,15 +724,25 @@ export function stepShip(s: ShipState, input: Readonly<ShipInput>, stats: ShipSt
   } else {
     stepRotation(s, input, stats, dts, 1);
     thrust = stepNormal(s, input, stats, env, dts);
+    if (env.ground) groundContact(s, stats, env);
   }
   stepSystems(s, stats, heatInfluxAt(env, s.pos), dts, silent);
   s.sig = shipSignature(s, stats, thrust, silent);
 }
 
 /**
- * One full tick for a ship inside a system: builds the environment, steps the ship and, in cruise,
- * re-anchors it when it crosses into the sphere of influence of another body. Returns the
- * environment used (after any re-anchoring) so callers can evaluate hazards without rebuilding it.
+ * One full tick for a ship inside a system: builds the environment, steps the ship and moves it
+ * into another frame where it has crossed into one. Returns the environment used (after any
+ * re-anchoring) so callers can evaluate hazards without rebuilding it; its `impact` is that of
+ * this tick.
+ *
+ * - In cruise the anchor follows the sphere of influence the ship is in, and cruise ends where
+ *   the ship comes below the ceiling of a landable body: it is then in normal flight in the
+ *   surface frame, CRUISE_EXIT_SPEED along its nose over the ground, and `cruiseDrop` is set on
+ *   the returned environment.
+ * - In normal flight a ship that comes below `surfaceFrameAltitude` of a landable body moves into
+ *   its surface frame, from whatever anchor it had, and back into the non-rotating frame of the
+ *   body above SURFACE_FRAME_EXIT times that height. The trajectory is not changed by either.
  *
  * The state belongs to universe time `t` before the call and to `t + dt` after it, so the
  * re-anchoring is evaluated at `t + dt`.
@@ -515,7 +755,7 @@ export function simulateShip(
   t: number,
   dt: number,
 ): StepEnv {
-  if (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise) {
+  if (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise && s.mode !== FlightMode.Landed) {
     // No motion in these modes (and no anchor at all in a fold tunnel), so no sources are needed.
     const idle: StepEnv = { t, anchor: s.anchor, sources: [] };
     stepShip(s, input, stats, idle, dt);
@@ -523,8 +763,8 @@ export function simulateShip(
   }
   let env = buildStepEnv(sys, s.anchor, t);
   stepShip(s, input, stats, env, dt);
+  const t1 = t + dt;
   if (s.mode === FlightMode.Cruise) {
-    const t1 = t + dt;
     const origin = anchorState(sys, s.anchor, t1).pos;
     const next = pickCruiseAnchor(sys, v3.add(origin, s.pos), t1);
     if (next !== s.anchor) {
@@ -542,6 +782,46 @@ export function simulateShip(
       s.vel[2] = fwd[2] * s.cruiseSpeed;
       env = buildStepEnv(sys, next, t1);
     }
+    const body = bodyWithin(env, s.pos, 'ceiling');
+    if (body >= 0) {
+      // Below the ceiling of a landable body the drive cuts out, without harm.
+      reanchor(s, sys, surfaceAnchor(body), t1);
+      s.mode = FlightMode.Normal;
+      s.cruiseSpeed = 0;
+      const fwd = forwardOf(s.rot);
+      s.vel[0] = fwd[0] * CRUISE_EXIT_SPEED;
+      s.vel[1] = fwd[1] * CRUISE_EXIT_SPEED;
+      s.vel[2] = fwd[2] * CRUISE_EXIT_SPEED;
+      env = buildStepEnv(sys, s.anchor, t1);
+      env.cruiseDrop = true;
+    }
+  } else if (s.mode === FlightMode.Normal) {
+    let next = s.anchor;
+    if (env.ground) {
+      if (v3.lenSq(s.pos) > env.ground.exit * env.ground.exit) next = env.ground.body;
+    } else {
+      const body = bodyWithin(env, s.pos, 'enter');
+      if (body >= 0) next = surfaceAnchor(body);
+    }
+    if (next !== s.anchor) {
+      const impact = env.impact;
+      reanchor(s, sys, next, t1);
+      env = buildStepEnv(sys, next, t1);
+      if (impact !== undefined) env.impact = impact;
+    }
   }
   return env;
+}
+
+/**
+ * The landable body that `pos` (anchor frame) is close to: below the distance where its surface
+ * frame begins (`enter`) or below its cruise ceiling (`ceiling`). -1 when there is none.
+ */
+function bodyWithin(env: StepEnv, pos: Readonly<Vec3>, limit: 'enter' | 'ceiling'): number {
+  for (const src of env.sources) {
+    if (!src.surface) continue;
+    const d = src.surface[limit];
+    if (v3.distSq(pos, src.pos) < d * d) return src.bodyId;
+  }
+  return -1;
 }

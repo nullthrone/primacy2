@@ -22,6 +22,8 @@ export const SIG_BOOST = 2;
 export const SIG_SILENT = 0.08;
 /** Signature of a ship in cruise: the drive is visible across the whole system. */
 export const SIG_CRUISE = 1e20;
+/** Factor on the signature of a landed ship: engines off, hull against the cold ground. */
+export const SIG_LANDED = 0.25;
 
 /** Fraction of the full shield charge that bleeds away per second while running silent. */
 export const SILENT_SHIELD_DRAIN = 0.5;
@@ -42,13 +44,19 @@ export const DETECT_HYSTERESIS = 1.1;
 /**
  * Heat signature of a ship; 1 is a reference-sized ship idling with shields up.
  * `thrust` is the thruster output of the tick as a fraction of the rated forward acceleration,
- * `silent` whether the ship runs silent. A ship in cruise has `SIG_CRUISE`; a ship that is not
- * in space (docked, in a fold tunnel, destroyed) has 0.
+ * `silent` whether the ship runs silent. A ship in cruise has `SIG_CRUISE`; a landed ship has
+ * `SIG_LANDED` times its idle signature; a ship that is not in space (docked, in a fold tunnel,
+ * destroyed) has 0.
  */
 export function shipSignature(s: Readonly<ShipState>, stats: ShipStats, thrust: number, silent: boolean): number {
   if (s.mode === FlightMode.Cruise) return SIG_CRUISE;
-  if (s.mode !== FlightMode.Normal) return 0;
+  if (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Landed) return 0;
   const heat = stats.heatCap > 0 ? Math.min(Math.max(s.heat / stats.heatCap, 0), SIG_HEAT_LIMIT) : 0;
+  if (s.mode === FlightMode.Landed) {
+    // Nothing burns on the ground: what is left is the idle hull and the heat it holds.
+    const idle = (s.shield > 0 ? 1 : SIG_SHIELDS_DOWN) + SIG_HEAT * heat;
+    return (stats.radius / SIG_REF_RADIUS) * idle * SIG_LANDED * (silent ? SIG_SILENT : 1);
+  }
   const emission = (s.shield > 0 ? 1 : SIG_SHIELDS_DOWN) + SIG_HEAT * heat + SIG_THRUST * thrust + (s.boost > 0 ? SIG_BOOST : 0);
   return (stats.radius / SIG_REF_RADIUS) * emission * (silent ? SIG_SILENT : 1);
 }

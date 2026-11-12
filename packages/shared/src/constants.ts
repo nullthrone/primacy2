@@ -53,6 +53,8 @@ export const LAND_MAX_SLOPE_DEG = 20;
 export const LAND_MAX_TILT_DEG = 30;
 /** A landed ship lifts off when its up thrust input exceeds this (or on boost). */
 export const LIFTOFF_THRUST = 0.2;
+/** Speed (m/s) along its up axis with which a landed ship comes off the ground. */
+export const LIFTOFF_SPEED = 3;
 /** Share of the speed into the ground that a ship keeps when it bounces off. */
 export const GROUND_RESTITUTION = 0.25;
 /** Share of the speed along the ground that a ship loses in each tick of contact. */
@@ -91,6 +93,8 @@ export const BODY_EXCLUSION_FACTOR = 1.04;
 /** Compact objects kill inside rs * this factor (innermost stable orbit). */
 export const COMPACT_KILL_FACTOR = 3;
 
+/** Speed along the nose that a ship keeps when it drops out of cruise, m/s. */
+export const CRUISE_EXIT_SPEED = 100;
 /** Cruise ends this far above the highest possible ground of a landable body, metres. */
 export const CRUISE_CEILING_MARGIN = 2_000;
 /** Lower bound of cruise speed where the ceiling of a landable body limits it, m/s. */

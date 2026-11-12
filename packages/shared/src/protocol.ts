@@ -75,6 +75,8 @@ export const EntityFlag = {
   Cruise: 16,
   Wanted: 32,
   Mining: 64,
+  /** Standing on the ground (`FlightMode.Landed`). The flags are one byte in a snapshot; this is its last bit. */
+  Landed: 128,
 } as const;
 
 export type NpcRole = 'trader' | 'pirate' | 'security' | 'miner';

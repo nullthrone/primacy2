@@ -9,6 +9,7 @@ import {
   COMPACT_KILL_FACTOR,
   CRUISE_CHARGE_TIME,
   CRUISE_FUEL_RATE,
+  CRUISE_GROUND_MIN_SPEED,
   CRUISE_MIN_SPEED,
   CRUISE_TURN_FACTOR,
   DT,
@@ -616,7 +617,9 @@ describe('cruise', () => {
     for (const src of env.sources) {
       // Every fixture orbit lies in the XZ plane, so climbing along +Y recedes from all bodies.
       let last = cruiseSpeedLimit(env, [src.pos[0], src.radius, src.pos[2]], wisp);
-      expect(last).toBe(CRUISE_MIN_SPEED);
+      // At the surface the limit is at its lower bound; at a landable body (the moon) that is the
+      // ground speed a pilot flies down with, not CRUISE_MIN_SPEED.
+      expect(last).toBe(src.surface ? CRUISE_GROUND_MIN_SPEED : CRUISE_MIN_SPEED);
       for (let alt = 1e6; alt < 1e15; alt *= 3) {
         const limit = cruiseSpeedLimit(env, [src.pos[0], src.radius + alt, src.pos[2]], wisp);
         expect(limit).toBeGreaterThanOrEqual(last);

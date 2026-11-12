@@ -39,7 +39,8 @@ export function circularOrbit(parent: number, parentMass: number, a: number, pha
 
 /** Position and velocity relative to the parent of the orbit, in system axes. */
 export function orbitState(o: OrbitDef, t: number): StateVector {
-  const n = TWO_PI / o.period;
+  // The empty orbit of a ground site (period 0) stays at the parent's centre.
+  const n = o.period > 0 ? TWO_PI / o.period : 0;
   const E = solveKepler(o.m0 + n * t, o.e);
   const cosE = Math.cos(E);
   const sinE = Math.sin(E);
@@ -301,12 +302,35 @@ export function pickCruiseAnchor(sys: SystemDef, absPos: Readonly<Vec3>, t: numb
 }
 
 /**
- * The anchor for a ship entering normal space at `absPos`: the nearest orbital site whose
- * `frameRadius` contains the position; otherwise the body of `pickCruiseAnchor`, or its surface
- * frame when that body is landable and the position is below `surfaceFrameAltitude`.
- * A ground site is never an anchor for flight.
+ * The landable body whose surface frame contains the barycentric position `absPos` (it is less
+ * than `surfaceFrameAltitude` above the mean radius), or -1. With several, the one whose surface is nearest.
+ */
+export function surfaceBodyAt(sys: SystemDef, absPos: Readonly<Vec3>, t: number): number {
+  let best = -1;
+  let bestHeight = Infinity;
+  let states: StateVector[] | null = null;
+  for (const body of sys.bodies) {
+    if (!isLandable(body)) continue;
+    states ??= allBodyStates(sys, t);
+    const height = v3.dist(absPos, states[body.id]!.pos) - body.radius;
+    if (height < surfaceFrameAltitude(body) && height < bestHeight) {
+      best = body.id;
+      bestHeight = height;
+    }
+  }
+  return best;
+}
+
+/**
+ * The anchor for a ship entering normal space at `absPos`. Close above a landable body (see
+ * `surfaceBodyAt`) it is that body's surface frame, whatever else is near: `simulateShip` moves
+ * every ship in normal flight into that frame there, so this must agree with it. Otherwise it
+ * is the nearest orbital site whose `frameRadius` contains the position, otherwise the body of
+ * `pickCruiseAnchor`. A ground site is never an anchor for flight.
  */
 export function pickNormalAnchor(sys: SystemDef, absPos: Readonly<Vec3>, t: number): number {
+  const ground = surfaceBodyAt(sys, absPos, t);
+  if (ground >= 0) return surfaceAnchor(ground);
   let best = -1;
   let bestDist = Infinity;
   for (const site of sys.sites) {
@@ -317,11 +341,5 @@ export function pickNormalAnchor(sys: SystemDef, absPos: Readonly<Vec3>, t: numb
       bestDist = d;
     }
   }
-  if (best >= 0) return best;
-  const bodyId = pickCruiseAnchor(sys, absPos, t);
-  const body = sys.bodies[bodyId]!;
-  if (isLandable(body) && v3.dist(absPos, bodyState(sys, bodyId, t).pos) < body.radius + surfaceFrameAltitude(body)) {
-    return surfaceAnchor(bodyId);
-  }
-  return bodyId;
+  return best >= 0 ? best : pickCruiseAnchor(sys, absPos, t);
 }
