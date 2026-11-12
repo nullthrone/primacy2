@@ -6,7 +6,7 @@
 // logs in, undocks, meets a second pilot who opens fire, flies, engages cruise and opens the maps.
 // Screenshots go to screenshots/e2e/.
 // Exits with code 1 when a step fails or the page logged an error.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -34,7 +34,8 @@ function startServers() {
 
 function stopServers(child) {
   if (!child) return;
-  if (process.platform === 'win32') spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  // Synchronous, so the whole process tree is gone before this script exits and the next run finds the ports free.
+  if (process.platform === 'win32') spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
   else child.kill('SIGTERM');
 }
 
@@ -64,6 +65,49 @@ async function targetPlayer(page) {
     g.setTarget(g.view.ents.find((e) => e.info.player).id);
   });
   return true;
+}
+
+/**
+ * Keeps the nose on the locked target until `done` says so or the time is up. `done` receives the
+ * distance to the target and the pilot's own distance from the zone anchor, both in metres.
+ */
+async function steerUntil(page, done, timeoutMs) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const v = await page.evaluate(() => {
+      const g = window.primacy2.game;
+      const view = g.view;
+      const ent = view?.ents.find((e) => e.id === view.targetId);
+      if (!ent || !view.self) return null;
+      const p = g.project(ent.rel);
+      if (p.behind) g.input.addMouse(300, 0);
+      else g.input.addMouse((p.x - window.innerWidth / 2) * 0.35, (p.y - window.innerHeight / 2) * 0.35);
+      return { dist: Math.hypot(...ent.rel), own: Math.hypot(...view.self.state.pos) };
+    });
+    if (v && done(v)) return true;
+    await page.waitForTimeout(120);
+  }
+  return false;
+}
+
+/** Turns the nose until the station of the current zone is straight behind the ship. */
+async function aimAwayFromStation(page, timeoutMs = 20_000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const off = await page.evaluate(() => {
+      const g = window.primacy2.game;
+      const zone = g.view?.zone;
+      if (!zone) return null;
+      const p = g.project([-zone[0], -zone[1], -zone[2]]);
+      if (p.behind) { g.input.addMouse(300, 0); return Infinity; }
+      const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
+      g.input.addMouse(ex * 0.35, ey * 0.35);
+      return Math.hypot(ex, ey);
+    });
+    if (off !== null && off < 60) return true;
+    await page.waitForTimeout(120);
+  }
+  return false;
 }
 
 /** Steers with the mouse hook until the locked target sits in the middle of the view. */
@@ -121,7 +165,7 @@ try {
   await page.waitForTimeout(800);
   await shot('04-chase');
 
-  // A second pilot with an identity of their own joins, undocks at the same station and opens fire.
+  // A second pilot with an identity of their own joins and undocks at the same station.
   const context2 = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   const page2 = await context2.newPage();
   page2.on('pageerror', (e) => problems.push(`pageerror (wingman): ${e.message}`));
@@ -136,7 +180,30 @@ try {
   await page.waitForTimeout(600);
   await shot('05-wingman-in-sight');
 
-  // Count the combat events the first pilot receives while the second one shoots.
+  // The first pilot turns away from the station, flies out of its mass lock, where weapons are
+  // free, and stops there.
+  if (!(await aimAwayFromStation(page))) {
+    const dbg = await page.evaluate(() => {
+      const g = window.primacy2.game; const v = g.view;
+      return { mode: v?.mode, zone: v?.zone, self: !!v?.self, p: v?.zone ? g.project([-v.zone[0], -v.zone[1], -v.zone[2]]) : null, panel: document.querySelector('.panel')?.className ?? null };
+    });
+    throw new Error('could not turn away from the station: ' + JSON.stringify(dbg));
+  }
+  await page.keyboard.down('KeyW');
+  await page.waitForTimeout(4000);
+  const flying = await state();
+  if (!(flying.speed > 60)) throw new Error(`thrust had no effect: ${JSON.stringify(flying)}`);
+  await shot('06-flying');
+  await page.keyboard.down('ShiftLeft');
+  await page.waitForFunction(() => {
+    const self = window.primacy2.game.view?.self;
+    if (!self) throw new Error('the pilot lost the ship on the way out');
+    return Math.hypot(...self.state.pos) > 5600;
+  }, null, { timeout: 60_000 });
+  await page.keyboard.up('ShiftLeft');
+  await page.keyboard.up('KeyW');
+
+  // Count the combat events the first pilot receives from here on.
   await page.evaluate(() => {
     const seen = (window.__combat = { shot: 0, hit: 0 });
     let last = null;
@@ -150,32 +217,29 @@ try {
     };
     watch();
   });
+
+  // The second pilot gives chase, closes to gun range outside the mass lock and opens fire.
   if (!(await targetPlayer(page2))) throw new Error('the second pilot does not see the first');
+  await page2.keyboard.down('KeyW');
+  await page2.keyboard.down('ShiftLeft');
+  const closed = await steerUntil(page2, (v) => v.dist < 1400 && v.own > 4700, 90_000);
+  await page2.keyboard.up('ShiftLeft');
+  await page2.keyboard.up('KeyW');
+  if (!closed) throw new Error('the second pilot could not close in on the first');
   if (!(await aimAtTarget(page2))) throw new Error('the second pilot could not aim at the first');
   await page2.mouse.move(800, 450);
   await page2.mouse.down();
-  await page2.waitForTimeout(900);
-  await page2.screenshot({ path: `${OUT}/06-wingman-fires.png` });
-  await shot('07-under-fire');
-  await page2.waitForTimeout(900);
+  const firing = steerUntil(page2, () => false, 2400);
+  await page2.waitForTimeout(1200);
+  await page2.screenshot({ path: `${OUT}/07-wingman-fires.png` });
+  if (await targetPlayer(page)) await aimAtTarget(page, 6000);
+  await shot('08-under-fire');
+  await firing;
   await page2.mouse.up();
   const combat = await page.evaluate(() => window.__combat);
-  if (!(combat.shot > 0)) throw new Error(`no shot reached the first pilot's view: ${JSON.stringify(combat)}`);
+  if (!(combat.shot > 0 && combat.hit > 0)) throw new Error(`the first pilot saw no shots or hits: ${JSON.stringify(combat)}`);
   console.log(`combat events seen by the first pilot: ${JSON.stringify(combat)}`);
   await context2.close();
-
-  await page.keyboard.down('KeyW');
-  await page.waitForTimeout(4000);
-  const flying = await state();
-  if (!(flying.speed > 60)) throw new Error(`thrust had no effect: ${JSON.stringify(flying)}`);
-  await shot('08-flying');
-
-  // Turn with the mouse test hook and keep going until the mass lock is behind us.
-  await page.evaluate(() => window.primacy2.game.input.addMouse(120, -40));
-  await page.keyboard.down('ShiftLeft');
-  await page.waitForFunction(() => Math.hypot(...window.primacy2.game.view.self.state.pos) > 4600, null, { timeout: 60_000 });
-  await page.keyboard.up('ShiftLeft');
-  await page.keyboard.up('KeyW');
 
   await page.keyboard.press('KeyJ');
   await page.waitForFunction(() => window.primacy2.game.view?.mode === 1, null, { timeout: 15_000 });
