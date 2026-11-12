@@ -8,7 +8,7 @@ import { bodyAxis, type SpaceFrame, type ViewParams } from './types.ts';
 import { Glow, NO_DEPTH, QUAD, compress, glare, smoothstep, type Visual } from './visual.ts';
 
 /** Radius of the sphere inside which rays are bent, in Schwarzschild radii. Outside it rays are straight. */
-const LENS_RADIUS = 40;
+const LENS_RADIUS = 120;
 
 const VERT = /* glsl */ `
 uniform mat3 uCamRot;
@@ -40,6 +40,7 @@ uniform float uStepK;
 uniform int uSteps;
 uniform int uOct;
 uniform float uFade;
+uniform float uPix;
 varying vec3 vDir;
 ${GLSL_NOISE}
 
@@ -48,15 +49,19 @@ vec3 skyAt(vec3 dir) {
   return s.rgb + s.a * vec3(0.92, 0.96, 1.0);
 }
 
-// Streaks along the orbit direction; a is the azimuth, l the natural log of the radius.
-float diskNoise(float a, float l) {
+// Streaks along the orbit direction; a is the azimuth, l the natural log of the radius and fp the
+// size of a pixel in units of l. Octaves finer than a pixel are left out, which keeps the distant
+// disk free of shimmer.
+float diskNoise(float a, float l, float fp) {
   vec2 cs = vec2(cos(a), sin(a));
   float s = 0.0, amp = 0.5, f = 1.0;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 8; i++) {
     if (i >= uOct) break;
-    s += amp * gnoise(vec3(cs * 1.7 * f, l * 4.5 * f + 3.1 * float(i)));
-    amp *= 0.55;
-    f *= 2.3;
+    float keep = 1.0 - smoothstep(0.12, 0.45, fp * 4.5 * f);
+    if (keep <= 0.0) break;
+    s += amp * keep * gnoise(vec3(cs * 1.7 * f, l * 4.5 * f + 3.1 * float(i)));
+    amp *= 0.56;
+    f *= 2.2;
   }
   return s;
 }
@@ -74,19 +79,20 @@ vec4 diskSample(vec3 pc, vec3 rd) {
   float ta = mod(uTime, 16.0), tb = mod(uTime + 8.0, 16.0);
   float wa = 1.0 - abs(ta / 8.0 - 1.0);
   float spiral = ang + l * 1.5;
-  float na = diskNoise(spiral - om * (ta - 8.0), l);
-  float nb = diskNoise(spiral - om * (tb - 8.0) + 2.4, l + 7.0);
+  float fp = uPix * length(pc - uCam) / (max(abs(dot(rd, uAxis)), 0.03) * r);
+  float na = diskNoise(spiral - om * (ta - 8.0), l, fp);
+  float nb = diskNoise(spiral - om * (tb - 8.0) + 2.4, l + 7.0, fp);
   float n = mix(nb, na, wa);
-  // Grazing views would alias the streaks; flatten them there.
-  float graze = smoothstep(0.0, 0.06, abs(dot(rd, uAxis)));
-  float streak = clamp(0.5 + n * 1.35 * (0.35 + 0.65 * graze), 0.0, 1.0);
+  float streak = clamp(0.5 + n * 1.45, 0.0, 1.0);
 
+  // Temperature falls outward: blue-white at the inner edge, amber, then dull red dust.
   float heat = clamp(1.0 - lr + n * 0.10, 0.0, 1.0);
-  vec3 col = mix(vec3(0.42, 0.06, 0.015), vec3(1.0, 0.33, 0.07), smoothstep(0.0, 0.42, heat));
-  col = mix(col, vec3(1.0, 0.74, 0.40), smoothstep(0.40, 0.72, heat));
-  col = mix(col, vec3(0.86, 0.92, 1.0), smoothstep(0.72, 1.0, heat));
+  vec3 col = mix(vec3(0.45, 0.05, 0.01), vec3(1.0, 0.28, 0.045), smoothstep(0.15, 0.50, heat));
+  col = mix(col, vec3(1.0, 0.55, 0.17), smoothstep(0.50, 0.78, heat));
+  col = mix(col, vec3(1.0, 0.85, 0.62), smoothstep(0.78, 0.92, heat));
+  col = mix(col, vec3(0.80, 0.90, 1.0), smoothstep(0.92, 1.0, heat));
   float edge = smoothstep(0.0, 0.035, lr) * (1.0 - smoothstep(0.80, 1.0, lr));
-  float inten = 16.0 * exp(-lr * 6.2) * (0.10 + 0.90 * streak * streak) * edge;
+  float inten = 9.0 * exp(-lr * 6.5) * (0.05 + 0.95 * streak * streak) * edge;
 
   // Doppler beaming and gravitational redshift: the side moving toward the viewer is brighter and bluer.
   float beta = sqrt(0.5 / max(r, 1.0));
@@ -95,7 +101,8 @@ vec4 diskSample(vec3 pc, vec3 rd) {
   inten *= shift * shift * shift;
   col *= mix(vec3(1.0), vec3(0.72, 1.0, 1.5), clamp((shift - 1.0) * 1.3, -1.0, 1.0));
 
-  float alpha = clamp((0.20 + 0.80 * streak) * mix(0.30, 0.97, smoothstep(0.75, 0.15, lr)) * edge, 0.0, 1.0);
+  // Mostly opaque: the dark lanes between the streaks are dust that hides the stars behind.
+  float alpha = clamp((0.60 + 0.40 * streak) * mix(0.70, 0.98, smoothstep(0.85, 0.30, lr)) * edge, 0.0, 1.0);
   return vec4(col * uColor * inten * alpha, alpha);
 }
 
@@ -159,16 +166,19 @@ void main() {
 
   // Weight of the lensing, fading to nothing at the edge of the lens sphere so no seam shows.
   float closest = tca > 0.0 ? b : camR;
-  float w = 1.0 - smoothstep(0.6 * uLens, uLens, closest);
+  float w = 1.0 - smoothstep(0.75 * uLens, uLens, closest);
   vec3 sky = vec3(0.0);
   if (!captured) {
-    vec3 vd = normalize(v);
-    float tp = planeHit(p, vd);
-    if (tp > 0.0 && acc.a < 0.995) acc = over(acc, diskSample(p + vd * tp, vd));
-    sky = skyAt(normalize(mix(d, vd, w)));
+    // Past the lens sphere the ray is straight again. Near the sphere's edge it is blended back
+    // into the unbent ray, so the disk and the sky continue without a step.
+    vec3 vd = normalize(mix(d, normalize(v), w));
+    vec3 po = mix(uCam + d * (tca + sqrt(max(uLens * uLens - b * b, 0.0))), p, w);
+    float tp = planeHit(po, vd);
+    if (tp > 0.0 && acc.a < 0.995) acc = over(acc, diskSample(po + vd * tp, vd));
+    sky = skyAt(vd);
     // Photon ring: light that grazed the photon sphere.
-    float ring = exp(-(rmin - 1.5) * (rmin - 1.5) / 0.012);
-    sky += vec3(1.0, 0.82, 0.60) * uColor * ring * 2.5;
+    float ring = exp(-(rmin - 1.5) * (rmin - 1.5) / 0.02);
+    sky += vec3(1.0, 0.80, 0.55) * uColor * ring * 1.3;
   } else {
     w = 1.0;
   }
@@ -209,6 +219,7 @@ export class BlackHoleVisual implements Visual {
         uInner: { value: inner }, uOuter: { value: outer }, uLogSpan: { value: disk ? Math.log(outer / inner) : 1 },
         uLens: { value: LENS_RADIUS }, uColor: { value: new Vector3(color[0], color[1], color[2]) },
         uTime: { value: 0 }, uStepK: { value: 0.08 }, uSteps: { value: 160 }, uOct: { value: 4 }, uFade: { value: 1 },
+        uPix: { value: 0.001 },
       },
       // Premultiplied output: lensed pixels replace the sky, plain disk pixels blend over what lies behind.
       blending: CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, ...NO_DEPTH,
@@ -239,7 +250,8 @@ export class BlackHoleVisual implements Visual {
       u.uTime!.value = params.clock;
       u.uSteps!.value = params.quality === 0 ? 70 : params.quality === 1 ? 130 : 220;
       u.uStepK!.value = params.quality === 0 ? 0.15 : params.quality === 1 ? 0.10 : 0.065;
-      u.uOct!.value = params.quality === 0 ? 3 : params.quality === 1 ? 4 : 5;
+      u.uOct!.value = params.quality === 0 ? 4 : params.quality === 1 ? 6 : 8;
+      u.uPix!.value = params.pixAngle;
       u.uFade!.value = smoothstep(1.5, 4, px);
     }
     // Unresolved, the disk's light is a point like any star's.

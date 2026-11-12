@@ -103,7 +103,7 @@ function buildScene(name: string): FakeViewOptions | null {
     case 'fold': {
       const f = byClass('terran');
       const far = name === 'terran' ? 3.1 : 6;
-      return { system: f.sys, anchor: f.body.id, offset: sunCam(f, f.body.radius * far, 52, 14), lookAt: [0, 0, 0], fov: 45 };
+      return { system: f.sys, anchor: f.body.id, offset: sunCam(f, f.body.radius * num('dist', far), num('phase', 52), num('elev', 14)), lookAt: [0, 0, 0], fov: 45 };
     }
     case 'close': {
       const f = byClass('terran');
@@ -115,7 +115,7 @@ function buildScene(name: string): FakeViewOptions | null {
         const g = byClass('gas');
         f = patched(g, { rings: { inner: g.body.radius * 1.35, outer: g.body.radius * 2.3, color: 0xcdbfa6, seed: 5 } });
       }
-      return { system: f.sys, anchor: f.body.id, offset: axisCam(f, f.body.radius * 7, 13, 58), fov: 45 };
+      return { system: f.sys, anchor: f.body.id, offset: axisCam(f, f.body.radius * num('dist', 5.6), num('elev', 16), num('phase', 58)), fov: 45 };
     }
     case 'lava':
     case 'ice':
@@ -125,7 +125,7 @@ function buildScene(name: string): FakeViewOptions | null {
     case 'gas':
     case 'icegiant': {
       const f = byClass(name);
-      return { system: f.sys, anchor: f.body.id, offset: sunCam(f, f.body.radius * 3.2, name === 'lava' ? 95 : 55, 12), fov: 45 };
+      return { system: f.sys, anchor: f.body.id, offset: sunCam(f, f.body.radius * num('dist', 3.2), num('phase', name === 'lava' ? 95 : 55), num('elev', 12)), fov: 45 };
     }
     case 'blackhole-far':
     case 'blackhole-disk':

@@ -33,8 +33,19 @@ MODELS = {
     'ship_delver': 'ships.ship_delver',
     'ship_wayfarer': 'ships.ship_wayfarer',
     'ship_bulwark': 'ships.ship_bulwark',
+    'station_ring': 'structures.station_ring',
+    'asteroid_0': 'props.asteroid_0',
+    'asteroid_1': 'props.asteroid_1',
+    'asteroid_2': 'props.asteroid_2',
+    'asteroid_3': 'props.asteroid_3',
+    'gate': 'structures.gate',
+    'station_outpost': 'structures.station_outpost',
+    'cargo_pod': 'props.cargo_pod',
+    'missile': 'props.missile',
+    'beacon': 'structures.beacon',
+    'cockpit_generic': 'props.cockpit_generic',
 }
-SHARED = ('p2lib', 'ships.kit')
+SHARED = ('p2lib', 'ships.kit', 'structures.skit', 'props.rockkit')
 
 
 def build(keys=None, export=True, preview=True, **kw):

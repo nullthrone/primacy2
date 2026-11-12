@@ -46,6 +46,7 @@ BUDGETS = {
     'gate': (0, 25000),
     'prop': (0, 3000),
     'asteroid': (800, 2500),
+    'cockpit': (0, 6000),
 }
 MAX_GLB_BYTES = 2 * 1024 * 1024
 
@@ -66,6 +67,12 @@ PALETTE = {
                            emission=(1.0, 0.85, 0.6), strength=4.0),
     'emissive_accent': dict(color=(0.05, 0.75, 0.9), metallic=0.0, roughness=0.5,
                             emission=(0.05, 0.85, 1.0), strength=3.0),
+    # structures and props
+    'rock': dict(color=(0.17, 0.14, 0.12), metallic=0.0, roughness=0.95),
+    'portal': dict(color=(0.02, 0.3, 0.42), metallic=0.0, roughness=0.4,
+                   emission=(0.1, 0.8, 1.0), strength=2.5),
+    'cockpit_frame': dict(color=(0.028, 0.03, 0.034), metallic=0.7, roughness=0.5),
+    'cockpit_panel': dict(color=(0.075, 0.08, 0.09), metallic=0.3, roughness=0.65),
 }
 
 
@@ -109,7 +116,7 @@ def material(name, base=None, **override):
 
 
 def is_emissive(name):
-    return name.startswith('emissive_')
+    return name.startswith('emissive_') or name == 'portal'
 
 
 # ---------------------------------------------------------------------------------------------

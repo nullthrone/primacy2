@@ -41,8 +41,8 @@ vec3 starLayer(vec3 d, float n, float density, float sigma, float base, float ga
 vec3 brightStars(vec3 d, vec3 seed, float sigma, vec3 galN) {
   float lat = dot(d, galN);
   float dens = 0.35 + 0.65 * exp(-lat * lat / 0.16);
-  return starLayer(d, 36.0, 0.22, min(sigma * 1.3, 0.0020), 0.25, 9.0, 7.0, seed.x * 91.0)
-       + starLayer(d, 80.0, 0.60 * dens, min(sigma, 0.0011), 0.035, 1.6, 4.0, seed.y * 57.0);
+  return starLayer(d, 36.0, 0.20, min(sigma * 1.3, 0.0020), 0.10, 9.0, 6.0, seed.x * 91.0)
+       + starLayer(d, 80.0, 0.42 * dens, min(sigma, 0.0011), 0.012, 1.3, 5.0, seed.y * 57.0);
 }
 `;
 
