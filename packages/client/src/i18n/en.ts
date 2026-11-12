@@ -216,7 +216,7 @@ export const en = {
   'map.security.secure': 'Secure',
   'map.security.frontier': 'Frontier',
   'map.security.lawless': 'Lawless',
-  'map.stations': '{n} stations',
+  'map.stations': 'Stations: {n}',
   'map.offline': 'offline',
   'map.sector': 'Sector {name}',
   'map.players': '{n} pilots',

@@ -337,20 +337,15 @@ async function journey(browser, problems, steps) {
       if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
       else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
     }
-    // Wait through the tunnel (and the handoff, on the last hop) until the ship is in the new system; the tunnel is photographed once.
-    let tunnel = false;
-    const until = Date.now() + 120_000;
-    for (;;) {
-      const st = await page.evaluate((id) => {
-        const v = window.primacy2.game.view;
-        return { there: !!v && v.system.id === id && v.self !== null && v.fx.fold === 0, fold: v?.fx.fold ?? 0 };
-      }, hop.id);
-      if (st.there) break;
-      if (last && !tunnel && st.fold > 0.05) { tunnel = true; await shot('21-fold-tunnel'); }
-      if (Date.now() > until) await fail();
-      await page.waitForTimeout(100);
-    }
-    if (last && !tunnel) problems.push('journey: the fold tunnel was never seen on the last jump');
+    // The tunnel opens while the drive carries the ship; the last one is photographed. Then wait until
+    // the ship is in the new system (on the last hop that includes the handoff to the other server).
+    const tunnel = await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.1, null, { timeout: 60_000 }).then(() => true, () => false);
+    if (tunnel && last) await shot('21-fold-tunnel');
+    if (!tunnel) problems.push(`journey: the fold tunnel to ${hop.name} was never seen`);
+    await page.waitForFunction((id) => {
+      const v = window.primacy2.game.view;
+      return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
+    }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
     await page.waitForTimeout(600);
     log(`arrived at ${hop.name}`);
   }

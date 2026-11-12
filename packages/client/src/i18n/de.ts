@@ -218,7 +218,7 @@ export const de: Partial<Record<StringKey, string>> = {
   'map.security.secure': 'Gesichert',
   'map.security.frontier': 'Grenzland',
   'map.security.lawless': 'Gesetzlos',
-  'map.stations': '{n} Stationen',
+  'map.stations': 'Stationen: {n}',
   'map.offline': 'offline',
   'map.sector': 'Sektor {name}',
   'map.players': '{n} Piloten',
