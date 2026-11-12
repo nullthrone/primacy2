@@ -1,5 +1,5 @@
 /** Wire protocol version. Bump on any incompatible change to messages, snapshots or tickets. */
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const GAME_VERSION = '0.1.0';
 
 // --- simulation timing -------------------------------------------------------

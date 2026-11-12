@@ -8,10 +8,12 @@ import {
   EntityKind,
   FlightMode,
   MASS_LOCK_RADIUS,
+  canDetect,
   findSite,
   forwardOf,
   quat,
   v3,
+  weaponEnergyMul,
   type AsteroidDef,
   type EntityInfo,
   type GameEvent,
@@ -64,6 +66,10 @@ interface MissileData {
   shieldMul: number;
   hullMul: number;
   speed: number;
+  /** Sensor range of the seeker, metres: that of the launching ship at launch. */
+  seeker: number;
+  /** Whether the seeker held the target last tick. */
+  tracking: boolean;
 }
 
 const impactsOf = new WeakMap<SystemSim, Impact[]>();
@@ -192,18 +198,20 @@ export function strike(
 }
 
 function launchMissile(sim: SystemSim, ship: Ship, m: WeaponMount, slot: number, origin: Vec3, fwd: Vec3, target: Ship | null): void {
-  // A lock outside the seeker cone or beyond range is not passed on: the missile flies straight.
+  // A lock outside the seeker cone, beyond range or on a ship the launcher's sensors no longer
+  // pick up is not passed on: the missile flies straight.
   let lock: Ship | null = null;
   if (target) {
     const to = v3.sub(target.state.pos, origin);
     const d = v3.len(to);
-    if (d > 1e-3 && d <= m.range && v3.dot(to, fwd) / d >= Math.cos(m.gimbal)) lock = target;
+    if (d > 1e-3 && d <= m.range && v3.dot(to, fwd) / d >= Math.cos(m.gimbal) && sim.detects(ship, target, true)) lock = target;
   }
   const speed = m.speed + Math.max(0, v3.dot(ship.state.vel, fwd));
   const id = sim.world.allocId();
   const info: EntityInfo = { id, kind: EntityKind.Missile, name: 'Missile', model: 'missile', radius: 1 };
   const data: MissileData = {
     missile: true, from: ship.id, target: lock ? lock.id : null, dmg: m.damage, shieldMul: m.shieldMul, hullMul: m.hullMul, speed,
+    seeker: ship.stats.sensorRange, tracking: lock !== null,
   };
   sim.addObject({
     id, kind: EntityKind.Missile, anchor: ship.state.anchor, pos: v3.clone(origin), vel: v3.scale(fwd, speed),
@@ -240,6 +248,8 @@ function fire(sim: SystemSim, ship: Ship, buttons: number, dt: number): boolean 
   const target = lockedTarget(sim, ship);
   const mounts = ship.stats.weapons;
   const cd = ship.cooldowns;
+  // Power to the weapons (WEP) makes every shot cheaper for the capacitor.
+  const draw = weaponEnergyMul(s.pips);
   let firing = false;
 
   for (let i = 0; i < mounts.length; i++) {
@@ -254,7 +264,7 @@ function fire(sim: SystemSim, ship: Ship, buttons: number, dt: number): boolean 
     }
     // Beams cost and deal their per-second figures continuously; everything else per shot.
     const scale = beam ? dt : 1;
-    const energy = m.energy * scale;
+    const energy = m.energy * scale * draw;
     const heat = m.heat * scale;
     if (s.energy < energy || s.heat + heat > ship.stats.heatCap) continue;
     s.energy -= energy;
@@ -408,6 +418,10 @@ export function stepMissiles(sim: SystemSim, dt: number): void {
     if (!(speed > 1e-3)) continue;
     const cur = v3.scale(o.vel, 1 / speed);
     const to = v3.sub(target.state.pos, o.pos);
+    // The seeker follows the same detection rule as a ship's sensors, measured from the missile.
+    // A target it cannot pick up is not steered at; the missile flies on and may find it again.
+    d.tracking = canDetect({ sensorRange: d.seeker }, v3.len(to), target.state.sig, d.tracking);
+    if (!d.tracking) continue;
     // Aim at where the target will be when the missile gets there (capped so a far target does not mislead it).
     const lead = v3.addScaled(to, target.state.vel, Math.min(v3.len(to) / d.speed, 3));
     const want = v3.normalize(lead);

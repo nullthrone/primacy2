@@ -71,6 +71,11 @@ export class World {
   tickCount = 0;
   /** Set by the comms module: called for every chat message a pilot here writes on the galaxy channel. */
   onLatticeChat: ((m: ChatMessage) => void) | null = null;
+  /**
+   * Wing id by pilot id, for pilots currently flying in a wing. Pilots with the same wing id
+   * always detect each other (`SystemSim.detects`). Kept by the module that manages wings.
+   */
+  readonly wings = new Map<string, string>();
   private nextId = 1;
   private readonly commands = new Map<string, CommandHandler>();
   private readonly rng: Rng;

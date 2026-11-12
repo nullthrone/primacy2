@@ -35,6 +35,8 @@ const COS_FIRE = Math.cos((4 * Math.PI) / 180);
 const FLEE_HULL = 0.25;
 /** A hit keeps a ship alarmed for this long, seconds. */
 const ALARM_SECONDS = 20;
+/** A target that dropped off the sensors is hunted where it was last seen for this long, seconds. */
+export const LOSE_TARGET_AFTER = 4;
 /** Within this distance of its goal a ship has arrived, metres. */
 const ARRIVE = 200;
 /** Ships slow down over this distance before their goal, metres. */
@@ -68,6 +70,9 @@ export class NpcBrain {
   /** Universe time until which the trigger may be held, and until which it then rests. */
   fireUntil = 0;
   restUntil = 0;
+  /** Universe time the target was last picked up by the sensors, and where it was then. */
+  seenAt = -Infinity;
+  seenPos: Vec3 = [0, 0, 0];
   /** Reach of the primary and secondary weapons, metres; 0 without any. */
   readonly range1: number;
   readonly range2: number;
@@ -128,6 +133,8 @@ function pickTarget(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): Ship | 
     if (o === ship || o.gone || o.state.mode !== FlightMode.Normal) continue;
     const d = v3.dist(o.state.pos, pos);
     if (d > ACQUIRE_RANGE) continue;
+    // Only what the sensors pick up can be hunted; a ship running silent slips through.
+    if (!sim.detects(ship, o, o.id === ship.target)) continue;
     let bias = 0;
     if (o.id === ship.lastHitBy && t - ship.lastHitAt < ALARM_SECONDS) bias = -4_000;
     else if (b.role === 'pirate') {
@@ -227,6 +234,8 @@ export function think(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): void 
   const rocks = site && isField(site) ? sim.asteroids(site.id) : null;
   const threat = threatOf(sim, ship, t);
   let target: Ship | null = null;
+  /** The target is off the sensors and is being looked for where it was last seen. */
+  let lost = false;
 
   if (b.role === 'pirate' || b.role === 'security') {
     const shield = stats.shieldMax > 0 ? s.shield / stats.shieldMax : 1;
@@ -235,6 +244,17 @@ export function think(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): void 
     else if (threat && (shield <= 0 || (b.mode === 'evade' && shield < 0.5))) b.mode = 'evade';
     else {
       target = pickTarget(sim, ship, b, t);
+      if (target) {
+        b.seenAt = t;
+        b.seenPos = v3.clone(target.state.pos);
+      } else {
+        // A target that went dark is not forgotten at once: head for where it was last seen.
+        const old = shipInZone(sim, ship.target, s.anchor);
+        if (old && t - b.seenAt < LOSE_TARGET_AFTER && !sim.detects(ship, old, true)) {
+          target = old;
+          lost = true;
+        }
+      }
       b.mode = target ? 'attack' : 'wander';
     }
   } else {
@@ -246,7 +266,7 @@ export function think(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): void 
   let buttons = 0;
   if (b.mode === 'attack' && target) {
     ship.target = target.id;
-    dest = target.state.pos;
+    dest = lost ? b.seenPos : target.state.pos;
     const dist = v3.dist(dest, s.pos);
     const reach = stats.radius + target.stats.radius;
     const standoff = Math.max(reach + 250, b.range1 * 0.25);
@@ -319,7 +339,13 @@ export function steer(sim: SystemSim, ship: Ship, b: NpcBrain): void {
 
   if (b.mode === 'attack') {
     const target = shipInZone(sim, ship.target, s.anchor);
-    if (target) {
+    // Tracking and gunnery need the target on the sensors; without it the ship keeps flying
+    // toward the last known position chosen by `think`.
+    if (target && sim.detects(ship, target, true)) {
+      b.seenAt = sim.time;
+      b.seenPos[0] = target.state.pos[0];
+      b.seenPos[1] = target.state.pos[1];
+      b.seenPos[2] = target.state.pos[2];
       const to = v3.sub(target.state.pos, s.pos);
       const dist = v3.len(to);
       if (dist > 1) {

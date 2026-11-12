@@ -9,6 +9,8 @@ export * from './protocol.ts';
 export * from './snapshot.ts';
 export * from './structures.ts';
 export * from './sim/types.ts';
+export * from './sim/power.ts';
+export * from './sim/signature.ts';
 export * from './sim/ship.ts';
 export * from './sim/transitions.ts';
 export * from './universe/types.ts';

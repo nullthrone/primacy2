@@ -237,7 +237,7 @@ export class Fleet {
       }
     } else {
       const power = craft.thrust * (1 + 0.7 * craft.boost);
-      if (craft.engineMat) craft.engineMat.emissiveIntensity = craft.engineFull * (0.06 + 0.94 * craft.thrust) * (1 + 0.6 * craft.boost);
+      if (craft.engineMat) craft.engineMat.emissiveIntensity = craft.engineFull * (0.03 + 0.97 * craft.thrust) * (1 + 0.6 * craft.boost);
 
       if (obj.visible) {
         const m = obj.matrix;

@@ -15,6 +15,7 @@ import {
   TIDAL_DAMAGE_THRESHOLD,
   ZONE_VIEW_RADIUS,
   absolutePosition,
+  canDetect,
   canEngageCruise,
   collideStructure,
   disengageCruise,
@@ -23,6 +24,7 @@ import {
   findSite,
   generateAsteroids,
   hazardsAt,
+  shieldDamageMul,
   simulateShip,
   v3,
   type AsteroidDef,
@@ -125,6 +127,26 @@ export class SystemSim {
     return p;
   }
 
+  /** Whether the pilots of two ships fly in the same wing (`World.wings`). */
+  private sameWing(a: Ship, b: Ship): boolean {
+    if (!a.player || !b.player) return false;
+    const wing = this.world.wings.get(a.player.id);
+    return wing !== undefined && wing === this.world.wings.get(b.player.id);
+  }
+
+  /**
+   * Whether `observer` picks up `target` right now: by its heat signature on the observer's
+   * sensors (`canDetect`), or because both fly in the same wing. Both ships must be in the same
+   * zone. Pass `known` for a contact the observer already holds; it is kept a little farther out.
+   */
+  detects(observer: Ship, target: Ship, known = false): boolean {
+    if (this.sameWing(observer, target)) return true;
+    const dist = observer.state.mode === FlightMode.Cruise
+      ? v3.dist(this.absPos(observer), this.absPos(target))
+      : v3.dist(observer.state.pos, target.state.pos);
+    return canDetect(observer.stats, dist, target.state.sig, known);
+  }
+
   // -------------------------------------------------------------------------------------------
   // Entities
   // -------------------------------------------------------------------------------------------
@@ -174,7 +196,8 @@ export class SystemSim {
     let total = 0;
     let onShield = false;
     if (!opts.bypassShield && s.shield > 0) {
-      const mul = opts.shieldMul ?? 1;
+      // Power to the shields (SYS) hardens them against every kind of hit.
+      const mul = (opts.shieldMul ?? 1) * shieldDamageMul(s.pips);
       const absorbed = Math.min(s.shield, left * mul);
       s.shield -= absorbed;
       total += absorbed;
@@ -248,9 +271,13 @@ export class SystemSim {
         this.applyHazards(ship, t, dt);
         if (!ship.gone && s.chargeKind !== ChargeKind.None && s.charge >= 1) this.completeCharge(ship, t);
         this.setFlags(ship);
-      } else if (s.mode === FlightMode.Fold) {
-        ship.tunnel -= dt;
-        if (ship.tunnel <= 0) this.world.arriveFromFold(ship, this);
+      } else {
+        // Docked, destroyed or in a fold tunnel: not in space, so there is nothing to detect.
+        s.sig = 0;
+        if (s.mode === FlightMode.Fold) {
+          ship.tunnel -= dt;
+          if (ship.tunnel <= 0) this.world.arriveFromFold(ship, this);
+        }
       }
     }
 
@@ -504,7 +531,11 @@ export class SystemSim {
         for (const o of this.shipsInZone(zone)) {
           if (o === me || o.gone) continue;
           const rel = v3.sub(cruise ? this.absPos(o) : o.state.pos, origin);
-          if (!cruise && v3.lenSq(rel) > viewSq) continue;
+          const distSq = v3.lenSq(rel);
+          if (!cruise && distSq > viewSq) continue;
+          // Another ship is a contact only while this pilot's sensors pick it up (or it is a wing
+          // mate). Cargo pods, missiles and wrecks below are not subject to this.
+          if (!this.sameWing(me, o) && !canDetect(me.stats, Math.sqrt(distSq), o.state.sig, p.known.has(o.id))) continue;
           seen.add(o.id);
           if (!p.known.has(o.id)) added.push(this.shipInfo(o));
           ents.push({

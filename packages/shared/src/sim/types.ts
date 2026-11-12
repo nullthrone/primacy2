@@ -17,6 +17,8 @@ export const Button = {
   FaOff: 16,
   /** Mining/tool group. */
   Fire3: 32,
+  /** Silent running while set: shields offline, radiators closed, much smaller heat signature. */
+  Silent: 64,
 } as const;
 
 /** One tick of pilot input. See docs/ARCHITECTURE.md for sign conventions. */
@@ -32,6 +34,8 @@ export interface ShipInput {
   /** Persistent forward throttle setpoint, -1..1 (0..1 in cruise). */
   throttle: number;
   buttons: number;
+  /** Power distribution, packed by `packPips`. Absent or invalid means the default 4/4/4. */
+  pips?: number;
 }
 
 export const NEUTRAL_INPUT: Readonly<ShipInput> = Object.freeze({
@@ -83,6 +87,13 @@ export interface ShipState {
   chargeKind: ChargeKind;
   /** Time dilation factor applied last tick (1 = none, towards 0 = slower). */
   dilation: number;
+  /** Power distribution applied last tick, packed by `packPips`. */
+  pips: number;
+  /**
+   * Heat signature as of last tick; 1 is a reference-sized ship idling with shields up.
+   * Decides from how far other ships detect this one (`canDetect`).
+   */
+  sig: number;
 }
 
 /** A resolved weapon on a hardpoint. */

@@ -70,7 +70,7 @@ PALETTE = {
                             emission=(0.05, 0.85, 1.0), strength=3.0),
     # structures and props
     # The rock albedo is the brightest tone; the asteroids' vertex colours only darken it.
-    'rock': dict(color=(0.34, 0.31, 0.28), metallic=0.0, roughness=0.95),
+    'rock': dict(color=(0.30, 0.27, 0.245), metallic=0.0, roughness=0.95),
     'portal': dict(color=(0.01, 0.12, 0.2), metallic=0.0, roughness=0.4,
                    emission=(0.04, 0.5, 0.75), strength=1.0),
     'cockpit_frame': dict(color=(0.028, 0.03, 0.034), metallic=0.7, roughness=0.5),

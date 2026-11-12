@@ -2,7 +2,7 @@
  * Strict parsing of client messages. Everything a client sends is untrusted: each field is
  * type-checked and range-checked here, and a clean object is rebuilt from the known fields only.
  */
-import { MAX_CHAT_LENGTH, type C2S, type Command, type ShipInput } from '@primacy2/shared';
+import { MAX_CHAT_LENGTH, normalizePips, type C2S, type Command, type ShipInput } from '@primacy2/shared';
 
 type Check = (x: unknown) => boolean;
 
@@ -86,7 +86,9 @@ function parseInput(raw: unknown): ShipInput | null {
   const throttle = fin(r.throttle, -1, 1);
   if (tx === null || ty === null || tz === null || ax === null || ay === null || roll === null || throttle === null) return null;
   if (!int(0, 0xffff)(r.buttons)) return null;
-  return { seq: r.seq as number, thrust: [tx, ty, tz], aim: [ax, ay], roll, throttle, buttons: r.buttons as number };
+  // A power setting that is missing or not a valid split becomes the default rather than costing the pilot the input.
+  const pips = normalizePips(r.pips);
+  return { seq: r.seq as number, thrust: [tx, ty, tz], aim: [ax, ay], roll, throttle, buttons: r.buttons as number, pips };
 }
 
 /** Parses a text frame from a client. Returns null for anything malformed. */

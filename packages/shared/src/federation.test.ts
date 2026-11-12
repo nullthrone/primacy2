@@ -276,6 +276,7 @@ describe('snapshot codec', () => {
       rot: [0.1, 0.2, 0.3, 0.9273618495495703], angVel: [0.01, -0.02, 0.03], aim: [0.1, -0.2],
       throttle: 0.75, cruiseSpeed: 2.5e8, boost: 1.5, boostCd: 0.5,
       energy: 88.5, heat: 12.25, fuel: 6.5, shield: 150, hull: 200, shieldDelay: 2, charge: 0.4, dilation: 0.93,
+      pips: 0x228, sig: 3.375,
     };
     const snap = {
       tick: 123456, ackSeq: 4_000_000_000, time: 27_000_000.125, self,

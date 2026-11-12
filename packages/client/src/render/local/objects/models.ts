@@ -25,6 +25,10 @@ export class MaterialRegistry {
   private readonly all = new Set<MeshStandardMaterial>();
   private env: Texture | null = null;
 
+  has(m: MeshStandardMaterial): boolean {
+    return this.all.has(m);
+  }
+
   add<T extends MeshStandardMaterial>(m: T): T {
     if (this.all.has(m)) return m;
     this.all.add(m);
@@ -82,6 +86,23 @@ export interface Model {
 export const isEmissive = (m: { name: string }): boolean => m.name.startsWith('emissive');
 
 const SOOT = new Color(0.035, 0.03, 0.027);
+
+/**
+ * Adapts the plain values the models are exported with to how they are lit here. Under a black
+ * sky a metal has nothing to reflect but the sun's highlight, so painted hull plating is treated
+ * as mostly paint; lamps get a dark housing, so one that is switched off does not shine in
+ * sunlight; and the accent strips are taken down from signage to running lights.
+ */
+function tune(m: MeshStandardMaterial): void {
+  const n = m.name;
+  if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) m.metalness *= 0.4;
+  else if (n.startsWith('hull_secondary')) m.metalness *= 0.6;
+  else if (n.startsWith('emissive')) {
+    m.color.multiplyScalar(n === 'emissive_engine' ? 0.03 : 0.12);
+    if (n === 'emissive_accent') m.emissiveIntensity *= 0.5;
+    if (n === 'emissive_engine') m.emissiveIntensity *= 0.45;
+  }
+}
 
 function standIn(key: string, size: number): Object3D {
   const root = new Group();
@@ -157,7 +178,7 @@ export class ModelLibrary {
       if (mesh.isMesh) {
         const mat = mesh.material as MeshStandardMaterial;
         this.geometries.add(mesh.geometry);
-        if (mat.isMeshStandardMaterial) this.materials.add(mat);
+        if (mat.isMeshStandardMaterial && !this.materials.has(mat)) tune(this.materials.add(mat));
         const emissive = isEmissive(mat);
         mesh.castShadow = !emissive && mat.name !== 'portal';
         mesh.receiveShadow = !emissive && mat.name !== 'portal';

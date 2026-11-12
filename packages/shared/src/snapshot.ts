@@ -13,6 +13,7 @@
  * precision nearby however far the zone is from its anchor.
  */
 import type { Quat, Vec3 } from './math.ts';
+import { normalizePips } from './sim/power.ts';
 import type { ChargeKind, FlightMode, ShipState } from './sim/types.ts';
 
 export const SNAPSHOT_TYPE = 1;
@@ -41,7 +42,7 @@ export interface Snapshot {
   ents: SnapshotEntity[];
 }
 
-const SELF_F64 = 27;
+const SELF_F64 = 29;
 const HEADER = 2 + 2 + 4 + 4 + 8;
 const SELF_BYTES = 8 + SELF_F64 * 8;
 const ENTITY_BYTES = 4 + 4 + 12 + 12 + 8;
@@ -77,6 +78,8 @@ export function encodeSnapshot(s: Snapshot): ArrayBuffer {
       me.throttle, me.cruiseSpeed, me.boost, me.boostCd,
       me.energy, me.heat, me.fuel, me.shield, me.hull,
       me.shieldDelay, me.charge, me.dilation,
+      // A state saved before these two fields existed lacks them until its next tick.
+      normalizePips(me.pips), Number.isFinite(me.sig) ? me.sig : 0,
     ];
     for (let i = 0; i < SELF_F64; i++) { dv.setFloat64(o, f[i]!, true); o += 8; }
   }
@@ -133,6 +136,8 @@ export function decodeSnapshot(buf: ArrayBuffer | ArrayBufferView): Snapshot | n
       shieldDelay: f[24]!,
       charge: f[25]!,
       dilation: f[26]!,
+      pips: f[27]!,
+      sig: f[28]!,
     };
   }
 

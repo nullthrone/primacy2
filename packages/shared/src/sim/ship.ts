@@ -27,6 +27,8 @@ import {
 import { approach, clamp, forwardOf, quat, v3, type Vec3 } from '../math.ts';
 import { allBodyStates, anchorState, findSite, orbitState, pickCruiseAnchor } from '../universe/orbits.ts';
 import type { SystemDef } from '../universe/types.ts';
+import { DEFAULT_PIPS, engineMul, normalizePips, shieldRegenMul } from './power.ts';
+import { SILENT_COOLING, SILENT_REACTOR_HEAT, SILENT_SHIELD_DRAIN, shipSignature } from './signature.ts';
 import {
   Button,
   ChargeKind,
@@ -78,7 +80,7 @@ const unit = (x: number): number => clamp(finite(x), -1, 1);
 
 /** A ship at rest at the origin of anchor 0 with full hull, shield, energy and fuel, flight assist on. */
 export function newShipState(stats: ShipStats): ShipState {
-  return {
+  const s: ShipState = {
     mode: FlightMode.Normal,
     anchor: 0,
     pos: [0, 0, 0],
@@ -100,7 +102,12 @@ export function newShipState(stats: ShipStats): ShipState {
     charge: 0,
     chargeKind: ChargeKind.None,
     dilation: 1,
+    pips: DEFAULT_PIPS,
+    sig: 0,
   };
+  // A new ship is detectable at once, before its first tick.
+  s.sig = shipSignature(s, stats, 0, false);
+  return s;
 }
 
 /**
@@ -326,15 +333,21 @@ function stepRotation(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats
   s.aim[1] = consumeAim(s.aim[1], s.angVel[0] * dts);
 }
 
-/** Normal flight: boost, thrust (flight assist or raw), gravity, relativistic limits, integration. */
-function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, env: StepEnv, dts: number): void {
+/**
+ * Normal flight: boost, thrust (flight assist or raw), gravity, relativistic limits, integration.
+ * Returns the thruster output of the tick as a fraction of the hull's rated forward acceleration
+ * (above 1 with boost, extra engine power or several axes at once); it feeds the heat signature.
+ */
+function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, env: StepEnv, dts: number): number {
   if ((input.buttons & Button.Boost) !== 0 && s.boostCd <= 0 && s.energy >= BOOST_ENERGY) {
     s.energy -= BOOST_ENERGY;
     s.boost = BOOST_DURATION;
     s.boostCd = BOOST_COOLDOWN;
   }
   const boosting = s.boost > 0;
-  const k = boosting ? stats.boostAccel : 1;
+  // Power to the engines scales every thruster and the speeds the flight assist aims for.
+  const eng = engineMul(s.pips);
+  const k = (boosting ? stats.boostAccel : 1) * eng;
 
   const g = gravityAt(env, s.pos);
   const brake = (input.buttons & Button.Brake) !== 0;
@@ -345,7 +358,7 @@ function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, 
   // Commanded thrust acceleration in ship axes (m/s^2), before the per-axis thruster limits.
   let cmd: Vec3;
   if (s.fa) {
-    const vmax = boosting ? stats.boostSpeed : stats.maxSpeed;
+    const vmax = (boosting ? stats.boostSpeed : stats.maxSpeed) * eng;
     let want: Vec3 = [0, 0, 0];
     if (!brake) {
       const f = clamp(s.throttle + tz, -1, 1);
@@ -392,6 +405,7 @@ function stepNormal(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, 
   s.pos[0] += s.vel[0] * dts;
   s.pos[1] += s.vel[1] * dts;
   s.pos[2] += s.vel[2] * dts;
+  return stats.accelFwd > 0 ? v3.len(cmd) / stats.accelFwd : 0;
 }
 
 /** Cruise flight: speed follows the throttle under the proximity limit; gravity is ignored. */
@@ -424,12 +438,24 @@ function stepCruise(s: ShipState, stats: ShipStats, env: StepEnv, dts: number): 
   }
 }
 
-/** Energy, shield, heat, boost timers and drive charge. `heatInflux` is in heat units per second. */
-function stepSystems(s: ShipState, stats: ShipStats, heatInflux: number, dts: number): void {
+/**
+ * Energy, shield, heat, boost timers and drive charge. `heatInflux` is in heat units per second.
+ * While `silent`, the shields are switched off and bleed away, and the closed radiators shed a
+ * fraction of the usual heat while the reactor's waste heat stays in the hull.
+ */
+function stepSystems(s: ShipState, stats: ShipStats, heatInflux: number, dts: number, silent: boolean): void {
   s.energy = Math.min(stats.energyMax, s.energy + stats.energyRegen * dts);
-  if (s.shieldDelay > 0) s.shieldDelay = Math.max(0, s.shieldDelay - dts);
-  else s.shield = Math.min(stats.shieldMax, s.shield + stats.shieldRegen * dts);
-  s.heat = Math.max(0, s.heat + (heatInflux - stats.cooling) * dts);
+  if (silent) {
+    s.shield = Math.max(0, s.shield - stats.shieldMax * SILENT_SHIELD_DRAIN * dts);
+    // Held at its full length, so the shields come back only a full delay after silent running ends.
+    s.shieldDelay = stats.shieldDelay;
+    const stored = heatInflux + stats.energyRegen * SILENT_REACTOR_HEAT - stats.cooling * SILENT_COOLING;
+    s.heat = Math.max(0, s.heat + stored * dts);
+  } else {
+    if (s.shieldDelay > 0) s.shieldDelay = Math.max(0, s.shieldDelay - dts);
+    else s.shield = Math.min(stats.shieldMax, s.shield + stats.shieldRegen * shieldRegenMul(s.pips) * dts);
+    s.heat = Math.max(0, s.heat + (heatInflux - stats.cooling) * dts);
+  }
   s.boost = Math.max(0, s.boost - dts);
   s.boostCd = Math.max(0, s.boostCd - dts);
   if (s.chargeKind !== ChargeKind.None) {
@@ -444,10 +470,13 @@ function stepSystems(s: ShipState, stats: ShipStats, heatInflux: number, dts: nu
  */
 export function stepShip(s: ShipState, input: Readonly<ShipInput>, stats: ShipStats, env: StepEnv, dt: number): void {
   if (!(dt > 0) || dt === Infinity) return;
+  s.pips = normalizePips(input.pips);
   const cruising = s.mode === FlightMode.Cruise;
   if (!cruising && s.mode !== FlightMode.Normal) {
+    // Not flying: a held silent-running button has no effect, and there is nothing to detect.
     s.dilation = 1;
-    stepSystems(s, stats, 0, dt);
+    stepSystems(s, stats, 0, dt, false);
+    s.sig = shipSignature(s, stats, 0, false);
     return;
   }
 
@@ -456,15 +485,18 @@ export function stepShip(s: ShipState, input: Readonly<ShipInput>, stats: ShipSt
   const dts = dt * s.dilation;
   s.fa = (input.buttons & Button.FaOff) === 0;
   s.throttle = unit(input.throttle);
+  const silent = (input.buttons & Button.Silent) !== 0;
 
+  let thrust = 0;
   if (cruising) {
     stepRotation(s, input, stats, dts, CRUISE_TURN_FACTOR);
     stepCruise(s, stats, env, dts);
   } else {
     stepRotation(s, input, stats, dts, 1);
-    stepNormal(s, input, stats, env, dts);
+    thrust = stepNormal(s, input, stats, env, dts);
   }
-  stepSystems(s, stats, heatInfluxAt(env, s.pos), dts);
+  stepSystems(s, stats, heatInfluxAt(env, s.pos), dts, silent);
+  s.sig = shipSignature(s, stats, thrust, silent);
 }
 
 /**

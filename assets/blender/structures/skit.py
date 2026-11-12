@@ -106,6 +106,53 @@ def white_col(me):
     me.update()
 
 
+def corner_points(me, pull=0.35):
+    """One point per face corner: the corner's vertex pulled `pull` of the way toward its face
+    centre. Tints sampled there belong to the face rather than to the shared vertex."""
+    n = len(me.loops)
+    vidx = np.zeros(n, dtype=np.int32)
+    me.loops.foreach_get('vertex_index', vidx)
+    co = np.zeros(len(me.vertices) * 3, dtype=np.float32)
+    me.vertices.foreach_get('co', co)
+    cen = np.zeros(len(me.polygons) * 3, dtype=np.float32)
+    me.polygons.foreach_get('center', cen)
+    ls = np.zeros(len(me.polygons), dtype=np.int32)
+    lt = np.zeros(len(me.polygons), dtype=np.int32)
+    me.polygons.foreach_get('loop_start', ls)
+    me.polygons.foreach_get('loop_total', lt)
+    poly = np.zeros(n, dtype=np.int64)
+    poly[ls] = 1
+    poly = np.cumsum(poly) - 1                        # polygons own consecutive loop ranges
+    return co.reshape(-1, 3)[vidx] * (1.0 - pull) + cen.reshape(-1, 3)[poly] * pull
+
+
+def multiply_col(ob, corner_rgb, floor=None):
+    """Multiply an (corners, 3) tint into "Col". The tint is first averaged per vertex and
+    shading normal, the grouping the occlusion bake uses, so colour never splits a vertex.
+    floor (one value per corner) lifts the baked occlusion to at least that value first."""
+    me = ob.data
+    n = len(me.loops)
+    ca = me.color_attributes['Col']
+    col = np.zeros(n * 4, dtype=np.float32)
+    ca.data.foreach_get('color', col)
+    col = col.reshape(n, 4)
+    if floor is not None:
+        col[:, :3] = np.maximum(col[:, :3], np.asarray(floor, dtype=np.float32)[:, None])
+    vidx = np.zeros(n, dtype=np.int32)
+    me.loops.foreach_get('vertex_index', vidx)
+    nor = np.zeros(n * 3, dtype=np.float32)
+    me.corner_normals.foreach_get('vector', nor)
+    q = np.round(nor.reshape(n, 3) * 6.0).astype(np.int64) + 8
+    keys = vidx.astype(np.int64) * 4096 + q[:, 0] * 256 + q[:, 1] * 16 + q[:, 2]
+    _, inv = np.unique(keys, return_inverse=True)
+    cnt = np.maximum(np.bincount(inv), 1)
+    tint = np.asarray(corner_rgb, dtype=np.float64)
+    for ch in range(3):
+        col[:, ch] *= (np.bincount(inv, weights=tint[:, ch]) / cnt)[inv]
+    ca.data.foreach_set('color', np.clip(col, 0.0, 1.0).ravel())
+    me.update()
+
+
 def child_mesh(m, name, sub, sharp=38.0, ao=False, ao_distance=20.0, double_sided=False):
     """Extra mesh object "<name>" under the model root (call after m.finalize()).
 
