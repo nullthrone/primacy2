@@ -35,6 +35,7 @@ class SpaceRenderer implements GameRenderer {
   /** Render-target size in device pixels. */
   private width = 2;
   private height = 2;
+  private sizeKey = '';
   private local: LocalLayer | null = null;
   private localReady = false;
   private idleGraphics: GraphicsSettings = { quality: 2, bloom: true, resolution: 1 };
@@ -59,6 +60,10 @@ class SpaceRenderer implements GameRenderer {
   }
 
   resize(width: number, height: number, pixelRatio: number): void {
+    // Callers may resize every frame; the targets are only rebuilt when something changed.
+    const key = `${width}x${height}@${pixelRatio}`;
+    if (key === this.sizeKey) return;
+    this.sizeKey = key;
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
     this.width = Math.max(2, Math.floor(width * pixelRatio));
@@ -110,7 +115,8 @@ class SpaceRenderer implements GameRenderer {
       width: this.width,
       height: this.height,
       quality,
-      clock: frame.clock,
+      // Wrapped (at a multiple of the shaders' animation periods) so float32 time stays precise.
+      clock: frame.clock % 14400,
     };
     this.sky.frame(params);
     this.bodies.update(frame, params);

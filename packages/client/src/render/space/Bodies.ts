@@ -158,7 +158,8 @@ class PlanetVisual implements Visual {
       bodyRotation(def, this.tilt, frame.time, u.uRot!.value as Matrix3);
       u.uOct!.value = octaves(px, params.quality);
       u.uTime!.value = params.clock;
-      u.uCloudPhase!.value = (params.clock * 0.0015) % (Math.PI * 2);
+      // A slow angle for cloud drift and zonal sway, wrapped in float64 so it never jumps.
+      u.uCloudPhase!.value = (frame.clock * 0.0015) % (Math.PI * 2);
       // The mesh is a little larger than the sphere so the shader can anti-alias the limb.
       this.surface.position.copy(this.center);
       this.surface.scale.setScalar(radius * 1.004 + 2 * params.pixAngle * SAFE_DIST);

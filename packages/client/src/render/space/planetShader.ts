@@ -309,7 +309,9 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec3 so = seedOff();
   float lat = nb.y;
   float bands = uPar.x, contrast = uPar.y;
-  vec3 nr = rotY(nb, uTime * 0.004 * sin(lat * 11.0 + uSeed));
+  // Zonal jets sway back and forth, so the shear between latitudes stays bounded however long
+  // the session runs (uCloudPhase is a slow angle that wraps at two pi).
+  vec3 nr = rotY(nb, 0.15 * sin(lat * 11.0 + uSeed) * sin(uCloudPhase * 8.0));
   int lo = min(uOct, 5);
   float t1 = fbm(vec3(nr.x * 1.6, lat * 5.0, nr.z * 1.6) + so, lo);
   float t2 = fbm(vec3(nr.x * 5.0, lat * 16.0, nr.z * 5.0) + so * 1.7 + t1 * 1.5, uOct);

@@ -3,8 +3,9 @@
  * Scenes: ?scene=menu|star|system|terran|ocean|desert|rocky|gas|icegiant|gasrings|lava|ice|
  * blackhole-far|blackhole-near|blackhole-disk|neutron|cruise|fold|close|belt|neighbour|info.
  * Options: q=0..2, bloom=0, probe=1 (spheres in the local scenes), camera overrides dist (body
- * radii), phase and elev (degrees), rs (black hole distance in Schwarzschild radii), and effect
- * overrides cruise, fold, charge, kind, dil, heat, hit.
+ * radii), phase and elev (degrees), rs (black hole distance in Schwarzschild radii), clock (start
+ * value of the page clock in seconds, to check long sessions), and effect overrides cruise, fold,
+ * charge, kind, dil, heat, hit.
  */
 import { anchorState, quat } from '@primacy2/shared';
 import type { BodyDef, SystemDef, Vec3 } from '@primacy2/shared';
@@ -251,7 +252,7 @@ async function main(): Promise<void> {
   const start = performance.now();
   let frames = 0;
   const frame = (): void => {
-    const clock = 10 + (performance.now() - start) / 1000;
+    const clock = num('clock', 10) + (performance.now() - start) / 1000;
     if (opts) renderer.render(makeView({ ...opts, time: T0 + clock, clock, galaxy, fx, graphics }));
     else renderer.render(null);
     if (++frames === 20) (window as unknown as { __ready: boolean }).__ready = true;

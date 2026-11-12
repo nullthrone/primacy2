@@ -33,7 +33,8 @@ float n2(vec2 p) {
 float n3(vec3 p) {
   float iz = floor(p.z), fz = fract(p.z);
   fz = fz * fz * (3.0 - 2.0 * fz);
-  return mix(n2(p.xy + iz * 37.7), n2(p.xy + (iz + 1.0) * 37.7), fz);
+  // The slice index wraps so the offsets stay small and float32 keeps its precision.
+  return mix(n2(p.xy + mod(iz, 61.0) * 37.7), n2(p.xy + mod(iz + 1.0, 61.0) * 37.7), fz);
 }
 
 // ACES filmic curve (Stephen Hill's fit).
