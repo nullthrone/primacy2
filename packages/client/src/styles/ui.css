@@ -125,6 +125,31 @@
 .bar.fuel .bar-fill { background: var(--green); }
 .bar.warn .bar-fill { background: var(--red); }
 .bar.warn .bar-label { color: var(--red); }
+.bar.salvage .bar-fill { background: var(--amber); }
+/* Shields switched off by silent running. */
+.bar.offline .bar-label { color: var(--dim); }
+.bar.offline .bar-track { border-style: dashed; }
+/* Heat that cannot be shed: the fill is striped and the stripes drift toward the limit. */
+.bar.heat.rising .bar-track { border-color: var(--amber); }
+.bar.heat.rising .bar-fill { --c: var(--amber); background: repeating-linear-gradient(90deg, var(--c) 0 0.4em, color-mix(in srgb, var(--c) 55%, #fff) 0.4em 0.8em); background-size: 0.8em 100%; animation: heat-rise 1.6s linear infinite; }
+.bar.heat.rising.warn .bar-track { border-color: var(--red); }
+.bar.heat.rising.warn .bar-fill { --c: var(--red); }
+/* The power block stands beside the status bars; both use rows of one fixed height so they line up. */
+.hud-left .bar, .side-row { height: 1.35em; line-height: 1.35; }
+.hud-power { left: calc(2vw + 16.2em); bottom: 3vh; white-space: nowrap; }
+.side-row { display: flex; align-items: center; gap: 0.6em; font-size: 0.9em; letter-spacing: 0.08em; }
+.pip-label { width: 2.4em; }
+.pip-track { display: flex; gap: 0.22em; }
+.pip { width: 1.15em; height: 0.56em; border: 1px solid rgba(127, 233, 255, 0.4); background: rgba(127, 233, 255, 0.08); }
+.pip.full { background: var(--cyan); border-color: var(--cyan); }
+.pip.half { background: linear-gradient(90deg, var(--cyan) 50%, rgba(127, 233, 255, 0.08) 50%); border-color: var(--cyan); }
+.pip-key { color: var(--dim); }
+.heat-row .num { min-width: 3em; text-align: right; color: var(--dim); }
+.heat-row.rising, .heat-row.rising .num { color: var(--amber); }
+.heat-row.hot, .heat-row.hot .num { color: var(--red); }
+.silent-tag { padding: 0 0.5em; border: 1px solid var(--cyan); background: var(--glass); color: var(--cyan); }
+.sig-row { color: var(--dim); }
+.sig-row.low { color: var(--cyan); }
 .speed { font-size: 2em; color: #fff; }
 .throttle { width: 100%; height: 0.35em; background: rgba(127, 233, 255, 0.14); }
 .throttle span { display: block; height: 100%; background: var(--cyan); }
@@ -136,7 +161,16 @@
 .prompt { margin-top: 0.3em; padding: 0.2em 0.9em; border: 1px solid var(--line); background: var(--glass); color: var(--cyan); }
 .panel-mini { background: rgba(6, 14, 28, 0.55); border-left: 2px solid var(--cyan); padding: 0.5em 0.8em; display: flex; flex-direction: column; gap: 0.15em; }
 .panel-mini h4 { font-size: 0.8em; color: var(--dim); }
+.panel-mini .tag { color: var(--amber); letter-spacing: 0.15em; }
+.panel-mini .hint { font-size: 0.88em; white-space: nowrap; }
+.marker.ent.wreck .marker-glyph { border-style: dashed; border-color: var(--amber); }
 .wanted { color: var(--red); letter-spacing: 0.15em; }
+.insurance { display: flex; flex-direction: column; gap: 0.3em; min-width: 24em; max-width: 34em; padding: 0.8em 1.2em; background: var(--glass); border: 1px solid var(--line); }
+.insurance .ins-row { display: flex; justify-content: space-between; gap: 2em; letter-spacing: 0.06em; }
+.insurance .ins-row b { font-family: 'Share Tech Mono', ui-monospace, monospace; font-weight: 400; }
+.insurance p { margin: 0.3em 0 0; }
+.insurance .short { color: var(--amber); }
+.insurance-note { margin-top: 0.4em; padding-top: 0.6em; border-top: 1px solid var(--line); }
 .warnings { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); text-align: center; color: var(--red); font-size: 1.3em; font-weight: 700; letter-spacing: 0.18em; animation: pulse 1s infinite; }
 .notices { position: absolute; left: 50%; top: 4vh; transform: translateX(-50%); display: flex; flex-direction: column; gap: 0.3em; align-items: center; }
 .notice { padding: 0.25em 1em; background: var(--glass); border: 1px solid var(--line); }
@@ -155,5 +189,6 @@
 .chat-form input { flex: 1; }
 
 @keyframes pulse { 50% { opacity: 0.45; } }
-@media (prefers-reduced-motion: reduce) { .warnings { animation: none; } }
+@keyframes heat-rise { to { background-position-x: 0.8em; } }
+@media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
 @media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .settings { grid-template-columns: 1fr; } }

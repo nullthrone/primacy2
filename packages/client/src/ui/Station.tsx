@@ -88,6 +88,12 @@ export function Station({ api }: { api: GameApi }) {
           <button disabled={!station.services.includes('refuel')} onClick={() => void run({ k: 'refuel' })}>{t('station.refuel', { price: fmt(station.fuelPrice) })}</button>
           <button disabled={!station.services.includes('repair') || station.repairPrice <= 0} onClick={() => void run({ k: 'repair' })}>{t('station.repair', { price: fmt(station.repairPrice) })}</button>
           <button disabled={station.dataValue <= 0} onClick={() => void run({ k: 'sellData' })}>{t('station.sellData', { price: fmt(station.dataValue) })}</button>
+          {pilot.rebuy !== undefined && (
+            <div class="insurance-note">
+              <div>{t('station.insurance', { price: fmt(pilot.rebuy) })}</div>
+              <div class="dim">{t(pilot.rebuy <= 0 ? 'station.insuranceFree' : pilot.credits >= pilot.rebuy ? 'station.insurancePay' : 'station.insuranceShort')}</div>
+            </div>
+          )}
         </div>
       )}
 

@@ -56,6 +56,7 @@ export function Controls() {
       <div>{t('ctl.look')}</div>
       <div>{t('ctl.fire')}</div>
       <div>{t('ctl.nav')}</div>
+      <div>{t('ctl.power')}</div>
       <div>{t('ctl.ui')}</div>
       <div class="dim">{t('ctl.ctrlw')}</div>
     </div>

@@ -3,13 +3,20 @@
  * values from the current `FrameView`.
  */
 import { useRef, useState } from 'preact/hooks';
-import { ChargeKind, DOCK_RANGE, EntityFlag, EntityKind, FlightMode, HULLS, cargoTonnes, v3, type ChatChannel } from '@primacy2/shared';
-import type { FrameView, GameApi } from '../contracts.ts';
+import {
+  Button, COMMODITIES, ChargeKind, DOCK_RANGE, EntityFlag, EntityKind, FlightMode, HULLS, PIP_MAX,
+  cargoTonnes, detectionRange, unpackPips, v3, type ChatChannel,
+} from '@primacy2/shared';
+import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { store } from '../state/store.ts';
-import { fmtDistance, fmtDuration, fmtSpeed } from './format.ts';
+import { bindKey, fmtDistance, fmtDuration, fmtSpeed } from './format.ts';
 
 const NOTICE_MS = 7000;
+/** Heat as a fraction of capacity above which the HUD warns. */
+const HEAT_WARN = 0.85;
+/** A signature above this is a cruise drive, seen across the whole system. */
+const SIG_SYSTEM_WIDE = 1e12;
 
 function Bar({ label, value, warn, cls }: { label: string; value: number; warn?: boolean; cls: string }) {
   return (
@@ -25,6 +32,84 @@ function Marker({ x, y, label, sub, cls }: { x: number; y: number; label?: strin
     <div class={`marker ${cls}`} style={{ transform: `translate(${x}px, ${y}px)` }}>
       <span class="marker-glyph" />
       {label && <span class="marker-text">{label}{sub && <em>{sub}</em>}</span>}
+    </div>
+  );
+}
+
+/** One row of the power display: four pips, each empty, half or full. `value` is in half-pips. */
+function PipRow({ label, value, hint }: { label: string; value: number; hint: string }) {
+  const pips = [];
+  for (let i = 0; i < PIP_MAX; i += 2) {
+    pips.push(<span key={i} class={`pip ${value >= i + 2 ? 'full' : value > i ? 'half' : ''}`} />);
+  }
+  return (
+    <div class="side-row">
+      <span class="pip-label">{label}</span>
+      <span class="pip-track">{pips}</span>
+      <span class="pip-key">{hint}</span>
+    </div>
+  );
+}
+
+/** Change of the heat fraction per second, smoothed, for the time-to-limit readout. */
+const heatTrend = { at: 0, heat: 0, rate: 0 };
+
+function heatRate(clock: number, heat: number): number {
+  const dt = clock - heatTrend.at;
+  if (dt < 0 || dt > 2) {
+    heatTrend.at = clock;
+    heatTrend.heat = heat;
+    heatTrend.rate = 0;
+  } else if (dt >= 0.5) {
+    heatTrend.rate += ((heat - heatTrend.heat) / dt - heatTrend.rate) * 0.5;
+    heatTrend.at = clock;
+    heatTrend.heat = heat;
+  }
+  return heatTrend.rate;
+}
+
+/** The selected target: a ship with shield and hull, a wreck with its salvage, or a cargo pod with its content. */
+function TargetPanel({ target, dist }: { target: EntityView; dist: number }) {
+  const info = target.info;
+  const wreck = info.kind === EntityKind.Wreck;
+  const pod = info.kind === EntityKind.Loot;
+  return (
+    <div class="panel-mini">
+      <h4>{t('hud.target')}</h4>
+      <div class="big">{info.name}</div>
+      {wreck && <div><span class="tag">{t('hud.wreck')}</span> <span class="dim">{HULLS[info.model]?.name ?? info.model}</span></div>}
+      {pod && <div><span class="tag">{t('hud.pod')}</span></div>}
+      {!wreck && !pod && <div class="dim">{HULLS[info.model]?.name ?? info.model}{info.npc ? ` · ${info.npc}` : ''}</div>}
+      <div>{fmtDistance(dist)}</div>
+      {wreck && <Bar label={t('hud.salvage')} value={target.hull} cls="salvage" />}
+      {wreck && <div class="dim hint">{t('hud.salvageHint', { key: bindKey('fireTool') })}</div>}
+      {pod && info.c && <div>{COMMODITIES[info.c]?.name ?? info.c} · {fmt(info.n ?? 0)} t</div>}
+      {!wreck && !pod && <Bar label={t('hud.shield')} value={target.shield} cls="shield" />}
+      {!wreck && !pod && <Bar label={t('hud.hull')} value={target.hull} cls="hull" />}
+      {(target.flags & EntityFlag.Wanted) !== 0 && <div class="wanted">{t('hud.wanted')}</div>}
+    </div>
+  );
+}
+
+/** The ship-destroyed screen: what the insurance charges and what the pilot gets back. */
+function Destroyed({ api }: { api: GameApi }) {
+  const pilot = store.pilot.value;
+  const credits = pilot?.credits ?? 0;
+  const rebuy = pilot?.rebuy;
+  return (
+    <div class="overlay-text dead">
+      <h2>{t('hud.dead')}</h2>
+      {rebuy !== undefined && (
+        <div class="insurance">
+          <div class="ins-row"><span>{t('hud.insDeductible')}</span><b>{fmt(rebuy)} {t('hud.credits')}</b></div>
+          <div class="ins-row"><span>{t('hud.insCredits')}</span><b>{fmt(credits)} {t('hud.credits')}</b></div>
+          {rebuy <= 0 && <p>{t('hud.insFree')}</p>}
+          {rebuy > 0 && credits >= rebuy && <p>{t('hud.insPay', { price: fmt(rebuy) })}</p>}
+          {rebuy > 0 && credits < rebuy && <p class="short">{t('hud.insStarter')}</p>}
+          <p class="dim">{t('hud.insCargo')}</p>
+        </div>
+      )}
+      <button onClick={() => void api.cmd({ k: 'respawn' })}>{t('hud.respawn')}</button>
     </div>
   );
 }
@@ -128,7 +213,8 @@ function flightHud(view: FrameView, api: GameApi) {
   let target = null;
   for (const e of view.ents) {
     const isTarget = e.id === view.targetId;
-    if (e.info.kind !== EntityKind.Ship && !isTarget && e.info.kind !== EntityKind.Loot) continue;
+    const kind = e.info.kind;
+    if (kind !== EntityKind.Ship && kind !== EntityKind.Loot && kind !== EntityKind.Wreck && !isTarget) continue;
     const p = api.project(e.rel);
     if (isTarget) target = e;
     if (!p.visible && !isTarget) continue;
@@ -137,7 +223,7 @@ function flightHud(view: FrameView, api: GameApi) {
     markers.push(
       <Marker
         key={`e${e.id}`} x={pos.x} y={pos.y}
-        cls={`ent ${e.info.kind === EntityKind.Loot ? 'loot' : hostile ? 'hostile' : e.info.player ? 'pilot' : 'npc'} ${isTarget ? 'target' : ''}`}
+        cls={`ent ${kind === EntityKind.Loot ? 'loot' : kind === EntityKind.Wreck ? 'wreck' : hostile ? 'hostile' : e.info.player ? 'pilot' : 'npc'} ${isTarget ? 'target' : ''}`}
         label={isTarget ? e.info.name : undefined} sub={isTarget ? fmtDistance(v3.dist(e.rel, self.rel)) : undefined}
       />,
     );
@@ -151,8 +237,16 @@ function flightHud(view: FrameView, api: GameApi) {
     v3.len(st.pos) < (here.def.radius ?? 300) + DOCK_RANGE;
   const canDrop = cruise && navSite && navSite.dist < navSite.def.frameRadius;
 
+  const silent = (self.input.buttons & Button.Silent) !== 0;
+  const pips = unpackPips(st.pips);
+  const heat = view.fx.heat;
+  const hot = heat > HEAT_WARN;
+  const rate = heatRate(view.clock, heat);
+  // Seconds until the heat capacity is reached at the current rate, while running silent.
+  const heatLeft = silent && heat < 1 && rate > 0.002 ? (1 - heat) / rate : null;
+
   const warnings: string[] = [];
-  if (view.fx.heat > 0.8) warnings.push(t('hud.warnHeat'));
+  if (hot) warnings.push(silent ? t('hud.warnHeatSilent', { key: bindKey('silentRunning') }) : t('hud.warnHeat'));
   if (st.fuel < stats.fuelCap * 0.15) warnings.push(t('hud.warnFuel'));
   if (st.hull < stats.hullMax * 0.25) warnings.push(t('hud.warnHull'));
   if (st.dilation < 0.98) warnings.push(t('hud.warnDilation', { factor: fmt(st.dilation, 2) }));
@@ -164,11 +258,27 @@ function flightHud(view: FrameView, api: GameApi) {
       {markers}
 
       <div class="hud-block hud-left">
-        <Bar label={t('hud.shield')} value={stats.shieldMax > 0 ? st.shield / stats.shieldMax : 0} cls="shield" />
+        <Bar label={t('hud.shield')} value={stats.shieldMax > 0 ? st.shield / stats.shieldMax : 0} cls={silent ? 'shield offline' : 'shield'} />
         <Bar label={t('hud.hull')} value={st.hull / stats.hullMax} cls="hull" warn={st.hull < stats.hullMax * 0.25} />
         <Bar label={t('hud.energy')} value={st.energy / stats.energyMax} cls="energy" />
-        <Bar label={t('hud.heat')} value={view.fx.heat} cls="heat" warn={view.fx.heat > 0.8} />
+        <Bar label={t('hud.heat')} value={heat} cls={silent ? 'heat rising' : 'heat'} warn={hot} />
         <Bar label={t('hud.fuel')} value={st.fuel / stats.fuelCap} cls="fuel" warn={st.fuel < stats.fuelCap * 0.15} />
+      </div>
+
+      {/* Five rows that line up with the five bars: power beside shield, hull and energy, the heat readout beside heat. */}
+      <div class="hud-block hud-power">
+        <PipRow label={t('hud.pipSys')} value={pips.sys} hint={bindKey('powerShields')} />
+        <PipRow label={t('hud.pipEng')} value={pips.eng} hint={bindKey('powerEngines')} />
+        <PipRow label={t('hud.pipWep')} value={pips.wep} hint={bindKey('powerWeapons')} />
+        <div class={`side-row heat-row ${hot ? 'hot' : silent ? 'rising' : ''}`}>
+          <span class="num">{fmt(Math.min(heat, 9.99) * 100)} %</span>
+          {silent && <span class="silent-tag">{t('hud.silent')}</span>}
+          {silent && heat >= 1 && <span>{t('hud.heatDamage')}</span>}
+          {heatLeft !== null && <span>{t('hud.heatLimit', { time: fmtDuration(heatLeft) })}</span>}
+        </div>
+        <div class={`side-row sig-row ${silent ? 'low' : ''}`}>
+          {st.sig > SIG_SYSTEM_WIDE ? t('hud.visibleSystem') : t('hud.visible', { dist: fmtDistance(detectionRange(stats, st.sig)) })}
+        </div>
       </div>
 
       <div class="hud-block hud-centre">
@@ -189,17 +299,7 @@ function flightHud(view: FrameView, api: GameApi) {
       </div>
 
       <div class="hud-block hud-right">
-        {target ? (
-          <div class="panel-mini">
-            <h4>{t('hud.target')}</h4>
-            <div class="big">{target.info.name}</div>
-            <div class="dim">{HULLS[target.info.model]?.name ?? target.info.model}{target.info.npc ? ` · ${target.info.npc}` : ''}</div>
-            <div>{fmtDistance(v3.dist(target.rel, self.rel))}</div>
-            <Bar label={t('hud.shield')} value={target.shield} cls="shield" />
-            <Bar label={t('hud.hull')} value={target.hull} cls="hull" />
-            {(target.flags & EntityFlag.Wanted) !== 0 && <div class="wanted">{t('hud.wanted')}</div>}
-          </div>
-        ) : null}
+        {target ? <TargetPanel target={target} dist={v3.dist(target.rel, self.rel)} /> : null}
         {navDist !== null && (
           <div class="panel-mini">
             <h4>{t('hud.nav')}</h4>
@@ -244,12 +344,7 @@ export function Hud({ api }: { api: GameApi }) {
         <div class="hud-block hud-centre"><div class="mode"><span>{t('hud.modeDocked')}</span></div></div>
       )}
       {folding && <div class="overlay-text"><h2>{t('hud.folding', { dest: foldName })}</h2></div>}
-      {view && view.mode === FlightMode.Dead && (
-        <div class="overlay-text dead">
-          <h2>{t('hud.dead')}</h2>
-          <button onClick={() => void api.cmd({ k: 'respawn' })}>{t('hud.respawn')}</button>
-        </div>
-      )}
+      {view && view.mode === FlightMode.Dead && <Destroyed api={api} />}
       <div class="notices">
         {notices.map((n) => <div class={`notice ${n.level}`} key={n.id}>{n.text}</div>)}
       </div>

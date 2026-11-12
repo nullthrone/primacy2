@@ -182,6 +182,36 @@ try {
   await page.waitForTimeout(1200);
   await shot('03-undocked-cockpit');
 
+  // Power distribution and silent running travel with the input and come back in the ship state.
+  // A failed check is recorded and the settings are restored either way, so the later steps still run.
+  {
+    const own = () => page.evaluate(() => {
+      const v = window.primacy2.game.view?.self;
+      return v ? { pips: v.state.pips, shield: v.state.shield, sig: v.state.sig, shieldMax: v.stats.shieldMax } : null;
+    });
+    const until = (fn, arg, timeout) => page.waitForFunction(fn, arg, { timeout }).then(() => true, () => false);
+    const before = await own();
+    if (!before) throw new Error('no ship state after undocking');
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowUp');
+    // Engines are the second of three 4-bit fields; the default is 4 half-pips each.
+    if (!(await until((p) => { const n = window.primacy2.game.view?.self?.state.pips; return n !== undefined && n !== p && ((n >> 4) & 15) > 4; }, before.pips, 5_000))) {
+      problems.push(`power: two presses of ArrowUp did not move power to the engines (${JSON.stringify(await own())})`);
+    }
+    await page.keyboard.press('KeyB');
+    if (!(await until((sh) => { const s = window.primacy2.game.view?.self?.state; return !!s && s.shield < sh && s.sig < 0.2; }, before.shield, 8_000))) {
+      problems.push(`silent running: shield did not fall or signature stayed high (${JSON.stringify(await own())})`);
+    }
+    await page.waitForTimeout(2500);
+    await shot('03b-silent-running');
+    await page.keyboard.press('KeyB');
+    await page.keyboard.press('ArrowDown');
+    const low = await own();
+    if (!(await until(([p, sh]) => { const s = window.primacy2.game.view?.self; return !!s && s.state.pips === p && s.state.shield > sh + s.stats.shieldMax * 0.02; }, [before.pips, low?.shield ?? 0], 30_000))) {
+      problems.push(`silent running: power did not return to the default or the shield did not recover (${JSON.stringify(await own())})`);
+    }
+  }
+
   await page.keyboard.press('KeyV');
   await page.waitForTimeout(800);
   await shot('04-chase');
