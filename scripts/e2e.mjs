@@ -393,7 +393,7 @@ async function journey(browser, problems, steps) {
       if (aligned && s.speed < ceiling * 0.5) want = 'KeyW';
       else if (s.speed > ceiling) want = 'KeyS';
       await throttleKeys(page, held, want);
-      if (s.dist < 25_000 && !s.detour) {
+      if (s.dist < 16_000 && !s.detour) {
         await throttleKeys(page, held, null);
         await page.evaluate(() => window.primacy2.game.toggleCruise());
         await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 5000 }).catch(() => fail('cruise did not drop at the station'));
@@ -412,14 +412,14 @@ async function journey(browser, problems, steps) {
         continue;
       }
       phase = 'approach';
-      const closeEnough = s.radius + 1100;
-      const goal = Math.min(500, Math.max(50, (s.dist - closeEnough) / 20));
+      const closeEnough = s.radius + 1300;
+      const goal = Math.min(500, Math.max(100, (s.dist - closeEnough) / 6));
       let want = null;
       if (s.dist > closeEnough + 200 && s.speed < goal - 15) want = 'KeyW';
-      else if (s.speed > goal + 15 || (s.dist <= closeEnough + 200 && s.speed > 60)) want = 'KeyS';
+      else if (s.speed > goal + 15 || (s.dist <= closeEnough + 200 && s.speed > 110)) want = 'KeyS';
       await throttleKeys(page, held, want);
       if (!shotApproach && s.dist < 20_000) { shotApproach = true; await shot('24-approach'); }
-      if (s.dist <= closeEnough && s.speed <= 100) {
+      if (s.dist <= closeEnough && s.speed <= 110) {
         await throttleKeys(page, held, null);
         const r = await page.evaluate(() => window.primacy2.game.cmd({ k: 'dock' }));
         if (r.ok) {
