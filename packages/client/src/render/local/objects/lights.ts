@@ -3,15 +3,25 @@
  * shadow from an orthographic box that is locked to one focus object (a station, the pilot's ship,
  * the cockpit), so its texels do not crawl while the camera moves.
  */
-import { AmbientLight, DirectionalLight, PCFShadowMap, type Object3D, type WebGLRenderer } from 'three';
+import { AmbientLight, DirectionalLight, PCFShadowMap, PointLight, type Object3D, type WebGLRenderer } from 'three';
 import type { Lighting } from '../../../contracts.ts';
 
 /** Scene-referred gain of the ambient level: low, so shadows stay near black but keep their shape. */
 const AMBIENT_GAIN = 1;
+/**
+ * Strength of the eye light as a fraction of the sun. Enough that a hull seen with the sun behind
+ * it keeps its shape against black space, far too little to soften the hard-lit look.
+ */
+const EYE_GAIN = 0.04;
 
 export class SunRig {
   readonly sun = new DirectionalLight(0xffffff, 1);
   readonly ambient = new AmbientLight(0xffffff, 0);
+  /**
+   * A faint neutral light at the camera, which is the origin of the scene. It casts no shadow and
+   * does not fall off with distance, so surfaces facing the viewer are never fully black.
+   */
+  readonly eye = new PointLight(0xffffff, 0, 0, 0);
   private mapSize = 0;
   private half = 0;
   private depth = 0;
@@ -20,6 +30,8 @@ export class SunRig {
   /** `fill` is ambient light of the place itself, such as the glow of a cockpit's instruments. */
   constructor(parent: Object3D, private readonly fill = 0) {
     parent.add(this.sun, this.sun.target, this.ambient);
+    // A place with a glow of its own, such as the cockpit, is readable without the eye light.
+    if (fill === 0) parent.add(this.eye);
     this.sun.shadow.radius = 1;
     this.sun.shadow.camera.near = 0;
   }
@@ -39,6 +51,7 @@ export class SunRig {
     sun.color.setRGB(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
     sun.intensity = light.sunIntensity;
     this.ambient.intensity = light.ambient * AMBIENT_GAIN + this.fill;
+    this.eye.intensity = light.sunIntensity * EYE_GAIN;
 
     const d = light.sunDir;
     sun.target.position.set(fx, fy, fz);

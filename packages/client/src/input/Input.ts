@@ -2,7 +2,7 @@
  * Keyboard and mouse input. Held keys become the per-tick `ShipInput`; single presses become
  * actions the game handles. Controls follow shooter conventions (see `DEFAULT_BINDINGS`).
  */
-import { Button, FlightMode, type ShipInput } from '@primacy2/shared';
+import { Button, DEFAULT_PIPS, FlightMode, addPip, type ShipInput } from '@primacy2/shared';
 import { store, type BindAction } from '../state/store.ts';
 
 /** Actions that are levels (held) rather than single presses. */
@@ -14,6 +14,8 @@ const HELD = new Set<BindAction>([
 /** The server accepts at most this much mouse turn per tick and axis, radians. */
 const AIM_PER_TICK = 0.5;
 const THROTTLE_STEP = 0.1;
+/** The subsystem each power key feeds. */
+const POWER_KEYS = { powerShields: 'sys', powerEngines: 'eng', powerWeapons: 'wep' } as const;
 
 export class Input {
   /** Called for every single-press action. */
@@ -22,6 +24,10 @@ export class Input {
   throttle = 0;
   /** Flight assist switched off by the pilot. */
   faOff = false;
+  /** Power shared between shields, engines and weapons, packed as in `ShipInput.pips`. */
+  pips = DEFAULT_PIPS;
+  /** Silent running switched on by the pilot. It ends by itself when the ship docks or is lost. */
+  silent = false;
   /** Free-look angles (yaw, pitch) in radians while the free-look key is held. */
   look: [number, number] = [0, 0];
 
@@ -30,6 +36,8 @@ export class Input {
   private aimX = 0;
   private aimY = 0;
   private bindingsOf: unknown = null;
+  /** Flight mode as of the latest tick or mode change. */
+  private mode: FlightMode = FlightMode.Docked;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -95,6 +103,7 @@ export class Input {
 
   /** Builds the input for one simulation tick. `dt` is the tick length in seconds. */
   sample(mode: FlightMode, dt: number): Omit<ShipInput, 'seq'> {
+    this.mode = mode;
     const live = this.active();
     const h = (a: BindAction): number => (live && this.held.has(a) ? 1 : 0);
     let fwd = h('thrustForward') - h('thrustBack');
@@ -119,19 +128,32 @@ export class Input {
     if (h('boost')) buttons |= Button.Boost;
     if (h('brake')) buttons |= Button.Brake;
     if (this.faOff) buttons |= Button.FaOff;
+    // Like flight assist, these are settings and stay as they are while a panel is open.
+    if (this.silent) buttons |= Button.Silent;
     return {
       thrust: [h('thrustRight') - h('thrustLeft'), h('thrustUp') - h('thrustDown'), fwd],
       aim: live ? [ax, ay] : [0, 0],
       roll: h('rollRight') - h('rollLeft'),
       throttle: this.throttle,
       buttons,
+      pips: this.pips,
     };
   }
 
-  /** Clamps the throttle setpoint to what the flight mode allows (called on mode changes). */
+  /**
+   * Called on mode changes: clamps the throttle setpoint to what the flight mode allows and ends
+   * silent running when the ship docks or is lost.
+   */
   setMode(mode: FlightMode): void {
+    this.mode = mode;
+    if (mode === FlightMode.Docked || mode === FlightMode.Dead) this.silent = false;
     if (mode === FlightMode.Cruise) this.throttle = clamp(this.throttle, 0, 1);
     else if (mode !== FlightMode.Normal) this.throttle = 0;
+  }
+
+  /** True while ship systems can be switched: controls live and the ship neither docked nor lost. */
+  private inSpace(): boolean {
+    return this.active() && this.mode !== FlightMode.Docked && this.mode !== FlightMode.Dead;
   }
 
   private rebuild(): void {
@@ -163,6 +185,12 @@ export class Input {
           this.throttle = 0;
         } else if (a === 'flightAssist') {
           if (this.active()) this.faOff = !this.faOff;
+        } else if (a === 'powerShields' || a === 'powerEngines' || a === 'powerWeapons') {
+          if (this.inSpace()) this.pips = addPip(this.pips, POWER_KEYS[a]);
+        } else if (a === 'powerReset') {
+          if (this.inSpace()) this.pips = DEFAULT_PIPS;
+        } else if (a === 'silentRunning') {
+          if (this.inSpace()) this.silent = !this.silent;
         } else {
           this.onAction(a);
         }

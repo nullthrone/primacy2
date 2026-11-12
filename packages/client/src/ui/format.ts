@@ -1,6 +1,25 @@
 /** Unit formatting for the interface. */
 import { AU, C } from '@primacy2/shared';
-import { fmt } from '../i18n/index.ts';
+import { fmt, t, type StringKey } from '../i18n/index.ts';
+import { store, type BindAction } from '../state/store.ts';
+
+const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
+const KEY_NAMES: Record<string, StringKey> = { Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight' };
+
+/** A short label for a binding code: `KeyR` is R, `ArrowUp` is ↑, `Mouse1` is the middle mouse button. */
+export function keyName(code: string): string {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  const named = KEY_NAMES[code];
+  return KEY_GLYPHS[code] ?? (named ? t(named) : code);
+}
+
+/** The key to name in a hint for an action: its first keyboard binding, or else its first binding. */
+export function bindKey(action: BindAction): string {
+  const codes = store.settings.value.bindings[action] ?? [];
+  const code = codes.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? codes[0];
+  return code ? keyName(code) : '–';
+}
 
 /** Metres as m, km, Mm, light seconds or AU, whichever reads best. */
 export function fmtDistance(m: number): string {

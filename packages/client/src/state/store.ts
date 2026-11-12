@@ -48,6 +48,7 @@ export type BindAction =
   | 'firePrimary' | 'fireSecondary' | 'fireTool'
   | 'throttleUp' | 'throttleDown' | 'throttleZero'
   | 'flightAssist' | 'cruise' | 'fold' | 'dock'
+  | 'powerShields' | 'powerEngines' | 'powerWeapons' | 'powerReset' | 'silentRunning'
   | 'targetNext' | 'targetPrev' | 'targetAhead' | 'targetClear'
   | 'camera' | 'galaxyMap' | 'systemMap' | 'contacts' | 'chat' | 'menu' | 'freeLook';
 
@@ -74,6 +75,12 @@ export const DEFAULT_BINDINGS: Bindings = {
   cruise: ['KeyJ'],
   fold: ['KeyH'],
   dock: ['KeyF'],
+  // Power distribution on the arrow keys: one press moves a pip to that subsystem, down resets.
+  powerShields: ['ArrowLeft'],
+  powerEngines: ['ArrowUp'],
+  powerWeapons: ['ArrowRight'],
+  powerReset: ['ArrowDown'],
+  silentRunning: ['KeyB'],
   targetNext: ['KeyT'],
   targetPrev: ['KeyG'],
   targetAhead: ['Mouse3', 'KeyY'],
