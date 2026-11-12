@@ -34,6 +34,18 @@ def gun(p, tip, length=1.3, r=0.08, mat='hull_dark', body='hull_secondary'):
     p.tube((x, y - length, z), (x, y - 0.55 * length, z), r * 2.2, r * 1.9, 8, body)
 
 
+def turret(p, loc, r=0.7, h=0.5, blen=1.5, mat='hull_secondary', barrel='hull_dark', segs=12, barrels=2):
+    """Low turret: pedestal below the hardpoint `loc`, dome above it, barrels toward the bow."""
+    x, y, z = loc
+    p.lathe([(-h, r * 1.3), (-h * 0.25, r * 1.2), (0.0, r), (r * 0.42, r * 0.88), (r * 0.72, r * 0.5),
+             (r * 0.8, 0.0)], segs, mat, axis='Z', origin=loc)
+    xs = [0.0] if barrels == 1 else [-0.3 * r, 0.3 * r]
+    for dx in xs:
+        p.tube((x + dx, y + r * 0.2, z + r * 0.36), (x + dx, y + blen, z + r * 0.36), r * 0.11, r * 0.11, 8, barrel)
+        p.tube((x + dx, y + r * 0.2, z + r * 0.36), (x + dx, y + blen * 0.55, z + r * 0.36), r * 0.2, r * 0.17,
+               8, mat)
+
+
 def antenna(p, base, tip, r=0.03, mat='hull_dark', light=None):
     p.tube(base, tip, r, r * 0.4, 6, mat)
     if light:

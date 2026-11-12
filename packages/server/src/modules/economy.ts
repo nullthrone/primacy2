@@ -325,35 +325,36 @@ export function hullPrice(hullId: string): number {
 // Customs: equipment that arrived from a server that is not trusted
 // ---------------------------------------------------------------------------------------------
 
-interface CustomsLoadout {
-  hull: string;
-  modules: unknown[];
+/** What a pilot has bought here since arriving from a server that is not trusted. */
+interface Bought {
+  /** The hull was bought here, and with it every module now fitted. */
+  hull: boolean;
+  /** Per hull slot: the slot was refitted here. */
+  slots: boolean[];
 }
 
 /**
- * The hull and modules a pilot arrived with from a server that is not trusted and still carries.
- * They were not paid for here, so they refund nothing. Entries are cleared as they are replaced
- * by equipment bought here. Null when the pilot has no such equipment.
+ * The core records `rec.data.customs` when a ship arrives from another server. Unless the issuer
+ * was trusted, the hull and modules on board were not paid for here and refund nothing. This
+ * module notes on the same record what has been bought here since, and only that is refundable.
+ * The core writes a fresh record on every arrival, which also resets the notes.
+ * Returns null when the pilot is under no such restriction.
  */
-function unpaidLoadout(p: Player): CustomsLoadout | null {
-  const customs = p.rec.data.customs as { trust?: unknown; loadout?: unknown } | undefined;
+function customsBought(p: Player): Bought | null {
+  const customs = p.rec.data.customs as { trust?: unknown; bought?: unknown } | undefined;
   if (!customs || typeof customs !== 'object' || customs.trust === 'trusted') return null;
-  const lo = customs.loadout as Partial<CustomsLoadout> | undefined;
-  if (lo && typeof lo === 'object' && typeof lo.hull === 'string' && Array.isArray(lo.modules)) return lo as CustomsLoadout;
-  // A record without a usable loadout is read as "everything on board arrived this way".
-  const all = structuredClone(normalizeLoadout(p.rec.passport.ship.loadout));
-  customs.loadout = all;
-  return all;
+  const b = customs.bought as Partial<Bought> | undefined;
+  if (b && typeof b === 'object' && typeof b.hull === 'boolean' && Array.isArray(b.slots)) return b as Bought;
+  const fresh: Bought = { hull: false, slots: [] };
+  customs.bought = fresh;
+  return fresh;
 }
 
-const hullUnpaid = (unpaid: CustomsLoadout | null, cur: Loadout): boolean => !!unpaid && unpaid.hull === cur.hull;
-
-const moduleUnpaid = (unpaid: CustomsLoadout | null, cur: Loadout, slot: number): boolean =>
-  hullUnpaid(unpaid, cur) && cur.modules[slot] != null && unpaid!.modules[slot] === cur.modules[slot];
+const hullUnpaid = (bought: Bought | null): boolean => !!bought && !bought.hull;
 
 /** Credits paid back for the module in `slot`. */
-const moduleRefund = (unpaid: CustomsLoadout | null, cur: Loadout, slot: number): number =>
-  moduleUnpaid(unpaid, cur, slot) ? 0 : Math.floor(modulePrice(cur.modules[slot]) * TRADE_IN);
+const moduleRefund = (bought: Bought | null, cur: Loadout, slot: number): number =>
+  hullUnpaid(bought) && bought!.slots[slot] !== true ? 0 : Math.floor(modulePrice(cur.modules[slot]) * TRADE_IN);
 
 // ---------------------------------------------------------------------------------------------
 // Module
@@ -525,8 +526,8 @@ export const economyModule: GameModule = {
         if (old === def.id) return fail('That module is already fitted.');
         price = def.price;
       }
-      const unpaid = unpaidLoadout(p);
-      const refund = moduleRefund(unpaid, cur, slot);
+      const bought = customsBought(p);
+      const refund = moduleRefund(bought, cur, slot);
       if (p.rec.credits + refund < price) return fail('Not enough credits.');
       const next: Loadout = { hull: cur.hull, modules: cur.modules.map((id, i) => (i === slot ? wanted : id)) };
       if (Math.floor(computeShipStats(next).cargoCap) < cargoTonnes(p.rec.passport.ship.cargo)) {
@@ -534,7 +535,10 @@ export const economyModule: GameModule = {
       }
       addCredits(p, refund - price);
       // Whatever sits in this slot from now on was bought here (or the slot is empty).
-      if (hullUnpaid(unpaid, cur)) unpaid!.modules[slot] = null;
+      if (bought) {
+        for (let i = bought.slots.length; i < slot; i++) bought.slots[i] = false;
+        bought.slots[slot] = true;
+      }
       p.rec.passport.ship.loadout = next;
       p.refit();
       world.pushPilot(p);
@@ -551,9 +555,9 @@ export const economyModule: GameModule = {
       if (!hullsSoldAt(world, at.system, at.site).includes(hull.id)) return fail('That hull is not sold here.');
       const cur = normalizeLoadout(p.rec.passport.ship.loadout);
       if (cur.hull === hull.id) return fail('You already fly that hull.');
-      const unpaid = unpaidLoadout(p);
-      let tradeIn = hullUnpaid(unpaid, cur) ? 0 : Math.floor(HULLS[cur.hull]!.price * TRADE_IN);
-      for (let i = 0; i < cur.modules.length; i++) tradeIn += moduleRefund(unpaid, cur, i);
+      const bought = customsBought(p);
+      let tradeIn = hullUnpaid(bought) ? 0 : Math.floor(HULLS[cur.hull]!.price * TRADE_IN);
+      for (let i = 0; i < cur.modules.length; i++) tradeIn += moduleRefund(bought, cur, i);
       const price = hullPrice(hull.id);
       if (p.rec.credits + tradeIn < price) return fail(`Not enough credits: ${price - tradeIn} needed after trade-in.`);
       const next = starterLoadout(hull.id);
@@ -562,9 +566,9 @@ export const economyModule: GameModule = {
       }
       addCredits(p, tradeIn - price);
       // The whole ship was bought here; nothing that arrived is left on it.
-      if (unpaid) {
-        unpaid.hull = '';
-        unpaid.modules.length = 0;
+      if (bought) {
+        bought.hull = true;
+        bought.slots.length = 0;
       }
       p.rec.passport.ship.loadout = next;
       p.refit();
