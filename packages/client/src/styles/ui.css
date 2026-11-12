@@ -105,7 +105,8 @@
 /* Market: import licence gauge and the origins of foreign cargo side by side above the table. */
 .customs { display: grid; grid-template-columns: minmax(18em, 2fr) 3fr; gap: 0.6em 1.6em; align-items: start; padding: 0.2em 0 0.8em; }
 .licence { display: flex; flex-direction: column; gap: 0.25em; }
-.licence-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; letter-spacing: 0.06em; }
+.licence-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.1em 1em; letter-spacing: 0.06em; }
+.licence-head > * { white-space: nowrap; }
 .gauge { display: block; height: 0.55em; background: rgba(127, 233, 255, 0.12); border: 1px solid rgba(127, 233, 255, 0.25); }
 .gauge-fill { display: block; height: 100%; background: var(--cyan); }
 /* No licence yet: an outline only. Licence used up: the empty track turns amber. */
