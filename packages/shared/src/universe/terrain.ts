@@ -686,6 +686,50 @@ export function terrainSample(p: TerrainParams, x: number, y: number, z: number,
 }
 
 /**
+ * How uneven the ground is around the unit direction (x, y, z): the largest difference in height
+ * (m) between that point and eight points on a circle of `radius` metres around it. Divided by
+ * `radius` it is the steepest average grade from the centre outward, which also shows a hollow or
+ * a summit that a slope measured straight across would miss.
+ */
+export function terrainRelief(p: TerrainParams, x: number, y: number, z: number, radius: number, detail = 0): number {
+  // Two unit vectors along the ground, as in `terrainNormal`.
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const az = Math.abs(z);
+  let e1x: number;
+  let e1y: number;
+  let e1z: number;
+  if (ax <= ay && ax <= az) {
+    e1x = 0; e1y = -z; e1z = y;
+  } else if (ay <= az) {
+    e1x = z; e1y = 0; e1z = -x;
+  } else {
+    e1x = -y; e1y = x; e1z = 0;
+  }
+  const l = Math.sqrt(e1x * e1x + e1y * e1y + e1z * e1z);
+  e1x /= l; e1y /= l; e1z /= l;
+  const e2x = y * e1z - z * e1y;
+  const e2y = z * e1x - x * e1z;
+  const e2z = x * e1y - y * e1x;
+
+  const centre = terrainHeight(p, x, y, z, detail);
+  const step = radius / p.radius;
+  const k = 1 / Math.sqrt(1 + step * step);
+  let worst = 0;
+  for (let i = 0; i < 8; i++) {
+    // The eight compass points: along the two vectors and along their diagonals.
+    const diagonal = (i & 1) === 1;
+    const c = diagonal ? 0.7071067811865476 : 1;
+    const a = (i === 0 ? 1 : i === 4 ? -1 : i === 2 || i === 6 ? 0 : i === 1 || i === 7 ? c : -c) * step;
+    const b = (i === 2 ? 1 : i === 6 ? -1 : i === 0 || i === 4 ? 0 : i === 1 || i === 3 ? c : -c) * step;
+    const h = terrainHeight(p, (x + e1x * a + e2x * b) * k, (y + e1y * a + e2y * b) * k, (z + e1z * a + e2z * b) * k, detail);
+    const d = Math.abs(h - centre);
+    if (d > worst) worst = d;
+  }
+  return worst;
+}
+
+/**
  * Ground normal and slope at the unit direction (x, y, z), measured over `baseline` metres (the
  * footprint that matters: a ship, a base). Writes the outward unit normal in body-fixed axes into
  * `out` and returns the slope as rise over run (the tangent of the slope angle).

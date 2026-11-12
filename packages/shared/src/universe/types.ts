@@ -146,9 +146,15 @@ export interface SystemSummary {
   pos: Vec3;
   starClass: StarClass;
   security: Security;
-  /** Number of dockable stations, outposts and ground bases. */
+  /**
+   * Number of places to dock. In a summary made by `summarize` these are the stations, outposts
+   * and ground bases; in a `SystemDef` as generated the stations and outposts alone.
+   */
   stations: number;
-  /** Notable features for the map, e.g. `['blackhole', 'belt', 'gate', 'base']`. */
+  /**
+   * Notable features for the map, e.g. `['blackhole', 'belt', 'gate']`. `summarize` adds `base`
+   * for a system with a ground base.
+   */
   tags: string[];
 }
 

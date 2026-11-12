@@ -293,9 +293,15 @@ describe('sanity of generated sectors', () => {
         expect(site.id).toBe(SITE_ID_BASE + i);
         expect(Number.isInteger(site.orbit.parent)).toBe(true);
         expect(sys.bodies[site.orbit.parent]).toBeDefined();
-        expect(site.frameRadius).toBeGreaterThan(0);
         expect(site.orbit.e).toBe(0);
-        expect(site.orbit.a).toBeGreaterThan(sys.bodies[site.orbit.parent]!.radius);
+        if (site.ground) {
+          // A ground base stands on its body: no orbit and no zone of its own.
+          expect(site.frameRadius).toBe(0);
+          expect(site.orbit.a).toBe(0);
+        } else {
+          expect(site.frameRadius).toBeGreaterThan(0);
+          expect(site.orbit.a).toBeGreaterThan(sys.bodies[site.orbit.parent]!.radius);
+        }
         expect(Number.isInteger(site.seed) && site.seed >= 0 && site.seed <= 0xffffffff).toBe(true);
       });
     }
@@ -375,7 +381,8 @@ describe('sanity of generated sectors', () => {
       for (const sys of MANY.slice(k * 64, (k + 1) * 64)) {
         if (sys.stations > 0) expect(factions).toContain(sys.faction);
         for (const site of sys.sites) {
-          if (site.kind === 'station' || site.kind === 'outpost') expect(factions).toContain(site.faction);
+          // Ground bases belong to the faction of their system, like its stations.
+          if (site.kind === 'station' || site.kind === 'outpost' || site.kind === 'base') expect(factions).toContain(site.faction);
           else expect(site.faction).toBeUndefined();
         }
       }

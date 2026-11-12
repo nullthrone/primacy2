@@ -14,12 +14,13 @@
 import {
   AU, C, CORE_REGION_RADIUS, DAY, DEFAULT_SITE_FRAME_RADIUS, EARTH_MASS, EARTH_RADIUS, FOLD_ARRIVAL_MIN,
   FOLD_ARRIVAL_RADII, G, JUPITER_MASS, JUPITER_RADIUS, MAX_SYSTEMS_PER_SECTOR, SITE_ID_BASE, SOLAR_LUMINOSITY,
-  SOLAR_MASS, SOLAR_RADIUS, SOLAR_TEMP, YEAR,
+  SOLAR_MASS, SOLAR_RADIUS, SOLAR_TEMP, SURFACE_ID_BASE, YEAR, BASE_MAX_GRAVITY, BASE_PAD_BLEND, BASE_PAD_RADIUS,
 } from '../constants.ts';
 import { clamp, v3, type Vec3 } from '../math.ts';
 import { hashCombine, hashString, rngFor, type Rng } from '../prng.ts';
-import { factionName, moonLetter, outpostName, romanNumeral, stationName, uniqueName, uniqueSystemName } from './names.ts';
+import { baseName, factionName, moonLetter, outpostName, romanNumeral, stationName, uniqueName, uniqueSystemName } from './names.ts';
 import { bodySpinAxis, circularOrbit, orbitalPeriod, soiRadius } from './orbits.ts';
+import { isLandable, terrainHeight, terrainParams, terrainRelief } from './terrain.ts';
 import type {
   BeltDef, BeltKind, BodyDef, EconomyType, GateInfo, OrbitDef, PlanetClass, SectorParams, Security, SiteDef,
   StarClass, StationService, SystemDef, SystemSummary,
@@ -1164,6 +1165,93 @@ function buildSites(rng: Rng, sys: SystemDraft): { sites: SiteDef[]; stations: n
 }
 
 // ---------------------------------------------------------------------------------------------
+// Ground bases
+// ---------------------------------------------------------------------------------------------
+
+const BASE_SERVICES: readonly StationService[] = ['market', 'refuel', 'repair', 'missions'];
+/** Chance that an inhabited system other than the capital has a ground base, given a body to build on. */
+const BASE_CHANCE = 0.4;
+/** Chance that a system with a base has a second one on another body. */
+const BASE_SECOND_CHANCE = 0.25;
+/** Directions tried for the spot of a base; the most level one is taken. */
+const BASE_SPOT_CANDIDATES = 24;
+/** Radius of the bounding sphere of a ground base, metres (the `base_ground` structure). */
+const BASE_RADIUS = 250;
+
+/**
+ * Unevenness of the ground where a base would stand, as a grade (rise over run): the steepest
+ * average grade from the centre to the edge of the pad and to the outer edge of the ring in which
+ * the pad meets the terrain. The pad flattens what is inside; this says how much it has to.
+ */
+function baseSpotGrade(params: ReturnType<typeof terrainParams>, dir: Readonly<Vec3>): number {
+  const outer = BASE_PAD_RADIUS + BASE_PAD_BLEND;
+  return Math.max(
+    terrainRelief(params, dir[0], dir[1], dir[2], BASE_PAD_RADIUS) / BASE_PAD_RADIUS,
+    terrainRelief(params, dir[0], dir[1], dir[2], outer) / outer,
+  );
+}
+
+/**
+ * Appends the ground bases of a system to `sites`. They come last and draw from a random stream
+ * of their own, so every body, belt and orbital site of the system is exactly what it would be
+ * without them.
+ *
+ * A base stands on a landable body with a surface gravity of at most BASE_MAX_GRAVITY that has no
+ * station or outpost in orbit (such a world is served from above). Only inhabited systems have
+ * bases, so a system's faction and its count of stations and outposts mean what they did before.
+ * The capital has one whenever it has a body to build on; other systems by chance. The spot is
+ * the most level of BASE_SPOT_CANDIDATES random directions.
+ */
+function buildBases(rng: Rng, sys: { index: number; bodies: readonly BodyDef[]; belts: readonly BeltDef[]; faction?: string }, sites: SiteDef[]): void {
+  if (sys.faction === undefined) return;
+  const served = new Set<number>();
+  for (const site of sites) if (site.kind === 'station' || site.kind === 'outpost') served.add(site.orbit.parent);
+  const hosts = sys.bodies.filter((b) => isLandable(b) && !served.has(b.id) && (G * b.mass) / (b.radius * b.radius) <= BASE_MAX_GRAVITY);
+  if (hosts.length === 0) return;
+  let count = sys.index === 0 || rng.chance(BASE_CHANCE) ? 1 : 0;
+  if (count > 0 && rng.chance(BASE_SECOND_CHANCE)) count = 2;
+  count = Math.min(count, hosts.length);
+  const taken = new Set<string>([...sys.bodies.map((b) => b.name), ...sys.belts.map((b) => b.name), ...sites.map((s) => s.name)]);
+
+  for (let k = 0; k < count; k++) {
+    const host = hosts.splice(rng.int(0, hosts.length - 1), 1)[0]!;
+    const params = terrainParams(host);
+    let best: Vec3 = [0, 1, 0];
+    let bestGrade = Infinity;
+    for (let i = 0; i < BASE_SPOT_CANDIDATES; i++) {
+      const dir = rng.unitVector();
+      // The terrain takes unit directions built with square roots only; this one came through
+      // sine and cosine, so it is brought to exact unit length here.
+      const l = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+      const unit: Vec3 = [dir[0] / l, dir[1] / l, dir[2] / l];
+      const grade = baseSpotGrade(params, unit);
+      if (grade < bestGrade) {
+        bestGrade = grade;
+        best = unit;
+      }
+    }
+    // The pad lies at the height the untouched ground has at its centre.
+    const r = host.radius + terrainHeight(params, best[0], best[1], best[2]);
+    const services: StationService[] = [...BASE_SERVICES];
+    if (rng.chance(0.3)) services.push('outfit');
+    addSite(sites, {
+      kind: 'base',
+      name: uniqueName(rng, taken, baseName),
+      // No orbit: a ground site moves with its body. The parent says which one.
+      orbit: { parent: host.id, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 },
+      frameRadius: 0,
+      seed: rng.u32(),
+      model: 'base_ground',
+      radius: BASE_RADIUS,
+      services,
+      economy: rng.chance(0.6) ? 'mining' : 'outpost',
+      faction: sys.faction,
+      ground: { body: host.id, pos: [best[0] * r, best[1] * r, best[2] * r] },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Systems
 // ---------------------------------------------------------------------------------------------
 
@@ -1278,6 +1366,9 @@ function buildSystem(serverId: string, seed: string, index: number, pos: Readonl
       });
     });
   }
+  // Anchor ids from SURFACE_ID_BASE on belong to the surface frames, one per body.
+  if (bodies.length >= SURFACE_ID_BASE) throw new Error(`system ${name} has ${bodies.length} bodies; at most ${SURFACE_ID_BASE - 1} fit below the surface anchor ids`);
+
   // --- sites, security and faction ---
   const rngSites = rngFor(seed, serverId, index, 'sites');
   const built = buildSites(rngSites, {
@@ -1289,6 +1380,9 @@ function buildSystem(serverId: string, seed: string, index: number, pos: Readonl
     security: securityFor(rngFor(seed, serverId, index, 'security'), index, systemEdgeFraction(serverId, seed, index)),
     factions: sectorFactions(serverId, seed),
   });
+
+  // --- ground bases, after everything else and from their own stream ---
+  buildBases(rngFor(seed, serverId, index, 'bases'), { index, bodies, belts, faction: built.faction }, built.sites);
 
   const tags: string[] = [];
   const stars = bodies.filter((b) => b.kind === 'star');
@@ -1337,15 +1431,24 @@ export function generateSystem(serverId: string, seed: string, index: number, po
   return buildSystem(serverId, seed, index, pos, name);
 }
 
+/**
+ * The summary of a system for maps and descriptors. Its `stations` counts everything a pilot can
+ * dock at: the stations and outposts (`def.stations`) and the ground bases; a system with a base
+ * is tagged `base`.
+ */
 export function summarize(def: SystemDef): SystemSummary {
+  let bases = 0;
+  for (const site of def.sites) if (site.kind === 'base') bases++;
+  const tags = [...def.tags];
+  if (bases > 0 && !tags.includes('base') && tags.length < 12) tags.push('base');
   return {
     id: def.id,
     name: def.name,
     pos: [def.pos[0], def.pos[1], def.pos[2]],
     starClass: def.starClass,
     security: def.security,
-    stations: def.stations,
-    tags: [...def.tags],
+    stations: def.stations + bases,
+    tags,
   };
 }
 

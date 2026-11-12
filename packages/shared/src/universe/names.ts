@@ -113,6 +113,19 @@ export function outpostName(rng: Rng): string {
   }
 }
 
+/** Name of a ground base, e.g. `Asku Landing`, `Fort Dorin`. */
+export function baseName(rng: Rng): string {
+  const n = generateName(rng);
+  switch (rng.int(0, 5)) {
+    case 0: return `${n} Landing`;
+    case 1: return `${n} Base`;
+    case 2: return `Fort ${n}`;
+    case 3: return `${n} Diggings`;
+    case 4: return `${n} Field`;
+    default: return `${n} Ground`;
+  }
+}
+
 /** Name of a political faction, e.g. `Veldar Combine`, `Free Thorien League`. */
 export function factionName(rng: Rng): string {
   const n = generateName(rng);

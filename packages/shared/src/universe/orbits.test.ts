@@ -5,7 +5,7 @@ import { Rng } from '../prng.ts';
 import { generateSector } from './generate.ts';
 import {
   allBodyStates, anchorName, anchorState, bodyState, circularOrbit, findSite, isValidAnchor, orbitalPeriod, orbitState,
-  pickCruiseAnchor, pickNormalAnchor, soiRadius, solveKepler,
+  pickCruiseAnchor, pickNormalAnchor, soiRadius, solveKepler, surfaceAnchor,
 } from './orbits.ts';
 import type { BodyDef, OrbitDef, SystemDef } from './types.ts';
 
@@ -248,8 +248,14 @@ describe('body and anchor states', () => {
         const parent = bodyState(sys, site.orbit.parent, t);
         const rel = orbitState(site.orbit, t);
         const abs = anchorState(sys, site.id, t);
-        expect(abs.pos).toEqual(v3.add(parent.pos, rel.pos));
-        expect(abs.vel).toEqual(v3.add(parent.vel, rel.vel));
+        if (site.ground) {
+          // A ground base has no orbit: it stands on its body and is carried around by it.
+          expect(v3.len(rel.pos)).toBe(0);
+          expect(v3.dist(abs.pos, parent.pos) / v3.len(site.ground.pos)).toBeCloseTo(1, 12);
+        } else {
+          expect(abs.pos).toEqual(v3.add(parent.pos, rel.pos));
+          expect(abs.vel).toEqual(v3.add(parent.vel, rel.vel));
+        }
         expect(findSite(sys, site.id)).toBe(site);
         expect(isValidAnchor(sys, site.id)).toBe(true);
         expect(anchorName(sys, site.id)).toBe(site.name);
@@ -303,7 +309,8 @@ describe('spheres of influence', () => {
       }
       for (const site of sys.sites) {
         const pos = v3.add(anchorState(sys, site.id, t).pos, [0, site.frameRadius * 0.01, 0]);
-        expect(pickNormalAnchor(sys, pos, t)).toBe(site.id);
+        // A ground base is never an anchor for flight: at its pad the ship is in the surface frame of the body.
+        expect(pickNormalAnchor(sys, pos, t)).toBe(site.ground ? surfaceAnchor(site.ground.body) : site.id);
       }
       expect(pickNormalAnchor(sys, [0, 9e15, 0], t)).toBe(0);
     }

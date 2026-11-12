@@ -4,6 +4,10 @@
  * the ship hits. Structures sit at the origin of their site anchor with their axis along +Y;
  * every shape here is rotationally symmetric about that axis, so a spinning ring needs no
  * special handling.
+ *
+ * A ground base stands at the centre of its pad with +Y up along the pad normal (the site's own
+ * axes, see `groundSitePose`), y = 0 at the ground. Ships near it fly in the surface frame of the
+ * body, so its colliders have to be moved into that frame before they are tested.
  */
 import type { Vec3 } from './math.ts';
 
@@ -56,6 +60,20 @@ export const STRUCTURES: Record<string, StructureDef> = {
     bound: 20,
     spin: 0.2,
     colliders: [{ kind: 'sphere', y: 0, r: 12 }],
+  },
+  /**
+   * Ground base: a low central block with a control tower, in the middle of the flattened pad.
+   * The model does not exist yet; these are the dimensions it is to be built to. The open pad
+   * around the block is where ships set down.
+   */
+  base_ground: {
+    model: 'base_ground',
+    bound: 250,
+    spin: 0,
+    colliders: [
+      { kind: 'cylinder', y0: 0, y1: 40, r: 90 },
+      { kind: 'cylinder', y0: 40, y1: 110, r: 14 },
+    ],
   },
 };
 

@@ -174,12 +174,15 @@ describe('summarize', () => {
   it('returns exactly the summary fields of a system', () => {
     for (const sys of sector()) {
       const summary = summarize(sys);
+      // A summary counts ground bases among the places to dock and tags their system.
+      const bases = sys.sites.filter((s) => s.kind === 'base').length;
       expect(Object.keys(summary).sort()).toEqual(['id', 'name', 'pos', 'security', 'starClass', 'stations', 'tags']);
       expect(summary).toEqual({
-        id: sys.id, name: sys.name, pos: sys.pos, starClass: sys.starClass, security: sys.security, stations: sys.stations, tags: sys.tags,
+        id: sys.id, name: sys.name, pos: sys.pos, starClass: sys.starClass, security: sys.security,
+        stations: sys.stations + bases, tags: bases > 0 ? [...sys.tags, 'base'] : sys.tags,
       });
       expect(summary.starClass).toBe(sys.bodies[0]!.cls);
-      expect(summary.stations).toBe(sys.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost').length);
+      expect(summary.stations).toBe(sys.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost' || s.kind === 'base').length);
     }
   });
 
