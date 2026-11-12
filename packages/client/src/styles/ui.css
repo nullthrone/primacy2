@@ -143,7 +143,9 @@
 .pip { width: 1.15em; height: 0.56em; border: 1px solid rgba(127, 233, 255, 0.4); background: rgba(127, 233, 255, 0.08); }
 .pip.full { background: var(--cyan); border-color: var(--cyan); }
 .pip.half { background: linear-gradient(90deg, var(--cyan) 50%, rgba(127, 233, 255, 0.08) 50%); border-color: var(--cyan); }
-.pip-key { color: var(--dim); }
+.pip-key { color: var(--dim); font-family: 'Share Tech Mono', ui-monospace, monospace; }
+.heat-note { color: var(--amber); }
+.heat-note.hot { color: var(--red); }
 .heat-row .num { min-width: 3em; text-align: right; color: var(--dim); }
 .heat-row.rising, .heat-row.rising .num { color: var(--amber); }
 .heat-row.hot, .heat-row.hot .num { color: var(--red); }

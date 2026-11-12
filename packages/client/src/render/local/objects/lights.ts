@@ -1,7 +1,8 @@
 /**
  * The star as a directional light plus a weak ambient term, once per local scene. The sun casts a
  * shadow from an orthographic box that is locked to one focus object (a station, the pilot's ship,
- * the cockpit), so its texels do not crawl while the camera moves.
+ * the cockpit), so its texels do not crawl while the camera moves. Outside the cockpit a very weak
+ * light at the camera keeps a hull readable when the sun is behind it.
  */
 import { AmbientLight, DirectionalLight, PCFShadowMap, PointLight, type Object3D, type WebGLRenderer } from 'three';
 import type { Lighting } from '../../../contracts.ts';

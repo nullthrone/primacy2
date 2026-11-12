@@ -732,6 +732,7 @@ class GameImpl implements Game {
     this.setTarget(ships[(i + dir + ships.length) % ships.length]!.id);
   }
 
+  /** Locks whatever is closest to the nose: a ship, or a wreck or cargo pod to work on. Missiles are skipped. */
   private targetAhead(): void {
     const v = this.view;
     if (!v || !v.self) return;
@@ -739,7 +740,8 @@ class GameImpl implements Game {
     let best: number | null = null;
     let bestCos = 0.9;
     for (const e of v.ents) {
-      if (e.info.kind !== EntityKind.Ship) continue;
+      const kind = e.info.kind;
+      if (kind !== EntityKind.Ship && kind !== EntityKind.Wreck && kind !== EntityKind.Loot) continue;
       const d = v3.normalize(v3.sub(e.rel, v.self.rel));
       const c = v3.dot(d, fwd);
       if (c > bestCos) {

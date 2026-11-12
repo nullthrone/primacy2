@@ -273,11 +273,11 @@ function flightHud(view: FrameView, api: GameApi) {
         <div class={`side-row heat-row ${hot ? 'hot' : silent ? 'rising' : ''}`}>
           <span class="num">{fmt(Math.min(heat, 9.99) * 100)} %</span>
           {silent && <span class="silent-tag">{t('hud.silent')}</span>}
-          {silent && heat >= 1 && <span>{t('hud.heatDamage')}</span>}
-          {heatLeft !== null && <span>{t('hud.heatLimit', { time: fmtDuration(heatLeft) })}</span>}
         </div>
         <div class={`side-row sig-row ${silent ? 'low' : ''}`}>
-          {st.sig > SIG_SYSTEM_WIDE ? t('hud.visibleSystem') : t('hud.visible', { dist: fmtDistance(detectionRange(stats, st.sig)) })}
+          <span>{st.sig > SIG_SYSTEM_WIDE ? t('hud.visibleSystem') : t('hud.visible', { dist: fmtDistance(detectionRange(stats, st.sig)) })}</span>
+          {silent && heat >= 1 && <span class="heat-note hot">{t('hud.heatDamage')}</span>}
+          {heatLeft !== null && <span class={`heat-note ${hot ? 'hot' : ''}`}>{t('hud.heatLimit', { time: fmtDuration(heatLeft) })}</span>}
         </div>
       </div>
 
