@@ -25,3 +25,9 @@ declare class URL {
   readonly hash: string;
   readonly origin: string;
 }
+
+/** The text of a source file, as the test runner's bundler provides it. Used by tests that scan source code. */
+declare module '*?raw' {
+  const text: string;
+  export default text;
+}

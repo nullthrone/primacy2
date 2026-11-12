@@ -375,7 +375,8 @@ export const terrainMax = (p: TerrainParams): number => p.maxHeight;
 
 /**
  * The most (m) by which the height at `detail` can differ from the full height: the summed
- * amplitude of every octave and crater class that `detail` skips.
+ * amplitude of every octave and crater class that `detail` skips, and never more than the whole
+ * range of the terrain. 0 for `detail` 0.
  */
 export function terrainSkipped(p: TerrainParams, detail: number): number {
   if (!(detail > 0)) return 0;
@@ -398,7 +399,8 @@ export function terrainSkipped(p: TerrainParams, detail: number): number {
     if (craterClassSize(p.craterCell[i]!) < detail) sum += p.craterDepth[i]! + p.craterRim[i]!;
   }
   if (p.lineAmp > 0 && p.lineShort < detail) sum += p.lineAmp * (p.kind === ICE ? 2 : 1);
-  return sum;
+  // Two heights never differ by more than the whole range, whatever the parts add up to.
+  return Math.min(sum, p.maxHeight - p.minHeight);
 }
 
 /** Diameter (m) of the largest crater of the class with cell size `cell`. */

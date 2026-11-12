@@ -251,7 +251,8 @@ describe('body and anchor states', () => {
         if (site.ground) {
           // A ground base has no orbit: it stands on its body and is carried around by it.
           expect(v3.len(rel.pos)).toBe(0);
-          expect(v3.dist(abs.pos, parent.pos) / v3.len(site.ground.pos)).toBeCloseTo(1, 12);
+          // Barycentric positions are around 1e11 m, so the difference is good to a fraction of a millimetre.
+          expect(Math.abs(v3.dist(abs.pos, parent.pos) - v3.len(site.ground.pos))).toBeLessThan(0.01);
         } else {
           expect(abs.pos).toEqual(v3.add(parent.pos, rel.pos));
           expect(abs.vel).toEqual(v3.add(parent.vel, rel.vel));
