@@ -12,7 +12,7 @@ export interface ViewParams {
   width: number;
   height: number;
   quality: 0 | 1 | 2;
-  /** Seconds, wrapped so shader time stays precise in float32. */
+  /** Seconds since the page loaded, for shader animation. Shaders only use it at slow rates, so float32 is enough. */
   clock: number;
 }
 

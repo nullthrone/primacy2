@@ -47,5 +47,5 @@ def build(export=True, preview=True, ao=True):
     m.empty('light_0', (0, 0, 6.9))
     m.props['p2_bound'] = BOUND
     return K.finish(m, COLLIDERS, BOUND, ao=ao, ao_distance=3.0, export=export, preview=preview,
-                    direction=(0.7, -0.8, 0.35), zoom=1.0, preview_radius=15.0, target=(0, 0, 3),
+                    direction=(0.55, -0.8, 0.62), zoom=0.85, preview_radius=17.0, target=(0, 0, 3.5),
                     require=('light_0',))

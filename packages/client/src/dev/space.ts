@@ -1,8 +1,10 @@
 /**
  * Development page for the space renderer: draws synthetic frame views of the demo sector.
- * Scenes: ?scene=menu|star|system|terran|gasrings|lava|ice|blackhole-far|blackhole-near|neutron|
- * cruise|fold|close|belt|neighbour|info. Options: q=0..2, bloom=0, probe=1 (spheres in the local
- * scenes), and effect overrides cruise, fold, charge, kind, dil, heat, hit.
+ * Scenes: ?scene=menu|star|system|terran|ocean|desert|rocky|gas|icegiant|gasrings|lava|ice|
+ * blackhole-far|blackhole-near|blackhole-disk|neutron|cruise|fold|close|belt|neighbour|info.
+ * Options: q=0..2, bloom=0, probe=1 (spheres in the local scenes), camera overrides dist (body
+ * radii), phase and elev (degrees), rs (black hole distance in Schwarzschild radii), and effect
+ * overrides cruise, fold, charge, kind, dil, heat, hit.
  */
 import { anchorState, quat } from '@primacy2/shared';
 import type { BodyDef, SystemDef, Vec3 } from '@primacy2/shared';

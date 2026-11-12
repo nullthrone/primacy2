@@ -270,3 +270,27 @@ def contact_sheet(keys, name, cols=2, scale=2):
     out.save()
     bpy.data.images.remove(out)
     return path
+
+
+def render_pov(key, path, eye=(0.0, 0.0, 0.0), look=(0.0, 1.0, 0.0), lens=16.5):
+    """Render from inside a model (the cockpit): camera at `eye` looking along `look`.
+
+    lens 16.5 mm is a vertical field of view of about 62 degrees at 16:9.
+    """
+    cam, lights = L.setup_stage()
+    old = (cam.data.lens, cam.data.clip_start)
+    cam.data.lens = lens
+    cam.data.clip_start = 0.02
+    cam.location = eye
+    cam.rotation_euler = Vector(look).normalized().to_track_quat('-Z', 'Y').to_euler()
+    for nm, src in (('P2_Key', (-0.5, 0.7, 0.8)), ('P2_Rim', (0.7, -0.3, 0.6)), ('P2_Fill', (0.2, -0.9, 0.3))):
+        lights[nm].location = Vector(src) * 10.0
+        L._aim(lights[nm], -Vector(src))
+    try:
+        with L.scene_active() as sc:
+            L.isolate(key)
+            sc.render.filepath = path
+            bpy.ops.render.render(write_still=True, scene=sc.name)
+    finally:
+        cam.data.lens, cam.data.clip_start = old
+    return path

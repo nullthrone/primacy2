@@ -38,4 +38,4 @@ def build(export=True, preview=True, ao=True):
     K.radial(m, r, 4, phase=45, axis='Y')
     m.empty('light_0', (0, 0.26, RR + 0.16))
     return K.finish(m, ao=ao, ao_distance=0.5, export=export, preview=preview, direction=(0.75, 1.0, 0.5),
-                    zoom=1.25, require=('light_0',))
+                    zoom=0.9, require=('light_0',))

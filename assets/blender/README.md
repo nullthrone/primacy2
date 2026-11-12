@@ -59,3 +59,23 @@ The process exits with code 1 if a model reports a problem.
 Copy a generator, change `KEY`, `RADIUS`, `HARDPOINTS`, and register it in `MODELS` in `build_all.py`.
 Design from the hardpoints: decide which structure passes through each one, then fit the loft
 stations around it. `finish()` reports the distance from every hardpoint to the nearest vertex.
+
+## Structures and props
+
+Generators live in `structures/` (station_ring, station_outpost, gate, beacon) and `props/`
+(asteroid_0..3, cargo_pod, missile, cockpit_generic); `structures/skit.py` holds their shared
+helpers and `props/rockkit.py` the asteroid builder. All are registered in `build_all.py`:
+
+    blender --background --python assets/blender/build_all.py -- station_ring gate
+
+- Structures are built around Blender +Z, which the exporter turns into glTF +Y, the axis used
+  by the colliders in `packages/shared/src/structures.ts`. Every structure report contains a
+  `fit` block (largest radius against `bound`, how far the mesh reaches into each collider and
+  the largest protrusion outside them), so a changed collider shows up as a changed number.
+- `dock_0` sits on the axis just outside the +Y cap of the hub or core (the caps are solid in
+  the collider). Spokes, stays, solar wings, masts and antennas have no colliders.
+- `gate.glb` carries two extra mesh nodes under the root: `portal` (disc r 400, double-sided
+  material `portal`) and `scaffold` (construction cage), meant to be shown or hidden by the game.
+- Asteroids are normalised to a bounding radius of exactly 1 m.
+- `cockpit_generic` has the pilot's eye at the origin (empty `eye`), looking toward glTF -Z.
+- `previews/_sheet_*.png` are contact sheets of the single previews (`skit.contact_sheet`).

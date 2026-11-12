@@ -101,4 +101,4 @@ def build(export=True, preview=True, ao=True):
     build_arms(m, acc)
     m.props['p2_bound'] = BOUND
     return K.finish(m, COLLIDERS, BOUND, ao=ao, ao_distance=25.0, export=export, preview=preview,
-                    direction=(0.62, -0.62, 0.48), zoom=1.05, require=('dock_0',))
+                    direction=(0.62, -0.62, 0.48), zoom=0.85, target=(0, 0, -40), require=('dock_0',))
