@@ -42,7 +42,8 @@ the same name) under `packages/server/src/modules/` and is registered in `module
 - `modules/salvage.ts` turns every ship destroyed in normal space into a wreck object
   (`EntityKind.Wreck`, `model` = hull id, `name` = "Wreck of <ship>"). It holds the ship's whole
   cargo (origins kept), scrap in proportion to hull mass (new commodity `scrap`) and, by chance,
-  parts for fitted modules (existing commodities stand in). Module state is `WreckData` in
+  parts for fitted modules (existing commodities stand in). A pilot's stock starter ship (the free
+  insurance replacement) yields no scrap and no parts. Module state is `WreckData` in
   `SimObject.data` (`wreckData(o)` reads it). A wreck lasts `WRECK_LIFETIME` (900 s of universe time),
   a zone keeps at most `MAX_WRECKS` (12), the oldest first. Wrecks are not subject to detection.
   The snapshot sends a wreck's `fill` (fraction of contents left) as its hull value.

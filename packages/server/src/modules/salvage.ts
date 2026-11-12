@@ -5,7 +5,7 @@
  * of a wreck is exactly what went into it (apart from pods that time out in space).
  */
 import {
-  Button, COMMODITIES, EntityFlag, EntityKind, FlightMode, HULLS, MODULES, findSite, forwardOf, v3,
+  Button, COMMODITIES, EntityFlag, EntityKind, FlightMode, HULLS, MODULES, STARTER_HULL, findSite, forwardOf, v3, weaponEnergyMul,
   type CargoItem, type EntityInfo, type Vec3,
 } from '@primacy2/shared';
 import type { GameModule, Ship, SimObject } from '../game.ts';
@@ -57,6 +57,13 @@ function addStack(list: CargoItem[], c: string, n: number, origin: string): void
   else list.push({ c, n, origin });
 }
 
+/** Whether the ship is the starter hull with exactly its stock fit. */
+function isStockStarter(ship: Ship): boolean {
+  const lo = ship.loadout;
+  const stock = HULLS[STARTER_HULL]!.stock;
+  return lo.hull === STARTER_HULL && lo.modules.length === stock.length && lo.modules.every((m, i) => m === stock[i]);
+}
+
 /** Moves everything a destroyed ship carries, plus scrap and parts, into a new wreck. */
 function makeWreck(sim: SystemSim, ship: Ship): void {
   // Only ships in normal space leave a wreck; in cruise there is no place to put one.
@@ -70,9 +77,12 @@ function makeWreck(sim: SystemSim, ship: Ship): void {
   ship.cargo.length = 0;
 
   const hull = Object.hasOwn(HULLS, ship.stats.hull) ? HULLS[ship.stats.hull]! : null;
-  addStack(contents, 'scrap', Math.max(1, Math.round((hull?.mass ?? 0) / KG_PER_SCRAP_TONNE)), sim.world.id);
+  // A pilot's stock starter ship is what insurance hands out for free, so it yields no scrap and no
+  // parts: otherwise two pilots could destroy and salvage free ships for credits.
+  const worthless = !!ship.player && isStockStarter(ship);
+  if (!worthless) addStack(contents, 'scrap', Math.max(1, Math.round((hull?.mass ?? 0) / KG_PER_SCRAP_TONNE)), sim.world.id);
   const rng = sim.world.random();
-  for (const id of ship.loadout.modules) {
+  for (const id of worthless ? [] : ship.loadout.modules) {
     if (typeof id !== 'string' || !Object.hasOwn(MODULES, id)) continue;
     if (rng.range(0, 1) < PART_CHANCE) addStack(contents, PART_FOR_SLOT[MODULES[id]!.slot] ?? 'alloys', 1, sim.world.id);
   }
@@ -171,6 +181,7 @@ export const salvageModule: GameModule = {
         }
 
         const s = ship.state;
+        energy *= weaponEnergyMul(s.pips);
         if (s.energy < energy * dt) continue;
         s.energy -= energy * dt;
         s.heat += heat * dt;

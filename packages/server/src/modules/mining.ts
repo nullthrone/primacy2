@@ -2,7 +2,7 @@
  * Mining: lasers cut ore out of asteroids at belt, ring and anomaly sites. The ore floats out as
  * cargo canisters that any ship can scoop, so mining invites both cooperation and piracy.
  */
-import { Button, EntityFlag, EntityKind, FlightMode, findSite, forwardOf, v3, type AsteroidDef, type GameEvent } from '@primacy2/shared';
+import { Button, EntityFlag, EntityKind, FlightMode, findSite, forwardOf, v3, weaponEnergyMul, type AsteroidDef, type GameEvent } from '@primacy2/shared';
 import type { GameModule, Player, Ship } from '../game.ts';
 import type { SystemSim } from '../sim.ts';
 
@@ -105,6 +105,8 @@ export const miningModule: GameModule = {
           heat += w.heat;
         }
         const s = ship.state;
+        // The weapons power setting covers the tools too.
+        energy *= weaponEnergyMul(s.pips);
         if (s.energy < energy * dt) continue;
         const idx = aimedRock(ship, rocks, left, range, gimbal);
         if (idx < 0) continue;

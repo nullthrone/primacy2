@@ -197,7 +197,7 @@ export interface PilotView {
   homeSite: number | null;
   homeSystem: string | null;
   /** Deductible the pilot would pay right now to get this ship back after losing it. */
-  rebuy?: number;
+  rebuy: number;
 }
 
 export interface SectorView {

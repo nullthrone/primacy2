@@ -8,12 +8,11 @@ There is no central server, no account system and nothing to install to play.
 
 PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 
-> **Status: early development, not playable yet.**
-> Working and covered by tests: identities and signatures, transfer tickets and server handoff,
-> peering and gossip, sector placement, the flight model, the procedural universe, docking, cruise
-> and fold jumps on the server.
-> Not built yet: the browser client (renderer, controls, interface), 3D models, trading, combat,
-> mining, missions and warp gates. Sections below describe the design these are being built to.
+> **Status: early development, playable in the browser.**
+> Implemented: flight, cruise and fold jumps, docking, trading, mining, combat, missions, NPC
+> traffic, two-server federation, wrecks and salvage, insurance, power distribution and silent
+> running, with identities, transfer tickets, peering and the procedural universe underneath.
+> Planned: landing on moons, multi-crew ships and walking in ships.
 
 ## Play
 
@@ -34,6 +33,10 @@ whoever has the key is the pilot.
 | Cruise (in-system faster-than-light) | J |
 | Fold jump to the selected system | H |
 | Dock / undock | F |
+| Power to shields, engines, weapons | Arrow left, up, right |
+| Reset power distribution | Arrow down |
+| Silent running | B |
+| Mining laser (also cuts wrecks) | R or middle mouse button |
 | Galaxy map, system map | M, N |
 
 All bindings can be changed in the settings. Browsers reserve Ctrl+W, so play in fullscreen or use C
@@ -87,6 +90,9 @@ npm run dev:client   # client with hot reload on :5173, talking to :8420
 npm test             # unit and integration tests
 npm run typecheck
 ```
+
+The development page is at `/dev/local.html` on the client server (`npm run dev:client`). The
+browser test runs with `npm run build && node scripts/e2e.mjs`.
 
 | Path | Contents |
 |---|---|

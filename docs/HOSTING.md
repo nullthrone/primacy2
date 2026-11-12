@@ -32,7 +32,8 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
   "defaultTrust": "neutral",
   "trust": { "<server id>": "trusted" },
   "tariff": 0.12,
-  "maxPlayers": 200
+  "maxPlayers": 200,
+  "insuranceRate": 0.05
 }
 ```
 
@@ -51,6 +52,7 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
 | `tariff` | Share of the sale price withheld on cargo imported from `neutral` servers. |
 | `gates` | Warp gates you want to build, e.g. `[{ "peer": "<server id>", "system": 4 }]`. See "Warp gates". |
 | `acceptGates`, `maxGates` | Whether linked servers may propose gates to you, and how many gates the sector may hold (default 6). |
+| `insuranceRate` | Deductible a pilot pays to get a destroyed ship back, as a share (0 to 1, default 0.05) of the catalog price of hull and fitted modules. A pilot who cannot pay gets the free starter ship and keeps their credits. Set 0 for free replacements. |
 | `maxConnectionsPerIp` | Simultaneous connections from one address (default 16). |
 | `trustProxy` | Set to `true` behind a reverse proxy that sets `X-Forwarded-For`, so limits apply per player instead of per proxy. |
 | `dataDir` | Where the database lives (default `./data`). Back this directory up. |

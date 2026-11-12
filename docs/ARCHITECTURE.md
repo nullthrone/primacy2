@@ -77,6 +77,22 @@ Ships in `Cruise` share the system-wide cruise layer and see each other as conta
   (acceleration is divided by gamma^3). Orbits and slingshots work.
 - **Rotation** is always assisted: mouse movement accumulates in an aim buffer that the ship works
   off at its turn-rate limit, so light ships feel like a first-person shooter and heavy ships lag.
+- **Power distribution:** the reactor output is split between SYS (shields), ENG (engines) and
+  WEP (weapons) in half-pips: each holds 0 to 8 and the three always sum to 12. The default is 4/4/4,
+  where every effect is exactly 1. The setting is packed into `ShipInput.pips`, so the client's
+  prediction replays it, and the applied value is copied into `ShipState.pips`. WEP scales the energy
+  every weapon draws (1.3 with no pips, 0.7 with eight), mining and salvage lasers included.
+- **Heat signature:** every ship in normal space has a signature, 1 for a reference-sized ship idling
+  with shields up. It grows with hull radius, with heat stored (up to a limit), with thruster output
+  and boost, and rises when the shields are down. A ship in cruise is visible everywhere in the
+  system; a docked, folding or destroyed ship has none. The server computes it each tick
+  (`shipSignature` in `shared/sim/signature.ts`).
+- **Detection:** an observer picks up a target out to `sensorRange * sqrt(signature)`, never less
+  than `VISUAL_RANGE` (1.5 km). A contact already held is kept 10 % farther out. Snapshots list only
+  what the recipient detects (`canDetect`). Wrecks are not subject to detection.
+- **Silent running:** the pilot can switch the ship to silent. The signature is multiplied by 0.08,
+  but the shields are switched off and bleed away, and the radiators close, so heat builds. The
+  shields return only a full recharge delay after silent running ends.
 - **Time dilation:** each ship integrates with `dt * dilation`, where dilation combines
   gravitational (`sqrt(1 - rs/r)`) and velocity (`1/gamma`) factors.
 
@@ -133,12 +149,30 @@ what a hostile server can inject to one cargo hold per visit. Operators assign e
 | `restricted` | Ship accepted, cargo impounded. |
 | `blocked` | Handoff refused. |
 
+### Wrecks, salvage and insurance
+
+A ship destroyed in normal space leaves a wreck for 900 seconds (a zone keeps at most 12; the oldest
+goes first). The wreck holds the ship's whole cargo with the origin of each stack, scrap in proportion
+to hull mass and, by chance, parts for fitted modules. Scrap and parts are the only goods that enter
+the economy this way. A pilot's stock starter ship, which insurance hands out for free, leaves none, so
+it cannot be destroyed and salvaged for credits. A pilot with a mining laser cuts a wreck open with
+the tool trigger and its contents float out as ordinary cargo pods that anyone can scoop; origins
+travel with the goods, so tariffs still apply when they are sold. Cargo is conserved from the kill to
+the pods. A ship destroyed in cruise or in a fold tunnel leaves no wreck and its cargo is lost.
+
+Destruction charges nothing. The `respawn` command returns the pilot to their home station in the same
+ship, repaired and refuelled, for a deductible of `insuranceRate` (server setting, default 0.05) times
+the catalog price of hull and fitted modules. A pilot who cannot pay is issued the free starter ship
+and keeps their credits. Credits stay local to each server, as before.
+
 ## 5. Netcode
 
 - WebSocket per client. Control messages are JSON; snapshots are binary (`shared/snapshot.ts`).
 - The server simulates at `TICK_RATE` (30 Hz) and sends a snapshot every `SNAPSHOT_EVERY` ticks.
 - The client sends one `ShipInput` per tick, predicts its own ship with the same `stepShip`
   and reconciles against the acknowledged input sequence. Other entities are interpolated.
+- The protocol version is 2. The snapshot's own-ship block carries the power setting (`pips`) and the
+  ship's heat signature (`sig`).
 - Snapshot entity positions are float32 offsets from the recipient's own position; the recipient's
   own state is float64.
 

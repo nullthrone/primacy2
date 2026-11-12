@@ -133,6 +133,30 @@ describe('insurance', () => {
     sim.removeShip(t.ship);
   });
 
+  it('a free starter ship leaves cargo but no scrap or parts, so it cannot be farmed', () => {
+    const sim = world.sim(port.def.id);
+    const wreckOf = (t: TestPilot) =>
+      [...sim.objects.values()].find((o) => o.kind === EntityKind.Wreck && o.info.name === `Wreck of ${t.p.name}`)!;
+    const contents = (t: TestPilot) => (wreckOf(t).data as { contents: { c: string; n: number }[] }).contents;
+    // Broke pilot: killed, issued the starter ship, killed again. Both wrecks hold only the cargo.
+    const t = pilot(sim, richFit(), OPEN, 0);
+    sim.destroy(t.ship, null);
+    expect(respawn(t).data?.starter).toBe(true);
+    for (const o of [...sim.objects.values()]) if (o.kind === EntityKind.Wreck) sim.removeObject(o.id);
+    t.ship.state.mode = FlightMode.Normal;
+    t.ship.state.anchor = port.site.id;
+    t.ship.state.pos = v3.clone(OPEN);
+    t.p.addCargo('alloys', 2, 'elsewhere');
+    sim.destroy(t.ship, null);
+    expect(contents(t)).toEqual([{ c: 'alloys', n: 2, origin: 'elsewhere' }]);
+    sim.removeShip(t.ship);
+    // A ship with real value still leaves scrap.
+    const rich = pilot(sim, richFit(), OPEN, 0);
+    sim.destroy(rich.ship, null);
+    expect(contents(rich).some((x) => x.c === 'scrap')).toBe(true);
+    sim.removeShip(rich.ship);
+  });
+
   it('follows the server rate', () => {
     const sim = world.sim(port.def.id);
     world.config.insuranceRate = 0.2;

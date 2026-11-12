@@ -4,7 +4,7 @@
  */
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
-  Button, DT, EntityKind, HULLS, computeShipStats, newPassport, newShipState, quat, starterLoadout, v3,
+  Button, DT, EntityKind, HULLS, computeShipStats, newPassport, newShipState, packPips, quat, starterLoadout, v3,
   type GameEvent, type SiteDef, type SystemDef, type Vec3,
 } from '@primacy2/shared';
 import { Player, newShip, type PlayerRecord, type PrimacyServer, type Ship, type SystemSim, type World } from '@primacy2/server';
@@ -231,6 +231,24 @@ describe('salvage', () => {
     run(90);
     expect(wreckData(wreck)!.fill).toBe(1);
     expect(podsOf(sim)).toHaveLength(0);
+  });
+
+  it('draws less energy when the weapons power setting is higher', () => {
+    const sim = world.sim(port.def.id);
+    keepAlive(sim, port.site.id);
+    const drain = (pips: number, z: number): number => {
+      kill(sim, port.site.id, [OPEN[0], z, 0]);
+      const ship = place(sim, 'delver', port.site.id, [OPEN[0], z, 300], 'Cutter');
+      ship.input.buttons = Button.Fire3;
+      ship.input.pips = pips;
+      const start = ship.state.energy;
+      run(20);
+      return start - ship.state.energy;
+    };
+    const low = drain(packPips(4, 8, 0), 0);
+    const high = drain(packPips(4, 0, 8), 3000);
+    expect(low).toBeGreaterThan(0);
+    expect(high).toBeLessThan(low);
   });
 
   describe('beside asteroids', () => {

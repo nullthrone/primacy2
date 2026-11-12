@@ -187,6 +187,7 @@ export class World {
       wing: null,
       homeSite: p.rec.homeSite,
       homeSystem: p.rec.homeSystem,
+      rebuy: 0,
     };
     for (const m of this.modules) m.pilotView?.(p, view);
     return view;
