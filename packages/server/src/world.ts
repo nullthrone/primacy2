@@ -694,9 +694,10 @@ export class World {
    */
   entryRefusal(p: Player, dest: KnownServer): string | null {
     if (this.fed.trustOf(dest.id) === 'blocked') return 'That sector is blocked by this server.';
+    // A descriptor lists only the ids rated union and partner. Everyone else is judged by the
+    // published default here; if `dest` rates this server differently in private, it says so on arrival.
     const theirs = publishedRating(dest.desc, this.id);
     if (theirs === null) return null;
-    if (theirs === 'blocked') return `${dest.desc.name} does not admit ships from this sector.`;
     const tier = effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
     const cap = shipLimitFor(tier, dest.desc.trade?.shipLimit);
     const hull = p.rec.passport.ship.loadout.hull;

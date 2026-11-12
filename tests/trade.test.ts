@@ -13,14 +13,16 @@ import {
   HULLS,
   MODULES,
   PEER_TIMEOUT_MS,
+  PROTOCOL_VERSION,
   cargoTonnes,
   computeShipStats,
   idFromPublicKey,
   newShipState,
+  rulesFingerprint,
   starterLoadout,
   type CargoItem,
 } from '@primacy2/shared';
-import { isHullBound, isSlotBound, newShip, type CommandResult, type Player, type PrimacyServer } from '@primacy2/server';
+import { Store, isHullBound, isSlotBound, makeConfig, newShip, type CommandResult, type Player, type PrimacyServer } from '@primacy2/server';
 import { wreckData } from '../packages/server/src/modules/salvage.ts';
 import { Bot } from './bot.ts';
 import { Cluster, testKeys } from './harness.ts';
@@ -121,6 +123,76 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await c.stop();
+});
+
+describe('trade model: configuration and books', () => {
+  it('has the documented defaults and validates the new keys', () => {
+    expect(makeConfig()).toMatchObject({
+      defaultTrust: 'visitor', tradeCredit: 50_000, tradeCredits: {}, gateTradeCredit: 250_000, importLicenceRate: 1,
+      shipLimit: { partner: null, visitor: 'drover' },
+    });
+    expect(() => makeConfig({ defaultTrust: 'neutral' as never })).toThrow(/"neutral" is now called "partner"/);
+    expect(() => makeConfig({ trust: { [ID.P]: 'trusted' as never } })).toThrow(/is now called "union"/);
+    expect(() => makeConfig({ trust: { [ID.P]: 'friend' as never } })).toThrow(/must be union, partner, visitor or blocked/);
+    expect(() => makeConfig({ defaultTrust: 'union' })).toThrow(/defaultTrust cannot be union/);
+    expect(() => makeConfig({ tradeCredit: -1 })).toThrow(/tradeCredit/);
+    expect(() => makeConfig({ tradeCredits: { nobody: 5 } })).toThrow(/not a server id/);
+    expect(() => makeConfig({ tradeCredits: { [ID.P]: Number.NaN } })).toThrow(/tradeCredits/);
+    expect(() => makeConfig({ gateTradeCredit: -5 })).toThrow(/gateTradeCredit/);
+    expect(() => makeConfig({ importLicenceRate: -1 })).toThrow(/importLicenceRate/);
+    expect(() => makeConfig({ shipLimit: { partner: 'made_up', visitor: null } })).toThrow(/shipLimit\.partner/);
+    expect(makeConfig({ shipLimit: { partner: 'wayfarer', visitor: null } }).shipLimit).toEqual({ partner: 'wayfarer', visitor: null });
+  });
+
+  it('the descriptor publishes the fingerprint, the ratings and the class limits', () => {
+    const d = H.descriptor().body;
+    expect(d.proto).toBe(PROTOCOL_VERSION);
+    expect(d.rules.defaultTrust).toBe('visitor');
+    expect(d.trade).toEqual({
+      fingerprint: rulesFingerprint(), union: [ID.U], partner: [ID.P], shipLimit: { partner: null, visitor: HULLS.drover!.price },
+    });
+  });
+
+  it('the ledger is kept in the store', () => {
+    const store = new Store(':memory:');
+    expect(store.loadLedger(ID.P)).toEqual({ exports: 0, imports: 0 });
+    store.saveLedger(ID.P, { exports: 720, imports: 360 });
+    expect(store.loadLedger(ID.P)).toEqual({ exports: 720, imports: 360 });
+    store.close();
+  });
+
+  it('the absorb check books imports and licence use once; an all-or-nothing take that fails books nothing', async () => {
+    let bot = await newPilot(P, 'Bookkeeper');
+    load(P, bot, [lot(6, ID.P)]);
+    bot = await travel(bot, P, H);
+    const p = dock(H, bot);
+    const book = H.world.trade;
+    book.creditIncome(p, 4 * PRICE, 'bounty');
+    const imports = book.ledger(ID.P).imports;
+    // A preview writes nothing.
+    expect(book.absorb(p, [lot(2, ID.P)], { book: false })).toMatchObject({ n: 2, limit: null, lots: [{ status: 'import', take: 2, limit: null }] });
+    expect(book.ledger(ID.P).imports).toBe(imports);
+    expect(book.licence(p)).toEqual({ cap: 4 * PRICE, used: 0 });
+    // Not enough licence for five tonnes: nothing is taken, nothing is booked.
+    expect(book.takeCargo(p, GOOD, 5, { exact: true })).toEqual({ lots: [], n: 0, limit: 'licence', limitOrigin: ID.P });
+    expect(hold(H, bot)).toEqual([lot(6, ID.P)]);
+    expect(book.ledger(ID.P).imports).toBe(imports);
+    expect(book.licence(p)).toEqual({ cap: 4 * PRICE, used: 0 });
+    // Three tonnes pass in full and are booked once: in the ledger, in the store and on the licence.
+    expect(book.takeCargo(p, GOOD, 3, { exact: true })).toEqual({ lots: [lot(3, ID.P)], n: 3, limit: null, limitOrigin: null });
+    expect(hold(H, bot)).toEqual([lot(3, ID.P)]);
+    expect(book.ledger(ID.P).imports).toBe(imports + 3 * PRICE);
+    expect(H.store.loadLedger(ID.P)).toEqual(book.ledger(ID.P));
+    expect(book.licence(p)).toEqual({ cap: 4 * PRICE, used: 3 * PRICE });
+    // Lots handed to the check directly: local goods pass, the import up to the licence, sealed never.
+    const res = book.absorb(p, [lot(2, ID.H), lot(2, ID.P), lot(1, ID.C)]);
+    expect(res.lots.map((l) => [l.status, l.take, l.limit])).toEqual([['local', 2, null], ['import', 1, 'licence'], ['sealed', 0, 'sealed']]);
+    expect(res).toMatchObject({ n: 3, limit: 'licence', limitOrigin: ID.P });
+    expect(book.ledger(ID.P).imports).toBe(imports + 4 * PRICE);
+    expect(book.licence(p)).toEqual({ cap: 4 * PRICE, used: 4 * PRICE });
+    // More than is on board.
+    expect(book.takeCargo(p, 'food', 1)).toMatchObject({ n: 0, limit: 'missing' });
+  });
 });
 
 describe('trade model: cargo', () => {
@@ -351,8 +423,11 @@ describe('trade model: cargo', () => {
     load(C, washer, [lot(4, ID.H)]);
     washer = await travel(washer, C, U);
     expect(hold(U, washer)).toEqual([lot(4, ID.H, true)]);
+    expect(isHullBound(playerOf(U, washer).rec)).toBe(true);
     washer = await travel(washer, U, H);
     expect(hold(H, washer)).toEqual([lot(4, ID.H, true)]);
+    // The same for the ship: the union member holds it bound and says so in the ticket, and Home believes it.
+    expect(isHullBound(playerOf(H, washer).rec)).toBe(true);
     expect(await sell(H, dock(H, washer), 4)).toMatchObject({ ok: false, err: expect.stringMatching(/sealed/) });
   });
 });
@@ -392,6 +467,23 @@ describe('trade model: ships', () => {
     const replaced = H.world.pilotView(playerOf(H, bot)).shipBound!;
     expect(replaced.hull).toBe(true);
     expect(replaced.slots.every((x) => x)).toBe(true);
+  });
+
+  it('a ship that left into the customs union is not recognised when it comes back from outside it', async () => {
+    // Inside the union the ship is local and may be sold there, so a look-alike from elsewhere must not count as the same ship.
+    let bot = await newPilot(H, 'UnionLeaver');
+    bot = await travel(bot, H, U);
+    expect(isHullBound(playerOf(U, bot).rec)).toBe(false);
+    bot = await travel(bot, U, C);
+    bot = await travel(bot, C, H);
+    expect(isHullBound(playerOf(H, bot).rec)).toBe(true);
+    // Out to the union and straight back: local on the union member's word.
+    let direct = await newPilot(H, 'UnionReturner');
+    direct = await travel(direct, H, U);
+    direct = await travel(direct, U, H);
+    const b = H.world.pilotView(playerOf(H, direct)).shipBound!;
+    expect(b.hull).toBe(false);
+    expect(b.slots.some((x) => x)).toBe(false);
   });
 
   it('a ship above the class limit is refused at the origin, and at the destination when the origin does not check', async () => {

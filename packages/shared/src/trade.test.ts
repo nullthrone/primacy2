@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { COMMODITIES, HULLS, starterLoadout } from './catalog.ts';
-import type { TrustLevel } from './federation.ts';
-import type { CargoItem } from './pilot.ts';
+import { PROTOCOL_VERSION } from './constants.ts';
+import { generateKeyPair, idFromPublicKey } from './crypto.ts';
+import { signDescriptor, verifyDescriptor, type ServerDescriptor, type TrustLevel } from './federation.ts';
+import { sanitizePassport, type CargoItem } from './pilot.ts';
 import {
   absorbable,
   attributeCargo,
@@ -90,6 +92,43 @@ describe('effective tier', () => {
     expect(publishedRating(desc('blocked', [], []), SELF)).toBe('blocked');
     // A descriptor stored by an older version has no trade policy at all.
     expect(publishedRating({ rules: { openPeering: true, defaultTrust: 'partner', tariff: 0 } } as never, SELF)).toBeNull();
+  });
+});
+
+describe('trade policy in a descriptor', () => {
+  const NOW = 1_800_000_000_000;
+  const keys = generateKeyPair();
+  const id = idFromPublicKey(keys.publicKey);
+  const base = (): ServerDescriptor => ({
+    v: 1, id, name: 'Alpha', url: 'http://localhost:8420', proto: PROTOCOL_VERSION, version: '0.1.0',
+    pos: [10, 0, -5], radius: 18,
+    systems: [{ id: `${id}:0`, name: 'Sol', pos: [11, 0, -5], starClass: 'G', security: 'secure', stations: 2, tags: [] }],
+    links: [], gates: [],
+    rules: { openPeering: true, defaultTrust: 'visitor', tariff: 0.1 },
+    trade: { fingerprint: rulesFingerprint(), union: [UNION], partner: [PARTNER], shipLimit: { partner: null, visitor: 260_000 } },
+    online: 0, updatedAt: NOW,
+  });
+  const check = (edit: (d: ServerDescriptor) => void) => {
+    const d = base();
+    edit(d);
+    return verifyDescriptor(signDescriptor(d, keys), NOW);
+  };
+
+  it('is accepted when well formed and refused otherwise', () => {
+    expect(check(() => {})).toMatchObject({ ok: true });
+    expect(check((d) => delete (d as Partial<ServerDescriptor>).trade)).toMatchObject({ ok: false, reason: 'bad trade policy' });
+    expect(check((d) => (d.trade.fingerprint = 'short'))).toMatchObject({ ok: false, reason: 'bad trade policy' });
+    expect(check((d) => (d.trade.union = ['not an id']))).toMatchObject({ ok: false, reason: 'bad trade ratings' });
+    expect(check((d) => (d.trade.partner = Array.from({ length: 257 }, () => PARTNER)))).toMatchObject({ ok: false, reason: 'bad trade ratings' });
+    expect(check((d) => (d.trade.shipLimit = { partner: -1, visitor: null }))).toMatchObject({ ok: false, reason: 'bad ship limits' });
+    expect(check((d) => ((d.rules as { defaultTrust: string }).defaultTrust = 'neutral'))).toMatchObject({ ok: false, reason: 'bad rules' });
+  });
+
+  it('a passport keeps a bound claim only in a clean shape', () => {
+    const ship = starterLoadout('wisp');
+    const claimed = sanitizePassport({ ship: { loadout: ship, bound: { hull: 'yes', slots: [true, 1, false] } } }, 'p'.repeat(16), { issuer: PARTNER });
+    expect(claimed.ship.bound).toEqual({ hull: false, slots: ship.modules.map((_, i) => i === 0) });
+    expect(sanitizePassport({ ship: { loadout: ship } }, 'p'.repeat(16), { issuer: PARTNER }).ship.bound).toBeUndefined();
   });
 });
 
