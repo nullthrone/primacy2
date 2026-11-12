@@ -55,12 +55,12 @@ def build(export=True, preview=True, ao=True):
                 continue
             ring = [(i, j), (i + 1, j), (i + 1, j + 1), (i, j + 1)]
             L._mkface(bm, [top[k] for k in ring], ms if i == 6 else mh, up)       # one darker panel row
-            L._mkface(bm, [bot[k] for k in ring], ms, -up)
+            L._mkface(bm, [bot[k] for k in ring], mh, -up)
             centre = sum((top[k].co for k in ring), Vector()) / 4.0
             for (a, b), (di, dj) in zip(zip(ring, ring[1:] + ring[:1]), ((0, -1), (1, 0), (0, 1), (-1, 0))):
                 if not kept(i + di, j + dj):           # torn edge of the skin
                     mid = (top[a].co + top[b].co) * 0.5
-                    L._mkface(bm, [top[a], top[b], bot[b], bot[a]], ms, mid - centre)
+                    L._mkface(bm, [top[a], top[b], bot[b], bot[a]], mh, mid - centre)
 
     def tilt(y):
         return math.degrees(math.atan(-0.56 * y))
@@ -74,5 +74,7 @@ def build(export=True, preview=True, ao=True):
             y0, y1 = ya + (yb - ya) * k / n, ya + (yb - ya) * (k + 1) / n
             ym = (y0 + y1) / 2
             p.box((x, ym, surf(0.0, ym) - SKIN - 0.085), (0.045, (y1 - y0) * 1.03, 0.17), S2, rot=(tilt(ym), 0, 0))
+    p.rot('X', 180.0)                                  # ribbed inside up
+    tear = [(x, -y, -z) for x, y, z in tear]
     m.add(p)
-    return DK.finish(m, tear, direction=(0.5, -0.6, -0.62), export=export, preview=preview, ao=ao)
+    return DK.finish(m, tear, direction=(0.5, -0.6, 0.62), export=export, preview=preview, ao=ao)

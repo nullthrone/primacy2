@@ -196,6 +196,8 @@ export interface PilotView {
   /** Site id of the last station docked at (respawn point). */
   homeSite: number | null;
   homeSystem: string | null;
+  /** Deductible the pilot would pay right now to get this ship back after losing it. */
+  rebuy?: number;
 }
 
 export interface SectorView {

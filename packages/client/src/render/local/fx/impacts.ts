@@ -42,15 +42,14 @@ void main() {
   vec3 n = normalize(vN);
   float ang = acos(clamp(dot(n, vImpact.xyz), -1.0, 1.0));
   float t = vImpact.w, u = 1.0 - t;
-  // A hot spot where the shot landed, a front running outward from it, and fine ripples behind the front.
+  // A hot spot where the shot landed, a front running outward from it, and a wake trailing the front.
   float front = 0.18 + 1.5 * t;
-  float spot = exp(-ang * ang / 0.07);
-  float ring = exp(-pow((ang - front) / 0.06, 2.0));
-  float behind = 1.0 - smoothstep(front - 0.12, front, ang);
-  float ripples = 0.5 + 0.5 * sin(ang * 52.0 - t * 26.0);
+  float spot = exp(-ang * ang / 0.045);
+  float ring = exp(-pow((ang - front) / 0.07, 2.0));
+  float wake = smoothstep(front - 0.7, front, ang) * (1.0 - smoothstep(front, front + 0.03, ang));
   // A shell of light is brightest where it is seen edge-on.
   float limb = 0.18 + 0.82 * pow(1.0 - abs(dot(n, normalize(vToCam))), 2.0);
-  float light = spot * u * u * u * 1.3 + (ring * 0.9 + behind * ripples * 0.14) * u * u * limb;
+  float light = spot * u * u * u * 1.1 + (ring * 0.8 + wake * 0.1) * u * u * limb;
   // The flare never wraps around to the far side.
   light *= smoothstep(2.0, 1.2, ang);
   gl_FragColor = vec4(vTint * light, 1.0);

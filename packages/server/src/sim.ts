@@ -552,7 +552,9 @@ export class SystemSim {
             if (v3.lenSq(rel) > viewSq) continue;
             seen.add(o.id);
             if (!p.known.has(o.id)) added.push(o.info);
-            ents.push({ id: o.id, flags: 0, hull: 1, shield: 0, pos: rel, vel: o.vel, rot: o.rot });
+            // A wreck's hull value is the fraction of its contents still inside.
+            const fill = o.kind === EntityKind.Wreck ? (o.data as { fill?: number } | undefined)?.fill : undefined;
+            ents.push({ id: o.id, flags: 0, hull: fill ?? 1, shield: 0, pos: rel, vel: o.vel, rot: o.rot });
           }
         }
       }

@@ -63,8 +63,9 @@ stations around it. `finish()` reports the distance from every hardpoint to the 
 ## Structures and props
 
 Generators live in `structures/` (station_ring, station_outpost, gate, beacon) and `props/`
-(asteroid_0..3, cargo_pod, missile, cockpit_generic); `structures/skit.py` holds their shared
-helpers and `props/rockkit.py` the asteroid builder. All are registered in `build_all.py`:
+(asteroid_0..3, debris_0..3, cargo_pod, missile, cockpit_generic); `structures/skit.py` holds
+their shared helpers, `props/rockkit.py` the asteroid builder and `props/debriskit.py` the
+debris finish. All are registered in `build_all.py`:
 
     blender --background --python assets/blender/build_all.py -- station_ring gate
 
@@ -76,6 +77,22 @@ helpers and `props/rockkit.py` the asteroid builder. All are registered in `buil
   the collider). Spokes, stays, solar wings, masts and antennas have no colliders.
 - `gate.glb` carries two extra mesh nodes under the root: `portal` (disc r 400, double-sided
   material `portal`) and `scaffold` (construction cage), meant to be shown or hidden by the game.
-- Asteroids are normalised to a bounding radius of exactly 1 m.
+  `light_0..3` are the lamps of the four anchor blocks, `light_4..11` those of the other blocks.
+  Radiator panels, anchor modules and masts stand up to 15 m out of the torus collider.
+- Asteroids are normalised to a bounding radius of exactly 1 m. They have one material (`rock`)
+  and one primitive. Four characters: contact binary, rubble pile, shard, layered slab.
+  `rockkit.build_rock` evaluates a union of chipped ellipsoid lobes on a dense icosphere,
+  decimates it to the budget and adds boulders.
+- Debris pieces (`debris_0` torn hull plate, `debris_1` broken truss, `debris_2` shattered engine
+  bell, `debris_3` pipe cluster) are normalised to 1 m as well, kind `debris`, at most 650
+  triangles and two materials each.
+- On asteroids and debris `Col` is more than occlusion: it is occlusion multiplied by an albedo
+  tint (rock: dust, fresh fracture faces, mineral bands; debris: soot and heat discolouration at
+  the tears). It only ever darkens, so the `rock` base colour is the brightest tone. The game
+  has to keep vertex colours switched on for these materials.
+- `skit.finish(post=...)` runs a callback between the occlusion bake and the export;
+  `skit.multiply_col` is the helper that writes such tints without splitting vertices.
+- Previews multiply `Col` into the material colours, as the game does
+  (`render_preview(show_col=False)` turns that off).
 - `cockpit_generic` has the pilot's eye at the origin (empty `eye`), looking toward glTF -Z.
 - `previews/_sheet_*.png` are contact sheets of the single previews (`skit.contact_sheet`).

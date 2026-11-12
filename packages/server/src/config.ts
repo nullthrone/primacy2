@@ -33,6 +33,8 @@ export interface ServerConfig {
   trust: Record<string, TrustLevel>;
   /** Tariff rate on cargo imported from `neutral` peers, 0..1. */
   tariff: number;
+  /** Share (0..1) of ship and fit value a destroyed pilot pays to get the ship back. */
+  insuranceRate: number;
   maxPlayers: number;
   /** Simultaneous connections accepted from one address. */
   maxConnectionsPerIp: number;
@@ -71,6 +73,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
   defaultTrust: 'neutral',
   trust: {},
   tariff: 0.12,
+  insuranceRate: 0.05,
   maxPlayers: 200,
   maxConnectionsPerIp: 16,
   trustProxy: false,
@@ -111,6 +114,7 @@ export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
   for (const p of c.peers) if (!isValidServerUrl(p.replace(/\/+$/, ''))) problems.push(`peer "${p}" is not a valid server URL`);
   c.peers = c.peers.map((p) => p.replace(/\/+$/, ''));
   if (!(c.tariff >= 0 && c.tariff <= 1)) problems.push('tariff must be 0..1');
+  if (!(c.insuranceRate >= 0 && c.insuranceRate <= 1)) problems.push('insuranceRate must be 0..1');
   for (const g of c.gates) {
     if (!g || typeof g.peer !== 'string' || !/^[a-z2-7]{16}$/.test(g.peer)) problems.push('gates[].peer must be a server id');
     else if (g.system !== undefined && !(Number.isInteger(g.system) && g.system >= 0 && g.system < c.systems)) {

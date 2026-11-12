@@ -34,7 +34,7 @@ def _scorch(ob, tear, reach):
     K.multiply_col(ob, tint * (1.0 - clean) + clean)
 
 
-def finish(m, tear, reach=0.45, sharp=35.0, direction=(0.6, -0.8, 0.45), export=True, preview=True, ao=True):
+def finish(m, tear, reach=0.28, sharp=35.0, direction=(0.6, -0.8, 0.45), export=True, preview=True, ao=True):
     """Normalise the model to radius 1, bake, scorch around the `tear` points (given in the
     generator's own coordinates; `reach` is in normalised metres), export and preview."""
     co = np.array([v.co[:] for v in m.bm.verts], dtype=np.float64)

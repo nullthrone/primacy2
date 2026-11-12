@@ -21,7 +21,7 @@ const COLD: Readonly<Vec3> = [0.2, 0.72, 1.0];
 const TRACER: Readonly<Vec3> = [1.0, 0.8, 0.46];
 const RAIL: Readonly<Vec3> = [0.6, 0.79, 1.0];
 const MINING: Readonly<Vec3> = [1.0, 0.5, 0.16];
-const SALVAGE: Readonly<Vec3> = [0.5, 0.72, 1.0];
+const SALVAGE: Readonly<Vec3> = [0.32, 0.6, 1.0];
 
 /** Something that crosses from a to b once: a bolt of `len` metres that may leave a fading line behind. */
 interface Round {
@@ -59,6 +59,8 @@ interface Beam {
   born: number;
   /** Fraction of a spark carried over to the next frame. */
   carry: number;
+  /** Colour family of a weapon beam: cold cyan or hot orange-red. */
+  cold: boolean;
 }
 
 const M: Vec3 = [0, 0, 0];
@@ -72,7 +74,7 @@ export class Weapons {
   }));
   private readonly beams = new Pool<Beam>(32, () => ({
     key: 0, kind: WEAPON, from: 0, slot: 0, to: -1, mode: FIXED, ex: 0, ey: 0, ez: 0, cx: 0, cy: 0, cz: 0, body: 0,
-    exact: false, last: 0, born: 0, carry: 0,
+    exact: false, last: 0, born: 0, carry: 0, cold: true,
   }));
 
   constructor(private readonly f: Frame, private readonly ribbons: Ribbons, private readonly sprites: Sprites,
@@ -102,9 +104,11 @@ export class Weapons {
           this.muzzleFlash(src, TRACER, 1.3, 7, 0.05);
         }
         break;
-      case 'beam':
-        this.hold(src.id * 64 + (ev.slot & 31), WEAPON, src, ev.slot, ev.to ?? -1, at);
+      case 'beam': {
+        const b = this.hold(src.id * 64 + (ev.slot & 31), WEAPON, src, ev.slot, ev.to ?? -1, at);
+        if (b) b.cold = def.tier >= 2;
         break;
+      }
       case 'mining':
         this.hold(src.id * 64 + (ev.slot & 31), MINE, src, ev.slot, ev.to ?? -1, at);
         break;
@@ -161,7 +165,9 @@ export class Weapons {
 
   /** A flash at the muzzle in `M` that stays with the shooter. */
   private muzzleFlash(src: Track, c: Readonly<Vec3>, size: number, gain: number, life: number): void {
-    const p = this.flashes.spawn(GLOW, M[0] - src.x, M[1] - src.y, M[2] - src.z, life, size, size * 1.6, c[0], c[1], c[2], gain);
+    // The pilot's own muzzle is close to the camera in either view; its flash is kept small.
+    const s = src.own ? size * 0.45 : size;
+    const p = this.flashes.spawn(GLOW, M[0] - src.x, M[1] - src.y, M[2] - src.z, life, s, s * 1.6, c[0], c[1], c[2], gain);
     p.follow = src.id;
   }
 
@@ -269,7 +275,7 @@ export class Weapons {
       const tx = ex + f.zx, ty = ey + f.zy, tz = ez + f.zz;
       const cx = C[0] + f.zx, cy = C[1] + f.zy, cz = C[2] + f.zz;
       if (b.kind === WEAPON) {
-        const c = (MODULES[this.weaponId(src, b.slot)]?.tier ?? 2) >= 2 ? COLD : HOT;
+        const c = b.cold ? COLD : HOT;
         const g = 9 * flick;
         ribbons.seg(sx, sy, sz, tx, ty, tz, 0.5, c[0] * g, c[1] * g, c[2] * g, 1, 1);
         sprites.glow(sx, sy, sz, 1.6, c[0] * 6 * flick, c[1] * 6 * flick, c[2] * 6 * flick);
@@ -282,18 +288,13 @@ export class Weapons {
         sprites.glow(cx, cy, cz, 4.2, 12 * flick, 7 * flick, 2.6 * flick);
         this.shower(b, 70, 6, 30, 0.4, 1.1, 0.09, 7, 4.2, 1.4, 0.05, level);
       } else {
-        const g = 3.2 * flick;
-        ribbons.seg(sx, sy, sz, tx, ty, tz, 0.22, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 1, 1);
+        const g = 1.8 * flick;
+        ribbons.seg(sx, sy, sz, tx, ty, tz, 0.2, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 1, 1);
         sprites.glow(sx, sy, sz, 0.9, 1.4 * flick, 2.1 * flick, 3.2 * flick);
         sprites.glow(cx, cy, cz, 1.8, 5 * flick, 7 * flick, 10 * flick);
         this.shower(b, 110, 10, 45, 0.15, 0.45, 0.05, 6, 4.6, 2.8, 0.03, level);
       }
     }
-  }
-
-  /** Module id of the weapon a beam comes from; only the own ship's loadout is known. */
-  private weaponId(src: Track, slot: number): string {
-    return (src.own ? this.f.view.self?.stats.weapons[slot]?.id : undefined) ?? 'beam_1';
   }
 
   /** Sparks thrown back from the contact point in `C` toward the muzzle in `M`, `rate` per second. */

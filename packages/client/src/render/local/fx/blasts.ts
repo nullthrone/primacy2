@@ -47,8 +47,8 @@ export class Blasts {
     }
 
     // The shock ring: a thin shell of gas seen at a random tilt.
-    const ring = fl.spawn(RING, x, y, z, 0.5, R * 1.5, R * 15, 0.7, 0.82, 1.0, 1.6);
-    ring.param = 0.006;
+    const ring = fl.spawn(RING, x, y, z, 0.5, R * 1.5, R * 15, 0.7, 0.82, 1.0, 0.7);
+    ring.param = 0.012;
     ring.aspect = rand(0.3, 1);
     ring.rot = rand(0, TAU);
 
@@ -69,14 +69,20 @@ export class Blasts {
     if (ev.out) {
       const pull = fl.spawn(RING, x, y, z, 0.2, 45, 2, 0.55, 0.72, 1.0, 3);
       pull.curve = RISE;
-      pull.param = 0.012;
+      pull.param = 0.03;
+      pull.aspect = rand(0.45, 0.9);
+      pull.rot = rand(0, TAU);
       fl.spawn(GLOW, x, y, z, 0.16, 10, 28, 0.75, 0.87, 1.0, 22).age = -0.2;
       return;
     }
     const T = 0.26;
-    const pull = fl.spawn(RING, x, y, z, T, 80, 3, 0.55, 0.72, 1.0, 4);
+    // The rings are soft bands seen at a tilt; a hairline circle facing the camera would read as a HUD marker.
+    const tilt = rand(0.4, 0.85), turn = rand(0, TAU);
+    const pull = fl.spawn(RING, x, y, z, T, 80, 3, 0.55, 0.72, 1.0, 1.6);
     pull.curve = RISE;
-    pull.param = 0.01;
+    pull.param = 0.03;
+    pull.aspect = tilt;
+    pull.rot = turn;
     for (let i = FOLD_SPARKS[f.quality]; i > 0; i--) {
       randDir(D);
       const d = rand(45, 80), v = -d / T;
@@ -84,9 +90,11 @@ export class Blasts {
     }
     fl.spawn(GLOW, x, y, z, 0.24, 22, 60, 0.8, 0.9, 1.0, 45).age = -T;
     fl.spawn(GLOW, x, y, z, 0.9, 14, 7, 0.4, 0.6, 1.0, 4).age = -T;
-    const wave = fl.spawn(RING, x, y, z, 0.55, 6, 120, 0.6, 0.78, 1.0, 1.6);
+    const wave = fl.spawn(RING, x, y, z, 0.45, 6, 110, 0.6, 0.78, 1.0, 0.5);
     wave.age = -T;
-    wave.param = 0.005;
+    wave.param = 0.025;
+    wave.aspect = tilt;
+    wave.rot = turn;
   }
 
   /** Another ship entering or leaving cruise: a short streak along its heading and a small flash. */
@@ -102,12 +110,12 @@ export class Blasts {
       const a = hash01(ev.id) * TAU, e = hash01(ev.id + 77) - 0.5;
       D[0] = Math.cos(a) * Math.cos(e); D[1] = Math.sin(e); D[2] = Math.sin(a) * Math.cos(e);
     }
-    const L = 650;
+    const L = 420;
     if (ev.on) {
-      this.weapons.streak(x, y, z, x + D[0] * L, y + D[1] * L, z + D[2] * L, 0.22, 170, 0.35, 0.2, 0.5, 3.9, 4.8, 6, 0);
+      this.weapons.streak(x, y, z, x + D[0] * L, y + D[1] * L, z + D[2] * L, 0.2, 130, 0.3, 0.16, 0.5, 3.9, 4.8, 6, 0);
       this.flashes.spawn(GLOW, x, y, z, 0.14, 4, 11, 0.65, 0.8, 1.0, 7);
     } else {
-      this.weapons.streak(x - D[0] * L, y - D[1] * L, z - D[2] * L, x, y, z, 0.22, 170, 0.35, 0.2, 0.5, 3.9, 4.8, 6, 0);
+      this.weapons.streak(x - D[0] * L, y - D[1] * L, z - D[2] * L, x, y, z, 0.2, 130, 0.3, 0.16, 0.5, 3.9, 4.8, 6, 0);
       this.flashes.spawn(GLOW, x, y, z, 0.18, 5, 14, 0.65, 0.8, 1.0, 9).age = -0.2;
     }
   }

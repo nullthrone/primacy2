@@ -490,8 +490,8 @@ describe('law', () => {
     expect(attacker.p.rec.passport.stats.kills).toBe(1);
     expect(world.pilotView(attacker.p)).toMatchObject({ bounty: 5400, wanted: true });
     expect(world.pilotView(victim.p)).toMatchObject({ bounty: 0, wanted: false });
-    // The victim pays the insurance excess: 5 % of a stock Wisp worth 55 000 cr.
-    expect(victim.p.rec.credits).toBe(10_000 - 2_750);
+    // The deductible is charged when the victim respawns (insurance module), not at the kill.
+    expect(victim.p.rec.credits).toBe(10_000);
 
     // A bounty hunter may now destroy the attacker without penalty and collects.
     attacker.ship.input.buttons = 0;
@@ -599,9 +599,9 @@ describe('law', () => {
 });
 
 describe('destruction', () => {
-  it('drops up to half of the cargo as loot, in at most six pods', () => {
+  it('leaves a wreck holding the whole cargo instead of loose pods', () => {
     const sim = arena(port, 'lawless');
-    const loot = () => [...sim.objects.values()].filter((o) => o.kind === EntityKind.Loot);
+    const wrecks = () => [...sim.objects.values()].filter((o) => o.kind === EntityKind.Wreck);
     const hauler = place(sim, 'drover', port.site.id, OPEN);
     hauler.cargo = [
       { c: 'food', n: 10, origin: world.id },
@@ -611,27 +611,17 @@ describe('destruction', () => {
     run(1);
     sim.destroy(hauler, null);
     expect(hauler.gone).toBe(true);
-    const pods = loot();
-    expect(pods.map((o) => [o.info.c, o.info.n])).toEqual([['food', 5], ['alloys', 2]]);
-    for (const o of pods) {
-      expect(o.anchor).toBe(port.site.id);
-      expect(v3.len(o.vel)).toBeLessThanOrEqual(15);
-      expect(v3.dist(o.pos, OPEN)).toBeLessThan(50);
-    }
-    // The origin travels with the goods.
-    expect(pods[1]!.data).toMatchObject({ origins: [{ c: 'alloys', n: 2, origin: 'elsewhere' }] });
+    expect([...sim.objects.values()].filter((o) => o.kind === EntityKind.Loot)).toHaveLength(0);
+    expect(wrecks()).toHaveLength(1);
+    const data = wrecks()[0]!.data as { contents: { c: string; n: number; origin: string }[] };
+    expect(data.contents).toContainEqual({ c: 'food', n: 10, origin: world.id });
+    expect(data.contents).toContainEqual({ c: 'alloys', n: 5, origin: 'elsewhere' });
+    expect(data.contents.some((it) => it.c === 'not-a-commodity')).toBe(false);
 
-    sim.objects.clear();
-    const full = place(sim, 'drover', port.site.id, [OPEN[0], 2000, 0]);
-    full.cargo = ['food', 'water', 'alloys', 'polymers', 'ceramics', 'machinery', 'textiles', 'medicine'].map((id) => ({ c: id, n: 4, origin: world.id }));
-    sim.destroy(full, null);
-    expect(loot()).toHaveLength(6);
-    expect(loot().reduce((sum, o) => sum + (o.info.n ?? 0), 0)).toBeLessThanOrEqual(16);
-
-    // A pilot with empty pockets pays what they have, never more.
+    // Destruction takes no credits; the deductible is charged on respawn.
     const broke = pilot(sim, 'wisp', port.site.id, [OPEN[0], 4000, 0], 120);
     sim.destroy(broke.ship, null);
-    expect(broke.p.rec.credits).toBe(0);
+    expect(broke.p.rec.credits).toBe(120);
   });
 });
 

@@ -283,6 +283,7 @@ export const COMMODITIES: Record<string, CommodityDef> = table<CommodityDef>(
       { id: 'machinery', name: 'Machinery', category: 'industrial', price: 270 },
       { id: 'electronics', name: 'Electronics', category: 'industrial', price: 430 },
       { id: 'hull_plates', name: 'Hull Plates', category: 'industrial', price: 390 },
+      { id: 'scrap', name: 'Scrap Metal', category: 'industrial', price: 38 },
       { id: 'reactor_parts', name: 'Reactor Parts', category: 'industrial', price: 920 },
       { id: 'food', name: 'Food', category: 'consumer', price: 62 },
       { id: 'water', name: 'Water', category: 'consumer', price: 32 },
@@ -314,11 +315,11 @@ export const ECONOMIES: Record<EconomyType, EconomyDef> = {
   },
   refinery: {
     produces: { alloys: 40, polymers: 26, ceramics: 22, fuel_cells: 30 },
-    consumes: { iron_ore: 40, copper_ore: 20, titanium_ore: 12, silicates: 24, ice: 20, helium3: 8, food: 8 },
+    consumes: { iron_ore: 40, copper_ore: 20, titanium_ore: 12, silicates: 24, ice: 20, helium3: 8, food: 8, scrap: 14 },
   },
   industrial: {
     produces: { machinery: 24, hull_plates: 16, textiles: 6 },
-    consumes: { alloys: 30, polymers: 16, ceramics: 8, electronics: 5, food: 14, water: 10 },
+    consumes: { alloys: 30, polymers: 16, ceramics: 8, electronics: 5, food: 14, water: 10, scrap: 8 },
   },
   hightech: {
     produces: { electronics: 18, medicine: 10, reactor_parts: 5, fold_catalyst: 2 },

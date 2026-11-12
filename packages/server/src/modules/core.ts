@@ -203,10 +203,6 @@ export const coreModule: GameModule = {
       return ok();
     },
 
-    respawn(p, _cmd, world) {
-      return world.respawn(p) ? ok() : fail('You are not dead.');
-    },
-
     chat(p, cmd, world) {
       const text = cleanChat(cmd.text);
       if (!text) return fail('Empty message.');

@@ -9,10 +9,10 @@ from props import debriskit as DK
 from structures import skit as K
 
 KEY = 'debris_2'
-D, S2 = 'hull_dark', 'hull_secondary'
+D, S2 = 'hull_secondary', 'hull_primary'             # outside and machinery dark, liner and fittings light
 # bell wall (rho, z): outer skin from the throat to the exit, then the inner skin back down
 OUTER = [(0.24, 0.0), (0.36, 0.25), (0.52, 0.55), (0.66, 0.88), (0.76, 1.25)]
-INNER = [(0.72, 1.25), (0.62, 0.88), (0.48, 0.55), (0.32, 0.25), (0.20, 0.0)]
+INNER = [(0.71, 1.25), (0.61, 0.88), (0.47, 0.55), (0.31, 0.25), (0.19, 0.0)]
 ARC, SEGS = 255.0, 12
 
 
@@ -24,8 +24,8 @@ def build(export=True, preview=True, ao=True):
 
     # break the rim: every column of the exit ring is pulled back toward the ring below it by
     # its own amount, the columns at the two torn ends furthest
-    keep = [rng.uniform(0.2, 1.0) for _ in range(SEGS + 1)]
-    keep[0], keep[1], keep[-1], keep[-2] = 0.05, 0.4, 0.1, 0.5
+    keep = [rng.choice((0.0, 0.25, 0.55, 0.8, 1.0, 1.0)) for _ in range(SEGS + 1)]
+    keep[0], keep[1], keep[-1], keep[-2] = 0.0, 0.4, 0.05, 0.5
     tear = []
     for v in p.bm.verts:
         if v.co.z < 1.2:
@@ -33,7 +33,7 @@ def build(export=True, preview=True, ao=True):
         rho = math.hypot(v.co.x, v.co.y)
         ang = math.degrees(math.atan2(v.co.y, v.co.x)) % 360.0
         f = keep[int(round(ang / (ARC / SEGS)))]
-        below = 0.66 if rho > 0.74 else 0.62
+        below = 0.66 if rho > 0.74 else 0.61
         r2 = below + (rho - below) * f
         v.co.x, v.co.y, v.co.z = v.co.x * r2 / rho, v.co.y * r2 / rho, 0.88 + 0.37 * f
         if f < 0.75:
@@ -55,4 +55,4 @@ def build(export=True, preview=True, ao=True):
         p.tube(b, c, 0.05, segs=5, mat=S2)
         tear.append(c)
     m.add(p)
-    return DK.finish(m, tear, reach=0.5, direction=(0.2, -0.75, 0.62), export=export, preview=preview, ao=ao)
+    return DK.finish(m, tear, reach=0.36, direction=(-0.45, 0.65, 0.6), export=export, preview=preview, ao=ao)

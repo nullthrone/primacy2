@@ -43,7 +43,7 @@ def build(export=True, preview=True, ao=True):
                 tear.append(half)
         for j in range(4):                             # gusset blocks at the nodes
             if reaches(j, x):
-                p.box((x, *CORNERS[j]), (0.1, 0.1, 0.1), S2, chamfer=0.02)
+                p.box((x, *CORNERS[j]), (0.1, 0.1, 0.1), S2)
 
     for bay in range(3):                               # diagonal braces on the four faces
         x0, x1 = FRAMES[bay], FRAMES[bay + 1]
@@ -57,4 +57,4 @@ def build(export=True, preview=True, ao=True):
     p.tube((FRAMES[0], *CORNERS[0]), loose, 0.022, segs=4, mat=S2)
     tear.append(loose)
     m.add(p)
-    return DK.finish(m, tear, reach=0.4, export=export, preview=preview, ao=ao)
+    return DK.finish(m, tear, reach=0.32, export=export, preview=preview, ao=ao)
