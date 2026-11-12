@@ -6,7 +6,7 @@ import { hashString, Rng } from '../prng.ts';
 import { newShipState, simulateShip } from '../sim/ship.ts';
 import { isMassLocked, placeAtSite } from '../sim/transitions.ts';
 import { FlightMode, type ShipInput } from '../sim/types.ts';
-import { STRUCTURES } from '../structures.ts';
+import { collideStructure, GROUND_BASE_STRUCTURE, siteStructure, STRUCTURES } from '../structures.ts';
 import { generateSector, summarize, upsertGateSite } from './generate.ts';
 import { anchorState, bodyState, findSite, surfaceAnchor } from './orbits.ts';
 import { bodySurface, groundAltitude, nearestGroundSite } from './surface.ts';
@@ -49,11 +49,8 @@ for (let k = 0; k < 6; k++) MANY.push(...generateSector({ serverId: `baseserver$
 
 const basesOf = (sys: SystemDef): SiteDef[] => sys.sites.filter((s) => s.kind === 'base');
 const gravity = (b: BodyDef): number => (G * b.mass) / (b.radius * b.radius);
-/** Bodies a base may stand on: landable, light enough, and without a station or outpost in orbit. */
-function hostsOf(sys: SystemDef): BodyDef[] {
-  const served = new Set(sys.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost').map((s) => s.orbit.parent));
-  return sys.bodies.filter((b) => isLandable(b) && gravity(b) <= BASE_MAX_GRAVITY && !served.has(b.id));
-}
+/** Bodies a base may stand on: landable and light enough. */
+const hostsOf = (sys: SystemDef): BodyDef[] => sys.bodies.filter((b) => isLandable(b) && gravity(b) <= BASE_MAX_GRAVITY);
 const ALL_BASES: { sys: SystemDef; site: SiteDef }[] = MANY.flatMap((sys) => basesOf(sys).map((site) => ({ sys, site })));
 
 describe('what the generator made before ground bases', () => {
@@ -83,7 +80,7 @@ describe('what the generator made before ground bases', () => {
 });
 
 describe('ground bases', () => {
-  it('stand on landable bodies with at most 6 m/s^2 that have no station overhead', () => {
+  it('stand on landable bodies with at most 6 m/s^2', () => {
     expect(ALL_BASES.length).toBeGreaterThan(40);
     for (const { sys, site } of ALL_BASES) {
       const ground = site.ground!;
@@ -91,7 +88,6 @@ describe('ground bases', () => {
       const body = sys.bodies[ground.body]!;
       expect(isLandable(body)).toBe(true);
       expect(gravity(body)).toBeLessThanOrEqual(BASE_MAX_GRAVITY);
-      expect(sys.sites.some((s) => (s.kind === 'station' || s.kind === 'outpost') && s.orbit.parent === body.id)).toBe(false);
       // No orbit and no zone of its own; the parent names the body.
       expect(site.orbit).toEqual({ parent: body.id, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 });
       expect(site.frameRadius).toBe(0);
@@ -146,8 +142,7 @@ describe('ground bases', () => {
     let outfitters = 0;
     const economies = new Set<string>();
     for (const { sys, site } of ALL_BASES) {
-      expect(site.model).toBe('base_ground');
-      expect(site.radius).toBe(250);
+      expect(site.radius).toBe(GROUND_BASE_STRUCTURE.bound);
       for (const service of ['market', 'refuel', 'repair', 'missions'] as const) expect(site.services).toContain(service);
       expect(site.services).not.toContain('shipyard');
       expect(site.services!.length).toBe(site.services!.includes('outfit') ? 5 : 4);
@@ -161,7 +156,29 @@ describe('ground bases', () => {
     expect(economies.size).toBe(2);
     expect(outfitters).toBeGreaterThan(0.1 * ALL_BASES.length);
     expect(outfitters).toBeLessThan(0.6 * ALL_BASES.length);
-    const structure = STRUCTURES.base_ground!;
+  });
+
+  it('name no model that is not built: every model of a generated site is a structure the client can load', () => {
+    // The client loads the model of every entry of STRUCTURES at start and of every site that
+    // names one; a key without a file is an error on every page. The ground base has no model
+    // yet, so it is defined beside STRUCTURES and the bases name none.
+    const built = ['station_ring', 'station_outpost', 'gate', 'beacon'];
+    expect(Object.keys(STRUCTURES).sort()).toEqual([...built].sort());
+    for (const sys of MANY) {
+      for (const site of sys.sites) {
+        if (site.model !== undefined) expect(built, `${site.kind} ${site.name}`).toContain(site.model);
+        if (site.kind === 'base') expect(site.model).toBeUndefined();
+      }
+    }
+    const gate = upsertGateSite(
+      generateSector({ serverId: 'aaaaaaaaaaaaaaaa', seed: 'primacy', center: [0, 0, 0], radius: 18, count: 2 })[1]!,
+      { linkId: 'l', peer: 'peerpeerpeerpeer', remoteSystem: 'peerpeerpeerpeer:1', state: 'planned', progress: 0, remoteProgress: 0 }, [0, 0, 1],
+    );
+    expect(built).toContain(gate.model);
+  });
+
+  it('have their shape defined for the day the model is built', () => {
+    const structure = GROUND_BASE_STRUCTURE;
     expect(structure.model).toBe('base_ground');
     expect(structure.bound).toBe(250);
     // It stands on the ground: nothing of it below the pad, and well inside the flat part.
@@ -172,6 +189,15 @@ describe('ground bases', () => {
         expect(c.r).toBeLessThan(0.5 * BASE_PAD_RADIUS);
       }
     }
+    // The server finds the shape of any site through one function.
+    const base = ALL_BASES[0]!.site;
+    expect(siteStructure(base)).toBe(GROUND_BASE_STRUCTURE);
+    const station = MANY.flatMap((s) => s.sites).find((s) => s.kind === 'station')!;
+    expect(siteStructure(station)).toBe(STRUCTURES.station_ring);
+    expect(siteStructure(MANY.flatMap((s) => s.sites).find((s) => s.kind === 'belt')!)).toBeNull();
+    // A ship standing on the open pad is clear of the block; one over the middle is not.
+    expect(collideStructure(structure, [200, 3, 0], 9)).toBeNull();
+    expect(collideStructure(structure, [0, 45, 0], 9)).not.toBeNull();
   });
 
   it('are in the capital whenever it has a body to build on, in other inhabited systems by chance', () => {

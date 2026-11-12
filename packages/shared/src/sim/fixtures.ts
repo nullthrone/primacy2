@@ -177,7 +177,7 @@ export function landingSystem(): SystemDef {
     {
       id: LANDING_BASE, kind: 'base', name: 'Lander Ground',
       orbit: { parent: LANDING_PLANET, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 },
-      frameRadius: 0, seed: 22, model: 'base_ground', radius: 250,
+      frameRadius: 0, seed: 22, radius: 250,
       services: ['market', 'refuel', 'repair', 'missions'], economy: 'mining',
       ground: { body: LANDING_PLANET, pos: [dir[0] * r, dir[1] * r, dir[2] * r] },
     },

@@ -5,9 +5,10 @@
  * every shape here is rotationally symmetric about that axis, so a spinning ring needs no
  * special handling.
  *
- * A ground base stands at the centre of its pad with +Y up along the pad normal (the site's own
- * axes, see `groundSitePose`), y = 0 at the ground. Ships near it fly in the surface frame of the
- * body, so its colliders have to be moved into that frame before they are tested.
+ * A ground base (`GROUND_BASE_STRUCTURE`) stands at the centre of its pad with +Y up along the pad
+ * normal (the site's own axes, see `groundSitePose`), y = 0 at the ground. Ships near it fly in
+ * the surface frame of the body, so a ship's position has to be brought into the site's axes
+ * before `collideStructure` is asked.
  */
 import type { Vec3 } from './math.ts';
 
@@ -61,21 +62,36 @@ export const STRUCTURES: Record<string, StructureDef> = {
     spin: 0.2,
     colliders: [{ kind: 'sphere', y: 0, r: 12 }],
   },
-  /**
-   * Ground base: a low central block with a control tower, in the middle of the flattened pad.
-   * The model does not exist yet; these are the dimensions it is to be built to. The open pad
-   * around the block is where ships set down.
-   */
-  base_ground: {
-    model: 'base_ground',
-    bound: 250,
-    spin: 0,
-    colliders: [
-      { kind: 'cylinder', y0: 0, y1: 40, r: 90 },
-      { kind: 'cylinder', y0: 40, y1: 110, r: 14 },
-    ],
-  },
 };
+
+/**
+ * Ground base: a low central block with a control tower, in the middle of the flattened pad. The
+ * open pad around the block is where ships set down.
+ *
+ * The model `base_ground` does not exist yet; these are the dimensions it is to be built to. That
+ * is why this structure is not in `STRUCTURES` and why ground bases carry no `model` so far: the
+ * client loads the model of every entry of `STRUCTURES` when it starts and of every site that
+ * names one, and a missing file is an error there. When `models/base_ground.glb` exists, move this
+ * into `STRUCTURES` and give the bases their `model` in the generator.
+ */
+export const GROUND_BASE_STRUCTURE: StructureDef = {
+  model: 'base_ground',
+  bound: 250,
+  spin: 0,
+  colliders: [
+    { kind: 'cylinder', y0: 0, y1: 40, r: 90 },
+    { kind: 'cylinder', y0: 40, y1: 110, r: 14 },
+  ],
+};
+
+/**
+ * The built structure at a site, or null for a site without one (mining fields, anomalies): the
+ * entry of `STRUCTURES` its `model` names, and for a ground base `GROUND_BASE_STRUCTURE`.
+ */
+export function siteStructure(site: { kind: string; model?: string }): StructureDef | null {
+  if (site.kind === 'base') return GROUND_BASE_STRUCTURE;
+  return site.model !== undefined && Object.hasOwn(STRUCTURES, site.model) ? STRUCTURES[site.model]! : null;
+}
 
 export interface Contact {
   /** Unit vector pointing out of the structure at the contact. */

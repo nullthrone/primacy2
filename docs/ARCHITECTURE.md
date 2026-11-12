@@ -157,8 +157,10 @@ expressed in a frame that turns with the body.
   moving position, `groundSitePose` the position and orientation (up along the pad normal, nose
   north). Ships near a base fly in the surface frame; `placeAtSite` puts a ship over the pad.
   The generator builds them in inhabited systems on landable bodies with at most 6 m/s^2 of surface
-  gravity that have no station overhead, from a random stream of their own and after every other
-  site, so nothing that existed before them changed. `summarize` counts them as places to dock.
+  gravity, from a random stream of their own and after every other site, so nothing that existed
+  before them changed. `summarize` counts them as places to dock. Their shape is
+  `GROUND_BASE_STRUCTURE`; its model is not built yet, so it is not in `STRUCTURES` and bases name
+  no `model` (the client loads every model it is told of).
 
 ## 4. Federation
 

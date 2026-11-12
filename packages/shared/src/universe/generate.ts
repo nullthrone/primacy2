@@ -1175,7 +1175,7 @@ const BASE_CHANCE = 0.4;
 const BASE_SECOND_CHANCE = 0.25;
 /** Directions tried for the spot of a base; the most level one is taken. */
 const BASE_SPOT_CANDIDATES = 24;
-/** Radius of the bounding sphere of a ground base, metres (the `base_ground` structure). */
+/** Radius of the bounding sphere of a ground base, metres (`GROUND_BASE_STRUCTURE.bound`). */
 const BASE_RADIUS = 250;
 
 /**
@@ -1196,17 +1196,16 @@ function baseSpotGrade(params: ReturnType<typeof terrainParams>, dir: Readonly<V
  * of their own, so every body, belt and orbital site of the system is exactly what it would be
  * without them.
  *
- * A base stands on a landable body with a surface gravity of at most BASE_MAX_GRAVITY that has no
- * station or outpost in orbit (such a world is served from above). Only inhabited systems have
- * bases, so a system's faction and its count of stations and outposts mean what they did before.
- * The capital has one whenever it has a body to build on; other systems by chance. The spot is
- * the most level of BASE_SPOT_CANDIDATES random directions.
+ * A base stands on a landable body with a surface gravity of at most BASE_MAX_GRAVITY. Only
+ * inhabited systems have bases, so a system's faction and whether it has anywhere to dock mean
+ * what they did before. The capital has one whenever it has a body to build on; other systems by
+ * chance. The spot is the most level of BASE_SPOT_CANDIDATES random directions.
+ *
+ * A base has no `model` yet: `base_ground` is not built (see `GROUND_BASE_STRUCTURE`).
  */
 function buildBases(rng: Rng, sys: { index: number; bodies: readonly BodyDef[]; belts: readonly BeltDef[]; faction?: string }, sites: SiteDef[]): void {
   if (sys.faction === undefined) return;
-  const served = new Set<number>();
-  for (const site of sites) if (site.kind === 'station' || site.kind === 'outpost') served.add(site.orbit.parent);
-  const hosts = sys.bodies.filter((b) => isLandable(b) && !served.has(b.id) && (G * b.mass) / (b.radius * b.radius) <= BASE_MAX_GRAVITY);
+  const hosts = sys.bodies.filter((b) => isLandable(b) && (G * b.mass) / (b.radius * b.radius) <= BASE_MAX_GRAVITY);
   if (hosts.length === 0) return;
   let count = sys.index === 0 || rng.chance(BASE_CHANCE) ? 1 : 0;
   if (count > 0 && rng.chance(BASE_SECOND_CHANCE)) count = 2;
@@ -1241,7 +1240,6 @@ function buildBases(rng: Rng, sys: { index: number; bodies: readonly BodyDef[]; 
       orbit: { parent: host.id, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 },
       frameRadius: 0,
       seed: rng.u32(),
-      model: 'base_ground',
       radius: BASE_RADIUS,
       services,
       economy: rng.chance(0.6) ? 'mining' : 'outpost',
