@@ -69,7 +69,8 @@ export const combatModule: GameModule = {
   },
 
   onPlayerEnterSystem(p, sim) {
-    refreshWanted(p, sim.time);
+    // A simulation that has not ticked yet has no time of its own: ask the world.
+    refreshWanted(p, sim.world.time());
   },
 
   onShipDestroyed(sim, ship, by) {
@@ -88,6 +89,6 @@ export const combatModule: GameModule = {
   pilotView(p, view) {
     const law = lawOf(p);
     view.bounty = law.bounty;
-    view.wanted = p.sim ? law.wantedUntil > p.sim.time : (p.ship?.wanted ?? false);
+    view.wanted = p.sim ? law.wantedUntil > p.sim.world.time() : (p.ship?.wanted ?? false);
   },
 };

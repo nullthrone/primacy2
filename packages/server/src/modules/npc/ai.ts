@@ -25,6 +25,8 @@ export const THINK_EVERY = 5;
 const MAX_AIM_STEP = 0.08;
 /** Hostiles are noticed within this distance, metres. */
 const ACQUIRE_RANGE = 8_000;
+/** Pirates turn on a patrol that comes this close, metres. */
+const PATROL_ALERT_RANGE = 4_000;
 /** NPCs do not stray farther than this from the centre of their site, metres. */
 const LEASH = 15_000;
 /** Weapons are held on the trigger while the target is this close to the nose. */
@@ -63,6 +65,9 @@ export class NpcBrain {
   avoiding = false;
   /** The ship has run away and should be taken out of the simulation. */
   leave = false;
+  /** Universe time until which the trigger may be held, and until which it then rests. */
+  fireUntil = 0;
+  restUntil = 0;
   /** Reach of the primary and secondary weapons, metres; 0 without any. */
   readonly range1: number;
   readonly range2: number;
@@ -121,14 +126,18 @@ function pickTarget(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): Ship | 
   let bestScore = Infinity;
   for (const o of sim.shipsInZone(ship.state.anchor)) {
     if (o === ship || o.gone || o.state.mode !== FlightMode.Normal) continue;
+    const d = v3.dist(o.state.pos, pos);
+    if (d > ACQUIRE_RANGE) continue;
     let bias = 0;
     if (o.id === ship.lastHitBy && t - ship.lastHitAt < ALARM_SECONDS) bias = -4_000;
     else if (b.role === 'pirate') {
       if (o.player) bias = o.cargo.length > 0 ? -3_000 : -500;
-      else if (o.npc !== 'trader') continue;
+      // A patrol that comes close is fought rather than waited for; prey is still preferred.
+      else if (o.npc === 'security') {
+        if (d > PATROL_ALERT_RANGE) continue;
+        bias = 500;
+      } else if (o.npc !== 'trader') continue;
     } else if (!(o.wanted || o.npc === 'pirate')) continue;
-    const d = v3.dist(o.state.pos, pos);
-    if (d > ACQUIRE_RANGE) continue;
     // Stay on the current target unless another is clearly the better choice.
     const score = d + bias - (o.id === ship.target ? 1_500 : 0);
     if (score < bestScore) {
@@ -243,6 +252,11 @@ export function think(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): void 
     const standoff = Math.max(reach + 250, b.range1 * 0.25);
     // Close in fast, hold the range, and back off before ramming.
     speed = dist > standoff * 2 ? 1 : dist > standoff ? 0.5 : dist > reach + 120 ? 0.1 : -0.4;
+    // Fire in bursts with pauses: sustained perfect fire would end every fight in two seconds.
+    if (t >= b.restUntil) {
+      b.fireUntil = t + rng.range(0.8, 1.6);
+      b.restUntil = b.fireUntil + rng.range(0.7, 1.6);
+    }
   } else {
     if (b.mode !== 'evade') ship.target = null;
     if (b.mode === 'wander') {
@@ -261,8 +275,8 @@ export function think(sim: SystemSim, ship: Ship, b: NpcBrain, t: number): void 
       b.goal = to;
       b.hasGoal = false;
       speed = 1;
+      buttons |= Button.Boost;
       if (b.mode === 'flee') {
-        buttons |= Button.Boost;
         // A beaten ship that got away leaves the area.
         if (v3.lenSq(s.pos) > (LEASH - 1_500) ** 2 && t - ship.lastHitAt > ALARM_SECONDS) b.leave = true;
       }
@@ -312,7 +326,7 @@ export function steer(sim: SystemSim, ship: Ship, b: NpcBrain): void {
         const toN = v3.scale(to, 1 / dist);
         // Track the target every tick; decisions are too coarse for gunnery.
         if (!b.avoiding) dir = toN;
-        if (v3.dot(forwardOf(s.rot), toN) >= COS_FIRE) {
+        if (sim.time < b.fireUntil && v3.dot(forwardOf(s.rot), toN) >= COS_FIRE) {
           if (dist <= b.range1) buttons |= Button.Fire1;
           if (dist <= b.range2) buttons |= Button.Fire2;
         }

@@ -43,7 +43,7 @@ def build(export=True, preview=True, ao=True):
             p.inset(fs, 0.3, 0.16, rim=olive)
     g.ribbon(-13.4, 15.4, 4.0, 0.16, lift=0.1)
     g.windows(-5.0, 1.0, -12.0, 5, 0.7, 0.3, lift=0.1)
-    kit.turret(p, (0.0, 4.0, 3.0), r=1.55, h=0.9, blen=4.6, mat=gm, segs=16)
+    kit.turret(p, (0.0, 4.0, 3.0), r=1.55, h=0.9, blen=2.8, mat=gm, segs=16)
     for sx in (-8.0, 8.0):
         kit.turret(p, (sx, 6.0, 0.5), r=0.95, h=0.9, blen=2.9, mat=gm)
     for sx in (-4.0, 4.0):  # semi-recessed ventral cannons

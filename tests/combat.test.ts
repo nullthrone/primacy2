@@ -26,6 +26,8 @@ import {
 } from '@primacy2/shared';
 import { Player, newShip, type GameModule, type PlayerRecord, type PrimacyServer, type Ship, type SystemSim, type World } from '@primacy2/server';
 import { Cluster } from './harness.ts';
+import { pendingImpacts } from '../packages/server/src/modules/combat/weapons.ts';
+import { spawnNpc } from '../packages/server/src/modules/npc.ts';
 
 const c = new Cluster();
 let S: PrimacyServer;
@@ -311,6 +313,70 @@ describe('weapons', () => {
     expect(target.state.hull).toBeCloseTo(target.stats.hullMax - 4, 6);
   });
 
+  it('a beam burns continuously and a cannon shell arrives after its flight time', () => {
+    const sim = arena(port, 'lawless');
+    const evs = eventsOf(sim);
+    // Beam Laser I: 62 damage per second, x1.35 against shields.
+    const fit = starterLoadout('wisp');
+    fit.modules[0] = 'beam_1';
+    fit.modules[1] = null;
+    const beamer = place(sim, fit, port.site.id, OPEN);
+    expect(beamer.stats.weapons.map((w) => w.kind)).toEqual(['beam']);
+    beamer.stats = { ...beamer.stats, energyMax: 1000, energyRegen: 0, heatCap: 1000 };
+    beamer.state.energy = 1000;
+    const target = place(sim, 'bulwark', port.site.id, ahead(OPEN, 600));
+    const full = target.stats.shieldMax;
+    beamer.target = target.id;
+    beamer.input.buttons = Button.Fire1;
+    run(30);
+    beamer.input.buttons = 0;
+    expect(full - target.state.shield).toBeCloseTo(62 * 1.35, 3);
+    // One second of beam costs 15 energy.
+    expect(beamer.state.energy).toBeCloseTo(1000 - 15, 6);
+    // One second of beam is reported as five shots and five hits, not thirty.
+    expect(shots(evs, beamer.id)).toHaveLength(5);
+    expect(hits(evs, target.id)).toHaveLength(5);
+
+    // Autocannon I: 24 damage at 1900 m/s, x0.65 against shields. The target drifts sideways.
+    sim.removeShip(beamer);
+    evs.length = 0;
+    const gunner = place(sim, 'lancet', port.site.id, [OPEN[0], 3000, 0]);
+    const drifter = place(sim, 'bulwark', port.site.id, [OPEN[0], 3000, -1900]);
+    drifter.input.buttons = Button.FaOff;
+    drifter.state.vel = [40, 0, 0];
+    gunner.target = drifter.id;
+    run(1);
+    const xAtShot = drifter.state.pos[0] + 40 * DT;
+    gunner.input.buttons = Button.Fire2;
+    run(1);
+    gunner.input.buttons = 0;
+    const shell = shots(evs, gunner.id);
+    expect(shell).toHaveLength(1);
+    expect(shell[0]).toMatchObject({ w: 'cannon_1', to: drifter.id });
+    // The shell is aimed ahead of the target: about one second of drift.
+    expect(shell[0]!.at[0] - xAtShot).toBeGreaterThan(25);
+    expect(shell[0]!.at[0] - xAtShot).toBeLessThan(55);
+    expect(pendingImpacts(sim)).toBe(1);
+    run(24);
+    expect(hits(evs, drifter.id)).toHaveLength(0);
+    expect(drifter.state.shield).toBe(drifter.stats.shieldMax);
+    run(10);
+    expect(hits(evs, drifter.id)).toHaveLength(1);
+    expect(drifter.stats.shieldMax - drifter.state.shield).toBeCloseTo(24 * 0.65, 6);
+    expect(pendingImpacts(sim)).toBe(0);
+
+    // A target that is no longer where the shell was sent is missed.
+    evs.length = 0;
+    gunner.input.buttons = Button.Fire2;
+    run(1);
+    gunner.input.buttons = 0;
+    expect(shots(evs, gunner.id)).toHaveLength(1);
+    drifter.state.pos[1] += 200;
+    run(40);
+    expect(hits(evs, drifter.id)).toHaveLength(0);
+    expect(pendingImpacts(sim)).toBe(0);
+  });
+
   it('a missile homes on a slow target and expires when it finds nothing', () => {
     const sim = arena(port, 'lawless');
     const evs = eventsOf(sim);
@@ -444,6 +510,28 @@ describe('law', () => {
     expect(attacker.p.rec.credits).toBe(10_000 - 2_750);
   });
 
+  it('destroying a pirate is no crime anywhere and pays its bounty', () => {
+    const sim = arena(port, 'secure');
+    const hunter = pilot(sim, 'lancet', port.site.id, OPEN);
+    // The NPC module is switched off here, so the pirate just sits there.
+    const pirate = spawnNpc(sim, port.site.id, 'pirate', ahead(OPEN, 700));
+    const bounty = (pirate.brain as { bounty: number }).bounty;
+    expect(bounty).toBeGreaterThanOrEqual(300);
+    expect(pirate.wanted).toBe(true);
+    hunter.ship.target = pirate.id;
+    hunter.ship.input.buttons = Button.Fire1;
+    run(5);
+    expect(pirate.lastHitBy).toBe(hunter.ship.id);
+    weaken(pirate);
+    run(10);
+    expect(pirate.gone).toBe(true);
+    expect(hunter.p.rec.credits).toBe(10_000 + bounty);
+    expect(hunter.p.rec.passport.stats.kills).toBe(1);
+    expect(hunter.ship.wanted).toBe(false);
+    expect(world.pilotView(hunter.p)).toMatchObject({ bounty: 0, wanted: false, credits: 10_000 + bounty });
+    expect(hunter.notices.some((n) => n.code === 'bounty_paid')).toBe(true);
+  });
+
   it('the wanted status lapses after ten minutes', () => {
     const sim = arena(port, 'secure');
     const victim = place(sim, 'bulwark', port.site.id, ahead(OPEN, 600));
@@ -544,5 +632,177 @@ describe('destruction', () => {
     const broke = pilot(sim, 'wisp', port.site.id, [OPEN[0], 4000, 0], 120);
     sim.destroy(broke.ship, null);
     expect(broke.p.rec.credits).toBe(0);
+  });
+});
+
+/** Far beyond sensor and weapon reach of anything near the centre of a site. */
+const FAR: Vec3 = [0, 60_000, 0];
+
+/**
+ * The simulation of a system at a given security level, with a pilot parked far from the action:
+ * the world drops simulations that have had no pilot for a while.
+ */
+function arena(where: { def: SystemDef; site: SiteDef }, level: Security): SystemSim {
+  const sim = world.sim(where.def.id);
+  setSecurity(sim, level);
+  pilot(sim, 'wisp', where.site.id, FAR);
+  return sim;
+}
+
+describe('npcs', () => {
+  beforeAll(() => {
+    world.modules.splice(npcIndex, 0, npcModule);
+  });
+
+  afterAll(() => {
+    world.modules.splice(world.modules.indexOf(npcModule), 1);
+  });
+
+  const npcsIn = (sim: SystemSim, zone?: number): Ship[] =>
+    [...sim.ships.values()].filter((s) => s.npc !== null && (zone === undefined || s.state.anchor === zone));
+  const populated = (s: SiteDef) => ['station', 'outpost', 'belt', 'ring', 'anomaly'].includes(s.kind);
+
+  it('appear only where a pilot is and leave a minute after the pilot has gone', () => {
+    const sim = world.sim(field.def.id);
+    setSecurity(sim, 'frontier');
+    const others = field.def.sites.filter((s) => s.id !== field.site.id);
+    const other = others.find(populated) ?? others[0];
+    expect(other, 'the system has a second site').toBeTruthy();
+    const me = pilot(sim, 'wisp', field.site.id, FAR);
+    run(10 * 30);
+    // A frontier field holds two miners and two pirates.
+    const here = npcsIn(sim, field.site.id);
+    expect(here.map((s) => s.npc).sort()).toEqual(['miner', 'miner', 'pirate', 'pirate']);
+    expect(npcsIn(sim)).toHaveLength(4);
+    for (const ship of here) {
+      expect(v3.len(ship.state.pos)).toBeGreaterThan(1_000);
+      expect(v3.len(ship.state.pos)).toBeLessThan(16_000);
+      expect(ship.faction).toBeTruthy();
+      if (ship.npc === 'miner') {
+        expect(ship.stats.hull).toBe('delver');
+        expect(ship.cargo.length).toBeGreaterThan(0);
+        expect(ship.wanted).toBe(false);
+      } else {
+        expect(['wisp', 'lancet']).toContain(ship.stats.hull);
+        expect(ship.wanted).toBe(true);
+        expect((ship.brain as { bounty: number }).bounty).toBeGreaterThan(0);
+      }
+    }
+
+    // The pilot moves to another site: traffic appears there and the field empties after a minute.
+    me.ship.state.anchor = other!.id;
+    run(30 * 30);
+    expect(npcsIn(sim, field.site.id)).toHaveLength(4);
+    if (populated(other!)) expect(npcsIn(sim, other!.id).length).toBeGreaterThan(0);
+    run(32 * 30);
+    expect(npcsIn(sim, field.site.id)).toHaveLength(0);
+    expect(npcsIn(sim).every((s) => s.state.anchor === other!.id)).toBe(true);
+    expect(world.sims.get(field.def.id)).toBe(sim);
+  });
+
+  it('respect the caps of 8 per zone and 24 per system, and fly cheaply', () => {
+    const sim = world.sim(port.def.id);
+    setSecurity(sim, 'secure');
+    const zone = port.site.id;
+    pilot(sim, 'wisp', zone, FAR);
+    // A secure station wants three traders and two patrols, but the zone is already full.
+    for (let i = 0; i < 8; i++) spawnNpc(sim, zone, 'miner');
+    let spent = 0;
+    const preStep = npcModule.preStep!;
+    npcModule.preStep = (s, t, dt) => {
+      const start = performance.now();
+      preStep(s, t, dt);
+      spent += performance.now() - start;
+    };
+    try {
+      run(10 * 30);
+    } finally {
+      npcModule.preStep = preStep;
+    }
+    expect(npcsIn(sim, zone)).toHaveLength(8);
+    expect(npcsIn(sim).every((s) => s.npc === 'miner')).toBe(true);
+    // Eight NPCs must cost well under half a millisecond per tick.
+    expect(spent / 300).toBeLessThan(0.1);
+
+    // With 24 NPCs in the system nothing more is added, even in a zone that has none.
+    const second = port.def.sites.find((s) => s.id !== zone && populated(s));
+    expect(second, 'the system has a second populated site').toBeTruthy();
+    for (let i = 0; i < 16; i++) spawnNpc(sim, zone, 'miner');
+    pilot(sim, 'wisp', second!.id, FAR);
+    run(5 * 30);
+    expect(npcsIn(sim)).toHaveLength(24);
+    expect(npcsIn(sim, second!.id)).toHaveLength(0);
+
+    // Slots come free: the second zone fills, and neither cap is ever exceeded.
+    for (const ship of npcsIn(sim, zone).slice(0, 14)) sim.removeShip(ship);
+    run(10 * 30);
+    expect(npcsIn(sim, second!.id).length).toBeGreaterThan(0);
+    expect(npcsIn(sim, second!.id).length).toBeLessThanOrEqual(8);
+    expect(npcsIn(sim, zone)).toHaveLength(10);
+    expect(npcsIn(sim).length).toBeLessThanOrEqual(24);
+  });
+
+  it('pirates hunt a laden pilot and traders run from an attacker', () => {
+    const sim = world.sim(port.def.id);
+    setSecurity(sim, 'lawless');
+    const evs = eventsOf(sim);
+    const zone = port.site.id;
+    const me = pilot(sim, 'drover', zone, [7_000, 0, 0]);
+    me.p.addCargo('food', 10, world.id);
+    harden(me.ship);
+    const pirate = spawnNpc(sim, zone, 'pirate', [7_000, 0, -2_500]);
+    run(30 * 30);
+    expect(pirate.target).toBe(me.ship.id);
+    expect(hits(evs, me.ship.id).some((h) => h.by === pirate.id)).toBe(true);
+    expect(v3.dist(pirate.state.pos, me.ship.state.pos)).toBeLessThan(2_500);
+
+    // The pilot shoots a passing trader: it turns tail and opens the distance.
+    for (const ship of npcsIn(sim)) sim.removeShip(ship);
+    const trader = spawnNpc(sim, zone, 'trader', [7_000, 0, -900]);
+    harden(trader);
+    me.ship.target = trader.id;
+    me.ship.input.buttons = Button.Fire1;
+    run(15);
+    me.ship.input.buttons = 0;
+    expect(trader.lastHitBy).toBe(me.ship.id);
+    run(15 * 30);
+    expect(v3.dist(trader.state.pos, me.ship.state.pos)).toBeGreaterThan(2_000);
+  });
+
+  it('a pirate and a patrol fight for 90 seconds without the simulation going wrong', () => {
+    const sim = world.sim(port.def.id);
+    setSecurity(sim, 'frontier');
+    const evs = eventsOf(sim);
+    const zone = port.site.id;
+    pilot(sim, 'wisp', zone, FAR);
+    const pirate = spawnNpc(sim, zone, 'pirate', [6_000, 0, 0]);
+    const patrol = spawnNpc(sim, zone, 'security', [6_000, 0, -2_500]);
+    const duelists = new Set([pirate.id, patrol.id]);
+    let fastest = 0;
+    let closest = Infinity;
+    for (let i = 0; i < 90 * 30; i++) {
+      run(1);
+      for (const ship of sim.ships.values()) {
+        const s = ship.state;
+        if (!v3.isFinite(s.pos) || !v3.isFinite(s.vel) || !quat.isFinite(s.rot) || !Number.isFinite(s.hull + s.shield + s.energy + s.heat)) {
+          throw new Error(`${ship.name} has a non-finite state at tick ${i}`);
+        }
+        fastest = Math.max(fastest, v3.len(s.vel));
+        if (ship.npc) closest = Math.min(closest, v3.len(s.pos));
+      }
+    }
+    // Nothing outruns a boosting fighter, and nobody flew into the station.
+    expect(fastest).toBeLessThan(500);
+    expect(closest).toBeGreaterThan(800);
+    // It was a real fight: both sides fired and landed hits on each other.
+    const fired = (id: number) => evs.filter((e) => e.e === 'shot' && e.from === id).length;
+    const landed = (by: number, on: number) => evs.filter((e) => e.e === 'hit' && e.by === by && e.id === on).length;
+    expect(fired(pirate.id)).toBeGreaterThan(10);
+    expect(fired(patrol.id)).toBeGreaterThan(10);
+    expect(landed(pirate.id, patrol.id)).toBeGreaterThan(3);
+    expect(landed(patrol.id, pirate.id)).toBeGreaterThan(3);
+    expect(duelists.size).toBe(2);
+    for (const ship of npcsIn(sim)) expect(v3.len(ship.state.pos)).toBeLessThan(20_000);
+    expect(world.sims.get(port.def.id)).toBe(sim);
   });
 });
