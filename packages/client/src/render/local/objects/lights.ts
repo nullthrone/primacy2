@@ -6,8 +6,8 @@
 import { AmbientLight, DirectionalLight, PCFShadowMap, type Object3D, type WebGLRenderer } from 'three';
 import type { Lighting } from '../../../contracts.ts';
 
-/** Scene-referred gain of the ambient level; kept low so shadows stay close to black. */
-const AMBIENT_GAIN = 0.35;
+/** Scene-referred gain of the ambient level: low, so shadows stay near black but keep their shape. */
+const AMBIENT_GAIN = 1;
 
 export class SunRig {
   readonly sun = new DirectionalLight(0xffffff, 1);
@@ -17,7 +17,8 @@ export class SunRig {
   private depth = 0;
   private fade = 1;
 
-  constructor(parent: Object3D) {
+  /** `fill` is ambient light of the place itself, such as the glow of a cockpit's instruments. */
+  constructor(parent: Object3D, private readonly fill = 0) {
     parent.add(this.sun, this.sun.target, this.ambient);
     this.sun.shadow.radius = 1;
     this.sun.shadow.camera.near = 0;
@@ -37,7 +38,7 @@ export class SunRig {
     const sun = this.sun;
     sun.color.setRGB(light.sunColor[0], light.sunColor[1], light.sunColor[2]);
     sun.intensity = light.sunIntensity;
-    this.ambient.intensity = light.ambient * AMBIENT_GAIN;
+    this.ambient.intensity = light.ambient * AMBIENT_GAIN + this.fill;
 
     const d = light.sunDir;
     sun.target.position.set(fx, fy, fz);

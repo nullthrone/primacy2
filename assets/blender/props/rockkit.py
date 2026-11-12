@@ -67,14 +67,15 @@ class Lobe:
         if depth > 0.86:
             c *= 0.86 / depth
         self.c = c
-        self.planes = []                                             # (unit normal n, h): keeps n.x <= h
+        self.planes = []                              # (unit normal n, h, fresh): keeps n.x <= h
 
-    def plane(self, n, depth):
-        """Fracture plane with normal n at `depth` times the lobe's reach in that direction."""
+    def plane(self, n, depth, fresh=None):
+        """Fracture plane with normal n at `depth` times the lobe's reach in that direction.
+        fresh (0..1) is how recently it broke, which is how light it is; random when None."""
         n = np.array(n, dtype=np.float64)
         n /= np.linalg.norm(n)
         reach = float(n @ self.c + np.linalg.norm(self.A.T @ n))
-        self.planes.append((n, max(reach * depth, 0.05)))
+        self.planes.append((n, max(reach * depth, 0.05), fresh))
         return self
 
     def chip(self, rng, count, depth=(0.78, 0.95), bias=None):
@@ -87,9 +88,9 @@ class Lobe:
             self.plane(n, rng.uniform(*depth))
         return self
 
-    def exit(self, D):
-        """Along each unit direction in D: distance to the ellipsoid skin and to the nearest
-        fracture plane (infinite where no plane is hit)."""
+    def exit(self, D, rng):
+        """Along each unit direction in D: distance to the ellipsoid skin, distance to the nearest
+        fracture plane (infinite where no plane is hit) and that plane's freshness."""
         U = D @ self.Ainv.T
         w = self.Ainv @ self.c
         a = (U * U).sum(axis=1)
@@ -97,10 +98,14 @@ class Lobe:
         c = float(w @ w) - 1.0
         skin = (-b + np.sqrt(np.maximum(b * b - 4.0 * a * c, 0.0))) / (2.0 * a)
         cut = np.full(len(D), np.inf)
-        for n, h in self.planes:
+        age = np.zeros(len(D))
+        for n, h, fresh in self.planes:
             nd = D @ n
-            cut = np.minimum(cut, np.where(nd > 1e-6, h / np.maximum(nd, 1e-6), np.inf))
-        return skin, cut
+            tp = np.where(nd > 1e-6, h / np.maximum(nd, 1e-6), np.inf)
+            nearer = tp < cut
+            cut = np.where(nearer, tp, cut)
+            age = np.where(nearer, rng.uniform(0.1, 0.95) if fresh is None else fresh, age)
+        return skin, cut, age
 
 
 def _smooth(t):
@@ -181,7 +186,7 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
     D = np.array([v.co.normalized()[:] for v in dv], dtype=np.float64)
     n = len(D)
 
-    exits = [lb.exit(D) for lb in lobes]
+    exits = [lb.exit(D, rng) for lb in lobes]
     skin = np.max([e[0] for e in exits], axis=0)
 
     # relief and the noise fields of the tint, sampled on the smooth skin
@@ -199,12 +204,14 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
     # rough lobes, each cut by its own fracture planes, then the union
     r = np.zeros(n)
     flat = np.zeros(n, dtype=bool)
-    for sk, cut in exits:
+    fresh = np.zeros(n)
+    for sk, cut, age in exits:
         rough_r = sk + relief
         rl = np.minimum(rough_r, cut)
         win = rl > r
         r = np.where(win, rl, r)
         flat = np.where(win, cut < rough_r, flat)
+        fresh = np.where(win, np.where(cut < rough_r, age, 0.0), fresh)
     r = np.where(flat, r + flat_relief * relief, r)   # fracture faces are nearly, not perfectly, flat
     layer = _smooth((band + 0.35) / 0.7)              # 1 on the mineral bands, 0 between them
     r = r + strata * (layer - 0.5)
@@ -235,9 +242,9 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
     # albedo tint on the dense vertices
     rough_ground = ~flat
     col = _mix(np.tile(np.array(tn['a']), (n, 1)), tn['b'], _smooth(0.5 + 1.6 * tone))
-    col = _mix(col, tn['dust'], 0.7 * np.clip(-relief / (amp * 0.5 + 1e-6), 0.0, 1.0) * rough_ground)
+    col = _mix(col, tn['dust'], 0.7 * np.clip(-relief / (amp * 0.5 + 1e-6), 0.0, 1.0) * np.where(flat, 0.35, 1.0))
     col *= (1.0 + 0.10 * np.clip(relief / (amp * 0.6 + 1e-6), 0.0, 1.0) * rough_ground)[:, None]
-    col = _mix(col, tn['fresh'], np.where(flat, 0.8, 0.0))
+    col = _mix(col, tn['fresh'], fresh)
     col = _mix(col, tn['band'], layer * tn['band_amount'])       # bands show on fresh faces too
     col = _mix(col, tn['dust'], 0.8 * floor)
     col = _mix(col, tn['fresh'], 0.55 * rim * (1.0 - floor))

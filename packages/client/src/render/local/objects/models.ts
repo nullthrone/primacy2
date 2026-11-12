@@ -93,14 +93,16 @@ const SOOT = new Color(0.035, 0.03, 0.027);
  * as mostly paint; lamps get a dark housing, so one that is switched off does not shine in
  * sunlight; and the accent strips are taken down from signage to running lights.
  */
-function tune(m: MeshStandardMaterial): void {
+function tune(m: MeshStandardMaterial, cockpit: boolean): void {
   const n = m.name;
   if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) m.metalness *= 0.4;
   else if (n.startsWith('hull_secondary')) m.metalness *= 0.6;
   else if (n.startsWith('emissive')) {
     m.color.multiplyScalar(n === 'emissive_engine' ? 0.03 : 0.12);
     if (n === 'emissive_accent') m.emissiveIntensity *= 0.5;
-    if (n === 'emissive_engine') m.emissiveIntensity *= 0.45;
+    if (n === 'emissive_engine') m.emissiveIntensity *= 0.22;
+    // Instrument lighting fills half the pilot's view; it must not outshine what is outside.
+    if (cockpit) m.emissiveIntensity *= 0.45;
   }
 }
 
@@ -178,7 +180,7 @@ export class ModelLibrary {
       if (mesh.isMesh) {
         const mat = mesh.material as MeshStandardMaterial;
         this.geometries.add(mesh.geometry);
-        if (mat.isMeshStandardMaterial && !this.materials.has(mat)) tune(this.materials.add(mat));
+        if (mat.isMeshStandardMaterial && !this.materials.has(mat)) tune(this.materials.add(mat), key.startsWith('cockpit'));
         const emissive = isEmissive(mat);
         mesh.castShadow = !emissive && mat.name !== 'portal';
         mesh.receiveShadow = !emissive && mat.name !== 'portal';

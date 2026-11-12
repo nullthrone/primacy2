@@ -96,7 +96,7 @@ void main() {
     float q = dot(vUv, vUv);
     if (q > 1.0) discard;
     float g = exp(-q * 9.0) + 0.12 * exp(-q * 2.5);
-    col = mix(cool, hot, exp(-q * 14.0)) * g * (1.0 - q) * level * 0.7;
+    col = mix(cool, hot, exp(-q * 14.0)) * g * (1.0 - q) * level * 0.5;
   }
   gl_FragColor = vec4(col, 1.0);
 }`;

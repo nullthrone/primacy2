@@ -35,6 +35,8 @@ interface Round {
   after: number; afterGain: number;
   w: number;
   r: number; g: number; b: number;
+  /** Radius of the glare carried at the head of the bolt, 0 for none. */
+  glare: number;
 }
 
 const WEAPON = 0, MINE = 1, TORCH = 2;
@@ -66,7 +68,7 @@ const SPARK_RATE = [0.4, 0.7, 1] as const;
 
 export class Weapons {
   private readonly rounds = new Pool<Round>(192, () => ({
-    ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, age: 0, flight: 0, len: 0, after: 0, afterGain: 0, w: 0.3, r: 0, g: 0, b: 0,
+    ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, age: 0, flight: 0, len: 0, after: 0, afterGain: 0, w: 0.3, r: 0, g: 0, b: 0, glare: 0,
   }));
   private readonly beams = new Pool<Beam>(32, () => ({
     key: 0, kind: WEAPON, from: 0, slot: 0, to: -1, mode: FIXED, ex: 0, ey: 0, ez: 0, cx: 0, cy: 0, cz: 0, body: 0,
@@ -87,16 +89,16 @@ export class Weapons {
     const laser = def.tier >= 2 ? COLD : HOT;
     switch (weapon.kind) {
       case 'pulse':
-        this.round(at, clamp(dist / 6000, 0.04, 0.1), Math.min(dist * 0.35, 45), 0.16, 0.1, 0.42, laser, 11);
+        this.round(at, clamp(dist / 6000, 0.04, 0.1), Math.min(dist * 0.35, 45), 0.16, 0.1, 0.42, laser, 12, 2.4);
         this.muzzleFlash(src, laser, 1.5, 9, 0.07);
         break;
       case 'cannon':
         if (weapon.speed >= 5000) {
           // A rail slug is too fast to follow; what the eye keeps is the line it drew.
-          this.round(at, dist / weapon.speed, Math.min(dist * 0.6, 240), 0.6, 0.4, 0.45, RAIL, 14);
+          this.round(at, dist / weapon.speed, Math.min(dist * 0.6, 240), 0.6, 0.4, 0.45, RAIL, 14, 3.5);
           this.muzzleFlash(src, RAIL, 4, 16, 0.12);
         } else {
-          this.round(at, dist / Math.max(weapon.speed, 100), weapon.speed * 0.02, 0, 0, 0.3, TRACER, 9);
+          this.round(at, dist / Math.max(weapon.speed, 100), weapon.speed * 0.02, 0, 0, 0.3, TRACER, 9, 1.3);
           this.muzzleFlash(src, TRACER, 1.3, 7, 0.05);
         }
         break;
@@ -139,13 +141,22 @@ export class Weapons {
 
   /** Starts a round from the muzzle in `M` to `at`. */
   private round(at: Readonly<Vec3>, flight: number, len: number, after: number, afterGain: number, w: number,
-                c: Readonly<Vec3>, gain: number): void {
+                c: Readonly<Vec3>, gain: number, glare: number): void {
+    this.streak(M[0], M[1], M[2], at[0], at[1], at[2], flight, len, after, afterGain, w, c[0] * gain, c[1] * gain, c[2] * gain, glare);
+  }
+
+  /**
+   * A bolt of `len` metres that crosses from a to b (anchor coordinates) in `flight` seconds and
+   * leaves a line that fades over `after` seconds, starting at `afterGain` of the bolt's brightness.
+   */
+  streak(ax: number, ay: number, az: number, bx: number, by: number, bz: number, flight: number, len: number,
+         after: number, afterGain: number, w: number, r: number, g: number, b: number, glare: number): void {
     const s = this.rounds.take();
     if (!s) return;
-    s.ax = M[0]; s.ay = M[1]; s.az = M[2];
-    s.bx = at[0]; s.by = at[1]; s.bz = at[2];
+    s.ax = ax; s.ay = ay; s.az = az;
+    s.bx = bx; s.by = by; s.bz = bz;
     s.age = 0; s.flight = flight; s.len = len; s.after = after; s.afterGain = afterGain; s.w = w;
-    s.r = c[0] * gain; s.g = c[1] * gain; s.b = c[2] * gain;
+    s.r = r; s.g = g; s.b = b; s.glare = glare;
   }
 
   /** A flash at the muzzle in `M` that stays with the shooter. */
@@ -203,6 +214,7 @@ export class Weapons {
       if (flying) {
         const h0 = Math.max(head - s.len, 0) / dist;
         ribbons.seg(ox + dx * h0, oy + dy * h0, oz + dz * h0, ox + dx * h1, oy + dy * h1, oz + dz * h1, s.w, s.r, s.g, s.b, 0.1, 1);
+        if (s.glare > 0) this.sprites.glow(ox + dx * h1, oy + dy * h1, oz + dz * h1, s.glare, s.r * 0.5, s.g * 0.5, s.b * 0.5);
       }
       if (s.age < s.after) {
         const k = 1 - s.age / s.after;

@@ -10,7 +10,12 @@
 import { Group } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
 import type { Part } from '../part.ts';
+import { Blasts } from './blasts.ts';
 import { Frame } from './core.ts';
+import { Debris } from './debris.ts';
+import { Dust } from './dust.ts';
+import { Impacts } from './impacts.ts';
+import { Missiles } from './missiles.ts';
 import { Flashes, Sparks } from './particles.ts';
 import { Ribbons } from './ribbons.ts';
 import { Sprites } from './sprites.ts';
@@ -24,21 +29,33 @@ export function createFx(): Part {
   const sparks = new Sparks(2048);
   const flashes = new Flashes(512);
   const weapons = new Weapons(frame, ribbons, sprites, sparks, flashes);
-  root.add(ribbons.mesh, sprites.mesh);
+  const impacts = new Impacts(frame, sparks, flashes);
+  const debris = new Debris();
+  const blasts = new Blasts(frame, sparks, flashes, debris, weapons);
+  const missiles = new Missiles(frame, ribbons, sprites);
+  const dust = new Dust();
+  root.add(debris.group, dust.mesh, impacts.mesh, ribbons.mesh, sprites.mesh);
 
   /** Drops everything live; stored positions mean nothing once the anchor is gone or has changed. */
   const clear = (): void => {
     sparks.clear();
     flashes.clear();
     weapons.clear();
+    impacts.clear();
+    debris.clear();
+    missiles.clear();
   };
 
   return {
     root,
 
-    init: () => Promise.resolve(),
+    init(): Promise<void> {
+      // The debris models are optional and may arrive late; generated shards stand in until then.
+      void debris.load();
+      return Promise.resolve();
+    },
 
-    update(view: FrameView, _light: Lighting): void {
+    update(view: FrameView, light: Lighting): void {
       const zone = view.zone;
       if (!zone) {
         clear();
@@ -55,6 +72,10 @@ export function createFx(): Part {
           case 'shot': weapons.shot(ev); break;
           case 'mine': weapons.mine(ev); break;
           case 'salvage': weapons.salvage(ev); break;
+          case 'hit': impacts.hit(ev); break;
+          case 'destroyed': blasts.destroyed(ev); break;
+          case 'fold': blasts.fold(ev); break;
+          case 'cruise': blasts.cruise(ev); break;
           default: break;
         }
       }
@@ -62,6 +83,10 @@ export function createFx(): Part {
       ribbons.begin();
       sprites.begin();
       weapons.update();
+      missiles.update();
+      impacts.update();
+      debris.update(frame, light);
+      dust.update(frame, light);
       sparks.update(frame, ribbons);
       flashes.update(frame, sprites);
       ribbons.end();
@@ -71,6 +96,9 @@ export function createFx(): Part {
     dispose(): void {
       ribbons.dispose();
       sprites.dispose();
+      impacts.dispose();
+      debris.dispose();
+      dust.dispose();
     },
   };
 }

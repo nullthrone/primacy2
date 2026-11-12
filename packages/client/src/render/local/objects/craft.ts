@@ -12,7 +12,7 @@ import type { Glints } from './glints.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
 
 /** Below this projected radius in pixels a craft is drawn as a point of light instead. */
-const POINT_BELOW_PX = 1.6;
+const POINT_BELOW_PX = 3;
 /** Navigation lamps flash twice every this many seconds. */
 const STROBE_PERIOD = 2.4;
 
@@ -225,7 +225,7 @@ export class Fleet {
     obj.updateMatrix();
 
     const px = (model.radius / Math.max(dist, 1e-3)) * pxPerRad;
-    obj.visible = px > POINT_BELOW_PX * 0.6;
+    obj.visible = px > 1;
     const quality = view.graphics.quality;
 
     if (craft.wreck) {
@@ -278,7 +278,7 @@ export class Fleet {
     }
 
     if (px < POINT_BELOW_PX && craft.kind !== EntityKind.Missile) {
-      this.glints.addBody(obj.position, dist, model.radius, model.albedo * (craft.wreck ? 0.2 : 1), 0, clamp01((POINT_BELOW_PX - px) / (POINT_BELOW_PX * 0.4)), pxPerRad);
+      this.glints.addBody(obj.position, dist, model.radius, model.albedo * (craft.wreck ? 0.2 : 1), 0, clamp01((POINT_BELOW_PX - px) / 1.5), pxPerRad);
     }
     return dist;
   }

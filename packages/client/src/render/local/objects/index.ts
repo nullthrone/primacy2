@@ -5,32 +5,46 @@
  *   models.ts      model cache, stand-ins, nozzle and lamp positions
  *   lights.ts      the star and the ambient term, with the shadow box
  *   craft.ts       ships, wrecks, pods and missiles, pooled by entity id
+ *   structures.ts  stations, outposts, beacons and gates with their portal
+ *   asteroids.ts   the asteroid field, instanced
  *   exhaust.ts     engine plumes and attitude jets
  *   glints.ts      lamps and far-away objects as points of light
  */
 import { HULLS, STRUCTURES } from '@primacy2/shared';
-import { Group, Vector2, type WebGLRenderer } from 'three';
+import { Group, Vector2, type Object3D, type WebGLRenderer } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
 import type { Part } from '../part.ts';
 import { wrap } from '../util.ts';
+import { Rocks } from './asteroids.ts';
 import { Fleet } from './craft.ts';
 import { Exhaust } from './exhaust.ts';
 import { Glints } from './glints.ts';
 import { SunRig } from './lights.ts';
 import { ModelLibrary } from './models.ts';
+import { Structures } from './structures.ts';
 
 /** Shadow map edge by quality level; 0 means no shadows. */
 const SHADOW_MAP = [0, 1024, 2048] as const;
+/** The cockpit model reaches about two metres from the pilot's eye. */
+const COCKPIT_REACH = 2.2;
 
 export function createObjects(): Part {
   const root = new Group();
   const cockpitRoot = new Group();
   const lib = new ModelLibrary();
   const sun = new SunRig(root);
+  const cabinSun = new SunRig(cockpitRoot, 0.06);
   const exhaust = new Exhaust();
   const glints = new Glints();
   const fleet = new Fleet(lib, exhaust, glints);
-  root.add(fleet.group, exhaust.mesh, glints.points);
+  const structures = new Structures(lib, glints);
+  const rocks = new Rocks(lib);
+  // The cockpit is fixed to the view: it turns with the camera while its light stays in system axes.
+  const cabin = new Group();
+  let cabinModel: Object3D | null = null;
+  cabin.visible = false;
+  root.add(structures.group, rocks.group, fleet.group, exhaust.mesh, glints.points);
+  cockpitRoot.add(cabin);
 
   let renderer: WebGLRenderer | null = null;
   const buffer = new Vector2(1280, 720);
@@ -47,7 +61,11 @@ export function createObjects(): Part {
       for (const [id, hull] of Object.entries(HULLS)) jobs.push(lib.load(`ship_${id}`, hull.radius));
       for (const def of Object.values(STRUCTURES)) jobs.push(lib.load(def.model, def.bound));
       for (let i = 0; i < 4; i++) jobs.push(lib.load(`asteroid_${i}`, 1));
-      jobs.push(lib.load('cargo_pod', 2), lib.load('missile', 1.5), lib.load('cockpit_generic', 0));
+      jobs.push(lib.load('cargo_pod', 2), lib.load('missile', 1.5));
+      jobs.push(lib.load('cockpit_generic', 0).then((model) => {
+        cabinModel = lib.instantiate(model);
+        cabin.add(cabinModel);
+      }));
       await Promise.all(jobs);
     },
 
@@ -56,30 +74,49 @@ export function createObjects(): Part {
       // Pixels per radian at the centre of the view: turns an angular size into a size on screen.
       const pxPerRad = buffer.y / (2 * Math.tan((view.camera.fov * Math.PI) / 360));
       const quality = view.graphics.quality;
+      const map = SHADOW_MAP[quality];
 
       lib.materials.setEnv(light.envMap);
       exhaust.begin(wrap(view.clock, 600), quality);
       glints.begin(light);
+      structures.update(view, light, pxPerRad);
+      rocks.update(view, pxPerRad);
       fleet.update(view, pxPerRad);
       exhaust.end();
       glints.end();
 
-      // The shadow box follows the pilot's ship, or else the nearest ship worth a shadow.
-      sun.setLight(light);
-      const map = SHADOW_MAP[quality];
-      if (fleet.ownRadius > 0) {
-        const p = fleet.ownPos;
-        sun.aim(light, p.x, p.y, p.z, fleet.ownRadius * 1.5, fleet.ownRadius * 6, map, view.dt);
-      } else if (fleet.nearRadius > 0 && fleet.nearPos.length() < fleet.nearRadius * 80) {
-        const p = fleet.nearPos;
-        sun.aim(light, p.x, p.y, p.z, fleet.nearRadius * 1.5, fleet.nearRadius * 6, map, view.dt);
+      // One shadow box, given to whatever is largest on screen: a structure the pilot is close
+      // to, the pilot's own ship, or else the nearest other ship.
+      const structAngle = structures.focusBound > 0 ? structures.focusBound / structures.focusDist : 0;
+      const ownAngle = fleet.ownRadius > 0 ? fleet.ownRadius / Math.max(fleet.ownPos.length(), 1) : 0;
+      const nearAngle = fleet.nearRadius > 0 ? fleet.nearRadius / Math.max(fleet.nearPos.length(), 1) : 0;
+      if (structAngle > 0.12 && structAngle >= ownAngle) {
+        const p = structures.focusPos;
+        const b = structures.focusBound;
+        sun.update(light, p.x, p.y, p.z, b * 1.05, b * 2.5, map * 2, view.dt);
+      } else if (ownAngle > 0 || nearAngle > 0.012) {
+        const p = ownAngle > 0 ? fleet.ownPos : fleet.nearPos;
+        const radius = ownAngle > 0 ? fleet.ownRadius : fleet.nearRadius;
+        // The box is ship-sized but reaches far toward the sun, so a station in between still shades the ship.
+        const reach = structures.focusBound > 0 && structures.focusDist < 6000 ? structures.focusDist + structures.focusBound * 2 : radius * 6;
+        sun.update(light, p.x, p.y, p.z, radius * 1.5, reach, map, view.dt);
       } else {
-        sun.aim(light, 0, 0, 0, 0, 100, 0, view.dt);
+        sun.update(light, 0, 0, 0, 0, 100, 0, view.dt);
       }
+
+      const inCockpit = view.camera.mode === 'cockpit' && view.self !== null && cabinModel !== null;
+      cabin.visible = inCockpit;
+      if (inCockpit) {
+        const q = view.camera.rot;
+        cabin.quaternion.set(q[0], q[1], q[2], q[3]);
+      }
+      cabinSun.update(light, 0, 0, 0, inCockpit ? COCKPIT_REACH : 0, COCKPIT_REACH * 3, Math.min(map, 1024), view.dt);
     },
 
     dispose(): void {
       fleet.dispose();
+      structures.dispose();
+      rocks.dispose();
       exhaust.dispose();
       glints.dispose();
       lib.dispose();

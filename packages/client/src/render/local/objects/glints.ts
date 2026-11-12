@@ -18,6 +18,9 @@ const CAPACITY = 1024;
 /** Smallest sprite radius in pixels that still reads as a steady point. */
 const MIN_PX = 1.3;
 const MAX_PX = 160;
+/** A body drawn as a point is brightened by this much: a sprite a pixel wide loses most of its
+ * light to filtering and would otherwise drown among the stars. */
+const POINT_GAIN = 2.5;
 /** Points beyond the far plane (400 km) are drawn at this distance in their direction. */
 const FAR_CLAMP = 380_000;
 
@@ -132,8 +135,8 @@ export class Glints {
     const cosPhase = -(p.x * this.sunX + p.y * this.sunY + p.z * this.sunZ) / dist;
     const lit = 0.5 + 0.5 * cosPhase;
     const cover = Math.min(1, (px / MIN_PX) * (px / MIN_PX));
-    const k = (albedo / Math.PI) * lit * Math.sqrt(lit) * cover * fade;
-    const own = glow * cover * fade;
+    const k = (albedo / Math.PI) * lit * Math.sqrt(lit) * cover * fade * POINT_GAIN;
+    const own = glow * cover * fade * POINT_GAIN;
     const r = this.sunR * k + own, g = this.sunG * k + own * 0.9, b = this.sunB * k + own * 0.75;
     if (r + g + b < 0.004) return;
     const s = dist > FAR_CLAMP ? FAR_CLAMP / dist : 1;

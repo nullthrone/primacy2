@@ -27,7 +27,7 @@ void main() {
   float sl = length(side);
   side = sl > 1e-4 * length(p) ? side / sl : vec3(1.0, 0.0, 0.0);
   // Never thinner than a pixel on each side, or distant fire would break up into dots.
-  float w = max(iA.w, uPix * max(-p.z, 0.5));
+  float w = max(iA.w, 1.2 * uPix * max(-p.z, 0.5));
   float real = iA.w / w;
   float cap = position.y * iB.w;
   vec3 pos = p + side * (position.x * w) + dir * (cap * w);
