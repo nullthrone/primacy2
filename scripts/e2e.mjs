@@ -524,6 +524,8 @@ async function journey(browser, problems, steps) {
       let want = null;
       if (s.dist > closeEnough + 200 && s.speed < goal - 15) want = 'KeyW';
       else if (s.speed > goal + 15 || (s.dist <= closeEnough + 200 && s.speed > 110)) want = 'KeyS';
+      // Stopped just outside the dock range (between closeEnough and closeEnough + 200 m): creep on.
+      else if (s.dist > closeEnough && s.speed < 50) want = 'KeyW';
       await throttleKeys(page, held, want);
       if (!shotApproach && s.dist < 20_000) { shotApproach = true; await shot('24-approach'); }
       if (s.dist <= closeEnough && s.speed <= 110) {
