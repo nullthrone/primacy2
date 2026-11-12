@@ -236,6 +236,58 @@ async function journey(browser, problems, steps) {
   // Market of the open station panel: one entry per row, cells as text.
   const marketRows = () => page.$$eval('.panel.wide .scroll > table tbody tr:not(.lots)', (rows) => rows.map((r) => [...r.querySelectorAll('td')].map((td) => td.innerText.trim())));
   const rowOf = (rows, name) => rows.find((r) => r[0] === name);
+  const check = (ok, fact, problem) => { if (ok) log(`ok: ${fact}`); else problems.push(`journey: ${problem ?? `NOT ${fact}`}`); };
+  const creditsNow = async () => digits(await page.innerText('.panel.wide header .credits'));
+  const tap = () => page.evaluate(() => ({ serverId: window.__tap.serverId, welcomes: window.__tap.welcomes, pilot: window.__tap.pilot }));
+
+  // From the undocked ship out of the station's mass lock, nose away from the station.
+  const flyOut = async () => {
+    await page.waitForTimeout(800);
+    if (!(await aimAwayFromStation(page))) throw new Error('journey: could not turn away from the station');
+    await page.keyboard.down('KeyW');
+    await page.keyboard.down('ShiftLeft');
+    try {
+      await page.waitForFunction(() => {
+        const self = window.primacy2.game.view?.self;
+        if (!self) throw new Error('the pilot lost the ship on the way out');
+        return Math.hypot(...self.state.pos) > 4700;
+      }, null, { timeout: 90_000 });
+    } catch (err) {
+      if (/lost the ship/.test(String(err?.message))) throw new ShipLost('the ship was shot down on the way out of the station');
+      throw err;
+    } finally {
+      await page.keyboard.up('ShiftLeft');
+      await page.keyboard.up('KeyW');
+    }
+  };
+
+  // Fold jumps along `hops`; waits for the arrival (on the last hop including a handoff to another server).
+  const foldTo = async (hops, tunnelShot) => {
+    const final = hops[hops.length - 1];
+    for (const hop of hops) {
+      const last = hop === final;
+      await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, hop.id);
+      try {
+        await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+      } catch {
+        // The start was refused. Ask the server directly to learn why.
+        const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), hop.id);
+        if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+        else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
+      }
+      // The tunnel opens while the drive carries the ship; the last one may be photographed. Then wait until
+      // the ship is in the new system (on the last hop that includes the handoff to the other server).
+      const tunnel = await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.1, null, { timeout: 60_000 }).then(() => true, () => false);
+      if (tunnel && last && tunnelShot) await shot(tunnelShot);
+      if (!tunnel) problems.push(`journey: the fold tunnel to ${hop.name} was never seen`);
+      await page.waitForFunction((id) => {
+        const v = window.primacy2.game.view;
+        return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
+      }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
+      await page.waitForTimeout(600);
+      log(`arrived at ${hop.name}`);
+    }
+  };
 
   // Remember the latest game events, so a failure can say what happened to the ship.
   await page.addInitScript(() => {
@@ -247,10 +299,35 @@ async function journey(browser, problems, steps) {
     };
     requestAnimationFrame(watch);
   });
+  // The client keeps the pilot in a module-private store. Read the server's own messages instead: the
+  // welcome (which starts a server's pilot view afresh) and later pilot updates, of the latest socket only.
+  await page.addInitScript(() => {
+    const tap = (window.__tap = { serverId: null, pilot: null, welcomes: 0, sock: null });
+    const Native = window.WebSocket;
+    window.WebSocket = class extends Native {
+      constructor(...a) {
+        super(...a);
+        this.addEventListener('message', (ev) => {
+          if (typeof ev.data !== 'string') return;
+          let m;
+          try { m = JSON.parse(ev.data); } catch { return; }
+          if (m.t === 'welcome') { tap.serverId = m.server.id; tap.pilot = m.pilot; tap.welcomes++; tap.sock = this; }
+          else if (m.t === 'pilot' && tap.pilot && tap.sock === this) tap.pilot = { ...tap.pilot, ...m.p };
+        });
+      }
+    };
+  });
   await page.goto(URL, { waitUntil: 'load' });
   await page.waitForSelector('.start-card', { timeout: 20_000 });
   const pilotName = `Trader ${Date.now() % 100000}`;
   await login(page, pilotName);
+  // Keep every reply of the game's command channel, so the sale can be compared with what the server said.
+  await page.evaluate(() => {
+    const g = window.primacy2.game;
+    const orig = g.cmd.bind(g);
+    window.__replies = [];
+    g.cmd = async (c) => { const r = await orig(c); window.__replies.push({ k: c.k, r }); return r; };
+  });
   await page.waitForSelector('.panel.wide .scroll > table tbody tr', { timeout: 10_000 });
   await page.waitForTimeout(800);
   const alphaId = await page.evaluate(() => window.primacy2.game.view.system.id.split(':')[0]);
@@ -272,18 +349,10 @@ async function journey(browser, problems, steps) {
   await shot('20-alpha-market-with-cargo');
 
   // 2. Out of the mass lock, then the fold jump to a system of Beta's sector.
+  const alphaCredits = await creditsNow();
+  log(`credits at Alpha before leaving: ${alphaCredits}`);
   await undock(page);
-  await page.waitForTimeout(800);
-  if (!(await aimAwayFromStation(page))) throw new Error('journey: could not turn away from the station');
-  await page.keyboard.down('KeyW');
-  await page.keyboard.down('ShiftLeft');
-  await page.waitForFunction(() => {
-    const self = window.primacy2.game.view?.self;
-    if (!self) throw new Error('the pilot lost the ship on the way out');
-    return Math.hypot(...self.state.pos) > 4700;
-  }, null, { timeout: 90_000 });
-  await page.keyboard.up('ShiftLeft');
-  await page.keyboard.up('KeyW');
+  await flyOut();
 
   await page.evaluate(() => window.primacy2.game.cmd({ k: 'galaxy' }));
   await page.waitForFunction(() => (window.primacy2.game.view?.galaxy?.sectors.length ?? 0) > 1, null, { timeout: 8000 });
@@ -326,29 +395,62 @@ async function journey(browser, problems, steps) {
   const dest = route.hops[route.hops.length - 1];
   const betaId = dest.sector;
   log(`route: ${route.hops.map((h) => `${h.name} (${h.ly.toFixed(1)} ly, ${h.security})`).join(' -> ')}, drive range ${route.range} ly, ${dest.sectorName} rated ${dest.tier}`);
-  for (const hop of route.hops) {
-    const last = hop === dest;
-    await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, hop.id);
-    try {
-      await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-    } catch {
-      // The start was refused. Ask the server directly to learn why.
-      const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), hop.id);
-      if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-      else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
-    }
-    // The tunnel opens while the drive carries the ship; the last one is photographed. Then wait until
-    // the ship is in the new system (on the last hop that includes the handoff to the other server).
-    const tunnel = await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.1, null, { timeout: 60_000 }).then(() => true, () => false);
-    if (tunnel && last) await shot('21-fold-tunnel');
-    if (!tunnel) problems.push(`journey: the fold tunnel to ${hop.name} was never seen`);
-    await page.waitForFunction((id) => {
-      const v = window.primacy2.game.view;
-      return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
-    }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
-    await page.waitForTimeout(600);
-    log(`arrived at ${hop.name}`);
+  // A. The galaxy map at Alpha, before the jump: select a system of Beta's sector with a real click
+  // on the canvas and read what the panel promises for the 4 t of Water and for the ship.
+  const openMap = async () => {
+    await page.keyboard.press('KeyM');
+    await page.waitForSelector('.panel.map canvas', { timeout: 5000 });
+    await page.waitForTimeout(500);
+  };
+  const closeMap = () => page.click('.panel.map header button');
+  const asideText = () => page.$eval('.panel.map aside .stack', (n) => n.innerText).catch(() => '');
+  await openMap();
+  // The map opens centred on the pilot's system at scale 14 px/ly; the wheel divides the scale by 1.2 per tick.
+  const aim = await page.evaluate((id) => {
+    const g = window.primacy2.game.view;
+    const sys = g.galaxy.sectors.flatMap((s) => s.systems).find((x) => x.id === id);
+    const r = document.querySelector('.panel.map canvas').getBoundingClientRect();
+    const dx = Math.abs(sys.pos[0] - g.system.pos[0]);
+    const dz = Math.abs(sys.pos[2] - g.system.pos[2]);
+    let ticks = 0;
+    let scale = 14;
+    while (scale > 0.4 && (dx * scale > r.width / 2 - 25 || dz * scale > r.height / 2 - 25)) { ticks++; scale = Math.max(0.4, scale / 1.2); }
+    return { ticks, scale, cx: r.left + r.width / 2, cy: r.top + r.height / 2, x: r.left + r.width / 2 + (sys.pos[0] - g.system.pos[0]) * scale, y: r.top + r.height / 2 + (sys.pos[2] - g.system.pos[2]) * scale };
+  }, dest.id);
+  await page.mouse.move(aim.cx, aim.cy);
+  for (let i = 0; i < aim.ticks; i++) { await page.mouse.wheel(0, 100); await page.waitForTimeout(60); }
+  // Zooming out put the target somewhere else on the canvas; recompute with the scale the ticks reached.
+  const click = await page.evaluate(([id, ticks]) => {
+    const g = window.primacy2.game.view;
+    const sys = g.galaxy.sectors.flatMap((s) => s.systems).find((x) => x.id === id);
+    const r = document.querySelector('.panel.map canvas').getBoundingClientRect();
+    const scale = Math.max(0.4, 14 / Math.pow(1.2, ticks));
+    return { x: r.left + r.width / 2 + (sys.pos[0] - g.system.pos[0]) * scale, y: r.top + r.height / 2 + (sys.pos[2] - g.system.pos[2]) * scale, scale };
+  }, [dest.id, aim.ticks]);
+  await page.mouse.click(click.x, click.y);
+  await page.waitForTimeout(400);
+  let panelText = await asideText();
+  let selectedBy = 'a click on the canvas';
+  if (!panelText.includes(dest.sectorName) || !/If you jump there/.test(panelText)) {
+    // The click landed on another star (stars crowd at low zoom). Select the destination the way the UI's own
+    // destination button does and open the map again: it starts with the fold target selected.
+    log(`click at scale ${click.scale.toFixed(2)} did not select a system of ${dest.sectorName}: ${JSON.stringify(panelText.slice(0, 120))}`);
+    await closeMap();
+    await page.evaluate((id) => window.primacy2.game.setFoldTarget(id), dest.id);
+    await openMap();
+    panelText = await asideText();
+    selectedBy = 'the fold target (the click missed)';
   }
+  const forecast = await page.$eval('.panel.map aside .forecast', (n) => n.innerText).catch(() => '');
+  log(`map selection by ${selectedBy}; forecast: ${JSON.stringify(forecast)}`);
+  check(panelText.includes(dest.sectorName), `the map panel shows a system of ${dest.sectorName}`);
+  check(/\b4 t count as imports there/.test(forecast), 'the forecast says "4 t count as imports there" (trade partner)', `the forecast should say 4 t count as imports there, got ${JSON.stringify(forecast)}`);
+  check(/ship will be bound/i.test(forecast), 'the forecast says the ship will be bound', `the forecast should say the ship will be bound, got ${JSON.stringify(forecast)}`);
+  await shot('19-alpha-map-forecast');
+  await closeMap();
+  await page.waitForTimeout(300);
+
+  await foldTo(route.hops, '21-fold-tunnel');
   await page.waitForFunction((beta) => window.primacy2.game.view?.galaxy?.self === beta, betaId, { timeout: 20_000 }).catch(() => fail('the page is not connected to the other sector'));
   await page.waitForTimeout(1000);
   await shot('22-arrival-at-beta');
@@ -444,28 +546,63 @@ async function journey(browser, problems, steps) {
   if (!(digits(originRow[0]?.[4]) > 0)) problems.push(`journey: the import allowance for Alpha should be positive, got ${JSON.stringify(originRow[0])}`);
   const lotText = await page.$eval('tr.lots', (n) => n.innerText).catch(() => '');
   if (!/import/i.test(lotText)) problems.push(`journey: the lot under ${CARGO.name} should be marked import, got ${JSON.stringify(lotText)}`);
-  // 5. Selling the import. The pilot has earned nothing here outside trade (credits do not travel
-  // between servers, and the licence counts only what is earned in this server's own books), so the
-  // import licence is empty: the sale must be refused for exactly that reason, and the hold and the
-  // purse must stay as they are.
+  // B. The licence gauge and the foreign cargo table at Beta, then a real sale of 2 t with the tariff withheld.
+  const licenceText = () => page.$eval('.licence-head', (n) => n.innerText).catch(() => '');
+  const licence0 = await licenceText();
+  check(/\b2,000 TU free/.test(licence0), 'the licence gauge shows 2,000 TU free', `the licence should show 2,000 TU free, got ${JSON.stringify(licence0)}`);
+  check(/alpha/i.test(originRow[0]?.[0] ?? '') && /partner/i.test(originRow[0]?.[1] ?? '') && digits(originRow[0]?.[2]) === CARGO.tonnes,
+    'the foreign cargo table lists Alpha as trade partner with 4 t');
   const tableRow = page.locator('.panel.wide .scroll > table tbody tr:not(.lots)').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${CARGO.name}$`) }) });
-  const creditsNow = async () => digits(await page.innerText('.panel.wide header .credits'));
   const holdNow = async () => digits(await tableRow.locator('td').nth(4).innerText());
-  const sellAll = async () => {
-    await tableRow.locator('input').fill(String(CARGO.tonnes));
-    await tableRow.locator('button:text-is("Sell")').click();
-    await page.waitForSelector('.sale-note, .panel.wide .bad', { timeout: 8000 });
-    await page.waitForTimeout(500);
-  };
+  const SELL = 2;
+  const sellPrice = digits(await tableRow.locator('td').nth(3).innerText());
   const before = { credits: await creditsNow(), hold: await holdNow() };
-  await sellAll();
+  check(before.credits === 0, 'the pilot has 0 credits at Beta (credits stay on their own server)', `expected 0 credits at Beta, got ${before.credits}`);
+  await tableRow.locator('input').fill(String(SELL));
+  await tableRow.locator('button:text-is("Sell")').click();
+  await page.waitForSelector('.sale-note, .panel.wide .bad', { timeout: 8000 });
+  await page.waitForTimeout(700);
   const note = await page.$eval('.sale-note, .panel.wide .bad', (n) => n.innerText).catch(() => '');
-  log(`sale without a licence: ${JSON.stringify(note)}`);
-  await shot('26-beta-sale-licence-limit');
-  if (!/licen[cs]e/i.test(note)) problems.push(`journey: the refused sale should name the import licence, got ${JSON.stringify(note)}`);
-  const after = { credits: await creditsNow(), hold: await holdNow() };
-  if (after.credits !== before.credits) problems.push(`journey: a sale the licence blocks changed the credits (${before.credits} -> ${after.credits})`);
-  if (after.hold !== before.hold) problems.push(`journey: a sale the licence blocks changed the hold (${before.hold} -> ${after.hold})`);
+  log(`sale note: ${JSON.stringify(note)}`);
+  await shot('26-beta-sale-with-tariff');
+  const reply = await page.evaluate(() => [...window.__replies].reverse().find((x) => x.k === 'sell')?.r ?? null);
+  log(`sell reply: ${JSON.stringify(reply)}, Water sells at ${sellPrice} cr/t`);
+  check(reply?.ok === true && reply.data?.n === SELL, `the sell command sold ${SELL} t`, `the sale should have succeeded with n = ${SELL}, got ${JSON.stringify(reply)}`);
+  const total = reply?.data?.total ?? NaN;
+  check(/Sold 2 t Water/.test(note) && /tariff/i.test(note), 'the sale note names 2 t of Water and a tariff', `the sale note should name 2 t and a tariff, got ${JSON.stringify(note)}`);
+  check(total > 0 && total < SELL * sellPrice, `the total (${total} cr) is above 0 and below 2 x ${sellPrice} cr (tariff withheld, ${reply?.data?.tariff} cr)`,
+    `the total ${total} should be in (0, ${SELL * sellPrice})`);
+  check(reply?.data?.tariff > 0, 'the reply carries a tariff above 0', `the reply should carry a tariff, got ${JSON.stringify(reply?.data)}`);
+  const credits1 = await creditsNow();
+  check(credits1 === before.credits + total, `credits rose from ${before.credits} to ${credits1}, exactly the total of the reply`, `credits should be ${before.credits + total}, got ${credits1}`);
+  const hold1 = await holdNow();
+  check(hold1 === CARGO.tonnes - SELL, `the hold now has ${hold1} t of Water`, `the hold should have ${CARGO.tonnes - SELL} t, got ${hold1}`);
+  const licence1 = await licenceText();
+  check(/\b64 of 2,000 TU used/.test(licence1), 'the licence shows 64 TU used', `the licence should show 64 TU used, got ${JSON.stringify(licence1)}`);
+
+  // C. The bound mark in Outfitting and the Shipyard.
+  const tabBtn = (name) => page.locator('.panel.wide nav.tabs button', { hasText: new RegExp(`^${name}$`) });
+  await tabBtn('Outfitting').click();
+  await page.waitForTimeout(500);
+  const boundChips = await page.$$eval('.panel.wide .chip.bound', (n) => n.map((x) => x.innerText.trim()));
+  check(boundChips.length > 0 && boundChips.every((x) => /bound/i.test(x)), `the Outfitting tab shows the Bound mark on ${boundChips.length} fitted part(s)`, `no Bound mark in Outfitting: ${JSON.stringify(boundChips)}`);
+  await shot('28-beta-outfitting-bound');
+  if (await tabBtn('Shipyard').count()) {
+    await tabBtn('Shipyard').click();
+    await page.waitForTimeout(500);
+    await shot('29-beta-shipyard-bound');
+    log('shipyard screenshot taken');
+  }
+  // Fuel for the way back: refuel with what credits there are.
+  await tabBtn('Services').click();
+  await page.waitForTimeout(300);
+  const refuel = page.locator('.panel.wide button', { hasText: /^Refuel/ });
+  if (await refuel.isEnabled()) {
+    await refuel.click();
+    await page.waitForTimeout(800);
+  }
+  const refuelErr = await page.$eval('.panel.wide .bad', (n) => n.innerText).catch(() => '');
+  log(`refuelled at Beta (${refuelErr ? `refused: ${refuelErr}` : 'ok'}), credits now ${await creditsNow()}`);
 
   // 6. The galaxy map at Beta: the relation to Alpha.
   await page.keyboard.press('KeyM');
@@ -474,7 +611,45 @@ async function journey(browser, problems, steps) {
   const sectors = await page.$eval('.panel.map .sectors', (n) => n.innerText).catch(() => '');
   log(`map sectors: ${JSON.stringify(sectors)}`);
   if (!/alpha/i.test(sectors) || !/partner/i.test(sectors)) problems.push(`journey: the map at Beta should list Alpha Reach as trade partner, got ${JSON.stringify(sectors)}`);
-  await shot('27-beta-galaxy-map');}
+  await shot('27-beta-galaxy-map');
+  await closeMap();
+
+  // D. The way back: undock, fold into Alpha's sector (served by Alpha, so the pilot is handed back).
+  await page.evaluate(() => { window.primacy2.game.input.testMode = true; });
+  const undocked = await page.evaluate(() => window.primacy2.game.cmd({ k: 'undock' }));
+  if (!undocked.ok) throw new Error(`undocking at Beta failed: ${undocked.err}`);
+  await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 10_000 });
+  await flyOut();
+  await page.evaluate(() => window.primacy2.game.cmd({ k: 'galaxy' }));
+  await page.waitForFunction(() => (window.primacy2.game.view?.galaxy?.sectors.length ?? 0) > 1, null, { timeout: 8000 });
+  const back = await page.evaluate((home) => {
+    const v = window.primacy2.game.view;
+    const range = v.self.stats.jumpRange;
+    const here = v.galaxy.sectors.flatMap((s) => s.systems).find((x) => x.id === v.system.id);
+    const dist = (a, b) => Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]);
+    const rank = { secure: 0, frontier: 1, lawless: 2 };
+    const sec = v.galaxy.sectors.find((s) => s.id === home);
+    const cands = (sec?.systems ?? []).map((x) => ({ id: x.id, name: x.name, security: x.security, ly: dist(here, x) })).filter((x) => x.ly <= range);
+    cands.sort((p, q) => (rank[p.security] ?? 3) - (rank[q.security] ?? 3) || p.ly - q.ly);
+    return { range, here: here.name, cands };
+  }, alphaId);
+  if (!back.cands.length) throw new Error(`no system of Alpha's sector lies within the drive range of ${back.range} ly from ${back.here}`);
+  const home = back.cands[0];
+  log(`return jump: ${back.here} -> ${home.name} (${home.ly.toFixed(1)} ly, ${home.security}), drive range ${back.range} ly`);
+  await foldTo([home], null);
+  await page.waitForFunction((id) => window.__tap.serverId === id && window.primacy2.game.view?.self != null, alphaId, { timeout: 30_000 }).catch(() => fail('the page is not connected to Alpha again'));
+  await page.waitForTimeout(1000);
+  await shot('30-back-in-alpha');
+  const t = await tap();
+  const cargo = t.pilot?.passport?.ship?.cargo ?? [];
+  const water = cargo.filter((c) => c.c === CARGO.id);
+  log(`back at Alpha (welcome #${t.welcomes}, server ${t.serverId}): cargo ${JSON.stringify(cargo)}, credits ${t.pilot?.credits}, shipBound ${JSON.stringify(t.pilot?.shipBound)}`);
+  check(t.serverId === alphaId, 'the page is connected to Alpha again');
+  check(water.reduce((n, c) => n + c.n, 0) === CARGO.tonnes - SELL && water.every((c) => c.origin === alphaId && !c.sealed),
+    `the ${CARGO.tonnes - SELL} t of Water have Alpha as origin and are not sealed`, `the Water should be 2 t of Alpha origin, not sealed, got ${JSON.stringify(cargo)}`);
+  check(t.pilot?.shipBound === null, 'pilot.shipBound is null (the unchanged ship is local again)', `shipBound should be null, got ${JSON.stringify(t.pilot?.shipBound)}`);
+  check(t.pilot?.credits === alphaCredits, `credits are back at ${alphaCredits}, what the pilot had at Alpha before leaving`, `credits should be ${alphaCredits}, got ${t.pilot?.credits}`);
+}
 
 const problems = [];
 const steps = [];
