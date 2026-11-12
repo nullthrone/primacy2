@@ -266,10 +266,12 @@ try {
   // The second pilot gives chase, closes to gun range outside the mass lock and shoots the first
   // pilot down. A starter ship does not survive that for long.
   if (!(await targetPlayer(page2))) throw new Error('the second pilot does not see the first');
+  // Boost for the long stretch only: arriving at boost speed would carry the pursuer into its target.
   await page2.keyboard.down('KeyW');
   await page2.keyboard.down('ShiftLeft');
-  const closed = await steerUntil(page2, 'chase', (v) => v.dist < 1400 && v.own > 4700, 120_000);
+  const near = await steerUntil(page2, 'chase', (v) => v.dist < 4000, 120_000);
   await page2.keyboard.up('ShiftLeft');
+  const closed = near === true ? await steerUntil(page2, 'chase', (v) => v.dist < 2400 && v.own > 4700, 120_000) : near;
   await page2.keyboard.up('KeyW');
   if (closed !== true) {
     const dump = (pg) => pg.evaluate(() => {
