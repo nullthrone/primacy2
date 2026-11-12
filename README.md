@@ -13,7 +13,8 @@ PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 > undocking, flight, power distribution and silent running, two pilots meeting, combat, ship loss
 > and insurance, flying to a wreck, cruise, and the maps.
 > Also played through in the browser: buying cargo, a fold jump with the handoff of the pilot to a
-> second server, docking there and the customs rules at its market.
+> second server, docking there, selling the cargo as an import with the tariff withheld, and the
+> flight home.
 > Implemented and covered by server tests, but not yet played through in the browser: mining,
 > salvaging a wreck, missions, NPC behaviour and warp gates.
 > Planned: landing on moons, multi-crew ships and walking in ships.
