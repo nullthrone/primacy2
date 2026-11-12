@@ -3,10 +3,12 @@ import { computeShipStats, HULLS, starterLoadout } from '../catalog.ts';
 import {
   BASE_PAD_RADIUS, BODY_EXCLUSION_FACTOR, BOOST_ENERGY, CRUISE_CEILING_MARGIN, CRUISE_EXIT_SPEED, CRUISE_GROUND_MIN_SPEED,
   CRUISE_MIN_SPEED, CRUISE_PROXIMITY_K, DT, G, GROUND_FRICTION, GROUND_RESTITUTION, LAND_MAX_SIDE, LAND_MAX_SINK,
-  LAND_MAX_SLOPE_DEG, LAND_MAX_TILT_DEG, LIFTOFF_SPEED, LIFTOFF_THRUST, MASS_LOCK_RADIUS, SOLAR_MASS,
+  LAND_MAX_SLOPE_DEG, LAND_MAX_TILT_DEG, LIFTOFF_SPEED, LIFTOFF_THRUST, MASS_LOCK_RADIUS, PROTOCOL_VERSION, SOLAR_MASS,
 } from '../constants.ts';
 import { forwardOf, quat, upOf, v3, type Vec3 } from '../math.ts';
 import { Rng } from '../prng.ts';
+import { EntityFlag } from '../protocol.ts';
+import { decodeSnapshot, encodeSnapshot } from '../snapshot.ts';
 import { anchorState, bodyRotation, bodySpinRate, findSite, groundSiteRotation, pickNormalAnchor, surfaceAnchor } from '../universe/orbits.ts';
 import { bodySurface, bodyTerrain, cruiseCeiling, groundAltitude, nearestGroundSite, systemSurfaces } from '../universe/surface.ts';
 import { terrainHeight, terrainMax, terrainNormal, terrainParams } from '../universe/terrain.ts';
@@ -778,6 +780,21 @@ describe('cruise near a landable body', () => {
     expect(disengageCruise(cruiser(20_000), sys, T0, LANDING_STATION).anchor).toBe(SURFACE);
     // High up it is the frame of the body, as it was.
     expect(disengageCruise(cruiser(600_000), sys, T0).anchor).toBe(LANDING_PLANET);
+
+    // Even a station whose zone reaches down this far does not get the ship: the surface frame comes first.
+    const low = landingSystem();
+    const station = findSite(low, LANDING_STATION)!;
+    station.orbit = { ...station.orbit, parent: LANDING_PLANET, a: LANDING_PLANET_RADIUS + 150_000, period: 5000 };
+    const under = newShipState(wisp);
+    under.mode = FlightMode.Cruise;
+    under.anchor = LANDING_PLANET;
+    const stationPos = v3.sub(anchorState(low, LANDING_STATION, T0).pos, anchorState(low, LANDING_PLANET, T0).pos);
+    under.pos = v3.scale(v3.normalize(stationPos), LANDING_PLANET_RADIUS + 60_000);
+    expect(disengageCruise(clone(under), low, T0, LANDING_STATION).anchor).toBe(SURFACE);
+    // Beside the station, above the surface frame, the named site is honoured as before.
+    under.pos = v3.scale(v3.normalize(stationPos), LANDING_PLANET_RADIUS + 260_000);
+    expect(disengageCruise(clone(under), low, T0, LANDING_STATION).anchor).toBe(LANDING_STATION);
+    expect(disengageCruise(clone(under), low, T0).anchor).toBe(LANDING_STATION);
   });
 
   it('has no exclusion radius at a landable body, and still has one everywhere else', () => {
@@ -887,5 +904,24 @@ describe('ground bases', () => {
     expect(idle.sources).toEqual([]);
     expect(docked.mode).toBe(FlightMode.Docked);
     expect(docked.pos).toEqual([0, 0, 0]);
+  });
+});
+
+describe('the wire format', () => {
+  it('carries a landed ship in a surface frame: protocol version 4', () => {
+    expect(PROTOCOL_VERSION).toBe(4);
+    expect(FlightMode.Landed).toBe(5);
+    expect(EntityFlag.Landed).toBe(128);
+    const self = shipAbove(PAD_UP, 0);
+    self.mode = FlightMode.Landed;
+    const snapshot = decodeSnapshot(encodeSnapshot({
+      tick: 7, ackSeq: 3, time: T0, self,
+      ents: [{ id: 9, flags: EntityFlag.Landed | EntityFlag.Wanted, hull: 1, shield: 0.5, pos: [10, 0, -4], vel: [0, 0, 0], rot: [0, 0, 0, 1] }],
+    }))!;
+    expect(snapshot.self!.mode).toBe(FlightMode.Landed);
+    expect(snapshot.self!.anchor).toBe(SURFACE);
+    expect(snapshot.self!.pos).toEqual(self.pos);
+    expect(snapshot.self!.rot).toEqual(self.rot);
+    expect(snapshot.ents[0]!.flags).toBe(EntityFlag.Landed | EntityFlag.Wanted);
   });
 });

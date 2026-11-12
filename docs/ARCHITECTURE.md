@@ -44,11 +44,14 @@ Star systems are true scale. Bodies move on Kepler orbits ("on rails").
 
 A ship's position is always stored **relative to an anchor**:
 
-- **Body anchors** have ids `0..999` (the index into `SystemDef.bodies`).
+- **Body anchors** have ids `0..499` (the index into `SystemDef.bodies`; a system has fewer than 500 bodies).
+- **Surface anchors** have ids `500..999` (`SURFACE_ID_BASE + body id`): the co-rotating frame of a
+  landable body, used close to its ground (see *Surface frames, terrain and landing* below).
 - **Site anchors** have ids `>= 1000` (`SITE_ID_BASE + n`): stations, outposts, belt and ring
-  mining sites, beacons, warp gates. A site follows its own Kepler orbit around a body.
+  mining sites, beacons, warp gates. A site follows its own Kepler orbit around a body. Ground bases
+  are sites too, but stand on a body; only a docked ship has one as its anchor.
 
-The anchor frame is non-rotating and moves with the anchor. Because the anchor is in free fall,
+A body or site frame is non-rotating and moves with the anchor. Because the anchor is in free fall,
 the acceleration a ship feels in that frame is the **tidal** gravity:
 
     a = sum over bodies b of [ g_b(ship) - g_b(anchor) ]      (g_b(anchor) = 0 when b is the anchor itself)
@@ -63,7 +66,8 @@ planet's full gravity. Compact objects use the Paczynski-Wiita potential `GM / (
 | `Normal` | Newtonian thrust and gravity. Flight assist is a controller on top. | Sticky. Chosen on arrival (cruise exit, undock, spawn). |
 | `Cruise` | In-system FTL. Gravity is ignored; speed is limited by proximity to bodies. | The body whose sphere of influence contains the ship. |
 | `Fold` | Inter-system jump tunnel. No position. | none |
-| `Docked` | Inside a station. | the station site |
+| `Docked` | Inside a station or a ground base. | the site |
+| `Landed` | Standing on the ground of a landable body. Nothing moves; systems run as in flight. | the surface anchor of the body |
 
 Ships in `Normal` mode that share an anchor form a **zone**: they collide, fight and see each other.
 Ships in `Cruise` share the system-wide cruise layer and see each other as contacts only.
@@ -85,7 +89,8 @@ Ships in `Cruise` share the system-wide cruise layer and see each other as conta
 - **Heat signature:** every ship in normal space has a signature, 1 for a reference-sized ship idling
   with shields up. It grows with hull radius, with heat stored (up to a limit), with thruster output
   and boost, and rises when the shields are down. A ship in cruise is visible everywhere in the
-  system; a docked, folding or destroyed ship has none. The server computes it each tick
+  system; a landed ship has a quarter of its idle signature; a docked, folding or destroyed ship
+  has none. The server computes it each tick
   (`shipSignature` in `shared/sim/signature.ts`).
 - **Detection:** an observer picks up a target out to `sensorRange * sqrt(signature)`, never less
   than `VISUAL_RANGE` (1.5 km). A contact already held is kept 10 % farther out. Snapshots list only
@@ -95,6 +100,65 @@ Ships in `Cruise` share the system-wide cruise layer and see each other as conta
   shields return only a full recharge delay after silent running ends.
 - **Time dilation:** each ship integrates with `dt * dilation`, where dilation combines
   gravitational (`sqrt(1 - rs/r)`) and velocity (`1/gamma`) factors.
+
+### Surface frames, terrain and landing
+
+Ships can land on **landable** bodies: solid moons and planets without atmosphere of class rocky,
+ice or desert (`isLandable`). Their ground moves at up to a kilometre per second in the non-rotating
+body frame, far more than a ship's flight-assist speed, so close to the ground everything is
+expressed in a frame that turns with the body.
+
+- **Body rotation** has one definition, `bodyRotation(body, t)` in `shared/universe/orbits.ts`:
+  the quaternion from body-fixed axes to system axes. The body-fixed +Y axis is the spin axis; the
+  body has turned by `t / rotPeriod` turns about it and is then tilted about system +X by `tilt`.
+  `bodyAngularVelocity` is the matching angular velocity. The renderer follows the same convention.
+- **Surface frame.** In the frame of anchor `500 + bodyId`, a ship's `pos`, `vel` and `rot` are in
+  the body-fixed rotating axes with the origin at the body centre. Terrain, landed ships, wrecks,
+  effects and speed readouts are at rest there by construction. `anchorFrame(sys, id, t)` gives the
+  origin, the rotation to system axes and the angular velocity of any anchor; `reanchor`,
+  `absolutePosition`, `absoluteVelocity` and `absoluteRotation` (`shared/sim/frames.ts`) are exact
+  between any two frames, including the `omega x r` term.
+- **Where it applies.** A ship in normal flight is in the surface frame while it is below
+  `surfaceFrameAltitude(body) = clamp(0.1 * radius, 60 km, 300 km)` above the mean radius, and in the
+  non-rotating body frame again above 1.3 times that height. `simulateShip` re-anchors a ship that
+  crosses, from whatever anchor it had, so server and client agree; `pickNormalAnchor` returns the
+  surface anchor below the lower height, even inside the zone of a station. Cruise always uses
+  body anchors.
+- **Physics there.** The acceleration is gravity plus the Coriolis and centrifugal terms
+  (`accelerationAt`), so orbits and falls are physically right. Flight assist cancels all three:
+  a ship with no input holds still over the ground.
+- **Terrain** (`shared/universe/terrain.ts`) is a deterministic height above or below the mean
+  radius for every direction in body-fixed axes: `terrainHeight(params, x, y, z, detail)`. It is
+  built from lattice noise and hashed crater lattices on the 3D point, so it has no seams or poles.
+  Server and browser must get identical bits, so the file uses only `+ - * /`, `Math.sqrt`, `floor`,
+  `abs`, `min`, `max`, `imul` and 32-bit integer operations (a test scans it). `detail` skips features
+  smaller than the given size for coarse meshes; `terrainSkipped` bounds what that leaves out;
+  `terrainSample` also gives a tone for shading; `terrainMin`/`terrainMax` are guaranteed bounds.
+  A ground base flattens a disc (a *pad*) that blends into the terrain around it.
+  `bodySurface(sys, bodyId)` in `shared/universe/surface.ts` holds the terrain with the pads and
+  the heights derived from it, cached per system.
+- **Ground contact** happens in `stepShip`: the ship touches when its belly (`ShipStats.belly`
+  below its origin) reaches the terrain beneath it. A gentle touch (sink at most 6 m/s, sideways at
+  most 8 m/s, slope at most 20 degrees, the ship's up axis within 30 degrees of the ground normal)
+  becomes `Landed`: the ship stands on the ground, upright on the normal, heading kept. Anything
+  harder is a collision: the ship is lifted out of the ground, keeps a quarter of its speed into it
+  as a bounce and loses a tenth of its speed along it. The speed in excess of the gentle limits is
+  written to `StepEnv.impact`; the server turns it into hull damage.
+- **Landed.** Nothing moves and no input but one has any effect: up thrust above 0.2, or the
+  boost, lifts the ship off with a 3 m/s hop into normal flight.
+- **Cruise near a landable body.** The ceiling is `radius + terrainMax + 2,000 m`. Above it the
+  proximity limit is `CRUISE_PROXIMITY_K` times the height above the ceiling and may fall to 250 m/s
+  (elsewhere the lower bound stays 30 km/s), so a pilot can fly down in cruise. Below the ceiling
+  cruise ends without damage: normal flight in the surface frame at 100 m/s along the nose over the
+  ground (`StepEnv.cruiseDrop`). Cruise cannot be engaged below the ceiling (`ground`). Landable
+  bodies have no exclusion radius; the terrain is the limit.
+- **Ground bases** are sites of kind `base` with `ground: { body, pos }`, the pad centre in
+  body-fixed axes. Their `orbit` is empty except for the parent body. `anchorState` gives the true
+  moving position, `groundSitePose` the position and orientation (up along the pad normal, nose
+  north). Ships near a base fly in the surface frame; `placeAtSite` puts a ship over the pad.
+  The generator builds them in inhabited systems on landable bodies with at most 6 m/s^2 of surface
+  gravity that have no station overhead, from a random stream of their own and after every other
+  site, so nothing that existed before them changed. `summarize` counts them as places to dock.
 
 ## 4. Federation
 
@@ -269,8 +333,12 @@ and keeps their credits. Credits stay local to each server, as before.
 - The server simulates at `TICK_RATE` (30 Hz) and sends a snapshot every `SNAPSHOT_EVERY` ticks.
 - The client sends one `ShipInput` per tick, predicts its own ship with the same `stepShip`
   and reconciles against the acknowledged input sequence. Other entities are interpolated.
-- The protocol version is 3. The snapshot's own-ship block carries the power setting (`pips`) and the
-  ship's heat signature (`sig`).
+- The protocol version is 4. The snapshot's own-ship block carries the power setting (`pips`) and the
+  ship's heat signature (`sig`). Version 4 added the flight mode `Landed`, the surface anchor ids and
+  the entity flag `Landed`; the layout of a snapshot did not change.
+- Positions, velocities and orientations in snapshots and events are in the axes of the zone's
+  anchor frame. In a surface frame those are the rotating body-fixed axes: a client turns them
+  into system axes with `anchorFrame(...).rot` before drawing.
 - Snapshot entity positions are float32 offsets from the recipient's own position; the recipient's
   own state is float64.
 
