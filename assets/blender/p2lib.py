@@ -41,9 +41,9 @@ SEP = ':'  # in-file empties are named "<key>:<name>" and renamed for export
 
 # Triangle budgets per kind (min, max) and the size limit of one GLB.
 BUDGETS = {
-    'ship': (8000, 25000),
-    'station': (0, 60000),
-    'gate': (0, 30000),
+    'ship': (6000, 20000),
+    'station': (0, 50000),
+    'gate': (0, 25000),
     'prop': (0, 3000),
     'asteroid': (800, 2500),
 }
@@ -304,7 +304,7 @@ class Loft:
             ta = Vector((-math.sin(math.radians(a_deg)), 0, math.cos(math.radians(a_deg))))
         ty.normalize()
         ta.normalize()
-        n = ta.cross(ty)
+        n = ty.cross(ta)
         if n.length < 1e-9:
             n = Vector((math.cos(math.radians(a_deg)), 0, math.sin(math.radians(a_deg))))
         n.normalize()

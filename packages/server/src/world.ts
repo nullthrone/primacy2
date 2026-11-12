@@ -24,6 +24,7 @@ import {
   v3,
   verifyTicket,
   type Arrival,
+  type ChatMessage,
   type Command,
   type GalaxyView,
   type KeyPair,
@@ -68,6 +69,8 @@ export class World {
   readonly players = new Map<string, Player>();
   readonly modules: GameModule[];
   tickCount = 0;
+  /** Set by the comms module: called for every chat message a pilot here writes on the galaxy channel. */
+  onLatticeChat: ((m: ChatMessage) => void) | null = null;
   private nextId = 1;
   private readonly commands = new Map<string, CommandHandler>();
   private readonly rng: Rng;

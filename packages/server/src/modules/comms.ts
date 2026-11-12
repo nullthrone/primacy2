@@ -23,8 +23,6 @@ const MAX_HOPS = 2;
 /** Relayed messages accepted from one server per ten seconds. */
 const RATE = 20;
 
-const seen = new Map<string, number>();
-const buckets = new Map<string, { start: number; n: number }>();
 
 function forward(world: World, msg: Relay, except: string | null): void {
   for (const k of world.fed.links()) {
@@ -38,6 +36,9 @@ export const commsModule: GameModule = {
   name: 'comms',
 
   init(world) {
+    // Several servers can run in one process (tests), so this state belongs to the world.
+    const seen = new Map<string, number>();
+    const buckets = new Map<string, { start: number; n: number }>();
     // Messages written here: show them locally (the core does) and send them out.
     world.onLatticeChat = (m: ChatMessage) => {
       const msg: Relay = { id: randomNonce(), origin: world.id, hops: 0, from: m.from, text: m.text, at: m.at };

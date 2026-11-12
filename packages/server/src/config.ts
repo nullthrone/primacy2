@@ -53,6 +53,8 @@ export interface ServerConfig {
   acceptGates: boolean;
   /** Upper limit of warp gates in this sector, proposed and accepted together. */
   maxGates: number;
+  /** Multiplier on what this sector's half of a warp gate costs (credits and materials). */
+  gateCostScale: number;
 }
 
 export const DEFAULT_CONFIG: ServerConfig = {
@@ -78,6 +80,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
   gates: [],
   acceptGates: true,
   maxGates: 6,
+  gateCostScale: 1,
 };
 
 const TRUST_LEVELS = new Set(['trusted', 'neutral', 'restricted', 'blocked']);
@@ -115,6 +118,7 @@ export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
     }
   }
   if (!Number.isInteger(c.maxGates) || c.maxGates < 0 || c.maxGates > 32) problems.push('maxGates must be 0..32');
+  if (!(c.gateCostScale >= 0.0001 && c.gateCostScale <= 100)) problems.push('gateCostScale must be 0.0001..100');
   if (problems.length) throw new Error('Invalid configuration:\n  - ' + problems.join('\n  - '));
   return c;
 }

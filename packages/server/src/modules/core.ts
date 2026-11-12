@@ -65,8 +65,9 @@ export function deliverChat(world: World, from: Player, ch: ChatChannel, text: s
       return true;
     }
     default:
-      // `sector`, and `lattice` when no comms module relays it further.
+      // `sector` stays on this server; `lattice` is also handed to the comms module for relaying.
       world.broadcast(msg);
+      if (ch === 'lattice') world.onLatticeChat?.(m);
       return true;
   }
 }
