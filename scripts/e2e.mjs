@@ -153,8 +153,8 @@ async function steerUntil(page, mode, done, timeoutMs) {
 // as an import. A new pilot in a fresh browser context, so the earlier fight does not interfere.
 // ---------------------------------------------------------------------------------------------
 
-/** The cheapest commodity in the catalog (24 per tonne): a small load costs little and needs little licence. */
-const CARGO = { id: 'ice', name: 'Water Ice', tonnes: 4 };
+/** A cheap staple (32 per tonne) that every station market trades. */
+const CARGO = { id: 'water', name: 'Water', tonnes: 4 };
 const MODE = { normal: 0, cruise: 1, docked: 3, destroyed: 4 };
 
 /** The pilot's ship was destroyed on the way (pirates are about in Beta's frontier systems): the journey can be tried again. */
@@ -319,7 +319,7 @@ async function journey(browser, problems, steps) {
         return { there: !!v && v.system.id === id && v.self !== null && v.fx.fold === 0, fold: v?.fx.fold ?? 0 };
       }, hop.id);
       if (st.there) break;
-      if (last && !tunnel && st.fold > 0.25) { tunnel = true; await shot('21-fold-tunnel'); }
+      if (last && !tunnel && st.fold > 0.05) { tunnel = true; await shot('21-fold-tunnel'); }
       if (Date.now() > until) await fail();
       await page.waitForTimeout(100);
     }
@@ -412,7 +412,37 @@ async function journey(browser, problems, steps) {
   if (!(digits(originRow[0]?.[4]) > 0)) problems.push(`journey: the import allowance for Alpha should be positive, got ${JSON.stringify(originRow[0])}`);
   const lotText = await page.$eval('tr.lots', (n) => n.innerText).catch(() => '');
   if (!/import/i.test(lotText)) problems.push(`journey: the lot under ${CARGO.name} should be marked import, got ${JSON.stringify(lotText)}`);
-}
+  // 5. Selling the import. The pilot has earned nothing here outside trade (credits do not travel
+  // between servers, and the licence counts only what is earned in this server's own books), so the
+  // import licence is empty: the sale must be refused for exactly that reason, and the hold and the
+  // purse must stay as they are.
+  const tableRow = page.locator('.panel.wide .scroll > table tbody tr:not(.lots)').filter({ has: page.locator('td:first-child', { hasText: new RegExp(`^${CARGO.name}$`) }) });
+  const creditsNow = async () => digits(await page.innerText('.panel.wide header .credits'));
+  const holdNow = async () => digits(await tableRow.locator('td').nth(4).innerText());
+  const sellAll = async () => {
+    await tableRow.locator('input').fill(String(CARGO.tonnes));
+    await tableRow.locator('button:text-is("Sell")').click();
+    await page.waitForSelector('.sale-note, .panel.wide .bad', { timeout: 8000 });
+    await page.waitForTimeout(500);
+  };
+  const before = { credits: await creditsNow(), hold: await holdNow() };
+  await sellAll();
+  const note = await page.$eval('.sale-note, .panel.wide .bad', (n) => n.innerText).catch(() => '');
+  log(`sale without a licence: ${JSON.stringify(note)}`);
+  await shot('26-beta-sale-licence-limit');
+  if (!/licen[cs]e/i.test(note)) problems.push(`journey: the refused sale should name the import licence, got ${JSON.stringify(note)}`);
+  const after = { credits: await creditsNow(), hold: await holdNow() };
+  if (after.credits !== before.credits) problems.push(`journey: a sale the licence blocks changed the credits (${before.credits} -> ${after.credits})`);
+  if (after.hold !== before.hold) problems.push(`journey: a sale the licence blocks changed the hold (${before.hold} -> ${after.hold})`);
+
+  // 6. The galaxy map at Beta: the relation to Alpha.
+  await page.keyboard.press('KeyM');
+  await page.waitForSelector('.panel.map canvas', { timeout: 5000 });
+  await page.waitForTimeout(800);
+  const sectors = await page.$eval('.panel.map .sectors', (n) => n.innerText).catch(() => '');
+  log(`map sectors: ${JSON.stringify(sectors)}`);
+  if (!/alpha/i.test(sectors) || !/partner/i.test(sectors)) problems.push(`journey: the map at Beta should list Alpha Reach as trade partner, got ${JSON.stringify(sectors)}`);
+  await shot('27-beta-galaxy-map');}
 
 const problems = [];
 const steps = [];
@@ -637,7 +667,15 @@ try {
     console.log(`state: ${JSON.stringify(await state())}, fps ${fps}`);
   }
   // The journey runs last, as a new pilot in a fresh browser context.
-  await journey(browser, problems, steps);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await journey(browser, problems, steps);
+      break;
+    } catch (err) {
+      if (!(err instanceof ShipLost) || attempt >= 3) throw err;
+      console.log();
+    }
+  }
 } catch (err) {
   problems.push(`failed after [${steps.join(', ')}]: ${err.message}`);
 } finally {
