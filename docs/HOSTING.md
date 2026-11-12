@@ -52,7 +52,8 @@ Create `primacy2.config.json` in the directory you start the server from. Every 
 | `tradeCredit` | Trade units (tonnes times catalog price) a partner may be in deficit with you: imports from it may exceed what you exported to it by this much (default 50000). |
 | `tradeCredits` | The same per server, e.g. `{ "<server id>": 200000 }`. Replaces `tradeCredit` for that server. |
 | `gateTradeCredit` | Extra credit line, added while an active warp gate links you to that server (default 250000). |
-| `importLicenceRate` | How many trade units of imports a pilot may sell or deliver per unit of non-trade income earned on your server (default 1). |
+| `importLicenceBase` | Trade units of imports every pilot may sell or deliver on your server without having earned anything there yet (default 2,000, about one small hold). It makes a first trade run into your sector possible. All pilots together stay within the partner's trade balance; set it to 0 to make every pilot earn the licence first. |
+| `importLicenceRate` | How many further trade units of imports a pilot may sell or deliver per unit of non-trade income earned on your server (default 1). |
 | `shipLimit` | Largest hull allowed to enter, as a hull id, per tier: `{ "partner": null, "visitor": "drover" }`. `null` means no limit. The default keeps the two dearest hulls out of visitors' reach. |
 | `gates` | Warp gates you want to build, e.g. `[{ "peer": "<server id>", "system": 4 }]`. See "Warp gates". |
 | `acceptGates`, `maxGates` | Whether linked servers may propose gates to you, and how many gates the sector may hold (default 6). |

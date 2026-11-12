@@ -43,7 +43,9 @@ the same name) under `packages/server/src/modules/` and is registered in `module
   (jettison, wrecks, pods).
 - Non-trade income is credited where it is earned with `world.trade.creditIncome(p, amount, source)`:
   mission rewards (not returned deposits), bounties on NPCs, survey data, and ore at the moment a laser
-  extracts it (in trade units). Never for the sale of cargo, refunds or deposits.
+  extracts it (in trade units). Never for the sale of cargo, refunds or deposits. A reward paid for
+  handing in cargo counts only for the share of that cargo that was made here (`takeCargo` returns the
+  lots with their origins): imported goods handed in are a sale by another name.
 - A part that came with a ship from another server is bound: use `isHullBound` and `isSlotBound`
   before refunding a hull or module or leaving scrap and parts in a wreck, and `markSlotLocal` or
   `markShipLocal` after the pilot buys one here.

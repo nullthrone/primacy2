@@ -12,9 +12,10 @@ PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 > Played through in the browser by the automated test (`scripts/e2e.mjs`): logging in, docking and
 > undocking, flight, power distribution and silent running, two pilots meeting, combat, ship loss
 > and insurance, flying to a wreck, cruise, and the maps.
-> Implemented and covered by server tests, but not yet played through in the browser: trading,
-> mining, salvaging a wreck, missions, NPC behaviour, fold jumps, the handoff of a pilot to another
-> server, and warp gates.
+> Also played through in the browser: buying cargo, a fold jump with the handoff of the pilot to a
+> second server, docking there and the customs rules at its market.
+> Implemented and covered by server tests, but not yet played through in the browser: mining,
+> salvaging a wreck, missions, NPC behaviour and warp gates.
 > Planned: landing on moons, multi-crew ships and walking in ships.
 
 ## Play
@@ -78,9 +79,9 @@ jump across. [docs/HOSTING.md](docs/HOSTING.md) covers configuration, reachabili
   cannot hand out impossible ships.
 - **Economy:** credits are local to each server. Value moves between servers as cargo in a hold, and
   each operator rates every neighbour as union, partner, visitor or blocked. A server trusts only its
-  own books: goods from a partner sell within a trade balance and a per-pilot licence earned from
-  missions, bounties, survey data and mining, goods from a visitor are sealed, and ships from outside a
-  customs union refund nothing. See `docs/ARCHITECTURE.md`.
+  own books: goods from a partner sell within a trade balance and a per-pilot licence that starts
+  small and grows with missions, bounties, survey data and mining, goods from a visitor are sealed, and
+  ships from outside a customs union refund nothing. See `docs/ARCHITECTURE.md`.
 - **Warp gates** bridge sectors that are too far apart to jump between. Both servers have to fund
   their half of the pair.
 

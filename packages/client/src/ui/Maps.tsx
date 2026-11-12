@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
-  EntityKind, HULLS, computeShipStats, foldFuelCost, v3,
+  EntityKind, HULLS, computeShipStats, foldFuelCost, largestHullWithin, v3,
   type CargoItem, type SectorView, type SystemSummary,
 } from '@primacy2/shared';
 import type { GameApi } from '../contracts.ts';
@@ -56,26 +56,52 @@ function Relation({ sector, home }: { sector: SectorView; home: string }) {
  * customs union (which is mutual) gives a full answer. For every other sector the lines say what
  * holds whichever way the destination rates this sector, and name what depends on that rating.
  */
-function Forecast({ sector, self, cargo, shipBound }: { sector: SectorView; self: string; cargo: readonly CargoItem[]; shipBound: boolean }) {
+function Forecast({ sector, self, cargo, shipBound, hull }: {
+  sector: SectorView; self: string; cargo: readonly CargoItem[]; shipBound: boolean; hull: string;
+}) {
   // No transfers are issued to a blocked sector; the relation block above already says so.
   if (sector.tier === 'blocked') return null;
   const name = sector.name;
   const fc = jumpForecast(cargo, self, sector.id);
   const union = sector.tier === 'union';
+  // What the destination publishes about ships from this sector; null when it publishes nothing.
+  const entry = isTier(sector.entryTier) ? sector.entryTier : null;
+  if (entry === 'blocked') {
+    return (
+      <div class="forecast">
+        <h4>{t('map.forecast')}</h4>
+        <div class="bad">{t('map.fcBlocked', { name })}</div>
+      </div>
+    );
+  }
+  const cap = sector.entryHullCap;
+  const capHull = cap === null ? null : largestHullWithin(cap);
+  const tooLarge = cap !== null && (HULLS[hull]?.price ?? Infinity) > cap;
   return (
     <div class={`forecast ${union ? 'free' : ''}`}>
       <h4>{t('map.forecast')}</h4>
       {union && <div class="ok">{t('map.fcUnion')}</div>}
-      {fc.sealed > 0 && <div class="caution">{t('map.fcSealedStays', { n: fmt(fc.sealed) })}</div>}
+      {fc.sealed > 0 && <div class="caution">{t('map.fcSealedStays', { n: fmt(fc.sealed), name })}</div>}
       {fc.third > 0 && <div class={union ? '' : 'caution'}>{t(union ? 'map.fcThirdUnion' : 'map.fcThirdSealed', { n: fmt(fc.third), name })}</div>}
-      {!union && fc.direct > 0 && <div class="caution">{t('map.fcDepends', { n: fmt(fc.direct), name })}</div>}
+      {!union && fc.direct > 0 && (
+        <div class="caution">
+          {t(entry === 'partner' ? 'map.fcImports' : entry === 'visitor' ? 'map.fcVisitor' : 'map.fcDepends', { n: fmt(fc.direct), name })}
+        </div>
+      )}
       {union && shipBound && <div class="caution">{t('map.fcBoundStays')}</div>}
       {!union && (
         <>
           <div class="caution">{t('map.fcShipBound', { name })}</div>
           {/* Only a ship that is local here is recognised as local again when it comes back. */}
           {!shipBound && <div class="dim">{t('map.fcShipReturn')}</div>}
-          <div class="dim">{t('map.fcClass', { name })}</div>
+          {cap !== null && (
+            <div class={tooLarge ? 'bad' : 'dim'}>
+              {t(tooLarge ? 'map.fcClassOver' : 'map.fcClassWithin', {
+                name, hull: capHull ? HULLS[capHull]?.name ?? capHull : '–', own: HULLS[hull]?.name ?? hull,
+              })}
+            </div>
+          )}
+          {entry === null && <div class="dim">{t('map.fcClass', { name })}</div>}
         </>
       )}
     </div>
@@ -163,6 +189,7 @@ export function GalaxyMap({ api }: { api: GameApi }) {
       g.strokeStyle = 'rgba(125,255,168,0.5)';
       g.stroke();
     }
+    const labels: { name: string; x: number; y: number; rank: number }[] = [];
     for (const { sys, sector } of all) {
       const x = X(sys.pos[0]);
       const y = Y(sys.pos[2]);
@@ -182,12 +209,22 @@ export function GalaxyMap({ api }: { api: GameApi }) {
         g.stroke();
         g.lineWidth = 1;
       }
-      if (v.scale > 9 || sys.id === selected || sys.id === here?.id) {
-        g.fillStyle = 'rgba(220,240,255,0.85)';
-        g.font = '12px "Share Tech Mono", monospace';
-        g.textAlign = 'left';
-        g.fillText(sys.name, x + 9, y + 4);
-      }
+      const marked = sys.id === selected || sys.id === here?.id || sys.id === store.foldTarget.value;
+      if (v.scale > 9 || marked) labels.push({ name: sys.name, x, y, rank: marked ? 0 : sys.stations > 0 ? 1 : 2 });
+    }
+    // Names are placed in order of importance; one that would run into a name already placed is
+    // left out, so a dense cluster stays readable. Zooming in brings the rest back.
+    labels.sort((a, b) => a.rank - b.rank);
+    g.fillStyle = 'rgba(220,240,255,0.85)';
+    g.font = '12px "Share Tech Mono", monospace';
+    g.textAlign = 'left';
+    const placed: { x0: number; x1: number; y: number }[] = [];
+    for (const l of labels) {
+      const x0 = l.x + 9;
+      const x1 = x0 + g.measureText(l.name).width;
+      if (l.rank > 0 && placed.some((p) => Math.abs(p.y - l.y) < 13 && x0 < p.x1 + 6 && x1 > p.x0 - 6)) continue;
+      placed.push({ x0, x1, y: l.y });
+      g.fillText(l.name, x0, l.y + 4);
     }
   };
 
@@ -267,7 +304,10 @@ export function GalaxyMap({ api }: { api: GameApi }) {
                   <div>{t('map.distance', { ly: fmt(dist, 1) })}</div>
                   <div class={Number.isFinite(fuel) ? '' : 'bad'}>{Number.isFinite(fuel) ? t('map.fuelCost', { t: fmt(fuel, 1) }) : t('map.outOfRange')}</div>
                   {abroad && pilot && isTier(sel.sector.tier) && (
-                    <Forecast sector={sel.sector} self={self} cargo={pilot.passport.ship.cargo} shipBound={pilot.shipBound !== null} />
+                    <Forecast
+                      sector={sel.sector} self={self} cargo={pilot.passport.ship.cargo} shipBound={pilot.shipBound !== null}
+                      hull={pilot.passport.ship.loadout.hull}
+                    />
                   )}
                   <button onClick={() => { api.setFoldTarget(sel.sys.id); setSelected(sel.sys.id); draw(); }}>{t('map.setDestination')}</button>
                   <button class="primary" disabled={!Number.isFinite(fuel)} onClick={() => { api.setFoldTarget(sel.sys.id); store.panel.value = null; api.capturePointer(); api.startFold(); }}>

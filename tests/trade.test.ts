@@ -456,6 +456,12 @@ describe('trade model: cargo', () => {
     const sectors = H.world.galaxyView().sectors;
     expect(sectors.find((s) => s.id === ID.U)).toMatchObject({ trust: 'union', tier: 'union', rulesMatch: true, allowance: null });
     expect(sectors.find((s) => s.id === ID.C)).toMatchObject({ trust: 'visitor', tier: 'visitor', allowance: 0 });
+    // What each sector does to ships from Home, read from the policy it publishes: the map shows it before a jump.
+    expect(sectors.find((s) => s.id === ID.U)).toMatchObject({ entryTier: 'union', entryHullCap: null });
+    expect(sectors.find((s) => s.id === ID.P)).toMatchObject({ entryTier: 'partner', entryHullCap: null });
+    // Seen from the cheat, Home admits visitors only, and no hull above the Drover.
+    expect(C.world.galaxyView().sectors.find((s) => s.id === ID.H)).toMatchObject({ entryTier: 'visitor', entryHullCap: HULLS.drover!.price });
+    expect(C.world.galaxyView().sectors.find((s) => s.id === ID.C)).toMatchObject({ entryTier: 'union', entryHullCap: null });
 
     // The union member's labels are believed, but each is rated by Home's own tier for it.
     let bot = await newPilot(U, 'Unionist');

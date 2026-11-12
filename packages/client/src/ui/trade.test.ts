@@ -7,7 +7,7 @@ const SELF = 'self';
 function sector(id: string, tier: TrustLevel): SectorView {
   return {
     id, name: `Sector ${id}`, url: `http://${id}`, pos: [0, 0, 0], radius: 1, online: true, linked: true,
-    trust: tier, tier, rulesMatch: true, allowance: tier === 'partner' ? 1000 : null, players: 0, systems: [], links: [], gates: [],
+    trust: tier, tier, rulesMatch: true, allowance: tier === 'partner' ? 1000 : null, entryTier: tier, entryHullCap: null, players: 0, systems: [], links: [], gates: [],
   };
 }
 

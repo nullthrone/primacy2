@@ -51,6 +51,7 @@ import {
   type StationView,
   type SystemDef,
   type TransferTicket,
+  type TrustLevel,
 } from '@primacy2/shared';
 import type { ServerConfig } from './config.ts';
 import type { Federation, KnownServer } from './federation.ts';
@@ -241,17 +242,19 @@ export class World {
     const sectors: SectorView[] = [
       {
         id: own.id, name: own.name, url: own.url, pos: own.pos, radius: own.radius, online: true, linked: true,
-        trust: 'union', tier: 'union', rulesMatch: true, allowance: null,
+        trust: 'union', tier: 'union', rulesMatch: true, allowance: null, entryTier: 'union', entryHullCap: null,
         players: this.players.size, systems: own.systems, links: own.links, gates: own.gates,
       },
     ];
     for (const k of this.fed.known.values()) {
       const trust = this.fed.trustOf(k.id);
       if (trust === 'blocked') continue;
+      const entry = this.entryPolicy(k);
       sectors.push({
         id: k.id, name: k.desc.name, url: k.desc.url, pos: k.desc.pos, radius: k.desc.radius,
         online: this.fed.isOnline(k), linked: k.linked, trust, tier: this.fed.tierOf(k.id),
-        rulesMatch: this.fed.rulesMatch(k.id), allowance: this.trade.allowance(k.id), players: k.desc.online,
+        rulesMatch: this.fed.rulesMatch(k.id), allowance: this.trade.allowance(k.id),
+        entryTier: entry.tier, entryHullCap: entry.cap, players: k.desc.online,
         systems: k.desc.systems, links: k.desc.links, gates: k.desc.gates,
       });
     }
@@ -700,19 +703,31 @@ export class World {
   }
 
   /**
+   * How `dest` treats ships that arrive from this server, judged from the trade policy it
+   * publishes: the tier it applies and the largest hull (as a catalog price) it admits. The tier
+   * is null when `dest` publishes no policy. A descriptor lists only the ids rated union and
+   * partner; everyone else is judged by the published default, so a rating `dest` keeps private
+   * shows only on arrival.
+   */
+  entryPolicy(dest: KnownServer): { tier: TrustLevel | null; cap: number | null } {
+    const theirs = publishedRating(dest.desc, this.id);
+    if (theirs === null) return { tier: null, cap: null };
+    const tier = effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
+    // A published default of blocked may hide a private rating; the visitor limit is the least that applies.
+    return { tier, cap: shipLimitFor(tier === 'blocked' ? 'visitor' : tier, dest.desc.trade?.shipLimit) };
+  }
+
+  /**
    * Why `dest` would turn this pilot's ship away, judged from the trade policy `dest` publishes;
    * null when nothing stands in the way. Checked before a fold jump or a gate transit starts.
    * `dest` checks again on arrival, with its own books.
    */
   entryRefusal(p: Player, dest: KnownServer): string | null {
     if (this.fed.trustOf(dest.id) === 'blocked') return 'That sector is blocked by this server.';
-    // A descriptor lists only the ids rated union and partner. Everyone else is judged by the
-    // published default here; if `dest` rates this server differently in private, it says so on arrival.
-    const theirs = publishedRating(dest.desc, this.id);
-    if (theirs === null) return null;
-    // A published default of blocked may hide a private rating; the visitor limit is the least that applies.
-    const tier = theirs === 'blocked' ? 'visitor' : effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
-    const cap = shipLimitFor(tier, dest.desc.trade?.shipLimit);
+    const entry = this.entryPolicy(dest);
+    if (entry.tier === null) return null;
+    const tier = entry.tier === 'blocked' ? 'visitor' : entry.tier;
+    const cap = entry.cap;
     const hull = p.rec.passport.ship.loadout.hull;
     if (hullAllowed(hull, cap)) return null;
     // A hull that arrived from that sector and was not replaced since may be its own ship:

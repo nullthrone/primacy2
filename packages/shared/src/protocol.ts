@@ -265,6 +265,14 @@ export interface SectorView {
   rulesMatch: boolean;
   /** Trade units of imports from the sector that can still be absorbed here; null when unlimited. */
   allowance: number | null;
+  /**
+   * The tier the sector applies to ships that arrive from this server, as far as the trade policy
+   * it publishes says; null when it publishes none. It decides what happens to cargo and ship
+   * after a jump there. A rating the sector keeps private can still differ on arrival.
+   */
+  entryTier: TrustLevel | null;
+  /** Catalog price of the largest hull the sector admits from this server; null when it has no limit or publishes none. */
+  entryHullCap: number | null;
   players: number;
   systems: SystemSummary[];
   links: string[];

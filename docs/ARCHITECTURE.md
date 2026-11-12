@@ -158,13 +158,14 @@ operator has not rated is a visitor (`defaultTrust`).
 The ids a server rates union or partner, the class limits and the fingerprint are published in its
 descriptor (`trade`), so the origin server can refuse a jump before it starts.
 
-**Attribution on arrival.** The tier of the server that issued the transfer ticket decides what each
-cargo lot is called here. A lot that is already sealed stays sealed, whoever sends it.
+**Attribution on arrival.** First the pilot's own goods are recognised (next paragraph). For the rest,
+the tier of the server that issued the transfer ticket decides what each cargo lot is called here. A
+lot that is already sealed stays sealed, whoever sends it.
 
 - From a visitor, every lot is sealed and keeps its label.
-- From a partner, a lot labelled with the issuer's id or with this server's id (own goods coming back)
-  becomes an import attributed to the issuer. A lot with any other label is sealed, so goods cannot be
-  washed through an honest server in between.
+- From a partner, a lot labelled with the issuer's id or with this server's id becomes an import
+  attributed to the issuer. A lot with any other label is sealed, so goods cannot be washed through an
+  honest server in between.
 - From a union member, labels are believed, and each label is rated by this server's own tier for that
   label: this server's id is local, a union member's id is free, a partner's id is an import against
   that partner's balance, anything else is sealed. A label is never rewritten to the sender's id.
@@ -172,11 +173,20 @@ cargo lot is called here. A lot that is already sealed stays sealed, whoever sen
 What a lot counts as is decided at the moment of use (sealed mark first, then own id is local, then
 the current tier of the label), so a rating changed later applies to goods already in the hold.
 
+**Own goods coming back.** When a pilot leaves, this server remembers the local, unsealed cargo on
+board, in tonnes by commodity. When the pilot returns, lots under this server's label are local goods
+again, commodity by commodity, up to the tonnes that left, and the export booked for them is taken
+back. A seal set on the way does not count against them, so a trip through a sector that admits
+visitors only does not destroy a pilot's own goods. The match is by commodity and not by value:
+otherwise a round trip through another server would turn the cheapest local goods into any other goods
+of the same value, as local goods, past the tariff, the licence and the trade balance. Whatever exceeds
+what left, or is of another kind, is attributed like any other lot.
+
 **Sealed cargo.** Sealed cargo cannot be turned into value here in any way. It can be carried out
 again or jettisoned. The mark stays through jettison, scooping, wrecks, pods cut from wrecks, merging
-cargo, saving and the transfer ticket. It also stays on every later server, even back home, because
-otherwise minted goods could be given the label of a server that believes them. Lots merge only when
-commodity, label and seal all match.
+cargo, saving and the transfer ticket. It also stays on every later server, because otherwise minted
+goods could be given the label of a server that believes them; the one exception is the pilot's own
+goods coming home, above. Lots merge only when commodity, label and seal all match.
 
 **Trade balance.** For every partner this server keeps, in its own books and in trade units (tonnes
 times the commodity's catalog price):
@@ -189,12 +199,20 @@ into value here: sold, delivered for a mission, donated to a gate. The credit li
 the entry for that server in `tradeCredits`, plus `gateTradeCredit` while an active warp gate links the
 two servers. Imports from union members and from this server itself are not counted.
 
-**Import licence.** Per pilot, imports can be absorbed only up to `importLicenceRate` times the
-pilot's non-trade income earned on this server: mission rewards (not the returned deposit), bounties
-on NPCs, the sale of exploration data and the trade-unit value of ore the pilot mines here. Trade
-revenue does not count and there is no base allowance, because free key pairs would multiply it.
-Union goods need no licence. A sale or delivery is filled in whole tonnes up to the smaller of the
-partner's remaining allowance and the pilot's remaining licence, and the reply says which limit applied.
+**Import licence.** Per pilot, imports can be absorbed only up to `importLicenceBase` plus
+`importLicenceRate` times the pilot's non-trade income earned on this server: mission rewards (not the
+returned deposit), bounties on NPCs, the sale of exploration data and the trade-unit value of ore the
+pilot mines here. Trade revenue does not count, and neither does the reward of a delivery or mining
+mission for the share of the shipment that was not made here: handing in imported goods is a sale by
+another name, and counting it would let the licence feed itself. Union goods need no licence. A sale or
+delivery is filled in whole tonnes up to the smaller of the partner's remaining allowance and the
+pilot's remaining licence, and the reply says which limit applied.
+
+The base (default 2,000 trade units, about one small hold) exists because a pilot who arrives in a
+sector for the first time has no credits there and, in a stock starter ship, neither a mining laser nor
+a scanner nor the deposit for a delivery: without it the only way to a first sale would be combat. Free
+key pairs multiply the base, but all pilots together stay within the partner's trade balance, which is
+the bound that matters. An operator who wants every pilot to earn the licence first sets it to 0.
 
 **Bound ships.** A ship that arrives from a server that is not a union member is bound: hull and fitted
 modules refund nothing when sold or swapped here, and its wreck yields no scrap and no parts. A ship
@@ -202,12 +220,15 @@ from a union member is bound only where that member says so. Parts the pilot buy
 This server remembers the hull and modules of each ship that leaves it (except into a union) and
 recognises the same ship on return: what matches, and was local then, is local again, so an honest
 pilot does not lose the home ship by visiting a neighbour. The free starter ship issued after a
-destruction is local; a ship replaced for the deductible stays as bound as it was.
+destruction is bound, so it refunds nothing: otherwise a pilot could die without credits, sell the
+free ship's modules and repeat. A ship replaced for the deductible stays as bound as it was.
 
 **Class limits.** Each tier has a limit on the largest hull, by catalog price, that may enter
 (`shipLimit`; none for union). The limits are published, so the origin refuses the fold command before
 any fuel is spent; the destination checks again before it redeems the ticket. A ship the destination
-recognises as its own is exempt.
+recognises as its own is exempt. The galaxy view carries, per sector, the tier that sector applies to
+ships from here and its hull limit (`entryTier`, `entryHullCap`), so the map says before a jump what
+will happen to cargo and ship.
 
 **Rules fingerprint.** A hash of the catalog tables and every constant in `shared/constants.ts`,
 including the game and protocol versions. Two servers form a customs union only if both publish the
@@ -221,7 +242,10 @@ Server settings such as the tariff are not part of it.
 - A cheat who plays as an ideal trader within the limits. A dishonest partner can still sell goods it
   invented, up to the balance and the pilot's licence; the limits are what bound it. Exposure to one
   partner is its credit line plus what it has really bought from this server.
-- Free key pairs: every new pilot starts with `startCredits` here, as before.
+- Free key pairs: every new pilot starts with `startCredits` and a refundable starter ship here, as
+  before. That is a source of local credits the trade model does not bound.
+- A rating a server keeps private. A descriptor lists only the ids rated union and partner; a server
+  that treats one visitor differently from its published default shows that only on arrival.
 
 ### Wrecks, salvage and insurance
 

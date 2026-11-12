@@ -137,8 +137,8 @@ describe('review: the honest pilot', () => {
     let bot = await newPilot(H, 'SealedBack');
     load(H, bot, [lot(4, ID.H)]);
     bot = await travel(bot, H, P);
-    // What a sector that admits visitors only does to every lot; two tonnes more than left come back.
-    load(P, bot, [lot(6, ID.H, true)]);
+    // What a sector that admits visitors only does to a lot; two tonnes more than left come back, in two lots.
+    load(P, bot, [lot(3, ID.H), lot(3, ID.H, true)]);
     bot = await travel(bot, P, H);
     expect(hold(H, bot)).toEqual([lot(4, ID.H), lot(2, ID.H, true)]);
     const p = dock(H, bot);

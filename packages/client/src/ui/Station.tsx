@@ -241,12 +241,15 @@ export function Station({ api }: { api: GameApi }) {
         </div>
       )}
 
+      {/* The licence and the origins stay in view while the market list scrolls. */}
       {active === 'market' && (
-        <div class="scroll">
-          <div class="customs">
-            <Licence pilot={pilot} />
-            <Origins imports={station.imports} self={self} />
-          </div>
+        <div class="customs">
+          <Licence pilot={pilot} />
+          <Origins imports={station.imports} self={self} />
+        </div>
+      )}
+      {active === 'market' && (
+        <div class="scroll market-scroll">
           {station.market.length === 0 ? <p class="dim">{t('station.noMarket')}</p> : (
             <table>
               <thead>
