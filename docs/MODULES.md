@@ -36,3 +36,25 @@ the same name) under `packages/server/src/modules/` and is registered in `module
   except the documented sources (mission rewards, mining, production).
 - A module must not assume another module is present.
 - Keep hooks cheap: `preStep` and `postStep` run thirty times per second for every active system.
+
+## Wrecks, salvage and insurance
+
+- `modules/salvage.ts` turns every ship destroyed in normal space into a wreck object
+  (`EntityKind.Wreck`, `model` = hull id, `name` = "Wreck of <ship>"). It holds the ship's whole
+  cargo (origins kept), scrap in proportion to hull mass (new commodity `scrap`) and, by chance,
+  parts for fitted modules (existing commodities stand in). Module state is `WreckData` in
+  `SimObject.data` (`wreckData(o)` reads it). A wreck lasts `WRECK_LIFETIME` (900 s of universe time),
+  a zone keeps at most `MAX_WRECKS` (12), the oldest first. Wrecks are not subject to detection.
+  The snapshot sends a wreck's `fill` (fraction of contents left) as its hull value.
+- Salvaging: Fire3 with a mining laser fitted and the nose on a wreck cuts it open into ordinary
+  cargo pods (`sim.spawnLoot`, origin kept in `pod.data.origins`) at 0.1 t per second per point of laser
+  damage, and emits `{ e: 'salvage', from, id, at }` about four times per second. Where a rock and a
+  wreck are both in the beam the nearer is cut. To do this without touching `mining.ts`, `salvageModule`
+  withholds the Fire3 bit from the ship when the wreck wins and `salvageRelease` (registered right after
+  mining) puts it back. A module that wants to react to a destroyed ship's cargo must run after
+  `salvage`; the ship's `cargo` array is already empty by then.
+- `modules/insurance.ts` owns the `respawn` command (moved out of `core.ts`). Destruction charges
+  nothing and keeps hull and fit. Respawning returns the pilot to the home station, repaired and with
+  full tanks, for `deductible(loadout, rate)` = `round(rate * (hull price + fitted module prices))`.
+  The rate is the server config value `insuranceRate` (default 0.05). A pilot who cannot pay gets the
+  free starter ship and keeps their credits. `PilotView.rebuy` is the deductible the pilot would pay now.

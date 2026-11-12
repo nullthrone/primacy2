@@ -10,7 +10,8 @@ outboard station-keeping module, thrusters and axial masts.
 
 Matches packages/shared/src/structures.ts: torus major 450 / minor 45, inside a 520 m sphere,
 axis along Blender +Z (glTF +Y). The heavy parts stay inside the torus tube; only radiator
-panels, anchor modules and masts stand out of it (they have no colliders). Child meshes:
+panels, anchor modules and masts stand a few metres out of it (they have no colliders), and all
+of them stay inside the construction cage. Child meshes:
 "portal" (disc r 400, material "portal") and "scaffold" (construction cage with work platforms
 and cranes) so the game can show or hide them. light_0..3 sit on the anchor blocks, light_4..11
 on the other blocks. Violet accent.
@@ -81,7 +82,7 @@ def block_part(m, acc, prime):
             for sz in (-1, 1):
                 p.tube((R + 42, sy * 12, sz * 13), (R + 42, sy * 12, sz * 17), 1.5, 2.6, segs=6, mat=D)
         for sz in (-1, 1):
-            K.mast(p, (R + 8, 0, sz * 36), (R + 8, 0, sz * 58), 1.5, lamp_r=1.7, lamp_mat=E)
+            K.mast(p, (R + 8, 0, sz * 36), (R + 8, 0, sz * 49.5), 1.5, lamp_r=1.7, lamp_mat=E)   # stays inside the cage
         K.lamp(p, (R + 49.6, 0, 0), 2.4, axis='X')
     else:
         p.box((R + 37.2, 0, 0), (2.4, 7, 7), S2, chamfer=0.8)
@@ -132,11 +133,12 @@ def radiator_part(m):
     """Two radiator panels standing outward in the ring plane, centred on angle 0."""
     p = m.part()
     for th in (-3.3, 3.3):
-        f, _ = K.arc_box(p, R + 32, R + 60, -0.5, 0.5, th - 2.2, th + 2.2, mats=[H, D, H, D], cap_mat=D)
+        # the panels end at R + 52 so the construction cage (outer face at R + 56) clears them
+        f, _ = K.arc_box(p, R + 30, R + 52, -0.5, 0.5, th - 2.2, th + 2.2, mats=[H, D, H, D], cap_mat=D)
         p.inset([f[0][0], f[0][2]], 1.4, 0.0, rim=S2, inner=H, individual=True)
-        p.tube(K.polar(R + 26, th, 0), K.polar(R + 32.5, th, 0), 1.2, segs=4, mat=D)               # root boom
+        p.tube(K.polar(R + 26, th, 0), K.polar(R + 30.5, th, 0), 1.2, segs=4, mat=D)               # root boom
         for z in (-24, 24):                                                                        # stays
-            p.tube(K.polar(R + 26, th, z), K.polar(R + 44, th, z * 0.03), 0.6, segs=3, mat=D, cap0=False, cap1=False)
+            p.tube(K.polar(R + 26, th, z), K.polar(R + 41, th, z * 0.03), 0.6, segs=3, mat=D, cap0=False, cap1=False)
     return p
 
 
@@ -146,7 +148,7 @@ def service_part(m):
     p.box((R + 33, 0, 0), (9, 30, 16), H, chamfer=2.5)
     p.box((R + 37.6, 0, 2.6), (0.5, 22, 1.6), LAMP)                                                # window strip
     p.box((R + 33, 0, -9.2), (5, 8, 2.4), D)                                                       # docking collar
-    K.mast(p, (R + 37, 12, 6), (R + 52, 12, 12), 0.7, lamp_r=1.0)
+    K.mast(p, (R + 37, 12, 6), (R + 50, 12, 11), 0.7, lamp_r=1.0)
     for sz in (-1, 1):
         for y in (-13, 13):
             p.tube((R + 8, y - 9, sz * 17), (R + 8, y + 9, sz * 17), 5.0, segs=8, mat=H, cap_mat=S2)

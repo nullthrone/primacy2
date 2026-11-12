@@ -8,6 +8,7 @@ import {
   OctahedronGeometry, ShaderMaterial, TetrahedronGeometry, Vector3,
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Vec3 } from '@primacy2/shared';
 import type { Lighting } from '../../../contracts.ts';
 import { modelUrl } from '../assets.ts';
@@ -79,7 +80,7 @@ function shard(seed: number): BufferGeometry {
   return base;
 }
 
-/** The largest mesh of a model file as one geometry, or null when the file is not there or not a model. */
+/** All meshes of a model file as one geometry, or null when the file is not there or not a model. */
 async function loadShape(loader: GLTFLoader, key: string): Promise<BufferGeometry | null> {
   try {
     const res = await fetch(modelUrl(key));
@@ -89,23 +90,25 @@ async function loadShape(loader: GLTFLoader, key: string): Promise<BufferGeometr
     if (data.byteLength < 12 || new DataView(data).getUint32(0, true) !== 0x46546c67) return null;
     const gltf = await loader.parseAsync(data, '');
     gltf.scene.updateMatrixWorld(true);
-    let best: Mesh | null = null;
+    // A model has one mesh per material. The chunk is drawn with the debris shader, so only the
+    // shape is taken: positions and normals of every mesh, in model space, as one geometry.
+    const parts: BufferGeometry[] = [];
     gltf.scene.traverse((o) => {
       const mesh = o as Mesh;
       if (!mesh.isMesh) return;
-      if (!best || mesh.geometry.getAttribute('position').count > best.geometry.getAttribute('position').count) best = mesh;
+      const part = new BufferGeometry();
+      part.setAttribute('position', mesh.geometry.getAttribute('position').clone());
+      const normal = mesh.geometry.getAttribute('normal');
+      if (normal) part.setAttribute('normal', normal.clone());
+      part.setIndex(mesh.geometry.getIndex()?.clone() ?? null);
+      part.applyMatrix4(mesh.matrixWorld);
+      const flat = part.index ? part.toNonIndexed() : part;
+      if (!normal) flat.computeVertexNormals();
+      parts.push(flat);
       for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) material.dispose();
     });
-    const found = best as Mesh | null;
-    if (!found) return null;
-    const geometry = new BufferGeometry();
-    geometry.setAttribute('position', found.geometry.getAttribute('position').clone());
-    const normal = found.geometry.getAttribute('normal');
-    if (normal) geometry.setAttribute('normal', normal.clone());
-    geometry.setIndex(found.geometry.getIndex()?.clone() ?? null);
-    geometry.applyMatrix4(found.matrixWorld);
-    if (!normal) geometry.computeVertexNormals();
-    return geometry;
+    if (parts.length === 0) return null;
+    return parts.length === 1 ? parts[0]! : mergeGeometries(parts);
   } catch {
     return null;
   }

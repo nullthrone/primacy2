@@ -205,6 +205,7 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
     r = np.zeros(n)
     flat = np.zeros(n, dtype=bool)
     fresh = np.zeros(n)
+    depth = np.zeros(n)                               # how far the plane cut below the rough surface
     for sk, cut, age in exits:
         rough_r = sk + relief
         rl = np.minimum(rough_r, cut)
@@ -212,7 +213,10 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
         r = np.where(win, rl, r)
         flat = np.where(win, cut < rough_r, flat)
         fresh = np.where(win, np.where(cut < rough_r, age, 0.0), fresh)
-    r = np.where(flat, r + flat_relief * relief, r)   # fracture faces are nearly, not perfectly, flat
+        depth = np.where(win, rough_r - cut, depth)
+    # fracture faces are nearly, not perfectly, flat; their relief fades in from the crease so
+    # the face meets the rough ground without a step
+    r = np.where(flat, r + flat_relief * relief * np.clip(depth / 0.06, 0.0, 1.0), r)
     layer = _smooth((band + 0.35) / 0.7)              # 1 on the mineral bands, 0 between them
     r = r + strata * (layer - 0.5)
     base = D * r[:, None]

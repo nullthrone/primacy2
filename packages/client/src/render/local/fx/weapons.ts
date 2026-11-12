@@ -110,7 +110,8 @@ export class Weapons {
         break;
       }
       case 'mining':
-        this.hold(src.id * 64 + (ev.slot & 31), MINE, src, ev.slot, ev.to ?? -1, at);
+        // The same key as a `mine` event, so a server that sends both still shows one beam.
+        this.hold(src.id * 64 + 62, MINE, src, ev.slot, ev.to ?? -1, at);
         break;
       case 'missile':
         // The missile itself is an entity; see missiles.ts.

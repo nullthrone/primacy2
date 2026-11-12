@@ -28,8 +28,10 @@ void main() {
   vec2 o = position.xy * vec2(1.0, iQ.w);
   o = vec2(o.x * cs - o.y * sn, o.x * sn + o.y * cs) * rad;
   vUv = position.xy;
-  // A disc the camera is all but inside of (the pilot's own muzzle flash) must not white out the view.
-  vCol = iC.rgb * (iP.w / rad) * smoothstep(0.5, 2.0, length(c) / rad);
+  // A small disc the camera is all but inside of (the pilot's own muzzle flash) must not white out
+  // the view. Large ones, like the flash of a nearby explosion, are meant to.
+  float inside = smoothstep(0.5, 2.0, length(c) / rad);
+  vCol = iC.rgb * (iP.w / rad) * mix(inside, 1.0, smoothstep(3.0, 8.0, iP.w));
   vK = vec3(iC.a, iQ.x, iQ.y);
   gl_Position = projectionMatrix * vec4(c + vec3(o, 0.0), 1.0);
 }`;

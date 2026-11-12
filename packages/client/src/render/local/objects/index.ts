@@ -47,6 +47,8 @@ export function createObjects(): Part {
   cockpitRoot.add(cabin);
 
   let renderer: WebGLRenderer | null = null;
+  /** What the shadow box is locked to: 0 nothing, 1 a structure, 2 a ship. */
+  let focus = 0;
   const buffer = new Vector2(1280, 720);
 
   return {
@@ -90,17 +92,23 @@ export function createObjects(): Part {
       const structAngle = structures.focusBound > 0 ? structures.focusBound / structures.focusDist : 0;
       const ownAngle = fleet.ownRadius > 0 ? fleet.ownRadius / Math.max(fleet.ownPos.length(), 1) : 0;
       const nearAngle = fleet.nearRadius > 0 ? fleet.nearRadius / Math.max(fleet.nearPos.length(), 1) : 0;
-      if (structAngle > 0.12 && structAngle >= ownAngle) {
+      // The current holder keeps the box until the other is clearly larger, so the shadows do not
+      // flicker while the pilot hovers at the distance where the two are the same size.
+      const structWins = structAngle > (focus === 1 ? 0.1 : 0.12) && structAngle >= ownAngle * (focus === 1 ? 0.8 : 1.25);
+      if (structWins) {
+        focus = 1;
         const p = structures.focusPos;
         const b = structures.focusBound;
         sun.update(light, p.x, p.y, p.z, b * 1.05, b * 2.5, map * 2, view.dt);
       } else if (ownAngle > 0 || nearAngle > 0.012) {
+        focus = 2;
         const p = ownAngle > 0 ? fleet.ownPos : fleet.nearPos;
         const radius = ownAngle > 0 ? fleet.ownRadius : fleet.nearRadius;
         // The box is ship-sized but reaches far toward the sun, so a station in between still shades the ship.
         const reach = structures.focusBound > 0 && structures.focusDist < 6000 ? structures.focusDist + structures.focusBound * 2 : radius * 6;
         sun.update(light, p.x, p.y, p.z, radius * 1.5, reach, map, view.dt);
       } else {
+        focus = 0;
         sun.update(light, 0, 0, 0, 0, 100, 0, view.dt);
       }
 

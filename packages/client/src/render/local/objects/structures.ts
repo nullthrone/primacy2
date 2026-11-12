@@ -295,6 +295,11 @@ export class Structures {
         // Open structures fill about a third of their bounding disc; lit windows keep them findable in shadow.
         this.glints.addBody(tmp, dist, bound * 0.55, model?.albedo ?? 0.2, lit ? 0.35 : 0.02, 1, pxPerRad);
         if (!model) this.lib.request(name, bound);
+        // Too far for its lamps to be told apart: one flash for the whole structure.
+        const beacon = name === 'beacon';
+        if (lit && wrap(view.time, beacon ? 2 : STROBE_PERIOD) < 0.12) {
+          this.glints.addLamp(tmp, 1, 0.95, 0.86, beacon ? 0.7 : clamp(bound * 0.004, 0.5, 3.5), beacon ? 16 : 12, pxPerRad);
+        }
         continue;
       }
       if (px < POINT_BELOW_PX) {

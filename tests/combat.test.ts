@@ -507,7 +507,7 @@ describe('law', () => {
     expect(law(hunter)?.bounty ?? 0).toBe(0);
     expect(law(attacker)).toMatchObject({ bounty: 0, wantedUntil: 0 });
     expect(attacker.ship.wanted).toBe(false);
-    expect(attacker.p.rec.credits).toBe(10_000 - 2_750);
+    expect(attacker.p.rec.credits).toBe(10_000);
   });
 
   it('destroying a pirate is no crime anywhere and pays its bounty', () => {
