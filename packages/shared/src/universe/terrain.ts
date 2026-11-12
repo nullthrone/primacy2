@@ -193,12 +193,6 @@ function mix(h: number): number {
   return h ^ (h >>> 15);
 }
 
-/** Dot product of the lattice gradient chosen by hash `h` with (x, y, z). */
-function grad(h: number, x: number, y: number, z: number): number {
-  const g = h >>> 28;
-  return GX[g]! * x + GY[g]! * y + GZ[g]! * z;
-}
-
 /**
  * Gradient lattice noise in -1..1 with one feature per unit of the coordinates: reads the point
  * from `R[AX]`, `R[AY]`, `R[AZ]` and writes the value to `R[NOISE]`. The same input gives the same
@@ -228,14 +222,25 @@ function noise3(seed: number): void {
   const v = y0 * y0 * y0 * (y0 * (y0 * 6 - 15) + 10);
   const w = z0 * z0 * z0 * (z0 * (z0 * 6 - 15) + 10);
 
-  const n000 = grad(mix(ax + ay + az), x0, y0, z0);
-  const n100 = grad(mix(bx + ay + az), x1, y0, z0);
-  const n010 = grad(mix(ax + by + az), x0, y1, z0);
-  const n110 = grad(mix(bx + by + az), x1, y1, z0);
-  const n001 = grad(mix(ax + ay + bz), x0, y0, z1);
-  const n101 = grad(mix(bx + ay + bz), x1, y0, z1);
-  const n011 = grad(mix(ax + by + bz), x0, y1, z1);
-  const n111 = grad(mix(bx + by + bz), x1, y1, z1);
+  // At each corner of the lattice cell: the gradient picked by the top four bits of the corner's
+  // hash, times the offset from that corner. Written out eight times, because as a function of
+  // its own it is a call wherever the engine stops inlining, and a call boxes its numbers.
+  let g = mix(ax + ay + az) >>> 28;
+  const n000 = GX[g]! * x0 + GY[g]! * y0 + GZ[g]! * z0;
+  g = mix(bx + ay + az) >>> 28;
+  const n100 = GX[g]! * x1 + GY[g]! * y0 + GZ[g]! * z0;
+  g = mix(ax + by + az) >>> 28;
+  const n010 = GX[g]! * x0 + GY[g]! * y1 + GZ[g]! * z0;
+  g = mix(bx + by + az) >>> 28;
+  const n110 = GX[g]! * x1 + GY[g]! * y1 + GZ[g]! * z0;
+  g = mix(ax + ay + bz) >>> 28;
+  const n001 = GX[g]! * x0 + GY[g]! * y0 + GZ[g]! * z1;
+  g = mix(bx + ay + bz) >>> 28;
+  const n101 = GX[g]! * x1 + GY[g]! * y0 + GZ[g]! * z1;
+  g = mix(ax + by + bz) >>> 28;
+  const n011 = GX[g]! * x0 + GY[g]! * y1 + GZ[g]! * z1;
+  g = mix(bx + by + bz) >>> 28;
+  const n111 = GX[g]! * x1 + GY[g]! * y1 + GZ[g]! * z1;
 
   const a0 = n000 + (n100 - n000) * u;
   const a1 = n010 + (n110 - n010) * u;
