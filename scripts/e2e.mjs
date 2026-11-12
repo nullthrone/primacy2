@@ -266,7 +266,16 @@ async function journey(browser, problems, steps) {
     const final = hops[hops.length - 1];
     for (const hop of hops) {
       const last = hop === final;
-      await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, hop.id);
+      // A frame watcher keeps the largest tunnel value seen: the tunnel can be over between two polls of the page.
+      await page.evaluate((id) => {
+        const g = window.primacy2.game;
+        window.__foldMax = 0;
+        const watch = () => { window.__foldMax = Math.max(window.__foldMax, g.view?.fx.fold ?? 0); if (!window.__foldStop) requestAnimationFrame(watch); };
+        window.__foldStop = false;
+        requestAnimationFrame(watch);
+        g.setFoldTarget(id);
+        g.startFold();
+      }, hop.id);
       try {
         await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
       } catch {
@@ -277,13 +286,14 @@ async function journey(browser, problems, steps) {
       }
       // The tunnel opens while the drive carries the ship; the last one may be photographed. Then wait until
       // the ship is in the new system (on the last hop that includes the handoff to the other server).
-      const tunnel = await page.waitForFunction(() => (window.primacy2.game.view?.fx.fold ?? 0) > 0.1, null, { timeout: 60_000 }).then(() => true, () => false);
+      const tunnel = await page.waitForFunction(() => window.__foldMax > 0.1, null, { timeout: 60_000, polling: 50 }).then(() => true, () => false);
       if (tunnel && last && tunnelShot) await shot(tunnelShot);
       if (!tunnel) problems.push(`journey: the fold tunnel to ${hop.name} was never seen`);
       await page.waitForFunction((id) => {
         const v = window.primacy2.game.view;
         return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
       }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
+      await page.evaluate(() => { window.__foldStop = true; });
       await page.waitForTimeout(600);
       log(`arrived at ${hop.name}`);
     }
