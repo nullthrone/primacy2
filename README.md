@@ -9,9 +9,12 @@ There is no central server, no account system and nothing to install to play.
 PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 
 > **Status: early development, playable in the browser.**
-> Implemented: flight, cruise and fold jumps, docking, trading, mining, combat, missions, NPC
-> traffic, two-server federation, wrecks and salvage, insurance, power distribution and silent
-> running, with identities, transfer tickets, peering and the procedural universe underneath.
+> Played through in the browser by the automated test (`scripts/e2e.mjs`): logging in, docking and
+> undocking, flight, power distribution and silent running, two pilots meeting, combat, ship loss
+> and insurance, flying to a wreck, cruise, and the maps.
+> Implemented and covered by server tests, but not yet played through in the browser: trading,
+> mining, salvaging a wreck, missions, NPC behaviour, fold jumps, the handoff of a pilot to another
+> server, and warp gates.
 > Planned: landing on moons, multi-crew ships and walking in ships.
 
 ## Play
