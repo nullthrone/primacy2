@@ -393,7 +393,7 @@ async function journey(browser, problems, steps) {
       if (aligned && s.speed < ceiling * 0.5) want = 'KeyW';
       else if (s.speed > ceiling) want = 'KeyS';
       await throttleKeys(page, held, want);
-      if (s.dist < 12_000 && aligned && !s.detour) {
+      if (s.dist < 25_000 && !s.detour) {
         await throttleKeys(page, held, null);
         await page.evaluate(() => window.primacy2.game.toggleCruise());
         await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 5000 }).catch(() => fail('cruise did not drop at the station'));
