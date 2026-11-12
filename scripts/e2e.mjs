@@ -65,21 +65,36 @@ async function targetPlayer(page) {
     const g = window.primacy2.game;
     g.setTarget(g.view.ents.find((e) => e.info.player).id);
   });
+  // The lock shows up in the frame view one frame later.
+  await page.waitForFunction(() => window.primacy2.game.view?.targetId != null, null, { timeout: 5000 });
   return true;
 }
 
 /**
- * One steering step toward a point: the locked target, or with `away` the point opposite the
- * station of the current zone. Returns how far the point is from the middle of the view in pixels
- * (Infinity while it is behind the camera), or null when there is nothing to steer at.
+ * One steering step toward a point. `mode` chooses it: 'target' is the locked target, 'away' the
+ * point opposite the station of the current zone, and 'chase' the locked target with a push away
+ * from the station while the ship is within three kilometres of it, so that a pursuit curves
+ * around the station instead of ending in its hull. Returns how far the point is from the middle
+ * of the view in pixels (Infinity while it is behind the camera), or null when there is nothing
+ * to steer at.
  */
-function steerStep(page, away) {
-  return page.evaluate((awayFromStation) => {
+function steerStep(page, mode) {
+  return page.evaluate((how) => {
     const g = window.primacy2.game;
     const v = g.view;
+    const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
     let rel = null;
-    if (awayFromStation) rel = v?.zone ? [-v.zone[0], -v.zone[1], -v.zone[2]] : null;
-    else rel = v?.ents.find((e) => e.id === v.targetId)?.rel ?? null;
+    if (how === 'away') {
+      rel = v?.zone ? [-v.zone[0], -v.zone[1], -v.zone[2]] : null;
+    } else {
+      rel = v?.ents.find((e) => e.id === v.targetId)?.rel ?? null;
+      if (rel && how === 'chase' && v.self) {
+        const pos = v.self.state.pos;
+        const push = Math.min(2, Math.max(0, (3000 - Math.hypot(pos[0], pos[1], pos[2])) / 1000));
+        const to = unit(rel), out = unit(pos);
+        rel = [to[0] + out[0] * push, to[1] + out[1] * push, to[2] + out[2] * push].map((x) => x * 1000);
+      }
+    }
     if (!rel) return null;
     const p = g.project(rel);
     if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
@@ -88,15 +103,15 @@ function steerStep(page, away) {
     // when the point reaches the middle would carry the nose past it.
     g.input.addMouse(ex * 0.2, ey * 0.2);
     return Math.hypot(ex, ey);
-  }, away);
+  }, mode);
 }
 
 /** Steers until the point has stayed within `tolerance` pixels of the middle for half a second. */
-async function settle(page, away, tolerance, timeoutMs) {
+async function settle(page, mode, tolerance, timeoutMs) {
   const t0 = Date.now();
   let held = 0;
   while (Date.now() - t0 < timeoutMs) {
-    const off = await steerStep(page, away);
+    const off = await steerStep(page, mode);
     held = off !== null && off < tolerance ? held + 1 : 0;
     if (held >= 5) return true;
     await page.waitForTimeout(100);
@@ -105,20 +120,20 @@ async function settle(page, away, tolerance, timeoutMs) {
 }
 
 /** Turns the nose until the station of the current zone is straight behind the ship. */
-const aimAwayFromStation = (page, timeoutMs = 30_000) => settle(page, true, 70, timeoutMs);
+const aimAwayFromStation = (page, timeoutMs = 30_000) => settle(page, 'away', 70, timeoutMs);
 
 /** Steers with the mouse hook until the locked target sits in the middle of the view. */
-const aimAtTarget = (page, timeoutMs = 30_000) => settle(page, false, 28, timeoutMs);
+const aimAtTarget = (page, timeoutMs = 30_000) => settle(page, 'target', 28, timeoutMs);
 
 /**
  * Keeps the nose on the locked target until `done` says so (returns true), the target is gone
  * (returns 'lost') or the time is up (returns false). `done` receives the distance to the target
  * and the pilot's own distance from the zone anchor, both in metres.
  */
-async function steerUntil(page, done, timeoutMs) {
+async function steerUntil(page, mode, done, timeoutMs) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
-    if ((await steerStep(page, false)) === null) return 'lost';
+    if ((await steerStep(page, mode)) === null) return 'lost';
     const v = await page.evaluate(() => {
       const view = window.primacy2.game.view;
       const ent = view?.ents.find((e) => e.id === view.targetId);
@@ -137,7 +152,13 @@ let servers = null;
 let browser = null;
 try {
   servers = process.env.PRIMACY2_URL ? null : await startServers();
-  browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+  // Two pilots play at once, so neither page may be slowed down for being in the background.
+  browser = await chromium.launch({
+    args: [
+      '--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required',
+      '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-background-timer-throttling',
+    ],
+  });
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
@@ -217,10 +238,16 @@ try {
   if (!(await targetPlayer(page2))) throw new Error('the second pilot does not see the first');
   await page2.keyboard.down('KeyW');
   await page2.keyboard.down('ShiftLeft');
-  const closed = await steerUntil(page2, (v) => v.dist < 1400 && v.own > 4700, 90_000);
+  const closed = await steerUntil(page2, 'chase', (v) => v.dist < 1400 && v.own > 4700, 120_000);
   await page2.keyboard.up('ShiftLeft');
   await page2.keyboard.up('KeyW');
-  if (closed !== true) throw new Error(`the second pilot could not close in on the first (${closed})`);
+  if (closed !== true) {
+    const dump = (pg) => pg.evaluate(() => {
+      const v = window.primacy2.game.view;
+      return v ? { mode: v.mode, self: v.self ? Math.round(Math.hypot(...v.self.state.pos)) : null, hull: v.self?.state.hull, target: v.targetId, ents: v.ents.map((e) => `${e.id}:${e.info.kind}:${e.info.player ? 'P' : e.info.npc ?? '-'}:${Math.round(Math.hypot(...e.rel))}`) } : null;
+    });
+    throw new Error(`the second pilot could not close in on the first (${closed}); wingman ${JSON.stringify(await dump(page2))}; first ${JSON.stringify(await dump(page))}`);
+  }
   if (!(await aimAtTarget(page2))) throw new Error('the second pilot could not aim at the first');
   if (await targetPlayer(page)) await aimAtTarget(page, 6000);
   await page2.mouse.move(800, 450);
@@ -228,15 +255,11 @@ try {
   await page2.waitForTimeout(450);
   await page2.screenshot({ path: `${OUT}/07-wingman-fires.png` });
   await shot('08-under-fire');
-  const kill = await steerUntil(page2, () => false, 40_000);
+  const kill = await steerUntil(page2, 'target', () => false, 40_000);
   await page2.mouse.up();
   if (kill !== 'lost') throw new Error('the first pilot survived forty seconds of fire');
   await page2.waitForTimeout(150);
-  await page2.screenshot({ path: `${OUT}/09-kill.png` });
-  await page2.waitForTimeout(2600);
-  await page2.screenshot({ path: `${OUT}/10-wreck.png` });
-  const wreck = await page2.evaluate(() => window.primacy2.game.view.ents.filter((e) => e.info.kind === 6).length);
-  if (wreck < 1) throw new Error('the destroyed ship left no wreck');
+  await page2.screenshot({ path: `${OUT}/09-after-the-kill.png` });
   const combat = await page.evaluate(() => window.__combat);
   if (!(combat.shot > 0 && combat.hit > 0)) throw new Error(`the first pilot saw no shots or hits: ${JSON.stringify(combat)}`);
   console.log(`combat events seen by the first pilot: ${JSON.stringify(combat)}`);
@@ -251,7 +274,27 @@ try {
   await page.waitForTimeout(1200);
   await shot('12-rebuilt-at-station');
   await undock(page);
-  if (!(await aimAwayFromStation(page))) throw new Error('could not turn away from the station after the respawn');
+
+  // The wreck of the lost ship is still out there. Fly to the nearest wreck and look at it.
+  await page.waitForFunction(() => window.primacy2.game.view?.ents.some((e) => e.info.kind === 6), null, { timeout: 20_000 })
+    .catch(() => { throw new Error('the destroyed ship left no wreck'); });
+  await page.evaluate(() => {
+    const g = window.primacy2.game;
+    const wrecks = g.view.ents.filter((e) => e.info.kind === 6).sort((p, q) => Math.hypot(...p.rel) - Math.hypot(...q.rel));
+    g.setTarget(wrecks[0].id);
+  });
+  await page.waitForFunction(() => window.primacy2.game.view?.targetId != null, null, { timeout: 5000 });
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('ShiftLeft');
+  const reached = await steerUntil(page, 'chase', (v) => v.dist < 900, 120_000);
+  await page.keyboard.up('ShiftLeft');
+  await page.keyboard.up('KeyW');
+  if (reached !== true) throw new Error(`could not reach the wreck (${reached})`);
+  await steerUntil(page, 'target', (v) => v.dist < 260, 20_000);
+  await aimAtTarget(page, 10_000);
+  await shot('13-wreck');
+
+  if (!(await aimAwayFromStation(page))) throw new Error('could not turn away from the station');
   await page.keyboard.down('KeyW');
   await page.keyboard.down('ShiftLeft');
   await page.waitForFunction(() => {
@@ -269,18 +312,18 @@ try {
   await page.keyboard.up('KeyW');
   const cruising = await state();
   if (!(cruising.cruise > 60_000)) throw new Error(`cruise did not accelerate: ${JSON.stringify(cruising)}`);
-  await shot('13-cruise');
+  await shot('14-cruise');
 
   await page.keyboard.press('KeyM');
   await page.waitForSelector('.panel.map canvas', { timeout: 5000 });
   await page.waitForTimeout(800);
-  await shot('14-galaxy-map');
+  await shot('15-galaxy-map');
   await page.keyboard.press('Escape');
 
   await page.keyboard.press('KeyN');
   await page.waitForSelector('.panel.narrow .list', { timeout: 5000 });
   await page.waitForTimeout(400);
-  await shot('15-navigation');
+  await shot('16-navigation');
   await page.keyboard.press('Escape');
 
   const fps = await page.evaluate(() => new Promise((resolve) => {
