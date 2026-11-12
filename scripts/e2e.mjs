@@ -431,7 +431,7 @@ async function journey(browser, problems, steps) {
   await page.waitForTimeout(400);
   let panelText = await asideText();
   let selectedBy = 'a click on the canvas';
-  if (!panelText.includes(dest.sectorName) || !/If you jump there/.test(panelText)) {
+  if (!panelText.includes(dest.sectorName) || !/if you jump there/i.test(panelText)) {
     // The click landed on another star (stars crowd at low zoom). Select the destination the way the UI's own
     // destination button does and open the map again: it starts with the fold target selected.
     log(`click at scale ${click.scale.toFixed(2)} did not select a system of ${dest.sectorName}: ${JSON.stringify(panelText.slice(0, 120))}`);
