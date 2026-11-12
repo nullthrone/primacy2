@@ -470,7 +470,7 @@ async function journey(browser, problems, steps) {
   // 3. To a station of the system: nav target, cruise, drop at the station, normal flight, dock.
   const station = await page.evaluate(() => {
     const v = window.primacy2.game.view;
-    const sites = v.sites.filter((s) => s.def.kind === 'station' || s.def.kind === 'outpost').sort((a, b) => a.dist - b.dist);
+    const sites = v.sites.filter((s) => s.def.kind === 'station' || s.def.kind === 'outpost').sort((a, b) => (a.def.kind === 'station' ? 0 : 1) - (b.def.kind === 'station' ? 0 : 1) || a.dist - b.dist);  // a station before an outpost: only it has an outfitter
     const s = sites[0];
     return s ? { id: s.def.id, name: s.def.name, dist: s.dist, kind: s.def.kind } : null;
   });
@@ -595,11 +595,15 @@ async function journey(browser, problems, steps) {
 
   // C. The bound mark in Outfitting and the Shipyard.
   const tabBtn = (name) => page.locator('.panel.wide nav.tabs button', { hasText: new RegExp(`^${name}$`) });
-  await tabBtn('Outfitting').click();
-  await page.waitForTimeout(500);
-  const boundChips = await page.$$eval('.panel.wide .chip.bound', (n) => n.map((x) => x.innerText.trim()));
-  check(boundChips.length > 0 && boundChips.every((x) => /bound/i.test(x)), `the Outfitting tab shows the Bound mark on ${boundChips.length} fitted part(s)`, `no Bound mark in Outfitting: ${JSON.stringify(boundChips)}`);
-  await shot('28-beta-outfitting-bound');
+  if (await tabBtn('Outfitting').count()) {
+    await tabBtn('Outfitting').click();
+    await page.waitForTimeout(500);
+    const boundChips = await page.$$eval('.panel.wide .chip.bound', (n) => n.map((x) => x.innerText.trim()));
+    check(boundChips.length > 0 && boundChips.every((x) => /bound/i.test(x)), `the Outfitting tab shows the Bound mark on ${boundChips.length} fitted part(s)`, `no Bound mark in Outfitting: ${JSON.stringify(boundChips)}`);
+    await shot('28-beta-outfitting-bound');
+  } else {
+    log(`warning: ${station.name} (${station.kind}) has no Outfitting tab; the bound mark could not be checked`);
+  }
   if (await tabBtn('Shipyard').count()) {
     await tabBtn('Shipyard').click();
     await page.waitForTimeout(500);
