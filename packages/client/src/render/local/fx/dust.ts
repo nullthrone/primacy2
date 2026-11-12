@@ -66,7 +66,7 @@ const BOX = 110;
 const SHUTTER = 1 / 55;
 const MAX_STREAK = 14;
 
-const FORCED = import.meta.env.DEV ? Number(new URLSearchParams(location.search).get('dust') ?? 0) || 0 : 0;
+const FORCED = import.meta.env.DEV && typeof location !== 'undefined' ? Number(new URLSearchParams(location.search).get('dust') ?? 0) || 0 : 0;
 const V: Vec3 = [0, 0, 0];
 
 export class Dust {
@@ -130,7 +130,7 @@ export class Dust {
     const smear = Math.min(SHUTTER, MAX_STREAK / Math.max(speed, 1e-3));
     this.streak.set(vx * smear, vy * smear, vz * smear);
     // Sunlit grains: barely there at rest, plain to see once they streak.
-    const gain = (0.16 + 0.5 * smooth(5, 160, speed)) * this.level * Math.min(1.5, light.sunIntensity / 3 + 0.25);
+    const gain = (0.26 + 0.42 * smooth(5, 160, speed)) * this.level * Math.min(1.5, light.sunIntensity / 3 + 0.25);
     this.color.set(light.sunColor[0] * gain, light.sunColor[1] * gain, light.sunColor[2] * gain);
   }
 

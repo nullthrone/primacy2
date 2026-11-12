@@ -261,7 +261,7 @@ export class Fleet {
         // Navigation strobes: two short flashes per period, each craft on its own phase.
         const phase = wrap(view.time + hash01(craft.id) * STROBE_PERIOD, STROBE_PERIOD);
         const flash = phase < 0.07 || (phase > 0.22 && phase < 0.29) ? 1 : 0;
-        if (flash && quality > 0 || (flash && craft === this.own)) {
+        if (flash && (quality > 0 || craft === this.own)) {
           for (let k = 0; k < model.lamps.length; k++) {
             const p = model.lamps[k]!;
             tmp.copy(p).applyMatrix4(m);

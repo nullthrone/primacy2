@@ -282,10 +282,10 @@ export class Weapons {
         sprites.glow(cx, cy, cz, 4.2, 12 * flick, 7 * flick, 2.6 * flick);
         this.shower(b, 70, 6, 30, 0.4, 1.1, 0.09, 7, 4.2, 1.4, 0.05, level);
       } else {
-        const g = 6 * flick;
-        ribbons.seg(sx, sy, sz, tx, ty, tz, 0.3, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 1, 1);
-        sprites.glow(sx, sy, sz, 1.0, 2 * flick, 3 * flick, 4.5 * flick);
-        sprites.glow(cx, cy, cz, 2.0, 6 * flick, 8 * flick, 11 * flick);
+        const g = 3.2 * flick;
+        ribbons.seg(sx, sy, sz, tx, ty, tz, 0.22, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 1, 1);
+        sprites.glow(sx, sy, sz, 0.9, 1.4 * flick, 2.1 * flick, 3.2 * flick);
+        sprites.glow(cx, cy, cz, 1.8, 5 * flick, 7 * flick, 10 * flick);
         this.shower(b, 110, 10, 45, 0.15, 0.45, 0.05, 6, 4.6, 2.8, 0.03, level);
       }
     }

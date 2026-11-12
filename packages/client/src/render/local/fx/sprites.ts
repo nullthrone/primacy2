@@ -50,8 +50,10 @@ float noise(vec2 p) {
 }
 float fbm(vec2 p) {
   float s = 0.0, a = 0.5;
-  for (int i = 0; i < 4; i++) { s += a * noise(p); p = p * 2.03 + vec2(17.1, 5.3); a *= 0.5; }
-  return s / 0.9375;
+  // Each octave is turned against the last, which hides the grid the noise is built on.
+  mat2 turn = mat2(0.8, -0.6, 0.6, 0.8);
+  for (int i = 0; i < 5; i++) { s += a * noise(p); p = turn * p * 2.03 + vec2(17.1, 5.3); a *= 0.5; }
+  return s / 0.96875;
 }
 
 void main() {
@@ -61,18 +63,21 @@ void main() {
   float win = (1.0 - r2) * (1.0 - r2);
   float light;
   if (vK.x < 0.5) {
-    light = (exp(-r2 * 22.0) + 0.12 * exp(-r2 * 4.5)) * win;
+    // The skirt falls off like scattered light, so even a blinding flash has a soft edge.
+    light = (exp(-r2 * 22.0) + 0.09 / (1.0 + 36.0 * r2)) * win;
   } else if (vK.x < 1.5) {
     float d = (r - 0.82) / max(vK.y, 0.004);
     light = exp(-d * d) * smoothstep(1.0, 0.95, r);
   } else {
     // Fire as warped noise in a round body. The threshold rises with age, so the puff tears into
     // wisps and thins out instead of fading as a whole.
-    vec2 q = vUv * 1.7 + vK.z * vec2(37.0, 17.0);
-    float n = fbm(q + 0.7 * vec2(fbm(q * 1.6 + 3.1), fbm(q * 1.6 - 5.2)));
-    float body = n * (1.0 - r2) * 1.9;
-    float cut = mix(0.12, 0.95, vK.y);
-    light = smoothstep(cut, cut + 0.35, body) * (0.35 + body) * (1.0 - r2);
+    vec2 q = vUv * 2.3 + vK.z * vec2(37.0, 17.0);
+    vec2 warp = vec2(fbm(q * 1.3 + 3.1), fbm(q * 1.3 - 5.2)) - 0.5;
+    float n = fbm(q + 1.7 * warp);
+    float fall = 1.0 - r2;
+    float body = n * fall * 2.0;
+    float cut = mix(0.1, 1.0, vK.y);
+    light = smoothstep(cut, cut + 0.4, body) * (0.3 + body) * fall;
   }
   gl_FragColor = vec4(vCol * light, 1.0);
 }`;

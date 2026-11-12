@@ -266,7 +266,7 @@ def build_rock(key, seed, lobes, scale=(1.0, 1.0, 1.0), amp=0.09, freq=2.4, roug
             d = (Vector(rng.choice(boulder_at)).normalized() + d * boulder_spread).normalized()
         i = int(np.argmax(D @ np.array(d)))
         s = rng.uniform(*boulder_size)
-        centre = Vector(P[i]) + Vector(N[i]) * (s * 0.3)
+        centre = Vector(P[i]) + Vector(N[i]) * (s * 0.1)
         mat = (Matrix.Translation(centre)
                @ Euler([rng.uniform(0.0, math.tau) for _ in range(3)], 'XYZ').to_matrix().to_4x4()
                @ Matrix.Diagonal((s * rng.uniform(0.8, 1.25), s * rng.uniform(0.7, 1.1), s * rng.uniform(0.5, 0.85), 1.0)))

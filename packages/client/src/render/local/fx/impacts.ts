@@ -45,12 +45,12 @@ void main() {
   // A hot spot where the shot landed, a front running outward from it, and fine ripples behind the front.
   float front = 0.18 + 1.5 * t;
   float spot = exp(-ang * ang / 0.07);
-  float ring = exp(-pow((ang - front) / 0.085, 2.0));
+  float ring = exp(-pow((ang - front) / 0.06, 2.0));
   float behind = 1.0 - smoothstep(front - 0.12, front, ang);
   float ripples = 0.5 + 0.5 * sin(ang * 52.0 - t * 26.0);
   // A shell of light is brightest where it is seen edge-on.
-  float limb = 0.3 + 0.7 * pow(1.0 - abs(dot(n, normalize(vToCam))), 2.0);
-  float light = spot * u * u * u * 5.0 + (ring * 1.7 + behind * ripples * 0.4) * u * u * limb;
+  float limb = 0.18 + 0.82 * pow(1.0 - abs(dot(n, normalize(vToCam))), 2.0);
+  float light = spot * u * u * u * 1.3 + (ring * 0.9 + behind * ripples * 0.14) * u * u * limb;
   // The flare never wraps around to the far side.
   light *= smoothstep(2.0, 1.2, ang);
   gl_FragColor = vec4(vTint * light, 1.0);
@@ -64,7 +64,7 @@ interface Flare {
 }
 
 const MAX_FLARES = 24;
-const FLARE_LIFE = 0.5;
+const FLARE_LIFE = 0.45;
 const SHIELD: Readonly<Vec3> = [0.3, 0.58, 1.0];
 
 /** Shield flares: unit spheres scaled to 1.15 ship radii, lit only around the impact. */
@@ -90,6 +90,11 @@ class Shields {
   }
 
   spawn(id: number, dx: number, dy: number, dz: number, gain: number): void {
+    // A beam hammering one spot keeps one ripple going instead of piling light into a solid bubble.
+    for (let i = 0; i < this.pool.count; i++) {
+      const q = this.pool.items[i]!;
+      if (q.id === id && q.age < 0.2 && q.dx * dx + q.dy * dy + q.dz * dz > 0.8) return;
+    }
     // When all are in use the new flare replaces the oldest, which is nearly spent.
     let p = this.pool.take();
     if (!p) {
@@ -162,9 +167,9 @@ export class Impacts {
     const power = Math.sqrt(clamp(ev.dmg / 20, 0.4, 6));
 
     if (ev.shield && t) {
-      this.shields.spawn(t.id, nx, ny, nz, power);
+      this.shields.spawn(t.id, nx, ny, nz, Math.min(power, 1.7));
       const r = radius * 1.15;
-      const p = this.flashes.spawn(GLOW, nx * r, ny * r, nz * r, 0.1, 1.0 * power, 2.4 * power, 0.45, 0.7, 1.0, 7);
+      const p = this.flashes.spawn(GLOW, nx * r, ny * r, nz * r, 0.08, 0.8 * power, 2.0 * power, 0.45, 0.7, 1.0, 4);
       p.follow = t.id;
       return;
     }

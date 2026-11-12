@@ -168,6 +168,9 @@ interface Built {
   model: Model;
   obj: Object3D;
   gate: GateParts | null;
+  /** A beacon's own copies of its lantern materials, flashed in time with its strobe. */
+  pulseMats: MeshStandardMaterial[];
+  pulseFull: number[];
   seen: number;
 }
 
@@ -190,7 +193,18 @@ export class Structures {
 
   private build(model: Model, modelName: string): Built {
     const obj = this.lib.instantiate(model);
-    const built: Built = { siteId: 0, modelName, model, obj, gate: null, seen: 0 };
+    const built: Built = { siteId: 0, modelName, model, obj, gate: null, pulseMats: [], pulseFull: [], seen: 0 };
+    if (modelName === 'beacon') {
+      obj.traverse((o) => {
+        const mesh = o as Mesh;
+        const src = mesh.material as MeshStandardMaterial | undefined;
+        if (!mesh.isMesh || !src?.isMeshStandardMaterial || src.name !== 'emissive_light') return;
+        const own = this.lib.materials.add(src.clone());
+        built.pulseMats.push(own);
+        built.pulseFull.push(src.emissiveIntensity);
+        mesh.material = own;
+      });
+    }
     if (modelName !== 'gate') return built;
 
     const gate: GateParts = {
@@ -307,6 +321,11 @@ export class Structures {
       obj.quaternion.setFromAxisAngle(Y, wrap(view.time * (spec?.spin ?? 0), TAU));
       obj.updateMatrix();
 
+      if (b.pulseMats.length) {
+        // The lantern flares up with each strobe and dies down to an ember in between.
+        const level = 0.05 + Math.exp(-wrap(view.time, 2) * 5);
+        for (let k = 0; k < b.pulseMats.length; k++) b.pulseMats[k]!.emissiveIntensity = b.pulseFull[k]! * level;
+      }
       if (b.gate) this.updateGate(b.gate, state ?? 'active', def.gate?.progress ?? 1, view, light);
       if (view.graphics.quality > 0 || px > 40) this.lamps(b, name, bound, state, view, pxPerRad);
 
@@ -370,9 +389,9 @@ export class Structures {
       const flash = !quiet && phase < 0.12;
       if (flash) {
         const amber = state === 'building';
-        this.glints.addLamp(tmp, 1, amber ? 0.62 : 0.95, amber ? 0.15 : 0.86, radius, beacon ? 14 : 8, pxPerRad);
+        this.glints.addLamp(tmp, 1, amber ? 0.62 : 0.95, amber ? 0.15 : 0.86, radius, beacon ? 16 : 12, pxPerRad);
       } else {
-        this.glints.addLamp(tmp, 1, 0.13, 0.07, radius * 0.6, quiet ? 1.2 : 2, pxPerRad);
+        this.glints.addLamp(tmp, 1, 0.13, 0.07, radius * 0.6, quiet ? 2 : 3.5, pxPerRad);
       }
     }
   }

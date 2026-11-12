@@ -44,8 +44,12 @@ MODELS = {
     'missile': 'props.missile',
     'beacon': 'structures.beacon',
     'cockpit_generic': 'props.cockpit_generic',
+    'debris_0': 'props.debris_0',
+    'debris_1': 'props.debris_1',
+    'debris_2': 'props.debris_2',
+    'debris_3': 'props.debris_3',
 }
-SHARED = ('p2lib', 'ships.kit', 'structures.skit', 'props.rockkit')
+SHARED = ('p2lib', 'ships.kit', 'structures.skit', 'props.rockkit', 'props.debriskit')
 
 
 def build(keys=None, export=True, preview=True, **kw):

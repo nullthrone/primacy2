@@ -131,12 +131,15 @@ function interceptTime(to: Readonly<Vec3>, vel: Readonly<Vec3>, speed: number): 
   return t > 0 ? t : -1;
 }
 
-/** The ship's locked target if it is a live ship in the same zone. */
+/**
+ * The ship's locked target if it is a live ship in the same zone that the ship's sensors still
+ * pick up. A target that went dark gives neither gimbal tracking nor a missile lock.
+ */
 function lockedTarget(sim: SystemSim, ship: Ship): Ship | null {
   if (ship.target === null) return null;
   const t = sim.ships.get(ship.target);
   if (!t || t === ship || t.gone || t.state.mode !== FlightMode.Normal || t.state.anchor !== ship.state.anchor) return null;
-  return t;
+  return sim.detects(ship, t, true) ? t : null;
 }
 
 /**
@@ -198,13 +201,12 @@ export function strike(
 }
 
 function launchMissile(sim: SystemSim, ship: Ship, m: WeaponMount, slot: number, origin: Vec3, fwd: Vec3, target: Ship | null): void {
-  // A lock outside the seeker cone, beyond range or on a ship the launcher's sensors no longer
-  // pick up is not passed on: the missile flies straight.
+  // A lock outside the seeker cone or beyond range is not passed on: the missile flies straight.
   let lock: Ship | null = null;
   if (target) {
     const to = v3.sub(target.state.pos, origin);
     const d = v3.len(to);
-    if (d > 1e-3 && d <= m.range && v3.dot(to, fwd) / d >= Math.cos(m.gimbal) && sim.detects(ship, target, true)) lock = target;
+    if (d > 1e-3 && d <= m.range && v3.dot(to, fwd) / d >= Math.cos(m.gimbal)) lock = target;
   }
   const speed = m.speed + Math.max(0, v3.dot(ship.state.vel, fwd));
   const id = sim.world.allocId();

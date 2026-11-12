@@ -34,10 +34,7 @@ export class MaterialRegistry {
     this.all.add(m);
     // The renderer tone-maps once, in its final pass.
     m.toneMapped = false;
-    if (m.envMap !== this.env) {
-      m.envMap = this.env;
-      m.needsUpdate = true;
-    }
+    m.envMap = this.env;
     return m;
   }
 
@@ -45,10 +42,8 @@ export class MaterialRegistry {
   setEnv(tex: Texture | null): void {
     if (tex === this.env) return;
     this.env = tex;
-    for (const m of this.all) {
-      m.envMap = tex;
-      m.needsUpdate = true;
-    }
+    // The renderer notices a changed environment map by itself and picks the matching program.
+    for (const m of this.all) m.envMap = tex;
   }
 
   dispose(): void {

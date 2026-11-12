@@ -7,7 +7,7 @@
  * written, camera-relative, into two instanced batches (streaks and discs of light). Shield flares,
  * debris and dust have their own small meshes.
  */
-import { Group } from 'three';
+import { Group, HalfFloatType, PerspectiveCamera, WebGLRenderTarget, type WebGLRenderer } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
 import type { Part } from '../part.ts';
 import { Blasts } from './blasts.ts';
@@ -49,9 +49,23 @@ export function createFx(): Part {
   return {
     root,
 
-    init(): Promise<void> {
+    init(renderer: WebGLRenderer): Promise<void> {
       // The debris models are optional and may arrive late; generated shards stand in until then.
       void debris.load();
+      // Compile the shaders now, so the first shot of a fight does not stall a frame. A program is
+      // compiled per output colour space, so this is done against a linear target like the one the
+      // space renderer draws into. It only saves time; nothing depends on it having worked.
+      const target = new WebGLRenderTarget(4, 4, { type: HalfFloatType, depthBuffer: false });
+      const before = renderer.getRenderTarget();
+      try {
+        renderer.setRenderTarget(target);
+        renderer.compile(root, new PerspectiveCamera());
+      } catch {
+        // The shaders compile on first use instead.
+      } finally {
+        renderer.setRenderTarget(before);
+        target.dispose();
+      }
       return Promise.resolve();
     },
 

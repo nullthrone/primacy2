@@ -179,7 +179,7 @@ export class Debris {
       c.ax = D[0]; c.ay = D[1]; c.az = D[2];
       c.angle = rand(0, TAU);
       c.spin = rand(1.5, 7);
-      c.size = radius * rand(0.07, 0.2);
+      c.size = radius * rand(0.1, 0.28);
       c.age = 0;
       c.life = rand(3.5, 6);
     }

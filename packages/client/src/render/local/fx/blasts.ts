@@ -31,15 +31,15 @@ export class Blasts {
     const R = clamp(f.tracks.get(ev.id)?.radius ?? 10, 4, 80);
 
     // The flash: blinding for a few frames, then an orange glare that is gone within a second.
-    fl.spawn(GLOW, x, y, z, 0.18, R * 5, R * 13, 1.0, 0.94, 0.84, 70);
+    fl.spawn(GLOW, x, y, z, 0.18, R * 5, R * 13, 1.0, 0.94, 0.84, 45);
     fl.spawn(GLOW, x, y, z, 0.8, R * 3.5, R * 6, 1.0, 0.5, 0.16, 6).cool = 1;
 
     // The fireball: puffs of burning gas driven outward, each tearing apart as it expands.
     for (let i = PUFFS[f.quality]; i > 0; i--) {
       randDir(D);
       const v = R * rand(0.7, 2.6);
-      const p = fl.spawn(PUFF, x + D[0] * R * 0.3, y + D[1] * R * 0.3, z + D[2] * R * 0.3, rand(0.55, 1.25),
-        R * rand(0.5, 0.9), R * rand(2.2, 3.8), 1.0, 0.58, 0.2, rand(5, 9));
+      const p = fl.spawn(PUFF, x + D[0] * R * 0.5, y + D[1] * R * 0.5, z + D[2] * R * 0.5, rand(0.5, 1.25),
+        R * rand(0.4, 1.0), R * rand(2.0, 4.0), 1.0, 0.58, 0.2, rand(4, 9));
       p.vx = D[0] * v; p.vy = D[1] * v; p.vz = D[2] * v;
       p.cool = 1;
       p.rot = rand(0, TAU);
@@ -47,8 +47,8 @@ export class Blasts {
     }
 
     // The shock ring: a thin shell of gas seen at a random tilt.
-    const ring = fl.spawn(RING, x, y, z, 0.65, R * 1.5, R * 18, 0.7, 0.82, 1.0, 3.5);
-    ring.param = 0.022;
+    const ring = fl.spawn(RING, x, y, z, 0.5, R * 1.5, R * 15, 0.7, 0.82, 1.0, 1.6);
+    ring.param = 0.006;
     ring.aspect = rand(0.3, 1);
     ring.rot = rand(0, TAU);
 
@@ -69,14 +69,14 @@ export class Blasts {
     if (ev.out) {
       const pull = fl.spawn(RING, x, y, z, 0.2, 45, 2, 0.55, 0.72, 1.0, 3);
       pull.curve = RISE;
-      pull.param = 0.04;
+      pull.param = 0.012;
       fl.spawn(GLOW, x, y, z, 0.16, 10, 28, 0.75, 0.87, 1.0, 22).age = -0.2;
       return;
     }
     const T = 0.26;
     const pull = fl.spawn(RING, x, y, z, T, 80, 3, 0.55, 0.72, 1.0, 4);
     pull.curve = RISE;
-    pull.param = 0.035;
+    pull.param = 0.01;
     for (let i = FOLD_SPARKS[f.quality]; i > 0; i--) {
       randDir(D);
       const d = rand(45, 80), v = -d / T;
@@ -84,9 +84,9 @@ export class Blasts {
     }
     fl.spawn(GLOW, x, y, z, 0.24, 22, 60, 0.8, 0.9, 1.0, 45).age = -T;
     fl.spawn(GLOW, x, y, z, 0.9, 14, 7, 0.4, 0.6, 1.0, 4).age = -T;
-    const wave = fl.spawn(RING, x, y, z, 0.55, 6, 120, 0.6, 0.78, 1.0, 3);
+    const wave = fl.spawn(RING, x, y, z, 0.55, 6, 120, 0.6, 0.78, 1.0, 1.6);
     wave.age = -T;
-    wave.param = 0.018;
+    wave.param = 0.005;
   }
 
   /** Another ship entering or leaving cruise: a short streak along its heading and a small flash. */

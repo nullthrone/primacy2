@@ -117,7 +117,7 @@ export class Glints {
     const dist = p.length();
     if (dist < 0.5) return;
     const px = (radius / dist) * pxPerRad;
-    const k = radiance * Math.min(1, Math.pow(px / MIN_PX, 0.8));
+    const k = radiance * Math.min(1, Math.pow(px / MIN_PX, 0.6));
     if (k < 0.02) return;
     // Pulled a little toward the camera so the lamp is not buried in the surface it sits on.
     const pull = (dist > FAR_CLAMP ? FAR_CLAMP / dist : 1) * (1 - Math.min(0.5, (0.3 + 0.002 * dist) / dist));
