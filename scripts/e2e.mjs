@@ -204,12 +204,26 @@ async function journey(browser, problems, steps) {
       pos: st ? Math.round(Math.hypot(...st.pos)) : null, speed: st ? Math.round(st.mode === 1 ? st.cruiseSpeed : Math.hypot(...st.vel)) : null, fuel: st?.fuel,
     } : null;
   });
-  const fail = async (what) => { throw new Error(`${what} (${JSON.stringify(await stateDump())})`); };
+  const fail = async (what) => {
+    await page.screenshot({ path: `${OUT}/journey-failure.png` }).catch(() => {});
+    const events = await page.evaluate(() => window.__events ?? []).catch(() => []);
+    throw new Error(`${what} (${JSON.stringify(await stateDump())}; last events ${JSON.stringify(events.slice(-12))})`);
+  };
 
   // Market of the open station panel: one entry per row, cells as text.
   const marketRows = () => page.$$eval('.panel.wide .scroll > table tbody tr:not(.lots)', (rows) => rows.map((r) => [...r.querySelectorAll('td')].map((td) => td.innerText.trim())));
   const rowOf = (rows, name) => rows.find((r) => r[0] === name);
 
+  // Remember the latest game events, so a failure can say what happened to the ship.
+  await page.addInitScript(() => {
+    window.__events = [];
+    const watch = () => {
+      const ev = window.primacy2?.game?.view?.events;
+      if (ev && ev !== window.__last) { window.__last = ev; for (const e of ev) if (e.e !== 'cruise') window.__events.push(JSON.stringify(e).slice(0, 160)); window.__events.splice(0, Math.max(0, window.__events.length - 40)); }
+      requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  });
   await page.goto(URL, { waitUntil: 'load' });
   await page.waitForSelector('.start-card', { timeout: 20_000 });
   const pilotName = `Trader ${Date.now() % 100000}`;
