@@ -8,6 +8,7 @@ import type { FrameView, GameRenderer, GraphicsSettings, LocalLayer } from '../c
 import { Bloom } from './post/Bloom.ts';
 import { Composite } from './post/Composite.ts';
 import { FullscreenPass } from './post/fullscreen.ts';
+import { Bodies } from './space/Bodies.ts';
 import { Sky } from './space/Sky.ts';
 import { idleFrame } from './space/idle.ts';
 import { computeLighting } from './space/lighting.ts';
@@ -23,6 +24,7 @@ class SpaceRenderer implements GameRenderer {
   private readonly bloom = new Bloom();
   private readonly composite = new Composite();
   private readonly sky = new Sky();
+  private readonly bodies = new Bodies(() => this.sky.cube);
   private readonly spaceScene = new Scene();
   // Celestial bodies are drawn without depth testing, so the depth range is free.
   private readonly spaceCam = new PerspectiveCamera(70, 1, 0.001, 1e7);
@@ -45,7 +47,8 @@ class SpaceRenderer implements GameRenderer {
     this.renderer.autoClear = false;
     // Tone mapping and sRGB encoding happen once, in the final pass.
     this.renderer.toneMapping = NoToneMapping;
-    this.spaceScene.add(this.sky.mesh);
+    this.sky.group.renderOrder = -1000;
+    this.spaceScene.add(this.sky.group, this.bodies.group);
     this.resize(canvas.clientWidth || canvas.width || 2, canvas.clientHeight || canvas.height || 2, 1);
   }
 
@@ -107,9 +110,10 @@ class SpaceRenderer implements GameRenderer {
       width: this.width,
       height: this.height,
       quality,
-      clock: frame.clock % 7200,
+      clock: frame.clock,
     };
-    void params;
+    this.sky.frame(params);
+    this.bodies.update(frame, params);
 
     r.setRenderTarget(target);
     r.setClearColor(0x000000, 1);
@@ -130,6 +134,7 @@ class SpaceRenderer implements GameRenderer {
 
   dispose(): void {
     this.local?.dispose();
+    this.bodies.dispose();
     this.sky.dispose();
     this.bloom.dispose();
     this.composite.dispose();

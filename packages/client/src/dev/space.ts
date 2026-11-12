@@ -128,12 +128,14 @@ function buildScene(name: string): FakeViewOptions | null {
       return { system: f.sys, anchor: f.body.id, offset: sunCam(f, f.body.radius * 3.2, name === 'lava' ? 95 : 55, 12), fov: 45 };
     }
     case 'blackhole-far':
+    case 'blackhole-disk':
     case 'blackhole-near': {
+      // far: the hole is small but resolved; disk: the whole accretion disk; near: 15 Schwarzschild radii out.
       const f = find((b) => b.cls === 'BH')!;
       const rs = f.body.rs ?? f.body.radius;
       const near = name === 'blackhole-near';
-      const dist = near ? rs * 15 : Math.max(rs * 120, (f.body.disk?.outer ?? 0) * 4.5);
-      return { system: f.sys, anchor: f.body.id, offset: axisCam(f, dist, near ? 5 : 11, 60), fov: near ? 70 : 45 };
+      const dist = num('rs', 0) > 0 ? rs * num('rs', 0) : near ? rs * 15 : name === 'blackhole-far' ? rs * 150 : (f.body.disk?.outer ?? rs * 500) * 3;
+      return { system: f.sys, anchor: f.body.id, offset: axisCam(f, dist, num('elev', near ? 5 : 11), 60), fov: near ? 70 : 45 };
     }
     case 'neutron': {
       const f = find((b) => b.cls === 'NS')!;

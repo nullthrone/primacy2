@@ -5,7 +5,7 @@ import type { BodyView } from '../../contracts.ts';
 import { GLSL_NOISE } from './glsl.ts';
 import { effectiveLum, hexToLinear } from './lighting.ts';
 import { bodyAxis, type SpaceFrame, type ViewParams } from './types.ts';
-import { Glow, NO_DEPTH, QUAD, glare, smoothstep, type Visual } from './visual.ts';
+import { Glow, NO_DEPTH, QUAD, compress, glare, smoothstep, type Visual } from './visual.ts';
 
 /** Radius of the sphere inside which rays are bent, in Schwarzschild radii. Outside it rays are straight. */
 const LENS_RADIUS = 40;
@@ -253,9 +253,4 @@ export class BlackHoleVisual implements Visual {
     this.material.dispose();
     this.glow.dispose();
   }
-}
-
-function compress(body: BodyView, out: Vector3): void {
-  const k = 1000 / Math.max(body.dist, 1);
-  out.set(body.rel[0] * k, body.rel[1] * k, body.rel[2] * k);
 }

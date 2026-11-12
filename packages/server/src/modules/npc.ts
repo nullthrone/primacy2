@@ -19,7 +19,7 @@ import {
 } from '@primacy2/shared';
 import { newShip, type GameModule, type Ship } from '../game.ts';
 import type { SystemSim } from '../sim.ts';
-import { NpcBrain, THINK_EVERY, clearanceOf, steer, think } from './npc/ai.ts';
+import { NpcBrain, THINK_EVERY, steer, think } from './npc/ai.ts';
 
 export { NpcBrain } from './npc/ai.ts';
 
@@ -203,6 +203,3 @@ export const npcModule: GameModule = {
     populate(sim, t);
   },
 };
-
-/** Distance NPCs keep from the structure of a site (exported for tests and other modules). */
-export { clearanceOf };
