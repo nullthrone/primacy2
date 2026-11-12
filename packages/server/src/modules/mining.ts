@@ -141,7 +141,7 @@ export const miningModule: GameModule = {
             for (const o of sim.objects.values()) if (o.anchor === zone && o.kind === EntityKind.Loot) pods++;
           }
           if (pods >= MAX_PODS && ship.player) {
-            if (ship.player.addCargo(rock.ore, 1, sim.world.id) > 0) sim.world.pushPilot(ship.player);
+            if (ship.player.addCargo(rock.ore, 1, sim.world.id, false) > 0) sim.world.pushPilot(ship.player);
             continue;
           }
           const rng = sim.world.random();

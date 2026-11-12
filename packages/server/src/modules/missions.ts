@@ -142,7 +142,7 @@ export const missionsModule: GameModule = {
         if (p.cargoFree() < offer.n) return fail('Not enough free cargo space for the shipment.');
         if (p.rec.credits < offer.deposit) return fail(`The deposit for this cargo is ${offer.deposit} credits.`);
         p.rec.credits -= offer.deposit;
-        p.addCargo(offer.c, offer.n, world.id);
+        p.addCargo(offer.c, offer.n, world.id, false);
       }
       d.active.push({ ...offer, accepted: true, expires: at.sim.time + TIME_LIMIT_S });
       world.pushPilot(p);

@@ -10,9 +10,17 @@ import {
   Rng,
   SITE_ID_BASE,
   UNIVERSE_EPOCH_MS,
+  HULLS,
+  attributeCargo,
+  bindArrivingShip,
+  effectiveTier,
   findSite,
   foldFuelCost,
+  hullAllowed,
   isValidAnchor,
+  largestHullWithin,
+  publishedRating,
+  shipLimitFor,
   issueTicket,
   newPassport,
   newShipState,
@@ -28,6 +36,7 @@ import {
   type Command,
   type GalaxyView,
   type KeyPair,
+  type Passport,
   type PilotView,
   type S2C,
   type SectorView,
@@ -44,6 +53,7 @@ import type { Federation, KnownServer } from './federation.ts';
 import { Player, newShip, type CommandHandler, type CommandResult, type Connection, type GameModule, type Ship } from './game.ts';
 import { SystemSim } from './sim.ts';
 import type { PlayerRecord, Store } from './store.ts';
+import { TradeBook, departedShip, fullBinding, isHullBound, recordDeparture, shipLimitPrices, type CustomsRecord } from './trade.ts';
 
 export interface WorldHost {
   readonly id: string;
@@ -68,6 +78,8 @@ export class World {
   readonly defs = new Map<string, SystemDef>();
   readonly players = new Map<string, Player>();
   readonly modules: GameModule[];
+  /** This server's trade books and the check every conversion of cargo into value goes through. */
+  readonly trade: TradeBook;
   tickCount = 0;
   /** Set by the comms module: called for every chat message a pilot here writes on the galaxy channel. */
   onLatticeChat: ((m: ChatMessage) => void) | null = null;
@@ -88,6 +100,7 @@ export class World {
     for (const d of defs) this.defs.set(d.id, d);
     this.modules = modules;
     this.rng = new Rng(host.id + ':' + host.now());
+    this.trade = new TradeBook(this);
     for (const m of modules) {
       for (const [kind, fn] of Object.entries(m.commands ?? {})) {
         if (this.commands.has(kind)) throw new Error(`command "${kind}" is handled by two modules`);
@@ -188,6 +201,8 @@ export class World {
       homeSite: p.rec.homeSite,
       homeSystem: p.rec.homeSystem,
       rebuy: 0,
+      licence: this.trade.licence(p),
+      shipBound: fullBinding(p.rec),
     };
     for (const m of this.modules) m.pilotView?.(p, view);
     return view;
@@ -207,7 +222,7 @@ export class World {
     const view: StationView = {
       site: site.id, name: site.name, services: site.services ?? [], faction: site.faction,
       market: [], modules: [], hulls: [], missions: [], fuelPrice: 0, repairPrice: 0, dataValue: 0,
-      gateProjects: [], tariffs: {},
+      gateProjects: [], tariffs: {}, imports: this.trade.importInfo(p),
     };
     for (const m of this.modules) m.stationView?.(p, p.sim, site.id, view);
     return view;
@@ -222,7 +237,8 @@ export class World {
     const sectors: SectorView[] = [
       {
         id: own.id, name: own.name, url: own.url, pos: own.pos, radius: own.radius, online: true, linked: true,
-        trust: 'trusted', players: this.players.size, systems: own.systems, links: own.links, gates: own.gates,
+        trust: 'union', tier: 'union', rulesMatch: true, allowance: null,
+        players: this.players.size, systems: own.systems, links: own.links, gates: own.gates,
       },
     ];
     for (const k of this.fed.known.values()) {
@@ -230,7 +246,8 @@ export class World {
       if (trust === 'blocked') continue;
       sectors.push({
         id: k.id, name: k.desc.name, url: k.desc.url, pos: k.desc.pos, radius: k.desc.radius,
-        online: this.fed.isOnline(k), linked: k.linked, trust, players: k.desc.online,
+        online: this.fed.isOnline(k), linked: k.linked, trust, tier: this.fed.tierOf(k.id),
+        rulesMatch: this.fed.rulesMatch(k.id), allowance: this.trade.allowance(k.id), players: k.desc.online,
         systems: k.desc.systems, links: k.desc.links, gates: k.desc.gates,
       });
     }
@@ -308,6 +325,8 @@ export class World {
         }
         // The sector the pilot left for is gone: restore the ship as it was when it departed.
         this.host.log(`recalling ${rec.passport.name}: sector ${rec.away.server} is unreachable`);
+        // The cargo comes back with the ship, so it was not exported after all.
+        this.trade.unbookExport(rec.away.server, rec.away.exported ?? 0);
         rec.status = 'here';
         delete rec.away;
       }
@@ -340,8 +359,9 @@ export class World {
     const t = v.value;
     const issuer = this.fed.known.get(t.issuer);
     if (!issuer) return { ok: false, msg: 'Transfer refused: the issuing sector is unknown here.' };
-    const trust = this.fed.trustOf(t.issuer);
-    if (trust === 'blocked') return { ok: false, msg: 'Transfer refused: the issuing sector is blocked here.' };
+    if (this.fed.trustOf(t.issuer) === 'blocked') return { ok: false, msg: 'Transfer refused: the issuing sector is blocked here.' };
+    // What the issuer counts as right now: the operator's rating, or partner while a customs union is not mutual.
+    const tier = this.fed.tierOf(t.issuer);
     if (!this.defs.has(t.arrival.system)) return { ok: false, msg: 'Transfer refused: unknown destination system.' };
     if (t.arrival.kind === 'gate' && (t.arrival.site === undefined || !findSite(this.defs.get(t.arrival.system)!, t.arrival.site))) {
       return { ok: false, msg: 'Transfer refused: unknown destination gate.' };
@@ -349,14 +369,26 @@ export class World {
     // A ship can only arrive if it is not here already. Without this rule any server could replace
     // the ship of a pilot who never left.
     if (existing && existing.status === 'here') return { ok: false, msg: 'Transfer refused: your ship is already in this sector.' };
+
+    // The passport is rebuilt before anything is claimed or redeemed: a ship that may not enter is
+    // refused while the issuer still holds it, so the pilot can simply go back there.
+    const passport = sanitizePassport(t.passport, playerId, { issuer: t.issuer });
+    // Bound: everything a server outside the customs union sent, except what this server
+    // recognises as the ship the pilot left here with.
+    const bound = bindArrivingShip(passport.ship.loadout, tier, passport.ship.bound, existing ? departedShip(existing) : null);
+    delete passport.ship.bound;
+    const cap = shipLimitFor(tier, shipLimitPrices(this.config));
+    if (bound.hull && !hullAllowed(passport.ship.loadout.hull, cap)) {
+      return { ok: false, msg: `Transfer refused: ${classLimitText(this.config.name, tier, cap)}.` };
+    }
     if (!this.store.claimNonce(t.nonce, t.expiresAt + 60_000)) return { ok: false, msg: 'Transfer refused: ticket already used.' };
 
     let redeemed = false;
     try {
       redeemed = await this.fed.redeem(issuer, t.nonce, playerId);
     } catch {
-      // Only a fully trusted issuer is believed on its signature alone when it cannot be asked.
-      if (trust !== 'trusted') {
+      // Only a customs union member is believed on its signature alone when it cannot be asked.
+      if (tier !== 'union') {
         this.store.releaseNonce(t.nonce);
         return { ok: false, msg: 'Transfer refused: the issuing sector did not answer.' };
       }
@@ -364,11 +396,11 @@ export class World {
     }
     if (!redeemed) return { ok: false, msg: 'Transfer refused: the issuing sector did not confirm the ticket.' };
 
-    const passport = sanitizePassport(t.passport, playerId, { issuer: t.issuer, impoundCargo: trust === 'restricted' });
     passport.seq += 1;
-    // Only a trusted issuer is believed about where cargo came from. For everyone else the goods
-    // count as the issuer's own, so a foreign label cannot dodge the tariff.
-    if (trust !== 'trusted') for (const item of passport.ship.cargo) item.origin = t.issuer;
+    // Decide what every lot counts as here: local, free, an import against a partner's balance, or sealed.
+    passport.ship.cargo = attributeCargo(passport.ship.cargo, {
+      self: this.id, issuer: t.issuer, issuerTier: tier, tierOf: (id) => this.fed.tierOf(id),
+    });
     const firstVisit = !existing;
     if (firstVisit) passport.stats.sectors += 1;
     const rec: PlayerRecord = existing ?? {
@@ -381,9 +413,12 @@ export class World {
     delete rec.away;
     rec.system = t.arrival.system;
     rec.ship = null;
-    // Recorded for other modules: hull and modules that arrived from a server that is not trusted
-    // were not paid for here and must not be refundable at full value.
-    rec.data.customs = { issuer: t.issuer, trust, at: now, loadout: structuredClone(passport.ship.loadout) };
+    // Recorded for other modules: bound hull and modules were not paid for here, so they refund
+    // nothing and leave no scrap or parts (see `shipBinding` in trade.ts).
+    rec.data.customs = {
+      issuer: t.issuer, trust: tier, at: now, loadout: structuredClone(passport.ship.loadout), bound,
+    } satisfies CustomsRecord;
+    delete rec.data.departed;
     // Persist before placing the ship: the issuer already regards the pilot as gone.
     this.store.savePlayer(rec);
     return { ok: true, rec, arrival: t.arrival, from: issuer };
@@ -539,6 +574,12 @@ export class World {
       p?.notice('warn', 'fold_lost', 'The destination is no longer known.');
       return;
     }
+    // A sector that would turn the ship away is not jumped to: no fuel is spent and nothing is counted.
+    const refusal = p && target.server ? this.entryRefusal(p, target.server) : null;
+    if (refusal) {
+      p?.notice('warn', 'fold_refused', refusal);
+      return;
+    }
     ship.state.fuel -= cost;
     sim.emit(sim.zoneOf(ship), { e: 'fold', id: ship.id, out: true, at: v3.clone(ship.state.pos) });
     if (p) {
@@ -597,13 +638,24 @@ export class World {
     if (this.fed.trustOf(dest.id) === 'blocked') return { ok: false, err: 'That sector is blocked by this server.' };
     if (!this.fed.isOnline(dest)) return { ok: false, err: 'That sector is not answering.' };
     if (!p.ship) return { ok: false, err: 'No ship.' };
+    const refusal = this.entryRefusal(p, dest);
+    if (refusal) return { ok: false, err: refusal };
     this.syncPassport(p);
     const now = this.host.now();
     const nonce = randomNonce();
+    // The ticket says which parts of the ship are bound here; a customs union member passes that on.
+    const bound = fullBinding(p.rec);
+    const passport: Passport =
+      bound && (bound.hull || bound.slots.includes(true)) ? { ...p.rec.passport, ship: { ...p.rec.passport.ship, bound } } : p.rec.passport;
     const ticket = issueTicket(
-      { issuer: this.id, dest: dest.id, playerKey: p.rec.key, passport: p.rec.passport, arrival, nonce, nowMs: now },
+      { issuer: this.id, dest: dest.id, playerKey: p.rec.key, passport, arrival, nonce, nowMs: now },
       this.host.keys,
     );
+    // Remember the ship, so that it is recognised as this server's own when it comes back. A ship
+    // that leaves into the customs union gets no record: it is local there, may be sold there,
+    // and comes back on the union member's word.
+    if (this.fed.tierOf(dest.id) === 'union') delete p.rec.data.departed;
+    else recordDeparture(p.rec);
     // Remember where the ship was, so a cancelled or failed transfer puts it back there.
     this.save(p);
     p.rec.status = 'transit';
@@ -628,8 +680,32 @@ export class World {
     if (this.host.now() > rec.away.expiresAt + 60_000) return false;
     if (this.players.has(playerId)) return false; // the pilot is back here; the ticket is void
     rec.status = 'away';
+    // Only now have the goods left: the local cargo on board is booked as an export to that server.
+    // A ticket that is never redeemed books nothing.
+    rec.away.exported = this.trade.bookExport(fromServer, rec.passport.ship.cargo);
     this.store.savePlayer(rec);
     return true;
+  }
+
+  /**
+   * Why `dest` would turn this pilot's ship away, judged from the trade policy `dest` publishes;
+   * null when nothing stands in the way. Checked before a fold jump or a gate transit starts.
+   * `dest` checks again on arrival, with its own books.
+   */
+  entryRefusal(p: Player, dest: KnownServer): string | null {
+    if (this.fed.trustOf(dest.id) === 'blocked') return 'That sector is blocked by this server.';
+    const theirs = publishedRating(dest.desc, this.id);
+    if (theirs === null) return null;
+    if (theirs === 'blocked') return `${dest.desc.name} does not admit ships from this sector.`;
+    const tier = effectiveTier(theirs, this.fed.trustOf(dest.id), this.fed.rulesMatch(dest.id));
+    const cap = shipLimitFor(tier, dest.desc.trade?.shipLimit);
+    const hull = p.rec.passport.ship.loadout.hull;
+    if (hullAllowed(hull, cap)) return null;
+    // A hull that arrived from that sector and was not replaced since may be its own ship:
+    // that sector recognises it on arrival, so it is let go.
+    const customs = p.rec.data.customs as Partial<CustomsRecord> | undefined;
+    if (customs && customs.issuer === dest.id && customs.loadout?.hull === hull && isHullBound(p.rec)) return null;
+    return `Jump refused: ${classLimitText(dest.desc.name, tier, cap)}. Your ${HULLS[hull]?.name ?? hull} is above that class.`;
   }
 
   /** Respawns a dead pilot docked at their home station with a repaired ship. */
@@ -653,6 +729,13 @@ export class World {
     this.greet(p);
     return true;
   }
+}
+
+/** "<sector> admits ships up to the <hull> class from <tier> sectors", for refusals. */
+function classLimitText(sector: string, tier: string, cap: number | null): string {
+  const largest = cap !== null ? largestHullWithin(cap) : null;
+  const upTo = largest ? `ships up to the ${HULLS[largest]!.name} class` : 'no ships';
+  return `${sector} admits ${upTo} from ${tier} sectors`;
 }
 
 function dockState(state: ShipState, siteId: number): void {

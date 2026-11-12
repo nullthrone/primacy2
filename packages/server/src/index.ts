@@ -4,5 +4,6 @@ export { World } from './world.ts';
 export { SystemSim } from './sim.ts';
 export { Federation, FedError, type KnownServer } from './federation.ts';
 export { Store, type PlayerRecord } from './store.ts';
+export * from './trade.ts';
 export * from './game.ts';
 export { defaultModules } from './modules/index.ts';

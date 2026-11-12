@@ -199,7 +199,7 @@ export const gatesModule: GameModule = {
       const linkId = gateLinkId(world.id, from.id);
       if (!m || m.linkId !== linkId) return { ok: false, error: 'bad link id' };
       const trust = world.fed.trustOf(from.id);
-      if (trust === 'blocked' || trust === 'restricted') return { ok: false, error: 'not trusted' };
+      if (trust === 'blocked' || trust === 'visitor') return { ok: false, error: 'not trusted' };
       let p = st.projects.get(linkId);
 
       if (m.op === 'propose') {

@@ -1,5 +1,5 @@
 /** Wire protocol version. Bump on any incompatible change to messages, snapshots or tickets. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const GAME_VERSION = '0.1.0';
 
 // --- simulation timing -------------------------------------------------------
@@ -107,5 +107,7 @@ export const DEFAULT_SECTOR_RADIUS = 18;
 export const MAX_NAME_LENGTH = 24;
 export const MAX_CHAT_LENGTH = 240;
 export const MAX_SYSTEMS_PER_SECTOR = 64;
+/** Server ids a descriptor may list per trade rating. */
+export const MAX_RATED_PEERS = 256;
 export const MAX_DESCRIPTOR_BYTES = 256 * 1024;
 export const MAX_MESSAGE_BYTES = 64 * 1024;

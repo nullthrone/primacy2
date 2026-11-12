@@ -5,6 +5,7 @@ export * from './crypto.ts';
 export * from './catalog.ts';
 export * from './pilot.ts';
 export * from './federation.ts';
+export * from './trade.ts';
 export * from './protocol.ts';
 export * from './snapshot.ts';
 export * from './structures.ts';

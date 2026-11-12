@@ -43,7 +43,8 @@ function makeServer(name = 'Alpha') {
     pos: [10, 0, -5], radius: 18,
     systems: [{ id: `${id}:0`, name: 'Sol', pos: [11, 0, -5], starClass: 'G', security: 'secure', stations: 2, tags: [] }],
     links: [], gates: [],
-    rules: { openPeering: true, defaultTrust: 'neutral', tariff: 0.1 },
+    rules: { openPeering: true, defaultTrust: 'partner', tariff: 0.1 },
+    trade: { fingerprint: 'ab'.repeat(32), union: [], partner: [], shipLimit: { partner: null, visitor: 260_000 } },
     online: 0, updatedAt: NOW,
   };
   return { keys, id, desc };
@@ -229,7 +230,14 @@ describe('passport sanitising', () => {
   it('impounds cargo when asked', () => {
     const base = newPassport(playerId, 'Ada', issuer);
     base.ship.cargo.push({ c: 'food', n: 4, origin: issuer });
-    expect(sanitizePassport(base, playerId, { issuer, impoundCargo: true }).ship.cargo).toEqual([]);
+    // A sealed mark travels with its lot; lots that differ only in the mark do not merge.
+    const marked = sanitizePassport(
+      { ship: { loadout: { hull: 'wisp', modules: [] }, cargo: [
+        { c: 'food', n: 2, origin: issuer, sealed: true }, { c: 'food', n: 3, origin: issuer }, { c: 'food', n: 1, origin: issuer, sealed: 'yes' },
+      ] } },
+      playerId, { issuer },
+    ).ship.cargo;
+    expect(marked).toEqual([{ c: 'food', n: 2, origin: issuer, sealed: true }, { c: 'food', n: 4, origin: issuer }]);
     expect(sanitizePassport(base, playerId, { issuer }).ship.cargo).toEqual([{ c: 'food', n: 4, origin: issuer }]);
   });
   it('survives total garbage', () => {

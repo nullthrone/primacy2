@@ -303,18 +303,21 @@ describe('economy', () => {
 
   it('charges a tariff by cargo origin and trust', async () => {
     const p = await pilot({ credits: 0, hull: 'drover' });
-    const origin = { trusted: 'a'.repeat(16), neutral: 'b'.repeat(16), restricted: 'c'.repeat(16), blocked: 'd'.repeat(16) };
+    const origin = { union: 'a'.repeat(16), partner: 'b'.repeat(16), visitor: 'c'.repeat(16), blocked: 'd'.repeat(16) };
     const trust = S.world.config.trust;
-    trust[origin.trusted] = 'trusted';
-    trust[origin.neutral] = 'neutral';
-    trust[origin.restricted] = 'restricted';
+    trust[origin.union] = 'union';
+    trust[origin.partner] = 'partner';
+    trust[origin.visitor] = 'visitor';
     trust[origin.blocked] = 'blocked';
+    // Imports are only absorbed against the pilot's licence; this test is about the tariff.
+    S.world.trade.creditIncome(p, 1_000_000, 'mission');
 
     setCargo(p, [
-      { c: 'food', n: 1 }, { c: 'food', n: 1, origin: origin.trusted }, { c: 'food', n: 1, origin: origin.neutral },
-      { c: 'food', n: 1, origin: origin.restricted },
+      { c: 'food', n: 1 }, { c: 'food', n: 1, origin: origin.union }, { c: 'food', n: 1, origin: origin.partner },
+      { c: 'food', n: 1, origin: origin.visitor },
     ]);
-    expect(view(p).tariffs).toEqual({ [origin.trusted]: 0, [origin.neutral]: S.world.config.tariff, [origin.restricted]: 0.9 });
+    // A union rating that the other server has not returned counts as partner.
+    expect(view(p).tariffs).toEqual({ [origin.union]: S.world.config.tariff, [origin.partner]: S.world.config.tariff, [origin.visitor]: 0.9 });
 
     /** Sells 4 t of an expensive good from one origin and returns the share withheld. */
     const rate = async (from: string): Promise<number> => {
@@ -325,16 +328,19 @@ describe('economy', () => {
       return r.tariff / (r.total + r.tariff);
     };
     expect(await rate(S.id)).toBe(0);
-    expect(await rate(origin.trusted)).toBe(0);
-    expect(await rate(origin.neutral)).toBeCloseTo(S.world.config.tariff, 2);
-    expect(await rate(origin.restricted)).toBeCloseTo(0.9, 2);
-    expect(await rate(origin.blocked)).toBeCloseTo(0.9, 2);
-    expect(await rate('__proto__')).toBeCloseTo(0.9, 2);
+    expect(await rate(origin.union)).toBeCloseTo(S.world.config.tariff, 2);
+    expect(await rate(origin.partner)).toBeCloseTo(S.world.config.tariff, 2);
+    // Cargo from a visitor, a blocked or an unknown origin is sealed: it cannot be sold at all.
+    for (const from of [origin.visitor, origin.blocked, '__proto__']) {
+      setCargo(p, [{ c: 'reactor_parts', n: 4, origin: from }]);
+      expect(errOf(await cmd(p, { k: 'sell', c: 'reactor_parts', n: 4 }))).toMatch(/sealed/);
+      expect(p.cargoCount('reactor_parts')).toBe(4);
+    }
     // A mixed order taxes each stack by its own origin.
-    setCargo(p, [{ c: 'reactor_parts', n: 3 }, { c: 'reactor_parts', n: 3, origin: origin.restricted }]);
+    setCargo(p, [{ c: 'reactor_parts', n: 3 }, { c: 'reactor_parts', n: 3, origin: origin.partner }]);
     const mixed = dataOf<{ total: number; tariff: number }>(await cmd(p, { k: 'sell', c: 'reactor_parts', n: 6 }));
-    expect(mixed.tariff / (mixed.total + mixed.tariff)).toBeGreaterThan(0.35);
-    expect(mixed.tariff / (mixed.total + mixed.tariff)).toBeLessThan(0.55);
+    expect(mixed.tariff / (mixed.total + mixed.tariff)).toBeGreaterThan(0.04);
+    expect(mixed.tariff / (mixed.total + mixed.tariff)).toBeLessThan(0.07);
     expect(Number.isSafeInteger(p.rec.credits)).toBe(true);
     expect(p.rec.passport.stats.tradeProfit).toBe(p.rec.credits);
   });
@@ -487,13 +493,13 @@ describe('economy', () => {
     }
   });
 
-  it('pays nothing for a hull and modules that arrived from a server that is not trusted', async () => {
+  it('pays nothing for a hull and modules that arrived from a server outside the customs union', async () => {
     const p = await pilot({ hull: 'bulwark', credits: 0 });
     const arrive = (trust: string, extra: object = {}): void => {
       setShip(p, starterLoadout('bulwark'));
       p.rec.data.customs = { issuer: 'e'.repeat(16), trust, at: c.nowMs, loadout: structuredClone(p.rec.passport.ship.loadout), ...extra };
     };
-    arrive('neutral');
+    arrive('partner');
     // The Bulwark is worth nothing as a trade-in: the full yard price is due.
     p.rec.credits = yardPrice('wisp') - 1;
     expect(errOf(await cmd(p, { k: 'buyHull', hull: 'wisp' }))).toMatch(/credits/);
@@ -519,14 +525,14 @@ describe('economy', () => {
 
     // A record with a damaged or missing loadout copy does not open a loophole.
     for (const loadout of [{ hull: 'wisp', modules: [] }, undefined, null]) {
-      arrive('restricted', { loadout });
+      arrive('visitor', { loadout });
       p.rec.credits = yardPrice('wisp') - 1;
       expect(errOf(await cmd(p, { k: 'buyHull', hull: 'wisp' }))).toMatch(/credits/);
       p.rec.credits = 0;
       expect(await cmd(p, { k: 'fit', slot: 0, module: null })).toMatchObject({ ok: true, data: { refund: 0 } });
     }
-    // A trusted issuer is believed: its ships trade in at the usual rate.
-    arrive('trusted');
+    // A customs union member is believed: its ships trade in at the usual rate.
+    arrive('union');
     p.rec.credits = 0;
     expect(await cmd(p, { k: 'buyHull', hull: 'wisp' })).toMatchObject({ ok: true });
     expect(p.rec.credits).toBe(tradeIn(starterLoadout('bulwark')) - yardPrice('wisp'));

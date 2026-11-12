@@ -3,7 +3,7 @@
  * Everything is stored as JSON documents; the schema is deliberately tiny.
  */
 import { DatabaseSync } from 'node:sqlite';
-import type { Passport, ServerDescriptor, ShipState, Signed } from '@primacy2/shared';
+import type { Passport, ServerDescriptor, ShipState, Signed, TradeLedger } from '@primacy2/shared';
 
 export interface PlayerRecord {
   id: string;
@@ -14,7 +14,11 @@ export interface PlayerRecord {
   credits: number;
   /** `here`: playing or logged out here. `transit`: a ticket was issued. `away`: the ticket was redeemed. */
   status: 'here' | 'transit' | 'away';
-  away?: { server: string; nonce: string; expiresAt: number; since: number };
+  /**
+   * Where the ship went. `exported` is the trade units booked as an export when the destination
+   * redeemed the ticket, kept so the booking can be taken back if the ship is recalled.
+   */
+  away?: { server: string; nonce: string; expiresAt: number; since: number; exported?: number };
   /** System the ship is in. */
   system: string;
   /** Last dynamic ship state, or null to spawn at the home station. */
@@ -103,6 +107,17 @@ export class Store {
 
   deletePeer(id: string): void {
     this.db.prepare('DELETE FROM peers WHERE id = ?').run(id);
+  }
+
+  /** This server's trade books for one peer, in trade units. A peer never traded with has an empty row. */
+  loadLedger(peer: string): TradeLedger {
+    const doc = this.getDoc<Partial<TradeLedger>>('ledger', peer);
+    const units = (x: unknown): number => (typeof x === 'number' && Number.isFinite(x) && x > 0 ? x : 0);
+    return { exports: units(doc?.exports), imports: units(doc?.imports) };
+  }
+
+  saveLedger(peer: string, ledger: TradeLedger): void {
+    this.putDoc('ledger', peer, { exports: ledger.exports, imports: ledger.imports });
   }
 
   getDoc<T>(collection: string, id: string): T | undefined {

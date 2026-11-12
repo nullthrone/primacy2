@@ -6,6 +6,7 @@ import {
   DESCRIPTOR_MAX_AGE_MS,
   MAX_CLOCK_SKEW_MS,
   MAX_NAME_LENGTH,
+  MAX_RATED_PEERS,
   MAX_SYSTEMS_PER_SECTOR,
   PROTOCOL_VERSION,
   TICKET_TTL_MS,
@@ -13,9 +14,21 @@ import {
 import { Domain, idFromPublicKey, isValidId, signBody, verifySigned, type KeyPair, type Signed } from './crypto.ts';
 import { v3, type Vec3 } from './math.ts';
 import type { Passport } from './pilot.ts';
+import type { ShipLimits } from './trade.ts';
 import type { GateState, Security, StarClass, SystemSummary } from './universe/types.ts';
 
-export type TrustLevel = 'trusted' | 'neutral' | 'restricted' | 'blocked';
+/**
+ * How a server rates another one.
+ * - `union`: a customs union between operators who know each other. Goods and ships move freely.
+ *   It only takes effect when both servers rate each other `union` and publish the same rules
+ *   fingerprint; otherwise the relation is treated as `partner` (see `effectiveTier`).
+ * - `partner`: trade under the trade balance, plus the tariff.
+ * - `visitor`: pilots may enter, but all their cargo is sealed.
+ * - `blocked`: no entry.
+ */
+export type TrustLevel = 'union' | 'partner' | 'visitor' | 'blocked';
+
+export const TRUST_LEVELS: readonly TrustLevel[] = ['union', 'partner', 'visitor', 'blocked'];
 
 /** One end of a warp gate pair as advertised by its server. */
 export interface GateLink {
@@ -33,10 +46,22 @@ export interface GateLink {
 export interface ServerRules {
   /** Whether strangers may peer without operator approval. */
   openPeering: boolean;
-  /** Trust level applied to peers without an explicit entry. */
+  /** Rating applied to servers without an explicit entry. */
   defaultTrust: TrustLevel;
-  /** Tariff rate (0..1) on cargo imported from `neutral` peers. */
+  /** Tariff rate (0..1) on cargo imported from `partner` servers. */
   tariff: number;
+}
+
+/** What a server publishes about its trade rules, so that others can act on them before a jump. */
+export interface TradePolicy {
+  /** `rulesFingerprint()` of the server: a hash of its catalog and rule constants. */
+  fingerprint: string;
+  /** Ids of the servers it rates `union`. */
+  union: string[];
+  /** Ids of the servers it rates `partner`. */
+  partner: string[];
+  /** Largest hull, as a catalog price, that a partner's or a visitor's ship may have; null is no limit. */
+  shipLimit: ShipLimits;
 }
 
 /** Self-certifying public description of a server and its sector. Relayed by gossip. */
@@ -57,6 +82,7 @@ export interface ServerDescriptor {
   links: string[];
   gates: GateLink[];
   rules: ServerRules;
+  trade: TradePolicy;
   /** Players currently online. */
   online: number;
   /** Milliseconds since the Unix epoch; newer descriptors replace older ones. */
@@ -98,7 +124,7 @@ const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, re
 const STAR_CLASSES = new Set<string>(['O', 'B', 'A', 'F', 'G', 'K', 'M', 'WD', 'NS', 'BH']);
 const SECURITY = new Set<string>(['secure', 'frontier', 'lawless']);
 const GATE_STATES = new Set<string>(['planned', 'building', 'active', 'dormant']);
-const TRUST = new Set<string>(['trusted', 'neutral', 'restricted', 'blocked']);
+const TRUST = new Set<string>(TRUST_LEVELS);
 
 const isVec3 = (x: unknown): x is Vec3 =>
   Array.isArray(x) && x.length === 3 && x.every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 1e9);
@@ -179,6 +205,17 @@ export function verifyDescriptor(signed: unknown, nowMs: number): VerifyResult<S
   const r = d.rules as Partial<ServerRules> | undefined;
   if (!r || typeof r.openPeering !== 'boolean' || !TRUST.has(r.defaultTrust as string)) return fail('bad rules');
   if (typeof r.tariff !== 'number' || !(r.tariff >= 0 && r.tariff <= 1)) return fail('bad tariff');
+
+  const tp = d.trade as Partial<TradePolicy> | undefined;
+  if (!tp || typeof tp !== 'object' || typeof tp.fingerprint !== 'string' || !/^[0-9a-f]{64}$/.test(tp.fingerprint)) {
+    return fail('bad trade policy');
+  }
+  for (const list of [tp.union, tp.partner]) {
+    if (!Array.isArray(list) || list.length > MAX_RATED_PEERS || !list.every(isValidId)) return fail('bad trade ratings');
+  }
+  const caps = tp.shipLimit as Partial<ShipLimits> | undefined;
+  const isCap = (x: unknown): boolean => x === null || (typeof x === 'number' && Number.isFinite(x) && x >= 0);
+  if (!caps || typeof caps !== 'object' || !isCap(caps.partner) || !isCap(caps.visitor)) return fail('bad ship limits');
   return { ok: true, value: signed };
 }
 

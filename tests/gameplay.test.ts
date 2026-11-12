@@ -39,8 +39,9 @@ async function cmd(b: Bot, command: Parameters<Bot['cmd']>[0]) {
 beforeAll(async () => {
   const bId = idFromPublicKey(testKeys('GBeta').publicKey);
   // Gates are made cheap here; the full price is checked separately below.
-  A = await c.start({ name: 'GAlpha', seed: 'galpha', gateCostScale: 0.001, gates: [{ peer: bId, system: 0 }] });
-  B = await c.start({ name: 'GBeta', seed: 'gbeta', gateCostScale: 0.001, peers: [A.url] });
+  // Gates are only built with servers rated partner or better; the default rating is visitor.
+  A = await c.start({ name: 'GAlpha', seed: 'galpha', defaultTrust: 'partner', gateCostScale: 0.001, gates: [{ peer: bId, system: 0 }] });
+  B = await c.start({ name: 'GBeta', seed: 'gbeta', defaultTrust: 'partner', gateCostScale: 0.001, peers: [A.url] });
   await B.peer();
   ada = c.track(await Bot.connect(A.url, { name: 'Ada' }));
   bob = c.track(await Bot.connect(B.url, { name: 'Bob' }));
@@ -132,7 +133,7 @@ describe('missions', () => {
         player.removeCargo(offer.c!, offer.n!);
       } else if (offer.kind === 'mining') {
         expect(await cmd(ada, { k: 'missionComplete', id: offer.id })).toMatchObject({ ok: false });
-        player.addCargo(offer.c!, offer.n!, A.id);
+        player.addCargo(offer.c!, offer.n!, A.id, false);
         expect(await cmd(ada, { k: 'missionComplete', id: offer.id })).toMatchObject({ ok: true });
         expect(player.rec.credits).toBe(before + offer.reward);
         expect(player.cargoCount(offer.c!)).toBe(0);
@@ -226,7 +227,7 @@ describe('warp gates', () => {
       expect(player.rec.credits).toBe(10_000_000 - view.needCredits);
       for (const [commodity, need] of Object.entries(view.needMaterials)) {
         player.rec.passport.ship.cargo.length = 0;
-        player.addCargo(commodity, need, server.id);
+        player.addCargo(commodity, need, server.id, false);
         expect(await cmd(bot, { k: 'gateFund', linkId: project.linkId, c: commodity, n: need + 5 }), commodity).toMatchObject({ ok: true });
         expect(player.cargoCount(commodity)).toBe(0);
       }

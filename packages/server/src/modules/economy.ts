@@ -19,11 +19,13 @@ import {
   starterLoadout,
   type Loadout,
   type MarketRow,
+  type SellResult,
   type SiteDef,
   type StationService,
   type SystemDef,
 } from '@primacy2/shared';
 import { fail, ok, type GameModule, type Player } from '../game.ts';
+import { isHullBound, isSlotBound, markShipLocal, markSlotLocal } from '../trade.ts';
 import type { World } from '../world.ts';
 
 // ---------------------------------------------------------------------------------------------
@@ -47,7 +49,7 @@ const MAX_CATCH_UP_SECONDS = 3 * 86_400;
 const SAVE_INTERVAL_SECONDS = 60;
 /** Share of the catalog price paid back for a replaced module or a traded-in hull. */
 export const TRADE_IN = 0.8;
-/** Tariff on cargo from servers that are neither trusted nor neutral. */
+/** Tariff shown for cargo whose origin is a visitor or blocked server. Such cargo counts as sealed and cannot be sold. */
 export const RESTRICTED_TARIFF = 0.9;
 /** Upper bound for one order; keeps the per-tonne price loop short whatever a client sends. */
 const MAX_ORDER = 100_000;
@@ -240,9 +242,9 @@ function marketRow(row: Row): MarketRow {
 /** Share of the sale price withheld for cargo from `origin`. */
 function tariffRate(world: World, origin: string): number {
   if (origin === world.id) return 0;
-  const trust = world.fed.trustOf(origin);
-  if (trust === 'trusted') return 0;
-  if (trust === 'neutral') return Math.min(1, Math.max(0, world.config.tariff));
+  const tier = world.fed.tierOf(origin);
+  if (tier === 'union') return 0;
+  if (tier === 'partner') return Math.min(1, Math.max(0, world.config.tariff));
   return RESTRICTED_TARIFF;
 }
 
@@ -330,39 +332,22 @@ export function hullPrice(hullId: string): number {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Customs: equipment that arrived from a server that is not trusted
+// Customs: equipment that arrived from a server outside the customs union
 // ---------------------------------------------------------------------------------------------
 
-/** What a pilot has bought here since arriving from a server that is not trusted. */
-interface Bought {
-  /** The hull was bought here, and with it every module now fitted. */
-  hull: boolean;
-  /** Per hull slot: the slot was refitted here. */
-  slots: boolean[];
-}
-
 /**
- * The core records `rec.data.customs` when a ship arrives from another server. Unless the issuer
- * was trusted, the hull and modules on board were not paid for here and refund nothing. This
- * module notes on the same record what has been bought here since, and only that is refundable.
- * The core writes a fresh record on every arrival, which also resets the notes.
- * Returns null when the pilot is under no such restriction.
+ * The core records in `rec.data.customs` which parts of a ship that arrived from another server
+ * are bound: they were not paid for here and refund nothing (see `shipBinding` in trade.ts).
+ * This module clears the mark of a slot when the pilot fits something there, and of the whole
+ * ship when the pilot buys a hull, so only what was bought here is refundable.
  */
-function customsBought(p: Player): Bought | null {
-  const customs = p.rec.data.customs as { trust?: unknown; bought?: unknown } | undefined;
-  if (!customs || typeof customs !== 'object' || customs.trust === 'trusted') return null;
-  const b = customs.bought as Partial<Bought> | undefined;
-  if (b && typeof b === 'object' && typeof b.hull === 'boolean' && Array.isArray(b.slots)) return b as Bought;
-  const fresh: Bought = { hull: false, slots: [] };
-  customs.bought = fresh;
-  return fresh;
-}
 
-const hullUnpaid = (bought: Bought | null): boolean => !!bought && !bought.hull;
+/** Credits paid back for the hull. */
+const hullRefund = (p: Player, cur: Loadout): number => (isHullBound(p.rec) ? 0 : Math.floor(HULLS[cur.hull]!.price * TRADE_IN));
 
 /** Credits paid back for the module in `slot`. */
-const moduleRefund = (bought: Bought | null, cur: Loadout, slot: number): number =>
-  hullUnpaid(bought) && bought!.slots[slot] !== true ? 0 : Math.floor(modulePrice(cur.modules[slot]) * TRADE_IN);
+const moduleRefund = (p: Player, cur: Loadout, slot: number): number =>
+  isSlotBound(p.rec, slot) ? 0 : Math.floor(modulePrice(cur.modules[slot]) * TRADE_IN);
 
 // ---------------------------------------------------------------------------------------------
 // Module
@@ -421,7 +406,7 @@ export const economyModule: GameModule = {
       if (n > p.cargoFree()) return fail('Not enough cargo space.');
       const cost = buyCost(row, n);
       if (cost > p.rec.credits) return fail('Not enough credits.');
-      const added = p.addCargo(row.c, n, world.id);
+      const added = p.addCargo(row.c, n, world.id, false);
       if (added !== n) {
         // Cannot happen after the space check; undo rather than charge for cargo not delivered.
         p.removeCargo(row.c, added);
@@ -447,12 +432,16 @@ export const economyModule: GameModule = {
       const row = market.rows.get(cmd.c);
       if (!row) return fail('This station does not trade that.');
       if (n > p.cargoCount(row.c)) return fail('You do not carry that much.');
+      // The trade books decide how much of it may be sold here: sealed cargo never, imports only
+      // within the partner's trade balance and the pilot's licence. What passes leaves the hold.
+      const taken = world.trade.takeCargo(p, row.c, n);
+      if (taken.n <= 0) return fail(world.trade.explain(taken.limit, taken.limitOrigin));
       // Each stack is priced where the previous one left the stock, then taxed by its origin.
       let stock = row.stock;
       let gross = 0;
       let net = 0;
       let sold = 0;
-      for (const stack of p.removeCargo(row.c, n)) {
+      for (const stack of taken.lots) {
         const value = sellValue(row, stock, stack.n);
         stock += stack.n;
         sold += stack.n;
@@ -466,7 +455,10 @@ export const economyModule: GameModule = {
       saveMarket(world, market);
       world.pushPilot(p);
       world.pushStation(p);
-      return ok({ n: sold, total: pay, tariff: Math.floor(gross) - pay });
+      if (taken.limit) p.notice('warn', 'sale_limited', `Only ${sold} t sold. ${world.trade.explain(taken.limit, taken.limitOrigin)}`);
+      return ok({
+        n: sold, total: pay, tariff: Math.floor(gross) - pay, limit: taken.limit, limitOrigin: taken.limitOrigin,
+      } satisfies SellResult);
     },
 
     refuel(p, _cmd, world) {
@@ -534,8 +526,7 @@ export const economyModule: GameModule = {
         if (old === def.id) return fail('That module is already fitted.');
         price = def.price;
       }
-      const bought = customsBought(p);
-      const refund = moduleRefund(bought, cur, slot);
+      const refund = moduleRefund(p, cur, slot);
       if (p.rec.credits + refund < price) return fail('Not enough credits.');
       const next: Loadout = { hull: cur.hull, modules: cur.modules.map((id, i) => (i === slot ? wanted : id)) };
       if (Math.floor(computeShipStats(next).cargoCap) < cargoTonnes(p.rec.passport.ship.cargo)) {
@@ -543,10 +534,7 @@ export const economyModule: GameModule = {
       }
       addCredits(p, refund - price);
       // Whatever sits in this slot from now on was bought here (or the slot is empty).
-      if (bought) {
-        for (let i = bought.slots.length; i < slot; i++) bought.slots[i] = false;
-        bought.slots[slot] = true;
-      }
+      markSlotLocal(p.rec, slot);
       p.rec.passport.ship.loadout = next;
       p.refit();
       world.pushPilot(p);
@@ -563,9 +551,8 @@ export const economyModule: GameModule = {
       if (!hullsSoldAt(world, at.system, at.site).includes(hull.id)) return fail('That hull is not sold here.');
       const cur = normalizeLoadout(p.rec.passport.ship.loadout);
       if (cur.hull === hull.id) return fail('You already fly that hull.');
-      const bought = customsBought(p);
-      let tradeIn = hullUnpaid(bought) ? 0 : Math.floor(HULLS[cur.hull]!.price * TRADE_IN);
-      for (let i = 0; i < cur.modules.length; i++) tradeIn += moduleRefund(bought, cur, i);
+      let tradeIn = hullRefund(p, cur);
+      for (let i = 0; i < cur.modules.length; i++) tradeIn += moduleRefund(p, cur, i);
       const price = hullPrice(hull.id);
       if (p.rec.credits + tradeIn < price) return fail(`Not enough credits: ${price - tradeIn} needed after trade-in.`);
       const next = starterLoadout(hull.id);
@@ -574,10 +561,7 @@ export const economyModule: GameModule = {
       }
       addCredits(p, tradeIn - price);
       // The whole ship was bought here; nothing that arrived is left on it.
-      if (bought) {
-        bought.hull = true;
-        bought.slots.length = 0;
-      }
+      markShipLocal(p.rec);
       p.rec.passport.ship.loadout = next;
       p.refit();
       if (p.ship) {

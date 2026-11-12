@@ -9,6 +9,7 @@ import { WebSocketServer } from 'ws';
 import {
   GAME_VERSION,
   MAX_MESSAGE_BYTES,
+  MAX_RATED_PEERS,
   PROTOCOL_VERSION,
   TICK_RATE,
   chooseSectorCenter,
@@ -16,6 +17,8 @@ import {
   generateKeyPair,
   generateSector,
   idFromPublicKey,
+  isValidId,
+  rulesFingerprint,
   sectorOffsets,
   signDescriptor,
   starterLoadout,
@@ -25,6 +28,7 @@ import {
   type ServerDescriptor,
   type Signed,
   type SystemDef,
+  type TrustLevel,
   type Vec3,
 } from '@primacy2/shared';
 import { makeConfig, type ServerConfig } from './config.ts';
@@ -34,6 +38,7 @@ import { clientAddress, createHttpHandler } from './http.ts';
 import { defaultModules } from './modules/index.ts';
 import { Session } from './session.ts';
 import { Store } from './store.ts';
+import { shipLimitPrices } from './trade.ts';
 import { World } from './world.ts';
 
 export interface ServerOptions {
@@ -107,6 +112,10 @@ export async function startServer(over: Partial<ServerConfig> = {}, opts: Server
   let cached: { at: number; signed: Signed<ServerDescriptor> } | null = null;
   let defs: SystemDef[] = [];
   let sectorPos: Vec3 = [0, 0, 0];
+  const fingerprint = rulesFingerprint();
+  /** Ids the operator rated at `level`, as published in the descriptor. */
+  const rated = (level: TrustLevel): string[] =>
+    Object.entries(config.trust).filter(([peer, l]) => l === level && isValidId(peer)).map(([peer]) => peer).slice(0, MAX_RATED_PEERS);
 
   const descriptor = (): Signed<ServerDescriptor> => {
     const t = now();
@@ -129,6 +138,7 @@ export async function startServer(over: Partial<ServerConfig> = {}, opts: Server
       links: fed.links().map((k) => k.id),
       gates,
       rules: { openPeering: config.openPeering, defaultTrust: config.defaultTrust, tariff: config.tariff },
+      trade: { fingerprint, union: rated('union'), partner: rated('partner'), shipLimit: shipLimitPrices(config) },
       online: world?.players.size ?? 0,
       updatedAt: t,
     };
@@ -136,7 +146,7 @@ export async function startServer(over: Partial<ServerConfig> = {}, opts: Server
     return cached.signed;
   };
 
-  const fed = new Federation({ id, keys, config, store, now, descriptor, log }, opts.fetch);
+  const fed = new Federation({ id, keys, config, store, fingerprint, now, descriptor, log }, opts.fetch);
 
   // Sector placement happens once; afterwards the position is part of the server's identity.
   const offsets = sectorOffsets(id, config.seed, config.sectorRadius, config.systems);

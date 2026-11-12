@@ -51,10 +51,11 @@ export const wreckData = (o: SimObject): WreckData | null =>
 
 const tonnesIn = (items: readonly CargoItem[]): number => items.reduce((sum, it) => sum + it.n, 0);
 
-function addStack(list: CargoItem[], c: string, n: number, origin: string): void {
-  const have = list.find((it) => it.c === c && it.origin === origin);
+/** Stacks merge only when commodity, origin and the sealed mark all match. */
+function addStack(list: CargoItem[], c: string, n: number, origin: string, sealed = false): void {
+  const have = list.find((it) => it.c === c && it.origin === origin && (it.sealed === true) === sealed);
   if (have) have.n += n;
-  else list.push({ c, n, origin });
+  else list.push(sealed ? { c, n, origin, sealed: true } : { c, n, origin });
 }
 
 /** Whether the ship is the starter hull with exactly its stock fit. */
@@ -71,7 +72,7 @@ function makeWreck(sim: SystemSim, ship: Ship): void {
   const contents: CargoItem[] = [];
   for (const it of ship.cargo) {
     if (!Object.hasOwn(COMMODITIES, it.c) || !Number.isInteger(it.n) || it.n <= 0) continue;
-    addStack(contents, it.c, it.n, typeof it.origin === 'string' ? it.origin : sim.world.id);
+    addStack(contents, it.c, it.n, typeof it.origin === 'string' ? it.origin : sim.world.id, it.sealed === true);
   }
   // The goods now belong to the wreck.
   ship.cargo.length = 0;
@@ -211,8 +212,10 @@ function cut(sim: SystemSim, t: number, ship: Ship, wreck: SimObject, tonnes: nu
     d.buffer -= take;
     const drift = v3.add(v3.add(wreck.vel, v3.scale(toShip, rng.range(6, 12))), v3.scale(rng.unitVector(), 2));
     const pod = sim.spawnLoot(wreck.anchor, v3.addScaled(face, toShip, 6), drift, stack.c, take);
-    // The origin travels with the goods, so tariffs still apply when they are sold.
-    pod.data = { origins: [{ c: stack.c, n: take, origin: stack.origin }] };
+    // The origin and the sealed mark travel with the goods.
+    const lot: CargoItem = { c: stack.c, n: take, origin: stack.origin };
+    if (stack.sealed) lot.sealed = true;
+    pod.data = { origins: [lot] };
   }
   d.contents = d.contents.filter((it) => it.n > 0);
   const left = tonnesIn(d.contents);

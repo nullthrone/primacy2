@@ -11,7 +11,8 @@ function makeDescriptor(id: string, center: Vec3, radius: number, systems: Syste
   return {
     v: 1, id, name: 'Generated Sector', url: 'http://localhost:8420', proto: PROTOCOL_VERSION, version: GAME_VERSION,
     pos: center, radius, systems: systems.map(summarize), links: [], gates,
-    rules: { openPeering: true, defaultTrust: 'neutral', tariff: 0.1 },
+    rules: { openPeering: true, defaultTrust: 'partner', tariff: 0.1 },
+    trade: { fingerprint: 'ab'.repeat(32), union: [], partner: [], shipLimit: { partner: null, visitor: 260_000 } },
     online: 0, updatedAt: NOW,
   };
 }

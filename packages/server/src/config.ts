@@ -2,7 +2,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   DEFAULT_SECTOR_RADIUS,
+  HULLS,
   MAX_SYSTEMS_PER_SECTOR,
+  TRUST_LEVELS,
+  defaultShipLimit,
+  isValidId,
   isValidServerUrl,
   type TrustLevel,
   type Vec3,
@@ -28,11 +32,28 @@ export interface ServerConfig {
   peers: string[];
   /** Accept peering requests from servers that are not listed in `peers` or `trust`. */
   openPeering: boolean;
+  /** Rating of servers without an entry in `trust`: `partner`, `visitor` or `blocked`. */
   defaultTrust: TrustLevel;
-  /** Per-server trust overrides, keyed by server id. */
+  /**
+   * Per-server ratings, keyed by server id: `union`, `partner`, `visitor` or `blocked`.
+   * `union` only takes effect while the other server rates this one `union` too and runs the same rules.
+   */
   trust: Record<string, TrustLevel>;
-  /** Tariff rate on cargo imported from `neutral` peers, 0..1. */
+  /** Tariff rate on cargo imported from `partner` servers, 0..1. */
   tariff: number;
+  /** Trade units (tonnes times catalog price) a partner's imports may exceed this server's exports to it. */
+  tradeCredit: number;
+  /** Credit lines for single servers, keyed by server id; each replaces `tradeCredit` for that server. */
+  tradeCredits: Record<string, number>;
+  /** Extra credit line while an active warp gate links this server and the partner. */
+  gateTradeCredit: number;
+  /** Trade units of imports a pilot may have absorbed per credit of non-trade income earned here. */
+  importLicenceRate: number;
+  /**
+   * Largest hull, as a hull id, that a ship from a partner or from a visitor may have; hulls with
+   * a higher catalog price are turned away. `null` is no limit. Customs union members have none.
+   */
+  shipLimit: { partner: string | null; visitor: string | null };
   /** Share (0..1) of ship and fit value a destroyed pilot pays to get the ship back. */
   insuranceRate: number;
   maxPlayers: number;
@@ -51,7 +72,7 @@ export interface ServerConfig {
    * index of the local system that hosts this end (default: the one closest to the peer).
    */
   gates: { peer: string; system?: number }[];
-  /** Accept gate proposals from linked servers that are not `restricted` or `blocked`. */
+  /** Accept gate proposals from linked servers rated `partner` or `union`. */
   acceptGates: boolean;
   /** Upper limit of warp gates in this sector, proposed and accepted together. */
   maxGates: number;
@@ -70,9 +91,14 @@ export const DEFAULT_CONFIG: ServerConfig = {
   sectorRadius: DEFAULT_SECTOR_RADIUS,
   peers: [],
   openPeering: true,
-  defaultTrust: 'neutral',
+  defaultTrust: 'visitor',
   trust: {},
   tariff: 0.12,
+  tradeCredit: 50_000,
+  tradeCredits: {},
+  gateTradeCredit: 250_000,
+  importLicenceRate: 1,
+  shipLimit: defaultShipLimit(),
   insuranceRate: 0.05,
   maxPlayers: 200,
   maxConnectionsPerIp: 16,
@@ -86,13 +112,23 @@ export const DEFAULT_CONFIG: ServerConfig = {
   gateCostScale: 1,
 };
 
-const TRUST_LEVELS = new Set(['trusted', 'neutral', 'restricted', 'blocked']);
+const LEVELS = new Set<string>(TRUST_LEVELS);
+/** Names the ratings had before the trade model; a config that still uses one is told the new name. */
+const OLD_LEVELS: Record<string, string> = { trusted: 'union', neutral: 'partner', restricted: 'visitor' };
+
+function levelProblem(key: string, level: unknown): string | null {
+  if (typeof level === 'string' && LEVELS.has(level)) return null;
+  if (typeof level === 'string' && Object.hasOwn(OLD_LEVELS, level)) return `${key}: "${level}" is now called "${OLD_LEVELS[level]}"`;
+  return `${key} must be union, partner, visitor or blocked`;
+}
 
 /** Merges overrides into the defaults and validates the result. Throws with a readable message. */
 export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
   const c: ServerConfig = {
     ...DEFAULT_CONFIG, ...over,
     trust: { ...(over.trust ?? {}) }, peers: [...(over.peers ?? [])], gates: [...(over.gates ?? [])],
+    tradeCredits: { ...(over.tradeCredits ?? {}) },
+    shipLimit: { ...DEFAULT_CONFIG.shipLimit, ...(over.shipLimit ?? {}) },
   };
   if (!c.publicUrl) c.publicUrl = `http://localhost:${c.port}`;
   c.publicUrl = c.publicUrl.replace(/\/+$/, '');
@@ -107,9 +143,28 @@ export function makeConfig(over: Partial<ServerConfig> = {}): ServerConfig {
   if (c.position && !(Array.isArray(c.position) && c.position.length === 3 && c.position.every(Number.isFinite))) {
     problems.push('position must be [x, y, z] in light years');
   }
-  if (!TRUST_LEVELS.has(c.defaultTrust)) problems.push('defaultTrust must be trusted, neutral, restricted or blocked');
+  const defaultProblem = levelProblem('defaultTrust', c.defaultTrust);
+  if (defaultProblem) problems.push(defaultProblem);
+  else if (c.defaultTrust === 'union') problems.push('defaultTrust cannot be union: a customs union is agreed per server, in trust');
   for (const [id, level] of Object.entries(c.trust)) {
-    if (!TRUST_LEVELS.has(level)) problems.push(`trust.${id} has an unknown level "${level}"`);
+    const p = levelProblem(`trust.${id}`, level);
+    if (p) problems.push(p);
+  }
+  const isUnits = (x: unknown): boolean => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1e12;
+  if (!isUnits(c.tradeCredit)) problems.push('tradeCredit must be a number of trade units, 0 or more');
+  for (const [id, units] of Object.entries(c.tradeCredits)) {
+    if (!isValidId(id)) problems.push(`tradeCredits: "${id}" is not a server id`);
+    else if (!isUnits(units)) problems.push(`tradeCredits.${id} must be a number of trade units, 0 or more`);
+  }
+  if (!isUnits(c.gateTradeCredit)) problems.push('gateTradeCredit must be a number of trade units, 0 or more');
+  if (!(typeof c.importLicenceRate === 'number' && c.importLicenceRate >= 0 && c.importLicenceRate <= 1000)) {
+    problems.push('importLicenceRate must be 0..1000');
+  }
+  for (const tier of ['partner', 'visitor'] as const) {
+    const hull = c.shipLimit[tier];
+    if (hull !== null && !(typeof hull === 'string' && Object.hasOwn(HULLS, hull))) {
+      problems.push(`shipLimit.${tier} must be a hull id (${Object.keys(HULLS).join(', ')}) or null`);
+    }
   }
   for (const p of c.peers) if (!isValidServerUrl(p.replace(/\/+$/, ''))) problems.push(`peer "${p}" is not a valid server URL`);
   c.peers = c.peers.map((p) => p.replace(/\/+$/, ''));

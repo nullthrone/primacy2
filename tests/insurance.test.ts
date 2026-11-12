@@ -105,7 +105,7 @@ describe('insurance', () => {
     const sim = world.sim(port.def.id);
     const loadout = richFit();
     const t = pilot(sim, loadout, OPEN, 5_000_000);
-    t.p.addCargo('alloys', 6, 'elsewhere');
+    t.p.addCargo('alloys', 6, 'elsewhere', false);
     sim.destroy(t.ship, null);
     expect(t.ship.state.mode).toBe(FlightMode.Dead);
     expect(t.p.rec.passport.ship.cargo).toHaveLength(0);
@@ -146,7 +146,7 @@ describe('insurance', () => {
     t.ship.state.mode = FlightMode.Normal;
     t.ship.state.anchor = port.site.id;
     t.ship.state.pos = v3.clone(OPEN);
-    t.p.addCargo('alloys', 2, 'elsewhere');
+    t.p.addCargo('alloys', 2, 'elsewhere', false);
     sim.destroy(t.ship, null);
     expect(contents(t)).toEqual([{ c: 'alloys', n: 2, origin: 'elsewhere' }]);
     sim.removeShip(t.ship);

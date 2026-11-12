@@ -1,7 +1,7 @@
 /**
  * Cargo in space: jettisoning, scooping floating canisters and ship-to-ship fuel transfer.
  */
-import { COMMODITIES, EntityKind, FlightMode, SCOOP_RANGE, forwardOf, v3 } from '@primacy2/shared';
+import { COMMODITIES, EntityKind, FlightMode, SCOOP_RANGE, forwardOf, v3, type CargoItem } from '@primacy2/shared';
 import { fail, ok, type GameModule } from '../game.ts';
 
 /** Fuel can be handed over within this distance, metres. */
@@ -24,7 +24,7 @@ export const cargoModule: GameModule = {
       const pos = v3.addScaled(ship.state.pos, back, ship.stats.radius + 8);
       const vel = v3.addScaled(ship.state.vel, back, 12);
       const pod = sim.spawnLoot(ship.state.anchor, pos, vel, cmd.c, n);
-      // Remember where the goods came from so tariffs still apply after a pickup.
+      // The canister keeps the stacks as they were: origin and sealed mark stay with the goods.
       pod.data = { origins: taken, droppedBy: ship.id, at: sim.time };
       world.pushPilot(p);
       return ok({ n });
@@ -56,7 +56,7 @@ export const cargoModule: GameModule = {
     if (sim.objects.size === 0) return;
     for (const o of sim.objects.values()) {
       if (o.kind !== EntityKind.Loot || !o.info.c || !o.info.n) continue;
-      const data = o.data as { origins?: { c: string; n: number; origin: string }[]; droppedBy?: number; at?: number } | undefined;
+      const data = o.data as { origins?: CargoItem[]; droppedBy?: number; at?: number } | undefined;
       for (const ship of sim.shipsInZone(o.anchor)) {
         const p = ship.player;
         if (!p || ship.gone) continue;
@@ -64,9 +64,9 @@ export const cargoModule: GameModule = {
         if (data?.droppedBy === ship.id && sim.time - (data.at ?? 0) < 6) continue;
         if (v3.distSq(ship.state.pos, o.pos) > SCOOP_RANGE * SCOOP_RANGE) continue;
         let got = 0;
-        const stacks = data?.origins ?? [{ c: o.info.c, n: o.info.n, origin: sim.world.id }];
+        const stacks: CargoItem[] = data?.origins ?? [{ c: o.info.c, n: o.info.n, origin: sim.world.id }];
         for (const st of stacks) {
-          const added = p.addCargo(st.c, st.n, st.origin);
+          const added = p.addCargo(st.c, st.n, st.origin, st.sealed === true);
           st.n -= added;
           got += added;
         }

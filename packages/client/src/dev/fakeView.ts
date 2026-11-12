@@ -38,7 +38,8 @@ export function demoGalaxy(systems: SystemDef[]): GalaxyView {
     sectors: [
       {
         id: DEMO_SERVER_ID, name: 'Demo Reach', url: 'http://localhost:8420', pos: [0, 0, 0], radius: 18,
-        online: true, linked: true, trust: 'trusted', players: 3, systems: summaries, links: [], gates: [],
+        online: true, linked: true, trust: 'union', tier: 'union', rulesMatch: true, allowance: null,
+        players: 3, systems: summaries, links: [], gates: [],
       },
     ],
   };

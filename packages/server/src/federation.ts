@@ -9,7 +9,9 @@ import {
   GOSSIP_INTERVAL_MS,
   MAX_DESCRIPTOR_BYTES,
   PEER_TIMEOUT_MS,
+  effectiveTier,
   isValidServerUrl,
+  publishedRating,
   randomNonce,
   signEnvelope,
   verifyDescriptor,
@@ -38,6 +40,8 @@ export interface FedHost {
   readonly keys: KeyPair;
   readonly config: ServerConfig;
   readonly store: Store;
+  /** This server's rules fingerprint, as published in its descriptor. */
+  readonly fingerprint: string;
   now(): number;
   /** Builds and signs this server's current descriptor. */
   descriptor(): Signed<ServerDescriptor>;
@@ -73,8 +77,30 @@ export class Federation {
     }
   }
 
+  /** The rating this server's operator gave a server: its entry in `trust`, or the default. */
   trustOf(serverId: string): TrustLevel {
-    return this.host.config.trust[serverId] ?? this.host.config.defaultTrust;
+    const trust = this.host.config.trust;
+    return Object.hasOwn(trust, serverId) ? trust[serverId]! : this.host.config.defaultTrust;
+  }
+
+  /** Whether a server publishes the same rules fingerprint as this one. */
+  rulesMatch(serverId: string): boolean {
+    if (serverId === this.host.id) return true;
+    const fp = this.known.get(serverId)?.desc.trade?.fingerprint;
+    return typeof fp === 'string' && fp === this.host.fingerprint;
+  }
+
+  /**
+   * The tier that actually applies to a server: the operator's rating, except that `union`
+   * counts as `partner` until the other server's descriptor rates this one `union` too and
+   * shows the same rules fingerprint. This is what every trade decision uses.
+   */
+  tierOf(serverId: string): TrustLevel {
+    if (serverId === this.host.id) return 'union';
+    const mine = this.trustOf(serverId);
+    if (mine !== 'union') return mine;
+    const k = this.known.get(serverId);
+    return effectiveTier(mine, k ? publishedRating(k.desc, this.host.id) : null, this.rulesMatch(serverId));
   }
 
   isOnline(k: KnownServer): boolean {

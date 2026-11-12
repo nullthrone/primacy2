@@ -3,6 +3,7 @@
  */
 import {
   NEUTRAL_INPUT,
+  addLot,
   cargoTonnes,
   computeShipStats,
   encodeMsg,
@@ -154,14 +155,15 @@ export class Player {
     return Math.max(0, Math.floor(this.stats.cargoCap) - cargoTonnes(this.rec.passport.ship.cargo));
   }
 
-  /** Adds cargo, merging with an existing stack of the same commodity and origin. Returns tonnes actually added. */
-  addCargo(c: string, n: number, origin: string): number {
+  /**
+   * Adds cargo, merging with an existing stack of the same commodity, origin and sealed mark.
+   * `sealed` must be passed on unchanged for goods that were already in the game (a scooped
+   * canister); goods made here (bought, mined, handed out) are not sealed. Returns tonnes actually added.
+   */
+  addCargo(c: string, n: number, origin: string, sealed: boolean): number {
     const add = Math.min(Math.floor(n), this.cargoFree());
     if (add <= 0) return 0;
-    const cargo = this.rec.passport.ship.cargo;
-    const have = cargo.find((it) => it.c === c && it.origin === origin);
-    if (have) have.n += add;
-    else cargo.push({ c, n: add, origin });
+    addLot(this.rec.passport.ship.cargo, c, add, origin, sealed);
     return add;
   }
 
@@ -171,8 +173,10 @@ export class Player {
   }
 
   /**
-   * Removes up to `n` tonnes of a commodity. Returns the removed stacks (with their origins),
-   * so the caller can price each origin separately.
+   * Removes up to `n` tonnes of a commodity, whatever their origin, sealed or not. Returns the
+   * removed stacks with their origins and sealed marks, which must stay with the goods.
+   * Only for moving cargo (jettison). A command that turns cargo into value must take it with
+   * `world.trade.takeCargo` instead, which leaves sealed cargo alone and keeps the trade books.
    */
   removeCargo(c: string, n: number): CargoItem[] {
     const cargo = this.rec.passport.ship.cargo;
@@ -184,7 +188,7 @@ export class Player {
       const take = Math.min(left, it.n);
       it.n -= take;
       left -= take;
-      taken.push({ c, n: take, origin: it.origin });
+      taken.push(it.sealed ? { c, n: take, origin: it.origin, sealed: true } : { c, n: take, origin: it.origin });
       if (it.n <= 0) cargo.splice(i, 1);
     }
     return taken;

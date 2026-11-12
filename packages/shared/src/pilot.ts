@@ -6,14 +6,27 @@
  */
 import { COMMODITIES, computeShipStats, normalizeLoadout, starterLoadout, type Loadout } from './catalog.ts';
 import { MAX_NAME_LENGTH } from './constants.ts';
+import type { ShipBinding } from './trade.ts';
 
 export interface CargoItem {
   /** Commodity id. */
   c: string;
   /** Whole tonnes. */
   n: number;
-  /** Server id where the cargo was acquired. Decides tariffs when it is sold elsewhere. */
+  /** Server id where the cargo was acquired. Decides what the lot counts as on other servers. */
   origin: string;
+  /**
+   * Set when a server sealed the lot on arrival: it cannot be turned into value there, only
+   * carried out again or jettisoned. The mark stays with the goods wherever they go.
+   */
+  sealed?: true;
+}
+
+/** Adds `n` tonnes to a list of lots. Lots merge only when commodity, origin and the sealed mark all match. */
+export function addLot(list: CargoItem[], c: string, n: number, origin: string, sealed: boolean): void {
+  const have = list.find((it) => it.c === c && it.origin === origin && (it.sealed === true) === sealed);
+  if (have) have.n += n;
+  else list.push(sealed ? { c, n, origin, sealed: true } : { c, n, origin });
 }
 
 export interface PilotStats {
@@ -38,6 +51,11 @@ export interface ShipRecord {
   /** Tonnes of fuel. */
   fuel: number;
   cargo: CargoItem[];
+  /**
+   * Only inside a transfer ticket: the parts of the ship the issuing server holds bound.
+   * A receiving server believes it from a customs union member and ignores it from anyone else.
+   */
+  bound?: ShipBinding;
 }
 
 export interface Passport {
@@ -88,8 +106,6 @@ const nonNegInt = (x: unknown, max: number): number =>
   Math.min(max, Math.max(0, Math.floor(finiteOr(x, 0))));
 
 export interface SanitizeOptions {
-  /** Drop all cargo (trust level `restricted`). */
-  impoundCargo?: boolean;
   /** Server id to record as cargo origin when the incoming value is not a valid id. */
   issuer: string;
 }
@@ -97,7 +113,8 @@ export interface SanitizeOptions {
 /**
  * Rebuilds a passport received from another server so that nothing in it can exceed what this
  * server's own rules allow. The input is treated as hostile: every field is re-derived or clamped,
- * unknown ids are dropped, and no object from the input is reused.
+ * unknown ids are dropped, and no object from the input is reused. Cargo labels and sealed marks
+ * are kept as claimed; what they are worth here is decided afterwards (`attributeCargo`).
  */
 export function sanitizePassport(input: unknown, playerId: string, opts: SanitizeOptions): Passport {
   const p = (input && typeof input === 'object' ? input : {}) as Partial<Passport>;
@@ -106,9 +123,8 @@ export function sanitizePassport(input: unknown, playerId: string, opts: Sanitiz
   const stats = computeShipStats(loadout);
 
   const cargo: CargoItem[] = [];
-  if (!opts.impoundCargo && Array.isArray(shipIn.cargo)) {
+  if (Array.isArray(shipIn.cargo)) {
     let room = Math.floor(stats.cargoCap);
-    const merged = new Map<string, CargoItem>();
     for (const raw of shipIn.cargo.slice(0, 256)) {
       if (!raw || typeof raw !== 'object' || room <= 0) continue;
       const item = raw as Partial<CargoItem>;
@@ -116,14 +132,15 @@ export function sanitizePassport(input: unknown, playerId: string, opts: Sanitiz
       const n = Math.min(room, nonNegInt(item.n, 1_000_000));
       if (n <= 0) continue;
       const origin = typeof item.origin === 'string' && /^[a-z2-7]{16}$/.test(item.origin) ? item.origin : opts.issuer;
-      const key = item.c + '|' + origin;
-      const have = merged.get(key);
-      if (have) have.n += n;
-      else merged.set(key, { c: item.c, n, origin });
+      addLot(cargo, item.c, n, origin, item.sealed === true);
       room -= n;
     }
-    cargo.push(...merged.values());
   }
+
+  const boundIn = shipIn.bound && typeof shipIn.bound === 'object' ? (shipIn.bound as Partial<ShipBinding>) : null;
+  const bound: ShipBinding | null = boundIn
+    ? { hull: boundIn.hull === true, slots: loadout.modules.map((_, i) => Array.isArray(boundIn.slots) && boundIn.slots[i] === true) }
+    : null;
 
   const s = (p.stats && typeof p.stats === 'object' ? p.stats : {}) as Partial<PilotStats>;
   const big = 1e12;
@@ -136,6 +153,7 @@ export function sanitizePassport(input: unknown, playerId: string, opts: Sanitiz
       hull: Math.min(stats.hullMax, Math.max(stats.hullMax * 0.1, finiteOr(shipIn.hull, stats.hullMax))),
       fuel: Math.min(stats.fuelCap, Math.max(0, finiteOr(shipIn.fuel, 0))),
       cargo,
+      ...(bound ? { bound } : {}),
     },
     stats: {
       kills: nonNegInt(s.kills, big),

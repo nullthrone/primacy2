@@ -748,7 +748,7 @@ describe('npcs', () => {
     const evs = eventsOf(sim);
     const zone = port.site.id;
     const me = pilot(sim, 'drover', zone, [7_000, 0, 0]);
-    me.p.addCargo('food', 10, world.id);
+    me.p.addCargo('food', 10, world.id, false);
     harden(me.ship);
     const pirate = spawnNpc(sim, zone, 'pirate', [7_000, 0, -2_500]);
     run(30 * 30);

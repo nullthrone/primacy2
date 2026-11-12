@@ -7,6 +7,7 @@ import type { ServerRules, TransferTicket, TrustLevel, GateLink } from './federa
 import type { Vec3 } from './math.ts';
 import type { Passport } from './pilot.ts';
 import type { ShipInput } from './sim/types.ts';
+import type { AbsorbLimit, ShipBinding } from './trade.ts';
 import type { SiteDef, StationService, SystemDef, SystemSummary } from './universe/types.ts';
 
 // ---------------------------------------------------------------------------------------------
@@ -126,6 +127,39 @@ export interface MarketRow {
   demand: number;
 }
 
+/** Reply data of the `sell` command. */
+export interface SellResult {
+  /** Tonnes sold. May be fewer than asked for; `limit` says why. */
+  n: number;
+  /** Credits paid, after the tariff. */
+  total: number;
+  /** Credits withheld as tariff. */
+  tariff: number;
+  /**
+   * What stopped the sale short of the amount asked for: the rest of the cargo is sealed, the
+   * partner's trade balance is exhausted, or the pilot's import licence is used up. Null when
+   * everything asked for was sold.
+   */
+  limit: AbsorbLimit | 'missing' | null;
+  /** Server id of the origin whose goods hit the limit. */
+  limitOrigin: string | null;
+}
+
+/** What the cargo of one origin in the docked pilot's hold counts as on this server. */
+export interface ImportInfo {
+  /** Origin server id (the label on the goods). */
+  origin: string;
+  name: string;
+  /** Effective tier of the origin here. */
+  tier: TrustLevel;
+  /** Trade units of imports from this origin that can still be absorbed; null when unlimited. */
+  allowance: number | null;
+  /** Tonnes from this origin in the hold. */
+  tonnes: number;
+  /** Tonnes of those that are sealed: they can only be carried out again or jettisoned. */
+  sealed: number;
+}
+
 export type MissionKind = 'delivery' | 'courier' | 'bounty' | 'mining' | 'survey' | 'rescue';
 
 export interface MissionView {
@@ -174,6 +208,8 @@ export interface StationView {
   gateProjects: GateProjectView[];
   /** Tariff rate applied to the pilot's foreign cargo, per origin server id. */
   tariffs: Record<string, number>;
+  /** Per origin, what the foreign and sealed cargo in the pilot's hold counts as here. */
+  imports: ImportInfo[];
 }
 
 /** The pilot's own persistent state as the client sees it. */
@@ -198,6 +234,16 @@ export interface PilotView {
   homeSystem: string | null;
   /** Deductible the pilot would pay right now to get this ship back after losing it. */
   rebuy: number;
+  /**
+   * Import licence on this server, in trade units (tonnes times catalog price): `cap` is what
+   * the pilot's non-trade income here allows in total, `used` what has been absorbed so far.
+   */
+  licence: { cap: number; used: number };
+  /**
+   * Parts of the ship that are bound here (brought from a server outside the customs union):
+   * they refund nothing and leave no scrap or parts. Null when nothing is bound.
+   */
+  shipBound: ShipBinding | null;
 }
 
 export interface SectorView {
@@ -210,7 +256,14 @@ export interface SectorView {
   online: boolean;
   /** True when the sector is directly peered with this server. */
   linked: boolean;
+  /** The rating this server's operator gave the sector. */
   trust: TrustLevel;
+  /** The tier that actually applies: `trust`, or `partner` while a customs union is not mutual. */
+  tier: TrustLevel;
+  /** Whether the sector publishes the same rules fingerprint as this server. */
+  rulesMatch: boolean;
+  /** Trade units of imports from the sector that can still be absorbed here; null when unlimited. */
+  allowance: number | null;
   players: number;
   systems: SystemSummary[];
   links: string[];
