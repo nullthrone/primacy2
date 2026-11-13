@@ -98,6 +98,44 @@ export function sunVisibility(view: FrameView, sunDir: readonly number[]): numbe
   return smooth(horizon - DUSK, horizon + DUSK, elevation);
 }
 
+// The landing light of a ship in numbers. The `objects` part owns the light, and
+// `objects/landing.ts` says what it is and why it is this strong; the effects light the dust a
+// ship raises by the same lamp, and the two parts do not know each other, so the numbers are here.
+
+/** Height of a ship's lowest point above the ground, metres, below which its landing light burns. */
+export const LANDING_LIGHT_HEIGHT = 500;
+/** The lamp comes up to full strength over this many metres of descent. */
+const LAMP_SWITCH_ON = 60;
+/** Illuminance of level ground where the middle of the beam meets it; direct sunlight is about 3. */
+const LAMP_POOL = 1;
+/** Up to this distance along the beam the lamp holds the pool at `LAMP_POOL`; beyond, the pool thins with the square. */
+const LAMP_REGULATED_TO = 250;
+/** Share of its night strength the lamp keeps in daylight. */
+const LAMP_DAY_LEVEL = 0.15;
+/** Half angle of the cone, radians, and the share of it over which the edge fades. */
+export const LAMP_HALF_ANGLE = 0.9;
+export const LAMP_PENUMBRA = 0.6;
+/** The beam leaves the ship's underside leaning this far from straight down toward the nose, radians. */
+export const LAMP_FORWARD = 0.87;
+/** Where the lamp hangs: this far below the underside of the hull (metres) and this share of the hull radius ahead of the origin. */
+export const LAMP_DROP = 0.3;
+export const LAMP_FORE = 0.4;
+
+/** How far a ship's landing lamp is switched on, 0..1, with its lowest point `height` metres above the ground. */
+export const landingLampLevel = (height: number): number => clamp01((LANDING_LIGHT_HEIGHT - height) / LAMP_SWITCH_ON);
+
+/**
+ * Luminous intensity of the landing lamp of a ship whose lowest point is `height` metres above
+ * the ground, scene-referred: `level` is how far the lamp is switched on (0..1) and `sunlight`
+ * how much of the sun reaches the place (0..1). The lamp is regulated by the distance its beam
+ * travels to level ground under a level ship.
+ */
+export function landingLampIntensity(height: number, level: number, sunlight: number): number {
+  const down = Math.cos(LAMP_FORWARD);
+  const reach = clamp((height + LAMP_DROP) / down, LAMP_DROP, LAMP_REGULATED_TO);
+  return (LAMP_POOL / down) * reach * reach * level * (LAMP_DAY_LEVEL + (1 - LAMP_DAY_LEVEL) * (1 - sunlight));
+}
+
 const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 

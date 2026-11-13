@@ -29,7 +29,10 @@ import {
 } from '@primacy2/shared';
 import type { BodySurface, GameEvent, Vec3 } from '@primacy2/shared';
 import type { Lighting } from '../../../contracts.ts';
-import { TAU, clamp, clamp01, damp, groundAlbedo } from '../util.ts';
+import {
+  LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, TAU, clamp, clamp01, damp, groundAlbedo, landingLampIntensity,
+  landingLampLevel, smooth,
+} from '../util.ts';
 import { QuadBatch } from './batch.ts';
 import { Pool, rand, rotate, type Frame, type Track } from './core.ts';
 
@@ -130,9 +133,9 @@ const SHUTTER = 0.24;
 const DENSITY = 0.26;
 /** Share of the dust that loose ground gives which the sintered apron of a base gives. */
 const APRON_DUST = 0.3;
-/** The landing light of the pilot's ship, as `objects/landing.ts` has it: on below this height, lighting its pool this brightly. */
-const LAMP_HEIGHT = 500;
-const LAMP_POOL = 0.5;
+/** Cosines of the edge of the landing light's cone and of the angle inside which it has its full strength. */
+const LAMP_EDGE = Math.cos(LAMP_HALF_ANGLE);
+const LAMP_CORE = Math.cos(LAMP_HALF_ANGLE * (1 - LAMP_PENUMBRA));
 /** An event this close above the ground strikes it, metres. */
 const STRIKE_HEIGHT = 0.8;
 /** A ship blown up within this height throws up the ground under it. */
@@ -350,8 +353,11 @@ export class Regolith {
     const self = view.self;
     const ship = view.surface?.ship;
     const own: Track | undefined = self ? f.tracks.get(self.id) : undefined;
+    // The landing lamp of the pilot's ship: its strength (0 when it is off), where it hangs and
+    // the unit vector along its beam, in zone axes.
     let lamp = 0;
-    let lampX = 0, lampY = 0, lampZ = 0, lampR = 1;
+    let lampX = 0, lampY = 0, lampZ = 0;
+    let beamX = 0, beamY = -1, beamZ = 0;
 
     if (ground && self && ship && own) {
       const g = this.gravity(ground);
@@ -410,11 +416,19 @@ export class Regolith {
       this.wasSink = ship.verticalSpeed;
       this.wasSpeed = ship.groundSpeed;
 
-      // The landing light, for dust at night: a pool on the ground under and ahead of the ship.
+      // The landing light, for dust at night: the lamp of `objects/landing.ts`, under the nose
+      // with its beam leaning forward, by the numbers the two share.
       if (view.mode === FlightMode.Normal || landed) {
-        lamp = LAMP_POOL * clamp01((LAMP_HEIGHT - ship.height) / 60) * (0.15 + 0.85 * (1 - sunlight));
-        lampX = gx; lampY = gy; lampZ = gz;
-        lampR = 6 + 0.7 * Math.min(ship.height, 250);
+        lamp = landingLampIntensity(ship.height, landingLampLevel(ship.height), sunlight);
+        const below = self.stats.belly + LAMP_DROP;
+        const fore = LAMP_FORE * self.stats.radius;
+        const down = Math.cos(LAMP_FORWARD), ahead = Math.sin(LAMP_FORWARD);
+        rotate(own, 0, 0, -1, B);
+        lampX = own.x + B[0] * fore; lampY = own.y + B[1] * fore; lampZ = own.z + B[2] * fore;
+        beamX = B[0] * ahead; beamY = B[1] * ahead; beamZ = B[2] * ahead;
+        rotate(own, 0, 1, 0, B);
+        lampX -= B[0] * below; lampY -= B[1] * below; lampZ -= B[2] * below;
+        beamX -= B[0] * down; beamY -= B[1] * down; beamZ -= B[2] * down;
       }
 
       // Other ships hovering low: flight assist holds them up too.
@@ -463,9 +477,14 @@ export class Regolith {
       const thin = (p.w0 / w) * (1 - u) * (1 - u) * Math.min(1, t * 12) * p.dense * 3;
       let er = sr, eg = sg, eb = sb;
       if (lamp > 0) {
+        // Inside the cone of the lamp, by the square of the distance from it.
         const dx = hx - lampX, dy = hy - lampY, dz = hz - lampZ;
-        const fall = lamp / (1 + (dx * dx + dy * dy + dz * dz) / (lampR * lampR));
-        er += fall; eg += fall * 0.95; eb += fall * 0.86;
+        const dd = dx * dx + dy * dy + dz * dz;
+        const along = dx * beamX + dy * beamY + dz * beamZ;
+        if (along > 0 && along * along > LAMP_EDGE * LAMP_EDGE * dd) {
+          const fall = (lamp * smooth(LAMP_EDGE, LAMP_CORE, along / Math.sqrt(dd))) / Math.max(dd, 1);
+          er += fall; eg += fall * 0.9; eb += fall * 0.74;
+        }
       }
       haze.seg(tx + f.zx, ty + f.zy, tz + f.zz, hx + f.zx, hy + f.zy, hz + f.zz, w,
         ar * er * thin, ag * eg * thin, ab * eb * thin, 0.35);

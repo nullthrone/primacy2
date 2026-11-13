@@ -4,10 +4,18 @@
  * for the pilot's own ship it is also a real spot light, so the ground, a pad and whatever stands
  * near are lit by it and a landing at night can be flown by eye.
  *
+ * The beam leans forward, halfway between straight down and the nose, and is wide: it lights the
+ * ground from under the ship to a few ship heights ahead, which is the ground a pilot looks at
+ * over the nose from the cockpit and from the chase camera. The lit patch shrinks and sharpens as
+ * the ship comes down, and that is how a pilot reads the last metres.
+ *
  * The lamp is a working light, not a searchlight. It is regulated: its output follows the square
- * of the height, so the pool of light under the ship keeps the same modest brightness (about a
- * sixth of sunlit ground) from `REGULATED_TO` metres down to the ground, and thins out above that
- * until it is switched off. In daylight it is turned far down, where the sun drowns it anyway.
+ * of the distance its beam travels to the ground, so where the middle of the beam meets the
+ * ground it gives the same modest light (a fifth of direct sunlight; nearer the ship up to twice
+ * that) from far up down to the ground. Its power ends at 250 m of beam, about 160 m of height:
+ * above that the patch thins out, and at 500 m, where the lamp is switched on, it is a glimmer.
+ * The numbers are in `util.ts`, shared with the dust the lamp shines on. In daylight the lamp is
+ * turned far down, where the sun drowns it anyway.
  *
  * The light is in the scene from the start and only changes strength: a light that comes or goes
  * makes the renderer rebuild every lit shader.
@@ -15,26 +23,9 @@
 import { FlightMode, bodySurface, terrainHeight, type BodySurface } from '@primacy2/shared';
 import { SpotLight, type Object3D } from 'three';
 import type { FrameView } from '../../../contracts.ts';
-import { clamp, clamp01, damp } from '../util.ts';
+import { LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, damp, landingLampIntensity, landingLampLevel } from '../util.ts';
 
-/** Height of a ship's lowest point above the ground, metres, below which its landing light burns. */
-export const LANDING_LIGHT_HEIGHT = 500;
-/** The lamp comes up to full strength over this many metres of descent. */
-const SWITCH_ON = 60;
-/** Illuminance of the ground in the middle of the pool; direct sunlight is about 3. */
-const POOL = 0.5;
-/** Up to this distance from the ground the lamp holds the pool at `POOL`; above, the pool thins with the square. */
-const REGULATED_TO = 250;
-/** Share of its night strength the lamp keeps in daylight. */
-const DAY_LEVEL = 0.15;
-/** Half angle of the cone and the share of it over which the edge fades. */
-const HALF_ANGLE = 0.58;
-const PENUMBRA = 0.75;
-/** The beam leaves the ship's underside leaning this far toward the nose, radians. */
-const FORWARD = 0.38;
-/** Where the lamp hangs: this far below the underside of the hull (metres) and this share of the hull radius ahead of the origin. */
-export const LAMP_DROP = 0.3;
-export const LAMP_FORE = 0.4;
+export { LAMP_DROP, LAMP_FORE, LANDING_LIGHT_HEIGHT, landingLampLevel } from '../util.ts';
 
 /** Height above the ground of points given relative to the camera, by the shared terrain. */
 export class GroundProbe {
@@ -83,12 +74,9 @@ export class GroundProbe {
   }
 }
 
-/** How brightly a ship's landing lamp burns, 0..1, at `height` metres above the ground. */
-export const landingLampLevel = (height: number): number => clamp01((LANDING_LIGHT_HEIGHT - height) / SWITCH_ON);
-
 /** The landing light of the pilot's own ship. */
 export class LandingLight {
-  readonly light = new SpotLight(0xfff3df, 0, 0, HALF_ANGLE, PENUMBRA, 2);
+  readonly light = new SpotLight(0xfff3df, 0, 0, LAMP_HALF_ANGLE, LAMP_PENUMBRA, 2);
   /** 0..1: how far the lamp is switched on, for the point of light on the hull. */
   level = 0;
 
@@ -116,12 +104,10 @@ export class LandingLight {
     const below = self.stats.belly + LAMP_DROP;
     const fore = LAMP_FORE * self.stats.radius;
     const px = self.rel[0] + fx * fore - ux * below, py = self.rel[1] + fy * fore - uy * below, pz = self.rel[2] + fz * fore - uz * below;
-    const down = Math.cos(FORWARD), ahead = Math.sin(FORWARD);
+    const down = Math.cos(LAMP_FORWARD), ahead = Math.sin(LAMP_FORWARD);
     const light = this.light;
     light.position.set(px, py, pz);
     light.target.position.set(px + (fx * ahead - ux * down) * 100, py + (fy * ahead - uy * down) * 100, pz + (fz * ahead - uz * down) * 100);
-    // Distance from the lamp to the ground along the beam, for a level ship.
-    const reach = clamp((ship.height + LAMP_DROP) / down, LAMP_DROP, REGULATED_TO);
-    light.intensity = POOL * reach * reach * this.level * (DAY_LEVEL + (1 - DAY_LEVEL) * (1 - sunlight));
+    light.intensity = landingLampIntensity(ship.height, this.level, sunlight);
   }
 }
