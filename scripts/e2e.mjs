@@ -960,6 +960,24 @@ async function landing(browser, problems, steps, findings) {
       text: [...document.querySelectorAll('.hud-block, .notices, .prompt')].map((n) => n.innerText).join(' | '),
     })).catch(() => null);
     /** English words of the interface that must not show while the language is German. */
+    /** Turns the nose sideways until the base is in the middle of the view, so that a screenshot shows it (the controller does not steer yaw). */
+    P.lookAtBase = async (siteId) => {
+      for (let i = 0; i < 40; i++) {
+        const ex = await page.evaluate((id) => {
+          const g = window.primacy2.game;
+          const site = g.view?.sites.find((s) => s.def.id === id);
+          if (!site) return 0;
+          const p = g.project(site.rel);
+          if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
+          const dx = p.x - window.innerWidth / 2;
+          g.input.addMouse(dx * 0.2, 0);
+          return dx;
+        }, siteId);
+        if (Math.abs(ex) < 30) break;
+        await page.waitForTimeout(100);
+      }
+      await page.waitForTimeout(400);
+    };
     P.english = (text) => (text.match(/HEIGHT ABOVE GROUND|SINK RATE|GROUND SPEED|Cruise ended|Press [A-Z] to|LANDED|SHIELD|HULL|FUEL|ENERGY/g) ?? []);
     /** Polls the controller's numbers every 100 ms until `done` says so; logs progress now and then. */
     P.until = async (what, done, timeoutMs, every = 15_000) => {
@@ -1169,6 +1187,7 @@ async function landing(browser, problems, steps, findings) {
       A.check(/GELANDET/i.test(hud?.mode ?? ''), `the HUD says landed in German (${JSON.stringify(hud?.mode)})`, `the HUD mode line should say GELANDET, got ${JSON.stringify(hud?.mode)}`);
       A.check(A.english(hud?.text ?? '').length === 0, 'no English HUD words while landed', `English words on a German HUD while landed: ${JSON.stringify(A.english(hud?.text ?? ''))}`);
     }
+    await A.lookAtBase(base.id);
     await A.shot('43-landed-cockpit');
     await A.page.keyboard.press('KeyV');
     await A.page.waitForTimeout(900);
@@ -1264,6 +1283,7 @@ async function landing(browser, problems, steps, findings) {
     A.check(lifted.mode === MODE.normal && !lifted.landed, `thrust up lifts the ship off (height ${lifted.height.toFixed(1)} m)`, `the ship did not lift off: ${JSON.stringify({ ...lifted, pos: undefined, last: undefined })}`);
     await A.shot('46-liftoff');
     await A.until('flying to the pad', (s) => s.hdist !== null && s.hdist < 25 && Math.abs(s.height - 40) < 15 && s.gs < 4, 4 * 60_000);
+    await A.lookAtBase(base.id);
     await A.shot('47-at-the-pad');
     const nearPad = await A.page.evaluate(() => window.primacy2.game.view.surface.ship.pos);
     A.log(`at the pad: ${distPad(nearPad).toFixed(0)} m from its centre`);
