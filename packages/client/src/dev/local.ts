@@ -398,8 +398,8 @@ function surface(): SceneFn {
 
     // Everything below is given in the surface frame of the body and so stays where it is on the
     // ground. Positions are metres east and north of the pad and above the ground.
-    const parked = place.point(160, 60, HULLS.drover!.radius * 0.3);
-    const wreck = place.point(260, -70, HULLS.lancet!.radius * 0.3);
+    const parked = place.point(160, 60, HULLS.drover!.belly);
+    const wreck = place.point(260, -70, HULLS.lancet!.belly);
     const pod = place.point(250, -52, 2);
     const hover = place.point(120, 260, 180);
     view.ents.push(

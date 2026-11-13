@@ -350,9 +350,15 @@ describe('landing', () => {
     expect(v3.dist(s.pos, v3.addScaled(PAD, PAD_UP, wisp.belly))).toBeLessThan(15);
   });
 
-  it('stands the ship on its belly: 0.3 of the hull radius above the ground for now', () => {
+  it('stands the ship on its belly: the underside of the hull as measured from its model', () => {
+    // Measured from the models (see HullDef.belly): every hull is flatter than the first guess
+    // of 0.3 radii was, and none is a plate.
+    const measured: Record<string, number> = { wisp: 0.94, lancet: 1.35, drover: 3.43, delver: 3.73, wayfarer: 2.92, bulwark: 2.9 };
+    expect(Object.keys(HULLS).sort()).toEqual(Object.keys(measured).sort());
     for (const id of Object.keys(HULLS)) {
-      expect(HULLS[id]!.belly).toBeCloseTo(0.3 * HULLS[id]!.radius, 12);
+      expect(HULLS[id]!.belly).toBe(measured[id]);
+      expect(HULLS[id]!.belly).toBeGreaterThan(0.1 * HULLS[id]!.radius);
+      expect(HULLS[id]!.belly).toBeLessThan(0.3 * HULLS[id]!.radius);
       expect(computeShipStats(starterLoadout(id)).belly).toBe(HULLS[id]!.belly);
     }
     const s = shipAbove(PAD_UP, 20, drover);
