@@ -81,7 +81,7 @@ export class Frame {
   begin(view: FrameView, zone: Readonly<Vec3>): boolean {
     const q = view.zoneRot;
     this.qx = q ? q[0] : 0; this.qy = q ? q[1] : 0; this.qz = q ? q[2] : 0; this.qw = q ? q[3] : 1;
-    this.unrotate(zone[0], zone[1], zone[2], Z);
+    this.toZone(zone[0], zone[1], zone[2], Z);
     const jump = Math.abs(Z[0] - this.zx) + Math.abs(Z[1] - this.zy) + Math.abs(Z[2] - this.zz);
     const anchor = view.self ? view.self.state.anchor : this.anchor;
     const same = anchor === this.anchor && view.system.id === this.system && jump < 20000;
@@ -109,7 +109,7 @@ export class Frame {
   }
 
   /** Writes the vector (x, y, z), given in system axes, into `out` in zone axes. */
-  private unrotate(x: number, y: number, z: number, out: Vec3): void {
+  toZone(x: number, y: number, z: number, out: Vec3): void {
     if (this.qw === 1) {
       out[0] = x; out[1] = y; out[2] = z;
       return;
@@ -131,9 +131,9 @@ export class Frame {
       t = { id, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, qx: 0, qy: 0, qz: 0, qw: 1, radius, kind, seen: 0, own };
       this.tracks.set(id, t);
     }
-    this.unrotate(rel[0], rel[1], rel[2], Z);
+    this.toZone(rel[0], rel[1], rel[2], Z);
     t.x = Z[0] - this.zx; t.y = Z[1] - this.zy; t.z = Z[2] - this.zz;
-    this.unrotate(vel[0], vel[1], vel[2], Z);
+    this.toZone(vel[0], vel[1], vel[2], Z);
     t.vx = Z[0]; t.vy = Z[1]; t.vz = Z[2];
     if (this.qw === 1) {
       t.qx = rot[0]; t.qy = rot[1]; t.qz = rot[2]; t.qw = rot[3];

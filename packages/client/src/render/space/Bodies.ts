@@ -5,23 +5,31 @@
  * planet analytically, so the order alone gives correct occlusion at any distance.
  */
 import {
-  AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, Matrix3, Matrix4,
+  AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, FrontSide, Group, Matrix3, Matrix4,
   Mesh, Points, Quaternion, RingGeometry, ShaderMaterial, SphereGeometry, Vector3, Vector4,
 } from 'three';
 import type { CubeTexture, IUniform } from 'three';
+import { bodyRotation as sharedBodyRotation, bodySpinAxis, bodyTerrain, isLandable, terrainMin } from '@primacy2/shared';
 import type { BeltDef, BodyDef } from '@primacy2/shared';
 import type { BodyView } from '../../contracts.ts';
+import { farMap } from '../local/terrain/farmap.ts';
+import { FAR_SPHERE_MARGIN, handoverAltitude, reliefAt } from '../local/terrain/relief.ts';
+import { groundKind } from '../local/terrain/shade.ts';
 import { BlackHoleVisual } from './BlackHole.ts';
 import { GLSL_NOISE } from './glsl.ts';
-import { dominantStar, effectiveLum, hexToLinear, starColor } from './lighting.ts';
+import { computeLighting, dominantStar, effectiveLum, hexToLinear, starColor } from './lighting.ts';
 import { ATMO_FRAG, PLANET_FRAG, PLANET_TYPE, RING_FRAG, SPHERE_GLSL, WORLD_VERT } from './planetShader.ts';
-import { bodyAxis, seedFloat, seededRandom, type SpaceFrame, type ViewParams } from './types.ts';
+import { seedFloat, seededRandom, type SpaceFrame, type ViewParams } from './types.ts';
 import { Glow, NO_DEPTH, SAFE_DIST, compress, glare, smoothstep, type Visual } from './visual.ts';
 
 const SPHERE = new SphereGeometry(1, 96, 48);
 const UP = new Vector3(0, 1, 0);
 const tmpQ = new Quaternion();
 const tmpM = new Matrix4();
+/** A landable body is drawn from its far map once it is at least this many pixels in radius ... */
+const BAKE_ABOVE_PX = 12;
+/** ... and the map takes this many seconds to replace the procedural look. */
+const BAKE_FADE = 1.5;
 
 /** Noise octaves a surface of `px` pixels radius can show without aliasing, capped by quality. */
 function octaves(px: number, quality: number): number {
@@ -29,16 +37,15 @@ function octaves(px: number, quality: number): number {
   return Math.min(cap, Math.max(2, Math.floor(Math.log2(Math.max(px, 1))) - 1));
 }
 
-/** Rotation from system axes into the body's own frame at universe time `time`. */
-function bodyRotation(def: BodyDef, tilt: Quaternion, time: number, out: Matrix3): void {
-  const turns = def.rotPeriod !== 0 ? (time / def.rotPeriod) % 1 : 0;
-  tmpQ.setFromAxisAngle(UP, turns * Math.PI * 2).premultiply(tilt).invert();
+/**
+ * Rotation from system axes into the body's own frame at universe time `time`: the inverse of
+ * the shared `bodyRotation`, the one definition of how bodies turn. The far view, the ground
+ * tiles and the physics of landing all follow it.
+ */
+function bodyRotation(def: BodyDef, time: number, out: Matrix3): void {
+  const q = sharedBodyRotation(def, time);
+  tmpQ.set(q[0], q[1], q[2], q[3]).invert();
   out.setFromMatrix4(tmpM.makeRotationFromQuaternion(tmpQ));
-}
-
-function tiltQuaternion(def: BodyDef): Quaternion {
-  const a = bodyAxis(def);
-  return new Quaternion().setFromUnitVectors(UP, new Vector3(a[0], a[1], a[2]));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -48,10 +55,11 @@ function tiltQuaternion(def: BodyDef): Quaternion {
 class PlanetVisual implements Visual {
   readonly group = new Group();
   private readonly center = new Vector3();
-  private readonly tilt: Quaternion;
   private readonly shared: Record<string, IUniform>;
   private readonly material: ShaderMaterial;
   private readonly surface: Mesh;
+  /** A body ships can land on is drawn from a map of its real terrain once that is baked. */
+  private readonly landable: boolean;
   private atmoMat: ShaderMaterial | null = null;
   private atmo: Mesh | null = null;
   private ringMat: ShaderMaterial | null = null;
@@ -61,8 +69,8 @@ class PlanetVisual implements Visual {
   private readonly shell: number;
 
   constructor(private readonly def: BodyDef) {
-    this.tilt = tiltQuaternion(def);
-    const axis = bodyAxis(def);
+    const axis = bodySpinAxis(def);
+    this.landable = isLandable(def);
     const giant = def.cls === 'gas' || def.cls === 'icegiant';
     const base = hexToLinear(def.color);
     const atmoColor = hexToLinear(def.atmo ? def.atmo.color : 0xffffff);
@@ -83,12 +91,18 @@ class PlanetVisual implements Visual {
     else if (def.cls === 'desert') par.set(def.temp < 330 ? 1 : 0, 0, 0, 0);
     else if (def.cls === 'gas') par.set(5.5 + (def.seed % 5), 1, 1, 0);
     else if (def.cls === 'icegiant') par.set(2.5, 0.32, 0.45, 0);
+    const defines: Record<string, number> = { TYPE: PLANET_TYPE[def.cls as keyof typeof PLANET_TYPE] ?? 0 };
+    if (this.landable) {
+      defines.BAKED = 1;
+      defines.GROUND_KIND = groundKind(def.cls);
+    }
     this.material = new ShaderMaterial({
       vertexShader: WORLD_VERT, fragmentShader: PLANET_FRAG,
-      defines: { TYPE: PLANET_TYPE[def.cls as keyof typeof PLANET_TYPE] ?? 0 },
+      defines,
       uniforms: {
         ...this.shared, uRot: { value: new Matrix3() }, uBase: { value: new Vector3(base[0], base[1], base[2]) },
         uSeed: { value: seed }, uOct: { value: 6 }, uTime: { value: 0 }, uCloudPhase: { value: 0 }, uPar: { value: par },
+        uFar: { value: null }, uBake: { value: 0 }, uGroundSun: { value: new Vector3() }, uGroundAmb: { value: new Vector3() },
       },
       ...NO_DEPTH,
     });
@@ -130,10 +144,16 @@ class PlanetVisual implements Visual {
   update(body: BodyView, frame: SpaceFrame, params: ViewParams): void {
     const def = this.def;
     const k = compress(body, this.center);
-    const radius = def.radius * k;
     const px = def.radius / body.dist / params.pixAngle;
     const fade = smoothstep(1.0, 2.5, px);
     const s = this.shared;
+    // A landable body seen large: its far map, and close to it the hand-over to the ground
+    // tiles of the local layer (see local/terrain/relief.ts). The sphere sinks under the lowest
+    // ground as the tiles' relief grows, so it never shows through or above them.
+    const map = this.landable && px > BAKE_ABOVE_PX ? farMap(frame.system, def.id, frame.clock) : null;
+    const relief = map ? reliefAt(def.radius, body.dist) : 0;
+    const terrain = relief > 0 ? bodyTerrain(frame.system, def.id) : null;
+    const radius = (def.radius + (terrain ? relief * (terrainMin(terrain) - FAR_SPHERE_MARGIN) : 0)) * k;
     s.uRadius!.value = radius;
     s.uPix!.value = params.pixAngle;
     s.uFade!.value = fade;
@@ -155,14 +175,40 @@ class PlanetVisual implements Visual {
     if (this.ring) this.ring.visible = resolved;
     if (resolved) {
       const u = this.material.uniforms;
-      bodyRotation(def, this.tilt, frame.time, u.uRot!.value as Matrix3);
+      bodyRotation(def, frame.time, u.uRot!.value as Matrix3);
       u.uOct!.value = octaves(px, params.quality);
       u.uTime!.value = params.clock;
       // A slow angle for cloud drift and zonal sway, wrapped in float64 so it never jumps.
       u.uCloudPhase!.value = (frame.clock * 0.0015) % (Math.PI * 2);
       // The mesh is a little larger than the sphere so the shader can anti-alias the limb.
       this.surface.position.copy(this.center);
-      this.surface.scale.setScalar(radius * 1.004 + 2 * params.pixAngle * SAFE_DIST);
+      const scale = radius * 1.004 + 2 * params.pixAngle * SAFE_DIST;
+      this.surface.scale.setScalar(scale);
+      if (this.landable) {
+        const baked = map !== null && map.texture !== null;
+        u.uFar!.value = baked ? map.texture : null;
+        u.uBake!.value = baked ? smoothstep(0, BAKE_FADE, frame.clock - map.readyAt) : 0;
+        // From afar the body is lit on the compressed scale of the celestial pass. Near it, where
+        // the ground tiles are drawn over it, by exactly the light of the local scene.
+        const sun = s.uSun!.value as Vector3;
+        const ground = u.uGroundSun!.value as Vector3;
+        ground.copy(sun).multiplyScalar(Math.PI);
+        const top = handoverAltitude(def.radius);
+        const near = 1 - smoothstep(top, 3 * top, body.dist - def.radius);
+        if (near > 0) {
+          const local = computeLighting(frame.bodies, null);
+          const i = local.sunIntensity;
+          ground.x += (local.sunColor[0] * i - ground.x) * near;
+          ground.y += (local.sunColor[1] * i - ground.y) * near;
+          ground.z += (local.sunColor[2] * i - ground.z) * near;
+          (u.uGroundAmb!.value as Vector3).setScalar(local.ambient * near);
+        } else {
+          (u.uGroundAmb!.value as Vector3).setScalar(0);
+        }
+        // A camera low over the ground is inside the mesh, though never inside the sphere: then
+        // the inner side of the mesh gives the coverage.
+        this.material.side = scale > SAFE_DIST ? BackSide : FrontSide;
+      }
       if (this.atmo && this.atmoMat) {
         const top = radius * (1 + this.shell);
         this.atmoMat.uniforms.uAtmoR!.value = top;
@@ -234,13 +280,11 @@ void main() {
 class StarVisual implements Visual {
   readonly group = new Group();
   private readonly center = new Vector3();
-  private readonly tilt: Quaternion;
   private readonly material: ShaderMaterial;
   private readonly surface: Mesh;
   private readonly glow: Glow;
 
   constructor(private readonly def: BodyDef) {
-    this.tilt = tiltQuaternion(def);
     const c = starColor(def);
     const hot = smoothstep(2500, 12000, def.temp);
     this.material = new ShaderMaterial({
@@ -276,7 +320,7 @@ class StarVisual implements Visual {
       u.uFade!.value = smoothstep(0.8, 2.0, px);
       u.uOct!.value = octaves(px, params.quality);
       u.uTime!.value = params.clock;
-      bodyRotation(def, this.tilt, frame.time, u.uRot!.value as Matrix3);
+      bodyRotation(def, frame.time, u.uRot!.value as Matrix3);
       this.surface.position.copy(this.center);
       this.surface.scale.setScalar(radius * 1.004 + 2 * params.pixAngle * SAFE_DIST);
     }
@@ -351,7 +395,7 @@ class NeutronVisual implements Visual {
     this.group.add(this.glow.mesh);
     if (def.jets) {
       const jc = hexToLinear(def.jets.color);
-      const axis = bodyAxis(def);
+      const axis = bodySpinAxis(def);
       const ax = new Vector3(axis[0], axis[1], axis[2]);
       // A wide faint sheath and a narrow bright core, on both poles.
       for (const [width, gain] of [[0.085, 0.55], [0.022, 2.6]] as const) {

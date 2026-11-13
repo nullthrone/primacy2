@@ -28,9 +28,14 @@ const FINEST = 1.25;
 /** A tile is split while the camera is nearer than this many of its edge lengths ... */
 const SPLIT = 2;
 /** ... and stays split until the camera is this much farther again, so a boundary does not flap. */
-const KEEP = 1.15;
-/** Vertices start sliding onto the parent's surface at this fraction of the distance at which the parent takes over. */
-const MORPH_START = 0.85;
+const KEEP = 1.1;
+/**
+ * Vertices start sliding onto the parent's surface at this fraction of the distance at which the
+ * parent takes over. It cannot be much earlier: a tile next to a split one must still be on its
+ * own surface along their common edge, which can be as far as `SPLIT * KEEP + sqrt(2)` of its
+ * edge lengths from the camera, that is 0.9 of the `2 * SPLIT` lengths at which its parent takes over.
+ */
+const MORPH_START = 0.91;
 /** Ground outside the view is kept this many times coarser by distance. */
 const OUTSIDE = 2.5;
 /** Seconds a new tile takes to settle from its parent's surface onto its own. */

@@ -15,6 +15,8 @@
  * grid could not show and would turn into noise. At the fine levels that is below the smallest
  * feature the terrain has (10 m), and the samples are exactly the ground ships collide with.
  */
+// Straight from the terrain's own file, not through the index of the shared package: this module
+// is the worker's, and the worker should carry the terrain and nothing else of the game.
 import { terrainSample, type TerrainParams } from '../../../../../shared/src/universe/terrain.ts';
 import { facePoint, faceTangent, tileFrame, tileSize, tileSpan } from './cube.ts';
 

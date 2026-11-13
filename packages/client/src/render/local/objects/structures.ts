@@ -14,8 +14,8 @@
  * night. What lies flat on the ground (apron, pads, markings) is drawn with a depth offset, layer
  * over layer, so it does not fight with the terrain drawn under it by another part.
  */
-import { STRUCTURES, bodyRotation, groundSiteRotation } from '@primacy2/shared';
-import type { GateState, SiteDef } from '@primacy2/shared';
+import { STRUCTURES, bodyRotation, bodyTerrain, groundSiteRotation, terrainSample } from '@primacy2/shared';
+import type { GateState, SiteDef, SystemDef } from '@primacy2/shared';
 import {
   CustomBlending,
   DoubleSide,
@@ -32,7 +32,7 @@ import {
   type Object3D,
 } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
-import { TAU, clamp, clamp01, damp, smooth, wrap } from '../util.ts';
+import { TAU, clamp, clamp01, damp, groundAlbedo, smooth, wrap } from '../util.ts';
 import type { Glints } from './glints.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
 
@@ -61,7 +61,7 @@ const DUSK_LOW = -0.02;
 const FLOOD_RANGE = 5000;
 /** Luminous intensity of one pad's floodlight and of the work lights on the tower, scene-referred. */
 const FLOOD_INTENSITY = 95;
-const WORK_INTENSITY = 42;
+const WORK_INTENSITY = 80;
 /** How far each reaches, metres; both fall off with the distance, not its square (see `Structures`). */
 const FLOOD_REACH = 280;
 const WORK_REACH = 150;
@@ -232,6 +232,8 @@ interface GroundParts {
   /** Own copies of the floodlight glass: dark by day. */
   floodMats: MeshStandardMaterial[];
   floodFull: number[];
+  /** Own copies of everything made of regolith (berms, heaps, the apron), tinted to the ground the base stands on. */
+  rockMats: MeshStandardMaterial[];
   /** 0 by day, 1 with the sun down at the base. */
   night: number;
 }
@@ -251,6 +253,9 @@ interface Built {
 
 const tmp = new Vector3();
 const tmp2 = new Vector3();
+/** Scratch: a terrain sample (height, tone) and a colour. */
+const sample = new Float64Array(2);
+const tint = [0, 0, 0];
 const Y = new Vector3(0, 1, 0);
 
 export class Structures {
@@ -324,6 +329,7 @@ export class Structures {
 
   /** Prepares a copy of a ground structure: its flat layers and its floodlight glass. */
   private buildGround(obj: Object3D, model: Model, modelName: string): GroundParts {
+    const rocks: MeshStandardMaterial[] = [];
     for (const [name, units] of FLAT_LAYERS) {
       const copies = new Map<MeshStandardMaterial, MeshStandardMaterial>();
       obj.getObjectByName(name)?.traverse((o) => {
@@ -337,6 +343,7 @@ export class Structures {
           own.polygonOffsetFactor = -1;
           own.polygonOffsetUnits = units;
           copies.set(src, own);
+          if (src.name.startsWith('rock')) rocks.push(own);
         }
         mesh.material = own;
         // Flat on the ground: nothing for it to shade, and its own shadow would only flicker.
@@ -344,23 +351,46 @@ export class Structures {
       });
     }
     const ground: GroundParts = {
-      plan: this.plan(model, modelName), site: null, siteRot: new Quaternion(), floodMats: [], floodFull: [], night: 0,
+      plan: this.plan(model, modelName), site: null, siteRot: new Quaternion(), floodMats: [], floodFull: [], rockMats: rocks, night: 0,
     };
-    const floods = new Map<MeshStandardMaterial, MeshStandardMaterial>();
+    const own = new Map<MeshStandardMaterial, MeshStandardMaterial>();
     obj.traverse((o) => {
       const mesh = o as Mesh;
       const src = mesh.material as MeshStandardMaterial | undefined;
-      if (!mesh.isMesh || !src?.isMeshStandardMaterial || src.name !== 'emissive_light_flood') return;
-      let own = floods.get(src);
-      if (!own) {
-        own = this.lib.materials.add(src.clone());
-        floods.set(src, own);
-        ground.floodMats.push(own);
-        ground.floodFull.push(src.emissiveIntensity);
+      if (!mesh.isMesh || !src?.isMeshStandardMaterial) return;
+      const flood = src.name === 'emissive_light_flood';
+      // The flat layers have their copies already; what is left of the regolith is in the compound.
+      const rock = src.name.startsWith('rock') && !rocks.includes(src);
+      if (!flood && !rock) return;
+      let copy = own.get(src);
+      if (!copy) {
+        copy = this.lib.materials.add(src.clone());
+        own.set(src, copy);
+        if (flood) {
+          ground.floodMats.push(copy);
+          ground.floodFull.push(src.emissiveIntensity);
+        } else {
+          rocks.push(copy);
+        }
       }
-      mesh.material = own;
+      mesh.material = copy;
     });
     return ground;
+  }
+
+  /** Stands a copy of a ground structure at a site: how the site is turned, and the colour of the ground there. */
+  private settle(ground: GroundParts, def: SiteDef, system: SystemDef): void {
+    ground.site = def;
+    const q = groundSiteRotation(def);
+    ground.siteRot.set(q[0], q[1], q[2], q[3]);
+    const at = def.ground;
+    const body = at ? system.bodies[at.body] : undefined;
+    const terrain = at ? bodyTerrain(system, at.body) : null;
+    if (!at || !body || !terrain) return;
+    const r = Math.hypot(at.pos[0], at.pos[1], at.pos[2]) || 1;
+    terrainSample(terrain, at.pos[0] / r, at.pos[1] / r, at.pos[2] / r, 0, sample);
+    groundAlbedo(body.color, body.cls, sample[1]!, tint);
+    for (const m of ground.rockMats) m.color.setRGB(tint[0]!, tint[1]!, tint[2]!);
   }
 
   private build(model: Model, modelName: string): Built {
@@ -521,11 +551,7 @@ export class Structures {
       const ground = def.ground ? b.ground : null;
       if (ground && def.ground) {
         // Up along the pad normal, nose north: the site's axes, turned with the body.
-        if (ground.site !== def) {
-          const q = groundSiteRotation(def);
-          ground.siteRot.set(q[0], q[1], q[2], q[3]);
-          ground.site = def;
-        }
+        if (ground.site !== def) this.settle(ground, def, view.system);
         const surface = view.surface;
         // The view carries the rotation of the body the camera is near, which is this one in all but freak cases.
         const turn = surface && surface.body === def.ground.body ? surface.rot : bodyRotation(view.system.bodies[def.ground.body]!, view.time);

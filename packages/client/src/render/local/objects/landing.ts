@@ -32,6 +32,9 @@ const HALF_ANGLE = 0.58;
 const PENUMBRA = 0.75;
 /** The beam leaves the ship's underside leaning this far toward the nose, radians. */
 const FORWARD = 0.38;
+/** Where the lamp hangs: this far below the underside of the hull (metres) and this share of the hull radius ahead of the origin. */
+export const LAMP_DROP = 0.3;
+export const LAMP_FORE = 0.4;
 
 /** Height above the ground of points given relative to the camera, by the shared terrain. */
 export class GroundProbe {
@@ -108,17 +111,17 @@ export class LandingLight {
     const q = self.rot;
     const ux = 2 * (q[0] * q[1] - q[3] * q[2]), uy = 1 - 2 * (q[0] * q[0] + q[2] * q[2]), uz = 2 * (q[1] * q[2] + q[3] * q[0]);
     const fx = -2 * (q[0] * q[2] + q[3] * q[1]), fy = -2 * (q[1] * q[2] - q[3] * q[0]), fz = -(1 - 2 * (q[0] * q[0] + q[1] * q[1]));
-    // The light is put half a hull radius above the ship's origin and shines through the hull,
-    // which casts no shadow in it: a lamp at its true place under the nose would be so close to
-    // the ground of a landed ship that it lit a dazzling spot and nothing else.
-    const lift = 0.5 * self.stats.radius;
-    const px = self.rel[0] + ux * lift, py = self.rel[1] + uy * lift, pz = self.rel[2] + uz * lift;
+    // The lamp hangs just under the hull, below the nose, so nothing of the ship is inside its
+    // cone: a light without a shadow would shine on the inside of every wing and nacelle.
+    const below = self.stats.belly + LAMP_DROP;
+    const fore = LAMP_FORE * self.stats.radius;
+    const px = self.rel[0] + fx * fore - ux * below, py = self.rel[1] + fy * fore - uy * below, pz = self.rel[2] + fz * fore - uz * below;
     const down = Math.cos(FORWARD), ahead = Math.sin(FORWARD);
     const light = this.light;
     light.position.set(px, py, pz);
     light.target.position.set(px + (fx * ahead - ux * down) * 100, py + (fy * ahead - uy * down) * 100, pz + (fz * ahead - uz * down) * 100);
-    // Distance from the light to the ground along the beam, for a level ship.
-    const reach = clamp((ship.height + self.stats.belly + lift) / down, 1, REGULATED_TO);
+    // Distance from the lamp to the ground along the beam, for a level ship.
+    const reach = clamp((ship.height + LAMP_DROP) / down, LAMP_DROP, REGULATED_TO);
     light.intensity = POOL * reach * reach * this.level * (DAY_LEVEL + (1 - DAY_LEVEL) * (1 - sunlight));
   }
 }

@@ -13,7 +13,7 @@ import type { FrameView } from '../../../contracts.ts';
 import { clamp01, damp, hash01, wrap } from '../util.ts';
 import type { Exhaust } from './exhaust.ts';
 import type { Glints } from './glints.ts';
-import { GroundProbe, LANDING_LIGHT_HEIGHT, landingLampLevel } from './landing.ts';
+import { GroundProbe, LAMP_DROP, LAMP_FORE, LANDING_LIGHT_HEIGHT, landingLampLevel } from './landing.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
 
 /** Below this projected radius in pixels a craft is drawn as a point of light instead. */
@@ -321,7 +321,7 @@ export class Fleet {
       }
       // The landing lamp under the nose: steady and warm, and seen from much farther than the hull.
       if (craft.lamp > 0.01) {
-        tmp.set(0, -craft.belly * 0.7, -model.radius * 0.4).applyMatrix4(obj.matrix);
+        tmp.set(0, -craft.belly - LAMP_DROP, -model.radius * LAMP_FORE).applyMatrix4(obj.matrix);
         this.glints.addLamp(tmp, 1, 0.95, 0.86, 0.22, 9 * craft.lamp, pxPerRad);
       }
       // A missile is tiny; its motor is what you see of it.

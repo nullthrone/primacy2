@@ -1,4 +1,5 @@
 /** Shaders for planets and moons, their atmospheres and rings. All work in camera-relative system axes. */
+import { GROUND_GLSL } from '../local/terrain/shade.ts';
 import { GLSL_NOISE } from './glsl.ts';
 
 /** Passes the world position; the camera is at the origin, so it is also the view ray. */
@@ -80,6 +81,15 @@ varying vec3 vWorld;
 ${GLSL_NOISE}
 ${SPHERE_GLSL}
 ${RING_GLSL}
+#ifdef BAKED
+// A landable body: once its far map is baked from the real terrain, the map replaces the
+// procedural look (uBake fades it in), shaded as the ground tiles near the camera are.
+uniform samplerCube uFar;
+uniform float uBake;
+uniform vec3 uGroundSun;
+uniform vec3 uGroundAmb;
+${GROUND_GLSL}
+#endif
 
 struct Surf {
   vec3 albedo;
@@ -345,12 +355,8 @@ Surf surface(vec3 nb, vec3 sunB) {
 `;
 
 const PLANET_MAIN = /* glsl */ `
-void main() {
-  vec3 d = normalize(vWorld);
-  vec3 n;
-  float cov = sphereHit(d, n);
-  if (cov <= 0.0) discard;
-  vec3 nb = uRot * n;
+// The procedural look: d is the view ray, n the sphere normal, nb the same in the body's frame.
+vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   Surf s = surface(nb, uRot * uSunDir);
   float ndv = max(dot(n, -d), 0.0);
   vec3 nn = n;
@@ -394,6 +400,26 @@ void main() {
     col += vec3(1.0, 0.36, 0.12) * sun * uAtmo * 0.10 * exp(-geo * geo / 0.008) * (0.25 + rim);
   }
   col += s.emission;
+  return col;
+}
+void main() {
+  vec3 d = normalize(vWorld);
+  vec3 n;
+  float cov = sphereHit(d, n);
+  if (cov <= 0.0) discard;
+  vec3 nb = uRot * n;
+#ifdef BAKED
+  vec3 col = vec3(0.0);
+  if (uBake < 1.0) col = procedural(d, n, nb);
+  if (uBake > 0.0) {
+    vec4 far = textureCube(uFar, cubeWarp(nb));
+    vec3 ng = normalize(nb + far.xyz) * uRot;
+    vec3 ground = groundLit(groundAlbedo(far.w, uBase, GROUND_KIND), ng, n, uSunDir, -d, uGroundSun * ringShadow(n), uGroundAmb, GROUND_KIND);
+    col = mix(col, ground, uBake);
+  }
+#else
+  vec3 col = procedural(d, n, nb);
+#endif
   gl_FragColor = vec4(col, cov * uFade);
 }
 `;

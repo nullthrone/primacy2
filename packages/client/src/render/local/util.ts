@@ -97,3 +97,38 @@ export function sunVisibility(view: FrameView, sunDir: readonly number[]): numbe
   const horizon = -Math.acos(Math.min(1, body.def.radius / body.dist));
   return smooth(horizon - DUSK, horizon + DUSK, elevation);
 }
+
+const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+/**
+ * Diffuse reflectance of the ground of a landable body, linear RGB, written to `out`: `color` is
+ * the body's base colour (0xRRGGBB, `BodyDef.color`), `cls` its class and `tone` the 0..1 value
+ * the shared terrain gives with a height. This is `groundAlbedo` of `terrain/shade.ts` in numbers
+ * and must follow it: regolith heaped up by a base and dust kicked up by a ship are the ground
+ * they came from, and are tinted with this so they do not stand out from it.
+ */
+export function groundAlbedo(color: number, cls: string, tone: number, out: number[]): void {
+  const r = srgbToLinear(((color >> 16) & 255) / 255);
+  const g = srgbToLinear(((color >> 8) & 255) / 255);
+  const b = srgbToLinear((color & 255) / 255);
+  if (cls === 'ice') {
+    const k = 0.34 + 0.7 * tone;
+    const t = smooth(0.34, 0.68, tone);
+    out[0] = lerp(r * 0.36, lerp(r, 0.93, 0.35) * k, t);
+    out[1] = lerp(g * 0.27, lerp(g, 0.96, 0.35) * k, t);
+    out[2] = lerp(b * 0.21, lerp(b, 1.0, 0.35) * k, t);
+  } else if (cls === 'desert') {
+    const k = 0.42 + 1.15 * tone;
+    const t = smooth(0.35, 0.8, tone);
+    out[0] = r * k * lerp(0.94, 1.05, t);
+    out[1] = g * k * lerp(0.97, 1.0, t);
+    out[2] = b * k * lerp(1.03, 0.93, t);
+  } else {
+    const k = 0.3 + 1.5 * tone;
+    const t = smooth(0.15, 0.65, tone);
+    out[0] = r * k * lerp(0.95, 1.04, t);
+    out[1] = g * k * lerp(0.98, 1.0, t);
+    out[2] = b * k * lerp(1.05, 0.95, t);
+  }
+}

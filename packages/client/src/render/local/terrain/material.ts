@@ -1,7 +1,20 @@
 /**
- * The material of a ground tile. It is lit by the local scene's own lights (the sun and ambient
- * light the `objects` part adds; their uniforms and shadow map come from three's light system)
- * through the ground's shading in `shade.ts`, not through three's standard surface model.
+ * The material of a ground tile. The ground is shaded by `shade.ts`, the same code the far view
+ * of the body uses, and takes its light from the local layer:
+ *
+ * - The star and the ambient level are the frame's `Lighting`, the numbers the `objects` part
+ *   gives its sun and ambient light. The ground does not read them back from three's sun light,
+ *   because that light is dimmed as a whole when the camera is in the body's shadow, while the
+ *   ground needs its own day and night for every point: a pilot on the night side still sees the
+ *   sunlit ground beyond the terminator.
+ * - The shadow of ships and structures comes from the sun light's shadow map, through three's
+ *   own shadow code. The shadow box around a ship ends a little behind it, so ground farther
+ *   along the light is tested at the box's end; the shadow weakens with the distance behind the
+ *   box, as a real one does when the caster no longer covers the sun's disc, and that is how a
+ *   pilot reads height from it.
+ * - Lamps (the landing light, the floodlights of a base) are three's spot and point lights of
+ *   the scene, added as plain diffuse light. The camera's own fill light (a point light without
+ *   falloff) is left out: it is there for hulls against black space, not for the ground.
  *
  * What the vertex shader does
  * - Level of detail without a jump: a vertex moves from its own place to its place on the parent
@@ -15,10 +28,9 @@
  * What the fragment shader does
  * - Normal and tone from the tile's map, blended toward the parent's map by the same amount the
  *   vertices moved, and toward the far map by `uRelief`.
- * - Small relief the terrain function does not have (below its 10 m): lattice noise on the
- *   body-fixed position, each octave only while it is larger than a few pixels.
- * - The shadow of ships and structures: the shadow box around the ship ends a little behind it,
- *   so the ground takes its depth in the box as no farther than the box's end.
+ * - Small relief the terrain function does not have (below its 10 m): gradient noise on the
+ *   body-fixed position, each octave only while its bumps are larger than a few pixels. It bends
+ *   the shading normal and nothing else; the ground a ship stands on is the mesh.
  */
 import {
   ClampToEdgeWrapping, DataTexture, FrontSide, HalfFloatType, LinearFilter, LinearMipmapLinearFilter, Matrix3, RGBAFormat,
@@ -27,7 +39,11 @@ import {
 import type { CubeTexture, IUniform } from 'three';
 import { GROUND_GLSL } from './shade.ts';
 
-/** The detail noise repeats after this many metres along each body-fixed axis; a power of two. */
+/**
+ * The detail noise repeats after this many metres along each body-fixed axis, so that it can be
+ * computed from small numbers (a tile's origin is reduced by it) and still meets itself across
+ * tile edges. Every octave's cell divides it.
+ */
 export const DETAIL_PERIOD = 4096;
 
 const VERT = /* glsl */ `
@@ -46,6 +62,7 @@ varying vec3 vDir;
 varying vec3 vDetail;
 varying vec3 vView;
 varying vec3 vUp;
+varying vec2 vShadowBox;
 void main() {
   // The distance of the vertex where it would be without any of this decides how far it has moved.
   float d = length((modelViewMatrix * vec4(position, 1.0)).xyz);
@@ -63,8 +80,15 @@ void main() {
   vDetail = uOriginMod + uToBody * transformed;
   vView = mvPosition.xyz;
   vUp = normalMatrix * up;
+  vShadowBox = vec2(0.0);
   vec4 worldPosition = modelMatrix * vec4(transformed, 1.0);
   #include <shadowmap_vertex>
+  #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
+    // The size of the shadow box, from the matrix that maps into it: its length along the light
+    // and half its width, metres.
+    mat4 sm = directionalShadowMatrix[0];
+    vShadowBox = vec2(1.0 / length(vec3(sm[0].z, sm[1].z, sm[2].z)), 0.5 / length(vec3(sm[0].x, sm[1].x, sm[2].x)));
+  #endif
 }
 `;
 
@@ -93,43 +117,53 @@ varying vec3 vDir;
 varying vec3 vDetail;
 varying vec3 vView;
 varying vec3 vUp;
+varying vec2 vShadowBox;
 ${GROUND_GLSL}
 
-float latticeHash(ivec3 p) {
-  uvec3 q = uvec3(p) * uvec3(1597334673u, 3812015801u, 2798796415u);
+// A vector with components in -1..1 for a lattice point.
+vec3 latticeGradient(vec3 p) {
+  uvec3 q = uvec3(ivec3(p)) * uvec3(1597334673u, 3812015801u, 2798796415u);
   uint n = (q.x ^ q.y ^ q.z) * 1597334673u;
   n ^= n >> 15;
   n *= 2246822519u;
   n ^= n >> 13;
-  return float(n >> 8) * (1.0 / 16777216.0);
+  return vec3(float(n & 1023u), float((n >> 10) & 1023u), float((n >> 20) & 1023u)) * (2.0 / 1023.0) - 1.0;
 }
 
-// Value noise in -1..1 with its gradient (xyz gradient, w value). The lattice repeats after
-// 'wrap' cells (a power of two), so the noise is continuous where its coordinates start over.
-vec4 latticeNoise(vec3 x, int wrap) {
-  vec3 pf = floor(x);
-  vec3 w = x - pf;
-  ivec3 p0 = ivec3(pf) & (wrap - 1);
-  ivec3 p1 = (p0 + 1) & (wrap - 1);
+// Gradient noise with its derivative (xyz) and value (w). The lattice starts over after 'wrap'
+// cells along each axis, so the noise is continuous where its coordinates do.
+vec4 detailNoise(vec3 x, float wrap) {
+  vec3 p = floor(x);
+  vec3 w = x - p;
+  vec3 p0 = mod(p, wrap);
+  vec3 p1 = mod(p + 1.0, wrap);
   vec3 u = w * w * w * (w * (w * 6.0 - 15.0) + 10.0);
   vec3 du = 30.0 * w * w * (w * (w - 2.0) + 1.0);
-  float a = latticeHash(p0);
-  float b = latticeHash(ivec3(p1.x, p0.y, p0.z));
-  float c = latticeHash(ivec3(p0.x, p1.y, p0.z));
-  float d = latticeHash(ivec3(p1.x, p1.y, p0.z));
-  float e = latticeHash(ivec3(p0.x, p0.y, p1.z));
-  float f = latticeHash(ivec3(p1.x, p0.y, p1.z));
-  float g = latticeHash(ivec3(p0.x, p1.y, p1.z));
-  float h = latticeHash(p1);
-  float k1 = b - a, k2 = c - a, k3 = e - a;
-  float k4 = a - b - c + d, k5 = a - c - e + g, k6 = a - b - e + f;
-  float k7 = -a + b + c - d + e - f - g + h;
-  float v = a + k1 * u.x + k2 * u.y + k3 * u.z + k4 * u.x * u.y + k5 * u.y * u.z + k6 * u.z * u.x + k7 * u.x * u.y * u.z;
-  vec3 grad = du * vec3(
-    k1 + k4 * u.y + k6 * u.z + k7 * u.y * u.z,
-    k2 + k5 * u.z + k4 * u.x + k7 * u.z * u.x,
-    k3 + k6 * u.x + k5 * u.y + k7 * u.x * u.y);
-  return vec4(grad * 2.0, v * 2.0 - 1.0);
+  vec3 ga = latticeGradient(p0);
+  vec3 gb = latticeGradient(vec3(p1.x, p0.y, p0.z));
+  vec3 gc = latticeGradient(vec3(p0.x, p1.y, p0.z));
+  vec3 gd = latticeGradient(vec3(p1.x, p1.y, p0.z));
+  vec3 ge = latticeGradient(vec3(p0.x, p0.y, p1.z));
+  vec3 gf = latticeGradient(vec3(p1.x, p0.y, p1.z));
+  vec3 gg = latticeGradient(vec3(p0.x, p1.y, p1.z));
+  vec3 gh = latticeGradient(p1);
+  float va = dot(ga, w);
+  float vb = dot(gb, w - vec3(1.0, 0.0, 0.0));
+  float vc = dot(gc, w - vec3(0.0, 1.0, 0.0));
+  float vd = dot(gd, w - vec3(1.0, 1.0, 0.0));
+  float ve = dot(ge, w - vec3(0.0, 0.0, 1.0));
+  float vf = dot(gf, w - vec3(1.0, 0.0, 1.0));
+  float vg = dot(gg, w - vec3(0.0, 1.0, 1.0));
+  float vh = dot(gh, w - vec3(1.0, 1.0, 1.0));
+  float kxy = va - vb - vc + vd, kyz = va - vc - ve + vg, kzx = va - vb - ve + vf;
+  float kxyz = -va + vb + vc - vd + ve - vf - vg + vh;
+  float v = va + u.x * (vb - va) + u.y * (vc - va) + u.z * (ve - va)
+    + u.x * u.y * kxy + u.y * u.z * kyz + u.z * u.x * kzx + u.x * u.y * u.z * kxyz;
+  vec3 g = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.z * (ge - ga)
+    + u.x * u.y * (ga - gb - gc + gd) + u.y * u.z * (ga - gc - ge + gg) + u.z * u.x * (ga - gb - ge + gf)
+    + u.x * u.y * u.z * (-ga + gb + gc - gd + ge - gf - gg + gh)
+    + du * (vec3(vb, vc, ve) - va + u.yzx * vec3(kxy, kyz, kzx) + u.zxy * vec3(kzx, kxy, kyz) + u.yzx * u.zxy * kxyz);
+  return vec4(g, v);
 }
 
 void main() {
@@ -146,48 +180,73 @@ void main() {
     tone = mix(far.w, tone, uRelief);
   }
 
-  // Small relief, by the size of a pixel on the ground: an octave is shown while its cells are
+  // Small relief, by the size of a pixel on the ground: an octave is shown while its bumps are
   // a few pixels wide and is gone before they could flicker.
   float px = max(length(dFdx(vDetail)), length(dFdy(vDetail)));
-  if (uDetail > 0.0 && px < 3.2) {
+  if (uDetail > 0.0 && px < 2.2) {
     vec3 slope = vec3(0.0);
     float speck = 0.0;
-    float cell = 8.0;
+    // Cells of 5.3 m, 1.6 m, 0.5 m and 0.16 m: none a whole multiple of the next.
+    vec4 cells = vec4(${DETAIL_PERIOD}.0 / 768.0, ${DETAIL_PERIOD}.0 / 2560.0, ${DETAIL_PERIOD}.0 / 8192.0, ${DETAIL_PERIOD}.0 / 25600.0);
+    vec4 counts = vec4(768.0, 2560.0, 8192.0, 25600.0);
     for (int i = 0; i < 4; i++) {
-      float show = 1.0 - smoothstep(cell * 0.12, cell * 0.4, px);
+      float cell = cells[i];
+      float show = 1.0 - smoothstep(cell * 0.14, cell * 0.42, px);
       if (show > 0.0) {
-        vec4 nz = latticeNoise(vDetail / cell, int(${DETAIL_PERIOD}.0 / cell));
+        vec4 nz = detailNoise(vDetail / cell + vec3(0.37, 0.11, 0.73) * float(i), counts[i]);
         slope += nz.xyz * show;
         speck += nz.w * show;
       }
-      cell *= 0.25;
     }
-    vec3 sl = (slope * uToBody) * (0.055 * uDetail);
+    vec3 sl = (slope * uToBody) * (0.085 * uDetail);
     nl = normalize(nl - (sl - nl * dot(sl, nl)));
-    tone += speck * 0.012 * uDetail;
+    tone += speck * 0.02 * uDetail;
   }
 
   vec3 n = normalize(normalMatrix * nl);
   vec3 up = normalize(vUp);
   vec3 v = normalize(-vView);
-  #if NUM_DIR_LIGHTS > 0
-    vec3 l = directionalLights[0].direction;
-    vec3 sun = directionalLights[0].color;
-    vec3 ambient = ambientLightColor;
-  #else
-    vec3 l = uSunView;
-    vec3 sun = uSunColor;
-    vec3 ambient = uAmbient;
-  #endif
+  vec3 sun = uSunColor;
   #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
     if (receiveShadow) {
       vec4 sc = vDirectionalShadowCoord[0];
+      // Metres the point lies behind the far end of the shadow box, along the light.
+      float behind = max(sc.z / sc.w - 1.0, 0.0) * vShadowBox.x;
       sc.z = min(sc.z, sc.w * 0.9995);
       DirectionalLightShadow ds = directionalLightShadows[0];
-      sun *= getShadow(directionalShadowMap[0], ds.shadowMapSize, ds.shadowIntensity, ds.shadowBias, ds.shadowRadius, sc);
+      float lit = getShadow(directionalShadowMap[0], ds.shadowMapSize, ds.shadowIntensity, ds.shadowBias, ds.shadowRadius, sc);
+      // A caster the size of the box stops covering the sun's disc some seventy box widths on.
+      float k = clamp(1.0 - behind / (70.0 * vShadowBox.y), 0.0, 1.0);
+      sun *= mix(1.0, lit, k * k);
     }
   #endif
-  gl_FragColor = vec4(groundLit(groundAlbedo(clamp(tone, 0.0, 1.0), uBase, uKind), n, up, l, v, sun, ambient, uKind), 1.0);
+  vec3 albedo = groundAlbedo(clamp(tone, 0.0, 1.0), uBase, uKind);
+  vec3 col = groundLit(albedo, n, up, uSunView, v, sun, uAmbient, uKind);
+
+  // Lamps: plain diffuse light, wherever they stand.
+  #if NUM_SPOT_LIGHTS > 0 || NUM_POINT_LIGHTS > 0
+    IncidentLight lamp;
+    vec3 lamps = vec3(0.0);
+  #endif
+  #if NUM_SPOT_LIGHTS > 0
+    for (int i = 0; i < NUM_SPOT_LIGHTS; i++) {
+      getSpotLightInfo(spotLights[i], vView, lamp);
+      if (lamp.visible) lamps += lamp.color * max(dot(n, lamp.direction), 0.0);
+    }
+  #endif
+  #if NUM_POINT_LIGHTS > 0
+    for (int i = 0; i < NUM_POINT_LIGHTS; i++) {
+      // A light without falloff is the camera's fill light, which is not for the ground.
+      if (pointLights[i].decay > 0.0) {
+        getPointLightInfo(pointLights[i], vView, lamp);
+        if (lamp.visible) lamps += lamp.color * max(dot(n, lamp.direction), 0.0);
+      }
+    }
+  #endif
+  #if NUM_SPOT_LIGHTS > 0 || NUM_POINT_LIGHTS > 0
+    col += albedo * 0.3183098861837907 * lamps;
+  #endif
+  gl_FragColor = vec4(col, 1.0);
 }
 `;
 
@@ -199,6 +258,7 @@ export interface GroundUniforms {
   uBase: IUniform<Vector3>;
   uKind: IUniform<number>;
   uDetail: IUniform<number>;
+  /** Unit vector toward the star in view axes, and the star's and the ambient light's strength. */
   uSunView: IUniform<Vector3>;
   uSunColor: IUniform<Vector3>;
   uAmbient: IUniform<Vector3>;
@@ -214,10 +274,11 @@ export function groundUniforms(): GroundUniforms {
 
 /** A material for one tile. All of them compile to one program; only the uniforms differ. */
 export function tileMaterial(shared: GroundUniforms): ShaderMaterial {
-  const material = new ShaderMaterial({
+  return new ShaderMaterial({
     vertexShader: VERT,
     fragmentShader: FRAG,
     uniforms: {
+      // Three fills these in from the lights of the scene: the shadow map, the lamps.
       ...UniformsUtils.clone(UniformsLib.lights),
       ...shared,
       uMap: { value: null }, uMapParent: { value: null },
@@ -228,7 +289,6 @@ export function tileMaterial(shared: GroundUniforms): ShaderMaterial {
     lights: true,
     side: FrontSide,
   });
-  return material;
 }
 
 /** The texture of a baked tile map: half floats, with mip levels so that slanted ground does not flicker. */
