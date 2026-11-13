@@ -19,6 +19,10 @@ const OLD: any = await import(pathToFileURL(`${OLD_ROOT}/packages/shared/src/ind
 
 type Lib = typeof NEW;
 const NEW_LIB: Lib = NEW;
+let limitAbs = 0;
+let limitRel = 0;
+let limitsRaised = 0;
+const tally = new Map<string, number>();
 const lib = (l: unknown): Lib => l as Lib;
 
 // ---------------------------------------------------------------------------------------------
@@ -85,6 +89,8 @@ function input(l: Lib, tick: number, cruise: boolean): any {
 
 interface Scene {
   label: string;
+  /** What the scene is, for the tally: flight mode, kind of body or site and its class. */
+  kind: string;
   cruise: boolean;
   start(l: Lib, sys: any): any;
 }
@@ -140,7 +146,12 @@ function fly(l: Lib, sys: any, scene: Scene, ticks: number, shells: { id: number
         let before = stats.cruiseMax;
         for (const src of env.sources) before = Math.min(before, 0.28 * Math.max(0, l.v3.dist(s.pos, src.pos) - (src.rs > 0 ? Math.max(src.radius, src.rs * l.COMPACT_KILL_FACTOR) : src.radius)));
         if (!(before > l.CRUISE_MIN_SPEED)) before = l.CRUISE_MIN_SPEED;
-        if (limit !== before) limitsChanged++;
+        if (limit !== before) {
+          limitsChanged++;
+          limitAbs = Math.max(limitAbs, Math.abs(limit - before));
+          limitRel = Math.max(limitRel, Math.abs(limit - before) / before);
+          if (limit > before) limitsRaised++;
+        }
       }
     }
     if (s.mode === l.FlightMode.Dead) break;
@@ -166,6 +177,7 @@ let limitsChanged = 0;
 const leaks: string[] = [];
 function compare(sysO: any, sysN: any, scene: Scene, ticks: number): void {
   scenes++;
+  tally.set(scene.kind, (tally.get(scene.kind) ?? 0) + 1);
   const shells = sysN.bodies.filter(isLandable).map((b: any) => ({ id: b.id, exit: NEW.bodySurface(sysN, b.id)!.exit }));
   const a = fly(lib(OLD), sysO, scene, ticks, shells);
   const b = fly(NEW, sysN, scene, ticks, shells);
@@ -189,6 +201,7 @@ for (const { o, n } of pairs) {
       for (const cruise of cruiseOk ? [false, true] : [false]) {
         sc.push({
           label: `${cruise ? 'cruise' : 'normal'} at ${f}R of body ${b.id} (${b.kind})`, cruise,
+          kind: `${cruise ? 'cruise' : 'normal'} flight at ${b.kind} ${b.cls}${b.atmo ? ' with atmosphere' : ''}`,
           start(l, sys) {
             const s = l.newShipState(hullStats(l));
             const base = l.bodyState(sys, b.id, 1e6);
@@ -213,7 +226,7 @@ for (const { o, n } of pairs) {
     // Only where the station's parent is not a landable body's neighbour in the surface frame: the parent itself is not landable here.
     if (isLandable(n.bodies[site.orbit.parent])) continue;
     sc.push({
-      label: `normal at ${site.kind} ${site.id}`, cruise: false,
+      label: `normal at ${site.kind} ${site.id}`, cruise: false, kind: `normal flight at a ${site.kind}`,
       start(l, sys) {
         const s = l.newShipState(hullStats(l));
         l.placeAtSite(s, sys, site.id, 1e6, new (l as any).Rng(7), 3_000);
@@ -226,5 +239,7 @@ for (const { o, n } of pairs) {
   for (const scene of chosen) compare(o, n, scene, scene.cruise ? 900 : 400);
 }
 console.log(`FLIGHTS: ${scenes} scripted flights (${classA} systems without any landable body, ${classB} with one; normal flight around bodies that cannot be landed on and at stations, cruise only in the systems without a landable body): ${identical} identical tick by tick; ${nearShell} differ and came inside the surface-frame shell of a landable body; ${leaks.length} differ without ever being inside one`);
+for (const [kind, n] of [...tally].sort((a, b) => b[1] - a[1])) console.log(`  ${String(n).padStart(5)} ${kind}`);
+console.log(`CRUISE LIMITS: largest change ${(limitAbs / 1000).toFixed(2)} km/s (${(100 * limitRel).toFixed(2)} % of the old limit), raised at ${limitsRaised} points;`);
 console.log(`CRUISE LIMITS: in the new run the limit differed from the old rule at ${limitsChanged} sampled points (all at landable bodies by design) and from the rule as intended at ${limitsWrong}`);
 for (const l of leaks.slice(0, 12)) console.log('  LEAK?', l);

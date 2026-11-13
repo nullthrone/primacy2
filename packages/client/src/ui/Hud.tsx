@@ -88,9 +88,9 @@ function PipRow({ label, value, hint }: { label: string; value: number; hint: st
  * One instrument of the ground row: a label over a number. Near a landing the number is followed
  * by the most a landing allows, and the cell turns red while that is exceeded.
  */
-function GroundCell({ label, value, limit, over, wide }: { label: string; value: string; limit?: string; over?: boolean; wide?: boolean }) {
+function GroundCell({ label, value, limit, over }: { label: string; value: string; limit?: string; over?: boolean }) {
   return (
-    <div class={`ground-cell ${wide ? 'wide' : ''} ${over ? 'over' : ''}`}>
+    <div class={`ground-cell ${over ? 'over' : ''}`}>
       <span class="label">{label}</span>
       <span class="num">{value}{limit && <span class="limit"> / {limit}</span>}</span>
     </div>
@@ -380,21 +380,23 @@ function flightHud(view: FrameView, api: GameApi) {
         {cues?.tilt.over && <div class="landing-over">{t('hud.cueTiltOver')}</div>}
         {/* Ground instruments. With a landing near, sink rate and ground speed are the two the
             landing check measures (against the ground, not against straight down) and stand
-            before their limits, joined by slope and tilt. */}
+            before their limits; slope and tilt join them on either side of the speed. */}
         {ground && !landed && (
           <div class="ground">
-            <GroundCell wide label={t('hud.height')} value={fmtHeight(Math.max(0, ground.height))} />
+            <GroundCell label={t('hud.height')} value={fmtHeight(Math.max(0, ground.height))} />
             {cues
               ? cueCell(t('hud.sinkRate'), cues.sink, 'm/s')
               : <GroundCell label={t(climbing ? 'hud.climbRate' : 'hud.sinkRate')} value={fmtRate(Math.abs(ground.verticalSpeed))} />}
             {cues
               ? cueCell(t('hud.groundSpeed'), cues.side, 'm/s')
               : <GroundCell label={t('hud.groundSpeed')} value={fmtSpeed(ground.groundSpeed)} />}
-            {cues && cueCell(t('hud.slope'), cues.slope, '°', '')}
-            {cues && cueCell(t('hud.tilt'), cues.tilt, '°', '')}
           </div>
         )}
-        <div class="speed">{fmtSpeed(speed)}</div>
+        <div class="speed-row">
+          {cues ? cueCell(t('hud.slope'), cues.slope, '°', '') : <span />}
+          <div class="speed">{fmtSpeed(speed)}</div>
+          {cues ? cueCell(t('hud.tilt'), cues.tilt, '°', '') : <span />}
+        </div>
         <div class="throttle"><span style={{ width: `${Math.abs(st.throttle) * 100}%` }} class={st.throttle < 0 ? 'rev' : ''} /></div>
         <div class="mode">
           {landed
