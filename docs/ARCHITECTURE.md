@@ -155,8 +155,9 @@ expressed in a frame that turns with the body.
   earlier ones cost and is still remembered, and the memory fades with a time constant of a second
   (`IMPACT_EPISODE`): a scrape of many weakening contacts costs about once, while a ship that goes
   on slamming into the ground pays again each time (61 % of a slam is still remembered after half
-  a second). A ship that is destroyed by the ground within 15 s of another ship's hit counts as
-  destroyed by that ship, so crashing on purpose keeps neither a bounty nor a kill from the hunter.
+  a second). A ship that is destroyed by the ground within 15 s of another ship's weapon attack counts as
+  destroyed by that ship, so crashing on purpose keeps neither a bounty nor a kill from the hunter
+  (a collision is not an attack: it hurts both ships).
   Bodies that cannot be landed on keep the old rule: flying into one destroys the ship.
 - **Landed.** Nothing moves and no input but one has any effect: up thrust above 0.2, or the
   boost, lifts the ship off with a 3 m/s hop into normal flight. A landed ship cannot fire, use

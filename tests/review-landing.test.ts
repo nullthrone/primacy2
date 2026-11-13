@@ -52,6 +52,7 @@ import {
 import { BASE_COLLIDER, IMPACT_EPISODE, collideBase, groundRay, impactFraction, padPose } from '../packages/server/src/ground.ts';
 import { deductible } from '../packages/server/src/modules/insurance.ts';
 import { lawOf } from '../packages/server/src/modules/combat/law.ts';
+import { strike } from '../packages/server/src/modules/combat/weapons.ts';
 import { MAX_WRECKS } from '../packages/server/src/modules/salvage.ts';
 import { spawnNpc } from '../packages/server/src/modules/npc.ts';
 import { wreckData } from '../packages/server/src/modules/salvage.ts';
@@ -539,8 +540,8 @@ describe('crashing on purpose', () => {
     law.bounty = 5_000;
     law.wantedUntil = sim.time + 600;
     quarry.ship.wanted = true;
-    // The hunter has just hit the quarry; the quarry flies into the ground.
-    sim.damage(quarry.ship, 1, { by: hunter.ship });
+    // The hunter has just shot the quarry; the quarry flies into the ground.
+    strike(sim, hunter.ship, quarry.ship, 1, 1, 1, [...quarry.ship.state.pos]);
     run(10);
     const before = hunter.p.rec.credits;
     const kills = hunter.p.rec.passport.stats.kills;
@@ -662,28 +663,33 @@ describe('zones, the second look', () => {
 });
 
 describe('ramming a landed ship and leaving the world', () => {
-  it('a ship that rams a landed one at ground level is never left below the ground for more than the tick of the collision', () => {
+  it('a ship that rams a landed one at ground level is never left below the ground, and the landed ship does not move', () => {
     const spot = groundSpot(33);
     const up = upAt(spot);
     const along = v3.normalize(v3.cross(up, [1, 0, 0]));
     const landed = drone(v3.scale(up, v3.len(spot) + 5), padRot, 'drover');
     standAt(landed, spot);
-    // 60 m back along the ground, belly just clear of it, running at the landed ship at 25 m/s.
-    const back = v3.add(spot, v3.scale(along, -60));
-    const rammer = drone(v3.scale(upAt(back), v3.len(back) - altitude(back) + 5), padRot, 'drover');
-    rammer.state.vel = v3.scale(along, 25);
-    rammer.input.buttons = Button.FaOff;
-    let under = 0;
-    for (let i = 0; i < 20 / DT && rammer.state.mode !== FlightMode.Dead; i++) {
+    const standing = [...landed.state.pos];
+    // The rammer starts 80 m back along the ground with its belly 6 m clear of it, flight assist on
+    // so that the pull of the moon does not drop it, and runs at the landed ship at about 20 m/s.
+    const back = v3.add(spot, v3.scale(along, -80));
+    const rammer = drone(v3.scale(upAt(back), v3.len(back) - altitude(back) + 7.2 + 6), quat.lookRotation(along, up), 'drover');
+    rammer.input.throttle = 20 / rammer.stats.maxSpeed;
+    let deepest = 0;
+    let touched = false;
+    const startHealth = landed.state.hull + landed.state.shield + rammer.state.hull + rammer.state.shield;
+    for (let i = 0; i < 12 / DT && rammer.state.mode !== FlightMode.Dead; i++) {
       run(1);
-      if (altitude(rammer.state.pos) < rammer.stats.belly - 0.01) under++;
+      if (landed.state.hull + landed.state.shield + rammer.state.hull + rammer.state.shield < startHealth - 0.5) touched = true;
+      deepest = Math.max(deepest, rammer.stats.belly - altitude(rammer.state.pos));
     }
-    // At most the odd tick of a collision, and the landed ship has not moved an inch.
-    expect(under).toBeLessThan(10);
+    console.log(`ram: collided ${touched}; rammer at most ${deepest.toFixed(2)} m under the ground at a tick end; rammer mode ${rammer.state.mode}`);
+    expect(touched, 'the ships collided and hurt each other').toBe(true);
     expect(landed.state.mode).toBe(FlightMode.Landed);
-    if (rammer.state.mode !== FlightMode.Dead) {
-      expect(altitude(rammer.state.pos)).toBeGreaterThanOrEqual(rammer.stats.belly - 0.01);
-    }
+    expect(landed.state.pos).toEqual(standing);
+    // A tick of overlap with the ground at most: the next flight step lifts the ship out again.
+    expect(deepest).toBeLessThan(1);
+    if (rammer.state.mode !== FlightMode.Dead) expect(altitude(rammer.state.pos)).toBeGreaterThanOrEqual(rammer.stats.belly - 0.01);
     sim.removeShip(landed);
     sim.removeShip(rammer);
   });
@@ -746,6 +752,39 @@ describe('NPC traffic around a landable body', () => {
       b.close();
       await c.settle(() => !world.players.has(b.id), 'logout');
       c.bots.delete(b);
+    }
+  });
+});
+
+describe('crashing on purpose, the other way round', () => {
+  it('a pilot who bumped into an innocent one and then crashes does not make the innocent one a killer', async () => {
+    // Ship-to-ship collisions record the other ship as the one that hit, so "hit by" alone cannot
+    // tell a hunter from a bystander. If a crash is credited to whoever hit the ship last, then
+    // bumping into a pilot (or being bumped) and crashing within the window makes the bystander
+    // wanted for murder in secure space.
+    const bystander = pilot(padPoint(0, 0, 3_000), 'wisp', 0);
+    const victim = pilot(padPoint(0, 0, 3_000), 'wisp', 0);
+    const spot = groundSpot(48);
+    const up = upAt(spot);
+    const along = v3.normalize(v3.cross(up, [1, 0, 0]));
+    const at = v3.scale(up, v3.len(spot) + 400);
+    Object.assign(bystander.ship.state, { pos: at, vel: [0, 0, 0], rot: quat.lookRotation(along, up) });
+    Object.assign(victim.ship.state, { pos: v3.add(at, v3.scale(along, -50)), vel: v3.scale(along, 8), rot: quat.lookRotation(along, up) });
+    // Flight assist holds both against the pull of the moon; the victim creeps toward the bystander at 8 m/s.
+    victim.ship.input.buttons = 0;
+    victim.ship.input.throttle = 8 / victim.ship.stats.maxSpeed;
+    bystander.ship.input.buttons = 0;
+    const dealt = watchDamage();
+    expect(runUntil(() => dealt.some((d) => d.ship === bystander.ship || d.ship === victim.ship), 10), 'the two ships collide').toBe(true);
+    expect(victim.ship.lastHitBy, 'the collision is recorded as a hit').toBe(bystander.ship.id);
+    const kills = bystander.p.rec.passport.stats.kills;
+    crash(victim, groundSpot(49));
+    expect(bystander.p.rec.passport.stats.kills, 'no kill for the bystander').toBe(kills);
+    expect(lawOf(bystander.p).bounty, 'no bounty on the bystander').toBe(0);
+    expect(bystander.ship.wanted).toBe(false);
+    for (const x of [bystander, victim]) {
+      sim.removeShip(x.ship);
+      world.players.delete(x.p.id);
     }
   });
 });

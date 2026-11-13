@@ -5,7 +5,7 @@
  * by anyone this server can check the choice against.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { generateKeyPair, idFromPublicKey, issueTicket, newPassport, randomNonce } from '@primacy2/shared';
+import { generateKeyPair, idFromPublicKey, issueTicket, newPassport, randomNonce, upsertGateSite } from '@primacy2/shared';
 import type { PrimacyServer } from '@primacy2/server';
 import { Bot } from './bot.ts';
 import { Cluster, testKeys } from './harness.ts';
@@ -53,5 +53,13 @@ describe('arrival at a gate', () => {
     const base = def.sites.find((s) => s.kind === 'base');
     if (base) expect(await refusal(base.id)).toMatch(/gate/i);
     expect(await refusal(undefined)).toMatch(/gate/i);
+  });
+
+  it('still lets a ticket that names a real gate through the check (it is then refused only because this sender never issued it)', async () => {
+    const def = B.world.defs.get(`${B.id}:0`)!;
+    const gate = upsertGateSite(def, { linkId: 'review-link', peer: A.id, remoteSystem: `${A.id}:0`, state: 'active', progress: 1, remoteProgress: 1 }, [1, 0, 0]);
+    const msg = await refusal(gate.id);
+    expect(msg).not.toMatch(/gate/i);
+    expect(msg).toMatch(/confirm/i);
   });
 });

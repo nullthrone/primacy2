@@ -80,6 +80,9 @@ export interface Ship {
   lastHitBy: number | null;
   /** Universe time of the last hit taken. */
   lastHitAt: number;
+  /** The ship that last attacked this one with a weapon (not by colliding), and when: who a crash is credited to. */
+  lastAttackedBy: number | null;
+  lastAttackedAt: number;
   /** Removed from the simulation; kept only so stale references can detect it. */
   gone: boolean;
 }
@@ -226,7 +229,7 @@ export function newShip(id: number, name: string, loadout: Loadout, stats: ShipS
     player: null, npc: null, cargo: [], target: null,
     cooldowns: stats.weapons.map(() => 0),
     flags: 0, hazards: null, fold: null, tunnel: 0, foldFrom: null, wanted: false,
-    lastHitBy: null, lastHitAt: -1e9, gone: false,
+    lastHitBy: null, lastHitAt: -1e9, lastAttackedBy: null, lastAttackedAt: -1e9, gone: false,
   };
 }
 

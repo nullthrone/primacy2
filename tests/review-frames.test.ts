@@ -12,6 +12,8 @@ import {
   absoluteRotation,
   absoluteVelocity,
   anchorState,
+  bodyRotation,
+  bodySpinRate,
   bodySurface,
   buildStepEnv,
   computeShipStats,
@@ -42,15 +44,31 @@ const T0 = 1.2e6;
 
 const clone = (s: ShipState): ShipState => ({ ...s, pos: [...s.pos], vel: [...s.vel], rot: [...s.rot], angVel: [...s.angVel], aim: [...s.aim], pips: s.pips });
 /** Angle in radians between two orientations. */
-const angle = (a: Readonly<[number, number, number, number]>, b: Readonly<[number, number, number, number]>): number =>
-  2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3])));
+const angle = (a: Readonly<[number, number, number, number]>, b: Readonly<[number, number, number, number]>): number => {
+  // The rotation from a to b is b * conjugate(a); its angle is 2 atan2(|vector part|, |w|), which resolves 1e-16 where acos does not resolve 1e-8.
+  const q = quat.mul(b as never, [-a[0], -a[1], -a[2], a[3]] as never) as [number, number, number, number];
+  return 2 * Math.atan2(Math.hypot(q[0], q[1], q[2]), Math.abs(q[3]));
+};
+
+/**
+ * The state of a ship of the planet's frames in axes that do not turn, centred on the planet: float64 resolves
+ * about 3e-5 m at the distance of the barycentre from the star, so comparing barycentric states hides errors
+ * of that size; these numbers show the error of the conversion itself.
+ */
+function planetCentred(s: ShipState, t: number): { pos: Vec3; vel: Vec3; rot: [number, number, number, number] } {
+  if (!isSurfaceAnchor(s.anchor)) return { pos: s.pos, vel: s.vel, rot: s.rot as [number, number, number, number] };
+  const turn = bodyRotation(planet, t);
+  const omega: Vec3 = [0, bodySpinRate(planet), 0];
+  const vel = v3.add(s.vel, v3.cross(omega, s.pos));
+  return { pos: quat.rotate(turn, s.pos), vel: quat.rotate(turn, vel), rot: quat.mul(turn, s.rot) as [number, number, number, number] };
+}
 
 /**
  * Flies `ticks` ticks from state `s0` at universe time T0. Every tick the ship is also stepped once
  * in the frame it started the tick in, without re-anchoring, and the two results are compared as
  * barycentric states: any difference is what the change of frame did to the trajectory.
  */
-function coast(s0: ShipState, ticks: number): { crossings: number; dPos: number; dVel: number; dRot: number; dPosAny: number } {
+function coast(s0: ShipState, ticks: number): { crossings: number; dPos: number; dVel: number; dRot: number; dPosAny: number; cPos: number; cVel: number; cRot: number } {
   const s = clone(s0);
   let t = T0;
   let crossings = 0;
@@ -58,6 +76,9 @@ function coast(s0: ShipState, ticks: number): { crossings: number; dPos: number;
   let dVel = 0;
   let dRot = 0;
   let dPosAny = 0;
+  let cPos = 0;
+  let cVel = 0;
+  let cRot = 0;
   for (let i = 0; i < ticks; i++) {
     const ref = clone(s);
     stepShip(ref, COAST, stats, buildStepEnv(sys, ref.anchor, t), DT);
@@ -71,9 +92,14 @@ function coast(s0: ShipState, ticks: number): { crossings: number; dPos: number;
       dPos = Math.max(dPos, dp);
       dVel = Math.max(dVel, v3.dist(absoluteVelocity(s, sys, t), absoluteVelocity(ref, sys, t)));
       dRot = Math.max(dRot, angle(absoluteRotation(s, sys, t), absoluteRotation(ref, sys, t)));
+      const a = planetCentred(s, t);
+      const b = planetCentred(ref, t);
+      cPos = Math.max(cPos, v3.dist(a.pos, b.pos));
+      cVel = Math.max(cVel, v3.dist(a.vel, b.vel));
+      cRot = Math.max(cRot, angle(a.rot, b.rot));
     }
   }
-  return { crossings, dPos, dVel, dRot, dPosAny };
+  return { crossings, dPos, dVel, dRot, dPosAny, cPos, cVel, cRot };
 }
 
 /** A tumbling ship at `radius` metres from the planet centre in the frame `anchor`, moving with `vel` there. */
@@ -101,6 +127,10 @@ describe('frame conversions with the engines off', () => {
     expect(r.dPos).toBeLessThan(1e-6);
     expect(r.dVel).toBeLessThan(1e-9);
     expect(r.dRot).toBeLessThan(1e-9);
+    // The same, centred on the planet, where float64 resolves 1e-9 m.
+    expect(r.cPos).toBeLessThan(1e-6);
+    expect(r.cVel).toBeLessThan(1e-9);
+    expect(r.cRot).toBeLessThan(1e-9);
     // Every other tick is stepped in the same frame as its reference and is bit for bit the same.
     expect(r.dPosAny).toBeLessThan(1e-6);
   });
@@ -116,6 +146,9 @@ describe('frame conversions with the engines off', () => {
     expect(r.dPos).toBeLessThan(1e-6);
     expect(r.dVel).toBeLessThan(1e-9);
     expect(r.dRot).toBeLessThan(1e-9);
+    expect(r.cPos).toBeLessThan(1e-6);
+    expect(r.cVel).toBeLessThan(1e-9);
+    expect(r.cRot).toBeLessThan(1e-9);
     expect(r.dPosAny).toBeLessThan(1e-6);
   });
 

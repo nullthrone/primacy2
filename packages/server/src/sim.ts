@@ -387,8 +387,10 @@ export class SystemSim {
     const r = v3.len(s.pos);
     const at = r > 0 ? v3.scale(s.pos, 1 - ship.stats.belly / r) : v3.clone(s.pos);
     if (s.hull <= amount) ship.player?.notice('danger', 'crash', 'Crashed into the ground.');
-    // Whoever hit the ship a moment ago gets the credit if the ground finishes it.
-    const hunter = ship.lastHitBy !== null && t - ship.lastHitAt <= CRASH_CREDIT_SECONDS ? this.ships.get(ship.lastHitBy) : undefined;
+    // Whoever attacked the ship with a weapon a moment ago gets the credit if the ground finishes it.
+    // A collision does not count: it hurts both ships, and crediting it would make a pilot who was
+    // bumped into a killer.
+    const hunter = ship.lastAttackedBy !== null && t - ship.lastAttackedAt <= CRASH_CREDIT_SECONDS ? this.ships.get(ship.lastAttackedBy) : undefined;
     this.damage(ship, amount, { bypassShield: true, at, by: hunter && !hunter.gone ? hunter : null });
   }
 

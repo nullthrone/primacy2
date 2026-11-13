@@ -180,6 +180,11 @@ export function Station({ api }: { api: GameApi }) {
   if (station.missions.length || pilot.missions.length) tabs.push('missions');
   if (station.gateProjects.length) tabs.push('gates');
   const active = tabs.includes(tab) ? tab : 'market';
+  // A ground base is run through this same screen; only its words differ.
+  const system = api.view?.system;
+  const site = system?.sites.find((s) => s.id === station.site);
+  const isBase = site?.kind === 'base';
+  const baseBody = site?.ground ? system?.bodies[site.ground.body] : undefined;
 
   const self = store.serverId.value;
   const tierOf = tiersAtStation(station.imports);
@@ -211,11 +216,12 @@ export function Station({ api }: { api: GameApi }) {
       <header>
         <div>
           <h2>{station.name}</h2>
+          {isBase && <div class="dim">{baseBody ? t('station.baseOn', { body: baseBody.name }) : t('kind.base')}</div>}
           {station.faction && <div class="dim">{t('station.faction', { name: station.faction })}</div>}
         </div>
         <div class="row">
           <span class="credits">{fmt(pilot.credits)} {t('hud.credits')}</span>
-          <button class="primary" onClick={() => void run({ k: 'undock' })}>{t('station.undock')}</button>
+          <button class="primary" onClick={() => void run({ k: 'undock' })}>{t(isBase ? 'station.launch' : 'station.undock')}</button>
         </div>
       </header>
       <nav class="tabs">
@@ -250,7 +256,7 @@ export function Station({ api }: { api: GameApi }) {
       )}
       {active === 'market' && (
         <div class="scroll market-scroll">
-          {station.market.length === 0 ? <p class="dim">{t('station.noMarket')}</p> : (
+          {station.market.length === 0 ? <p class="dim">{t(isBase ? 'station.noMarketBase' : 'station.noMarket')}</p> : (
             <table>
               <thead>
                 <tr><th>{t('station.commodity')}</th><th>{t('station.stock')}</th><th>{t('station.buy')}</th><th>{t('station.sell')}</th><th>{t('station.hold')}</th><th>{t('station.qty')}</th><th /></tr>
@@ -298,7 +304,7 @@ export function Station({ api }: { api: GameApi }) {
           )}
           {untraded.length > 0 && (
             <div class="untraded">
-              <h4>{t('station.untraded')}</h4>
+              <h4>{t(isBase ? 'station.untradedBase' : 'station.untraded')}</h4>
               {untraded.map((x) => lotLine(x, true))}
             </div>
           )}

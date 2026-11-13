@@ -3,22 +3,22 @@
 //
 //   npx tsx tests/tools/terrain-browser.mjs
 //
-// The suite (tests/tools/determinism-suite.ts) is bundled with esbuild for the browser, as Vite does
-// for the game, and run through Playwright. Exits with 1 when any value differs.
-import { build } from 'esbuild';
+// The suite (tests/tools/determinism-suite.ts) is bundled for the browser by Vite in library mode with its
+// default minification, as the game is, and run through Playwright. Exits with 1 when any value differs.
+// Both Node and Chromium run V8, so this shows that the optimised and minified code agrees with the code
+// as written and that two V8 versions agree, not that another engine would.
+import { build } from 'vite';
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { runSuite } from './determinism-suite.ts';
 
-const bundle = await build({
-  entryPoints: ['tests/tools/determinism-suite.ts'],
-  bundle: true,
-  format: 'iife',
-  globalName: 'Suite',
-  write: false,
-  target: 'es2022',
+const built = await build({
+  configFile: false,
+  logLevel: 'silent',
+  build: { write: false, minify: true, target: 'es2022', lib: { entry: 'tests/tools/determinism-suite.ts', name: 'Suite', formats: ['iife'], fileName: 'suite' } },
 });
-const code = bundle.outputFiles[0].text;
+const code = (Array.isArray(built) ? built[0] : built).output[0].code;
+console.log(`bundle: ${(code.length / 1024).toFixed(0)} KB minified by Vite`);
 
 const node = runSuite(`node ${process.version} (V8 ${process.versions.v8})`);
 

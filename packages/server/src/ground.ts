@@ -77,8 +77,8 @@ export const IMPACT_SCALE_MAX = 1.6;
  */
 export const IMPACT_EPISODE = 1;
 /**
- * A ship that hits the ground within this many seconds of being hit by another ship counts as
- * destroyed by that ship: crashing on purpose must not keep a bounty or a kill from the hunter.
+ * A ship that hits the ground within this many seconds of being attacked by another ship's weapons
+ * counts as destroyed by that ship: crashing on purpose must not keep a bounty or a kill from the hunter.
  */
 export const CRASH_CREDIT_SECONDS = 15;
 

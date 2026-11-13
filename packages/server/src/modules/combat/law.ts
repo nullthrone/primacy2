@@ -66,6 +66,9 @@ function markAggressor(attacker: Ship, victim: Ship, t: number): void {
 export function onAttack(sim: SystemSim, attacker: Ship, victim: Ship): void {
   if (attacker === victim) return;
   const t = sim.time;
+  // Remembered whatever the law says about it: a crash soon after is credited to this attacker.
+  victim.lastAttackedBy = attacker.id;
+  victim.lastAttackedAt = t;
   if (isWanted(victim, t) || wasProvoked(attacker, victim, t)) return;
   markAggressor(attacker, victim, t);
   const p = attacker.player;

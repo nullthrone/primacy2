@@ -4,7 +4,7 @@ import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { store, type BindAction } from '../state/store.ts';
 
 const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
-const KEY_NAMES: Record<string, StringKey> = { Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight' };
+const KEY_NAMES: Record<string, StringKey> = { Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight', Space: 'key.space' };
 
 /** A short label for a binding code: `KeyR` is R, `ArrowUp` is ↑, `Mouse1` is the middle mouse button. */
 export function keyName(code: string): string {
@@ -37,6 +37,25 @@ export function fmtSpeed(v: number): string {
   if (a < 1_000) return `${fmt(v)} m/s`;
   if (a < C * 0.1) return `${fmt(v / 1_000, a < 100_000 ? 1 : 0)} km/s`;
   return `${fmt(v / C, a < C * 10 ? 2 : 0)} c`;
+}
+
+/**
+ * Height above the ground. Metres below one kilometre, with tenths below 20 m where a touchdown
+ * is judged; kilometres above, to ten metres up to 100 km. The steps are set where the rounded
+ * number changes its form, so the readout never shows "1,000 m".
+ */
+export function fmtHeight(m: number): string {
+  const a = Math.abs(m);
+  if (a < 19.95) return `${fmt(m, 1)} m`;
+  if (a < 999.5) return `${fmt(m)} m`;
+  if (a < 99_995) return `${fmt(m / 1_000, 2)} km`;
+  if (a < 999_950) return `${fmt(m / 1_000, 1)} km`;
+  return `${fmt(m / 1_000)} km`;
+}
+
+/** A rate of climb or sink, or a speed near a landing limit: tenths of a metre per second below 100 m/s. */
+export function fmtRate(v: number): string {
+  return Math.abs(v) < 99.95 ? `${fmt(v, 1)} m/s` : fmtSpeed(v);
 }
 
 /** Seconds as 12 s, 3:05 or 1:02:03. */

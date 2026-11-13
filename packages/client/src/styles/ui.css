@@ -200,6 +200,21 @@
 .mode .on { color: var(--dim); }
 .charge { width: 100%; display: flex; flex-direction: column; gap: 0.2em; color: var(--amber); letter-spacing: 0.1em; }
 .prompt { margin-top: 0.3em; padding: 0.2em 0.9em; border: 1px solid var(--line); background: var(--glass); color: var(--cyan); }
+/* Ground instruments above the speed readout. Every cell has a fixed width and its number is in
+   the monospaced face, so a changing digit moves nothing; the bars below keep their own width
+   however wide the row of cells is. */
+.hud-centre .throttle, .hud-centre .charge { width: 18em; }
+.ground { display: flex; justify-content: center; gap: 0.7em; margin-bottom: 0.3em; white-space: nowrap; }
+.ground-cell { display: flex; flex-direction: column; align-items: center; width: 8.2em; }
+.ground-cell.wide { width: 9.8em; }
+.ground-cell .label { font-size: 0.78em; letter-spacing: 0.08em; color: var(--dim); }
+.ground-cell .num { font-size: 1.1em; color: #fff; }
+.ground-cell .limit { color: var(--dim); }
+/* A landing limit that is exceeded right now: the cell and the line that names it turn red. Until then both stay calm. */
+.ground-cell.over .label, .ground-cell.over .num { color: var(--red); }
+.landing-over { color: var(--red); font-weight: 700; letter-spacing: 0.14em; }
+.mode .landed { padding: 0 0.7em; border: 1px solid var(--cyan); background: var(--glass); color: var(--cyan); font-weight: 700; }
+.gravity-note { color: var(--amber); letter-spacing: 0.08em; }
 .panel-mini { background: rgba(6, 14, 28, 0.55); border-left: 2px solid var(--cyan); padding: 0.5em 0.8em; display: flex; flex-direction: column; gap: 0.15em; }
 .panel-mini h4 { font-size: 0.8em; color: var(--dim); }
 .panel-mini .tag { color: var(--amber); letter-spacing: 0.15em; }
