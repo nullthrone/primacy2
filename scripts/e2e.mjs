@@ -700,6 +700,7 @@ const MODE_LANDED = 5;
  */
 function installLandingTools() {
   const g = window.primacy2.game;
+  const MODE_LANDED = 5;
   const L = (window.__L = { servo: null, active: false, err: null, rec: { minVs: 0, gs: 0 }, last: null });
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
   const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
