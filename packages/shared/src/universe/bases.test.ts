@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeShipStats, starterLoadout } from '../catalog.ts';
+import { HULLS, computeShipStats, starterLoadout } from '../catalog.ts';
 import { BASE_MAX_GRAVITY, BASE_PAD_BLEND, BASE_PAD_RADIUS, DT, G, MASS_LOCK_RADIUS, SITE_ID_BASE, SURFACE_ID_BASE } from '../constants.ts';
 import { upOf, v3 } from '../math.ts';
 import { hashString, Rng } from '../prng.ts';
@@ -160,14 +160,16 @@ describe('ground bases', () => {
 
   it('name no model that is not built: every model of a generated site is a structure the client can load', () => {
     // The client loads the model of every entry of STRUCTURES at start and of every site that
-    // names one; a key without a file is an error on every page. The ground base has no model
-    // yet, so it is defined beside STRUCTURES and the bases name none.
-    const built = ['station_ring', 'station_outpost', 'gate', 'beacon'];
+    // names one; a key without a file is an error on every page. These are the models that
+    // exist in packages/client/public/models; a new structure goes here when its file does.
+    const built = ['station_ring', 'station_outpost', 'gate', 'beacon', 'base_ground'];
     expect(Object.keys(STRUCTURES).sort()).toEqual([...built].sort());
+    for (const [key, def] of Object.entries(STRUCTURES)) expect(def.model).toBe(key);
     for (const sys of MANY) {
       for (const site of sys.sites) {
         if (site.model !== undefined) expect(built, `${site.kind} ${site.name}`).toContain(site.model);
-        if (site.kind === 'base') expect(site.model).toBeUndefined();
+        // A base is the ground base structure and nothing else is.
+        expect(site.model === 'base_ground', `${site.kind} ${site.name}`).toBe(site.kind === 'base');
       }
     }
     const gate = upsertGateSite(
@@ -177,8 +179,41 @@ describe('ground bases', () => {
     expect(built).toContain(gate.model);
   });
 
-  it('have their shape defined for the day the model is built', () => {
+  it('have four landing pads around the compound: numbered clockwise from north, clear of it and of each other', () => {
     const structure = GROUND_BASE_STRUCTURE;
+    const pads = structure.pads!;
+    expect(pads.length).toBe(4);
+    // Pad 1 lies north (-Z), 2 east (+X), 3 south, 4 west.
+    expect(pads.map((p) => [Math.sign(p.pos[0]), Math.sign(p.pos[2])])).toEqual([[0, -1], [1, 0], [0, 1], [-1, 0]]);
+    const block = Math.max(...structure.colliders.map((c) => (c.kind === 'cylinder' ? c.r : 0)));
+    const largest = Math.max(...Object.values(HULLS).map((h) => h.radius));
+    for (const [i, pad] of pads.entries()) {
+      const out = Math.hypot(pad.pos[0], pad.pos[2]);
+      // On the ground, 130 to 230 m from the centre, about 80 m across.
+      expect(pad.pos[1]).toBe(0);
+      expect(out).toBeGreaterThanOrEqual(130);
+      expect(out).toBeLessThanOrEqual(230);
+      expect(pad.r).toBeGreaterThanOrEqual(38);
+      expect(pad.r).toBeLessThanOrEqual(42);
+      // Big enough for every hull, with room to miss the middle by.
+      expect(pad.r).toBeGreaterThan(largest + 10);
+      // The whole disc is clear of the compound, inside the bounding sphere and on the flattened ground.
+      expect(out - pad.r).toBeGreaterThanOrEqual(block);
+      expect(out + pad.r).toBeLessThanOrEqual(structure.bound);
+      expect(out + pad.r).toBeLessThan(BASE_PAD_RADIUS);
+      // The largest hull standing at the centre touches nothing of the structure.
+      expect(collideStructure(structure, [pad.pos[0], HULLS.bulwark!.belly, pad.pos[2]], largest)).toBeNull();
+      for (const other of pads.slice(i + 1)) {
+        expect(Math.hypot(pad.pos[0] - other.pos[0], pad.pos[2] - other.pos[2])).toBeGreaterThan(pad.r + other.r + 2 * largest);
+      }
+    }
+    // No other structure has pads so far.
+    for (const [key, def] of Object.entries(STRUCTURES)) expect(def.pads === undefined, key).toBe(key !== 'base_ground');
+  });
+
+  it('have the shape their model is built to', () => {
+    const structure = GROUND_BASE_STRUCTURE;
+    expect(STRUCTURES.base_ground).toBe(structure);
     expect(structure.model).toBe('base_ground');
     expect(structure.bound).toBe(250);
     // It stands on the ground: nothing of it below the pad, and well inside the flat part.

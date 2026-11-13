@@ -192,9 +192,10 @@ expressed in a frame that turns with the body.
   north). Ships near a base fly in the surface frame; `placeAtSite` puts a ship over the pad.
   The generator builds them in inhabited systems on landable bodies with at most 6 m/s^2 of surface
   gravity, from a random stream of their own and after every other site, so nothing that existed
-  before them changed. `summarize` counts them as places to dock. Their shape is
-  `GROUND_BASE_STRUCTURE`; its model is not built yet, so it is not in `STRUCTURES` and bases name
-  no `model` (the client loads every model it is told of).
+  before them changed. `summarize` counts them as places to dock. Their shape and model is the
+  structure `base_ground` (`GROUND_BASE_STRUCTURE`): a compound with a control tower in the middle,
+  which ships collide with, and four landing pads around it, numbered 1 to 4 clockwise from north.
+  The pads are data on the structure (`pads`: centre and radius in the site's axes), not colliders.
   A base is docked at from the surface frame, flying or landed: the nearest base of the body,
   within the usual dock range of its pad, with no terrain between it and a point 60 m
   above the pad, at no more than the usual speed over the ground. A

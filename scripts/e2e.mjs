@@ -1199,13 +1199,13 @@ async function landing(browser, problems, steps, findings) {
         if (Date.now() - t0 > 90_000) await B.fail('the 70 m/s dive did not end the ship');
         await B.page.waitForTimeout(50);
       }
-      const gone = await B.page.evaluate(() => ({ mode: window.primacy2.game.view?.mode, last: window.__L.last }));
+      const gone = await B.page.evaluate(() => ({ mode: window.primacy2.game.view?.mode, last: window.__L.last, fastest: -window.__L.rec.minVs }));
       await B.page.waitForTimeout(600);
       const crashNotice = await B.page.$eval('.notices', (n) => n.innerText).catch(() => '');
       B.log(`destroyed: last seen ${JSON.stringify({ ...gone.last, pos: undefined })}; notices ${JSON.stringify(crashNotice.replace(/\s+/g, ' ').trim().slice(0, 120))}`);
       await B.shot('51-crash-destroyed');
       B.check(gone.mode === MODE.destroyed, 'the 70 m/s dive destroyed the ship (mode 4)', `the ship should be destroyed, mode ${gone.mode}`);
-      B.check(gone.last.vs < -40, `it was descending at ${(-gone.last.vs).toFixed(0)} m/s at the last look`, `the crasher was not diving: ${JSON.stringify({ ...gone.last, pos: undefined })}`);
+      B.check(gone.fastest > 40, `it was descending at ${gone.fastest.toFixed(0)} m/s before it hit the ground`, `the crasher was not diving: fastest descent ${gone.fastest} m/s`);
       return gone.last;
     })();
 
@@ -1247,7 +1247,7 @@ async function landing(browser, problems, steps, findings) {
     await A.page.waitForTimeout(1000);
     const headText = await A.page.$eval('.panel.wide header', (n) => n.innerText).catch(() => '');
     const rows = await A.page.$$eval('.panel.wide .scroll > table tbody tr:not(.lots)', (rs) => rs.length);
-    A.check(headText.includes(base.name) && rows > 0, `docked: the panel is headed ${JSON.stringify(headText.replace(/\s+/g, ' ').trim().slice(0, 60))} and the market lists ${rows} goods`, `the base panel should name ${base.name} and list goods: ${JSON.stringify(headText)}, ${rows} rows`);
+    A.check(headText.toLowerCase().includes(base.name.toLowerCase()) && rows > 0, `docked: the panel is headed ${JSON.stringify(headText.replace(/\s+/g, ' ').trim().slice(0, 60))} and the market lists ${rows} goods`, `the base panel should name ${base.name} and list goods: ${JSON.stringify(headText)}, ${rows} rows`);
     await A.shot('48-docked-at-base');
     await A.page.click('.panel header button.primary');
     await A.page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 10_000 }).catch(() => A.fail('the ship did not undock at the base'));

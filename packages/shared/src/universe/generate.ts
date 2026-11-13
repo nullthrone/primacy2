@@ -1175,7 +1175,7 @@ const BASE_CHANCE = 0.4;
 const BASE_SECOND_CHANCE = 0.25;
 /** Directions tried for the spot of a base; the most level one is taken. */
 const BASE_SPOT_CANDIDATES = 24;
-/** Radius of the bounding sphere of a ground base, metres (`GROUND_BASE_STRUCTURE.bound`). */
+/** Radius of the bounding sphere of a ground base, metres (the `bound` of the structure `base_ground`). */
 const BASE_RADIUS = 250;
 
 /**
@@ -1201,7 +1201,7 @@ function baseSpotGrade(params: ReturnType<typeof terrainParams>, dir: Readonly<V
  * what they did before. The capital has one whenever it has a body to build on; other systems by
  * chance. The spot is the most level of BASE_SPOT_CANDIDATES random directions.
  *
- * A base has no `model` yet: `base_ground` is not built (see `GROUND_BASE_STRUCTURE`).
+ * Every base is the structure `base_ground` (`GROUND_BASE_STRUCTURE`).
  */
 function buildBases(rng: Rng, sys: { index: number; bodies: readonly BodyDef[]; belts: readonly BeltDef[]; faction?: string }, sites: SiteDef[]): void {
   if (sys.faction === undefined) return;
@@ -1240,6 +1240,7 @@ function buildBases(rng: Rng, sys: { index: number; bodies: readonly BodyDef[]; 
       orbit: { parent: host.id, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 },
       frameRadius: 0,
       seed: rng.u32(),
+      model: 'base_ground',
       radius: BASE_RADIUS,
       services,
       economy: rng.chance(0.6) ? 'mining' : 'outpost',

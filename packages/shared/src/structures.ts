@@ -5,10 +5,10 @@
  * every shape here is rotationally symmetric about that axis, so a spinning ring needs no
  * special handling.
  *
- * A ground base (`GROUND_BASE_STRUCTURE`) stands at the centre of its pad with +Y up along the pad
- * normal (the site's own axes, see `groundSitePose`), y = 0 at the ground. Ships near it fly in
- * the surface frame of the body, so a ship's position has to be brought into the site's axes
- * before `collideStructure` is asked.
+ * A ground base (`base_ground`) stands at the centre of the ground its body was flattened for,
+ * with +Y up along the normal there and -Z north (the site's own axes, see `groundSitePose`),
+ * y = 0 at the ground. Ships near it fly in the surface frame of the body, so a ship's position
+ * has to be brought into the site's axes before `collideStructure` is asked.
  */
 import type { Vec3 } from './math.ts';
 
@@ -28,7 +28,37 @@ export interface StructureDef {
   colliders: Collider[];
   /** Spin about +Y in radians per second (visual only). */
   spin: number;
+  /**
+   * Landing pads, in the order of their numbers (`pads[0]` is pad 1): the centre of each in the
+   * structure's axes and the radius of its flat, marked disc in metres. Pads are places to set a
+   * ship down on, not colliders; nothing of the structure stands on one.
+   */
+  pads?: { pos: Vec3; r: number }[];
 }
+
+/**
+ * Ground base: a compound around a control tower in the middle of the flattened ground, and four
+ * landing pads around it, numbered clockwise from north (north is -Z, east +X). Ships collide
+ * with the compound and the tower; the pads and the open apron between them are free.
+ *
+ * It is an entry of `STRUCTURES` (`base_ground`) and is also exported under this name, for the
+ * code that deals with ground bases only.
+ */
+export const GROUND_BASE_STRUCTURE: StructureDef = {
+  model: 'base_ground',
+  bound: 250,
+  spin: 0,
+  colliders: [
+    { kind: 'cylinder', y0: 0, y1: 40, r: 90 },
+    { kind: 'cylinder', y0: 40, y1: 110, r: 14 },
+  ],
+  pads: [
+    { pos: [0, 0, -170], r: 40 },
+    { pos: [170, 0, 0], r: 40 },
+    { pos: [0, 0, 170], r: 40 },
+    { pos: [-170, 0, 0], r: 40 },
+  ],
+};
 
 export const STRUCTURES: Record<string, StructureDef> = {
   /** Large wheel station: a habitat ring joined to a central hub by four spokes. */
@@ -62,26 +92,8 @@ export const STRUCTURES: Record<string, StructureDef> = {
     spin: 0.2,
     colliders: [{ kind: 'sphere', y: 0, r: 12 }],
   },
-};
-
-/**
- * Ground base: a low central block with a control tower, in the middle of the flattened pad. The
- * open pad around the block is where ships set down.
- *
- * The model `base_ground` does not exist yet; these are the dimensions it is to be built to. That
- * is why this structure is not in `STRUCTURES` and why ground bases carry no `model` so far: the
- * client loads the model of every entry of `STRUCTURES` when it starts and of every site that
- * names one, and a missing file is an error there. When `models/base_ground.glb` exists, move this
- * into `STRUCTURES` and give the bases their `model` in the generator.
- */
-export const GROUND_BASE_STRUCTURE: StructureDef = {
-  model: 'base_ground',
-  bound: 250,
-  spin: 0,
-  colliders: [
-    { kind: 'cylinder', y0: 0, y1: 40, r: 90 },
-    { kind: 'cylinder', y0: 40, y1: 110, r: 14 },
-  ],
+  /** Ground base on a landable body. */
+  base_ground: GROUND_BASE_STRUCTURE,
 };
 
 /**

@@ -14,7 +14,7 @@ import { HULLS, STRUCTURES } from '@primacy2/shared';
 import { Group, Vector2, type Object3D, type WebGLRenderer } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
 import type { Part } from '../part.ts';
-import { wrap } from '../util.ts';
+import { sunVisibility, wrap } from '../util.ts';
 import { Rocks } from './asteroids.ts';
 import { Fleet } from './craft.ts';
 import { Exhaust } from './exhaust.ts';
@@ -50,6 +50,8 @@ export function createObjects(): Part {
   /** What the shadow box is locked to: 0 nothing, 1 a structure, 2 a ship. */
   let focus = 0;
   const buffer = new Vector2(1280, 720);
+  /** The lighting as it reaches the camera; refilled every frame. */
+  const lit: Lighting = { sunDir: [0, 1, 0], sunColor: [1, 1, 1], sunIntensity: 0, ambient: 0, envMap: null };
 
   return {
     root,
@@ -78,10 +80,20 @@ export function createObjects(): Part {
       const quality = view.graphics.quality;
       const map = SHADOW_MAP[quality];
 
+      // Near the ground of a landable body the sun sets: on its night side nothing here is sunlit.
+      // The star light the renderer hands out knows no horizon, so it is dimmed here for this part.
+      const shade = sunVisibility(view, light.sunDir);
+      lit.sunDir = light.sunDir;
+      lit.sunColor = light.sunColor;
+      lit.sunIntensity = light.sunIntensity * shade;
+      lit.ambient = light.ambient;
+      lit.envMap = light.envMap;
+      light = lit;
+
       lib.materials.setEnv(light.envMap);
       exhaust.begin(wrap(view.clock, 600), quality);
       glints.begin(light);
-      structures.update(view, light, pxPerRad);
+      structures.update(view, light, light.sunDir, pxPerRad);
       rocks.update(view, pxPerRad);
       fleet.update(view, pxPerRad);
       exhaust.end();

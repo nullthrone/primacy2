@@ -1,27 +1,38 @@
 /**
- * Built structures at sites: wheel stations, outposts, gates and beacons. They stand at the site
- * anchor with their axis along system +Y and spin about it. A structure too small to resolve is a
- * point of light; one that is near enough is the model, with slow strobes at its lamp positions.
+ * Built structures at sites: wheel stations, outposts, gates, beacons and ground bases. Those in
+ * orbit stand at the site anchor with their axis along system +Y and spin about it; a ground base
+ * stands on its pad, up along the pad normal and turning with its body. A structure too small to
+ * resolve is a point of light; one that is near enough is the model, with slow strobes at its lamp
+ * positions.
  *
  * A gate shows its state: planned and building gates stand in their scaffold while the ring grows
  * in four arcs, an active gate carries the portal membrane, a dormant one is a dark ring.
+ *
+ * A ground base has lamps of its own instead of the strobes: pad edge lights, a beacon on the
+ * mast, and floodlights that come on when the sun is down at the base. The floodlights of the
+ * nearest base are real lights, so the pads, the compound and a ship standing there are lit at
+ * night. What lies flat on the ground (apron, pads, markings) is drawn with a depth offset, layer
+ * over layer, so it does not fight with the terrain drawn under it by another part.
  */
-import { STRUCTURES } from '@primacy2/shared';
-import type { GateState } from '@primacy2/shared';
+import { STRUCTURES, bodyRotation, groundSiteRotation } from '@primacy2/shared';
+import type { GateState, SiteDef } from '@primacy2/shared';
 import {
   CustomBlending,
   DoubleSide,
   Group,
   OneFactor,
   OneMinusSrcAlphaFactor,
+  PointLight,
+  Quaternion,
   ShaderMaterial,
+  SpotLight,
   Vector3,
   type Mesh,
   type MeshStandardMaterial,
   type Object3D,
 } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
-import { TAU, clamp, clamp01, damp, wrap } from '../util.ts';
+import { TAU, clamp, clamp01, damp, smooth, wrap } from '../util.ts';
 import type { Glints } from './glints.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
 
@@ -31,6 +42,56 @@ const POINT_BELOW_PX = 7;
 /** The model must fit inside the far plane (400 km) or it is drawn as a point only. */
 const FAR_LIMIT = 395_000;
 const STROBE_PERIOD = 3.2;
+
+/**
+ * The flat layers of a ground structure by node name, bottom to top, with the depth offset each
+ * is drawn with (in steps of the depth buffer, plus one pixel of slope). The terrain under them
+ * has none, so the apron wins over the ground, the pads over the apron and paint over both, at
+ * any distance, whatever is left of the depth buffer's precision there.
+ */
+const FLAT_LAYERS: readonly (readonly [string, number])[] = [['ground', -4], ['pads', -8], ['marks', -12]];
+/** A ground base beyond the limb of its body is not drawn, unless the camera is this near (the terrain hides it then). */
+const LIMB_NEAR = 20_000;
+/** The pad may lie this far below the horizon of a smooth sphere and still be drawn: towers and rough ground. */
+const LIMB_SLACK = 300;
+/** Floodlights come on as the sine of the sun's height at the base falls from the first to the second value. */
+const DUSK_HIGH = 0.06;
+const DUSK_LOW = -0.02;
+/** The real lights of a base are switched on within this distance and reach full strength a quarter nearer. */
+const FLOOD_RANGE = 5000;
+/** Luminous intensity of one pad's floodlight and of the work lights on the tower, scene-referred. */
+const FLOOD_INTENSITY = 95;
+const WORK_INTENSITY = 42;
+/** How far each reaches, metres; both fall off with the distance, not its square (see `Structures`). */
+const FLOOD_REACH = 280;
+const WORK_REACH = 150;
+/** Pad edge lights are told apart up to this distance; farther out only floodlights and beacon are drawn. */
+const EDGE_LIGHT_RANGE = 9000;
+
+const LAMP_FLOOD = 0;
+const LAMP_EDGE = 1;
+const LAMP_BEACON = 2;
+const LAMP_WORK = 3;
+const LAMP_DOOR = 4;
+const LAMP_KINDS: Record<string, number> = { flood: LAMP_FLOOD, edge: LAMP_EDGE, beacon: LAMP_BEACON, work: LAMP_WORK, door: LAMP_DOOR };
+
+/** A lamp of a ground structure in model space: `light_N` empties carry the kind and the pad they belong to. */
+interface GroundLamp {
+  pos: Vector3;
+  kind: number;
+  /** Pad number 1..n, or 0 for a lamp of the compound. */
+  pad: number;
+}
+
+/** What a model says about its lamps and pads; read once per model. */
+interface GroundPlan {
+  lamps: GroundLamp[];
+  /** Per pad: where its floodlight shines from (the middle of its masts) and the pad centre it is aimed at. */
+  floodFrom: Vector3[];
+  floodAt: Vector3[];
+  /** Where the work lights over the compound hang, or null. */
+  work: Vector3 | null;
+}
 
 const PORTAL_VERT = /* glsl */ `
 #include <common>
@@ -162,12 +223,26 @@ interface GateParts {
   on: number;
 }
 
+/** The parts of a structure that stands on the ground of a body. */
+interface GroundParts {
+  plan: GroundPlan;
+  /** The site this copy stands at and the orientation of that site's axes in the body-fixed axes of its body. */
+  site: SiteDef | null;
+  siteRot: Quaternion;
+  /** Own copies of the floodlight glass: dark by day. */
+  floodMats: MeshStandardMaterial[];
+  floodFull: number[];
+  /** 0 by day, 1 with the sun down at the base. */
+  night: number;
+}
+
 interface Built {
   siteId: number;
   modelName: string;
   model: Model;
   obj: Object3D;
   gate: GateParts | null;
+  ground: GroundParts | null;
   /** A beacon's own copies of its lantern materials, flashed in time with its strobe. */
   pulseMats: MeshStandardMaterial[];
   pulseFull: number[];
@@ -175,6 +250,7 @@ interface Built {
 }
 
 const tmp = new Vector3();
+const tmp2 = new Vector3();
 const Y = new Vector3(0, 1, 0);
 
 export class Structures {
@@ -183,17 +259,114 @@ export class Structures {
   private readonly active: Built[] = [];
   private readonly free = new Map<string, Built[]>();
   private readonly portalMats: ShaderMaterial[] = [];
+  private readonly plans = new Map<Model, GroundPlan>();
+  /**
+   * The floodlights of the nearest ground base: one spot light per pad and a point light over the
+   * compound. They are in the scene from the start and only change strength, because a light that
+   * comes or goes makes the renderer rebuild every lit shader. One light stands for the lamps of
+   * two masts, so it is given an even spread (strength falling with distance, not its square), as
+   * a set of lamps aimed near and far gives; a single bare lamp would burn out the ground at its
+   * foot and leave the pad dark.
+   */
+  private readonly floods: SpotLight[] = [];
+  private readonly work = new PointLight(0xffe9c8, 0, WORK_REACH, 1);
   private frame = 0;
   /** The structure that is largest on screen, for the shadow focus; `focusBound` 0 when none. */
   readonly focusPos = new Vector3();
   focusBound = 0;
   focusDist = 0;
 
-  constructor(private readonly lib: ModelLibrary, private readonly glints: Glints) {}
+  constructor(private readonly lib: ModelLibrary, private readonly glints: Glints) {
+    for (let i = 0; i < 4; i++) {
+      const spot = new SpotLight(0xffe9c8, 0, FLOOD_REACH, 0.56, 0.6, 1);
+      this.floods.push(spot);
+      this.group.add(spot, spot.target);
+    }
+    this.group.add(this.work);
+  }
+
+  /** Lamps and pads of a ground structure, from the empties of its model. */
+  private plan(model: Model, modelName: string): GroundPlan {
+    const known = this.plans.get(model);
+    if (known) return known;
+    const plan: GroundPlan = { lamps: [], floodFrom: [], floodAt: [], work: null };
+    const pads: Vector3[] = [];
+    model.template.traverse((o) => {
+      if (/^light_\d/.test(o.name)) {
+        const data = o.userData as { p2_light?: string; p2_pad?: number };
+        const kind = LAMP_KINDS[data.p2_light ?? ''];
+        if (kind !== undefined) plan.lamps.push({ pos: o.getWorldPosition(new Vector3()), kind, pad: data.p2_pad ?? 0 });
+      } else if (/^pad_\d+$/.test(o.name)) {
+        pads[Number(o.name.slice(4)) - 1] = o.getWorldPosition(new Vector3());
+      }
+    });
+    // A model without pad empties (a stand-in) falls back on the pads the structure is defined with.
+    const defined = STRUCTURES[modelName]?.pads ?? [];
+    for (let i = 0; i < Math.max(pads.length, defined.length); i++) {
+      const at = pads[i] ?? new Vector3(defined[i]!.pos[0], defined[i]!.pos[1], defined[i]!.pos[2]);
+      const from = new Vector3();
+      let n = 0;
+      for (const lamp of plan.lamps) {
+        if (lamp.kind !== LAMP_FLOOD || lamp.pad !== i + 1) continue;
+        from.add(lamp.pos);
+        n++;
+      }
+      // Without masts of its own the pad is lit from above its inner edge.
+      if (n > 0) from.multiplyScalar(1 / n);
+      else from.copy(at).multiplyScalar(0.5).setY(36);
+      plan.floodAt.push(at);
+      plan.floodFrom.push(from);
+    }
+    plan.work = plan.lamps.find((l) => l.kind === LAMP_WORK)?.pos ?? null;
+    this.plans.set(model, plan);
+    return plan;
+  }
+
+  /** Prepares a copy of a ground structure: its flat layers and its floodlight glass. */
+  private buildGround(obj: Object3D, model: Model, modelName: string): GroundParts {
+    for (const [name, units] of FLAT_LAYERS) {
+      const copies = new Map<MeshStandardMaterial, MeshStandardMaterial>();
+      obj.getObjectByName(name)?.traverse((o) => {
+        const mesh = o as Mesh;
+        const src = mesh.material as MeshStandardMaterial | undefined;
+        if (!mesh.isMesh || !src?.isMeshStandardMaterial) return;
+        let own = copies.get(src);
+        if (!own) {
+          own = this.lib.materials.add(src.clone());
+          own.polygonOffset = true;
+          own.polygonOffsetFactor = -1;
+          own.polygonOffsetUnits = units;
+          copies.set(src, own);
+        }
+        mesh.material = own;
+        // Flat on the ground: nothing for it to shade, and its own shadow would only flicker.
+        mesh.castShadow = false;
+      });
+    }
+    const ground: GroundParts = {
+      plan: this.plan(model, modelName), site: null, siteRot: new Quaternion(), floodMats: [], floodFull: [], night: 0,
+    };
+    const floods = new Map<MeshStandardMaterial, MeshStandardMaterial>();
+    obj.traverse((o) => {
+      const mesh = o as Mesh;
+      const src = mesh.material as MeshStandardMaterial | undefined;
+      if (!mesh.isMesh || !src?.isMeshStandardMaterial || src.name !== 'emissive_light_flood') return;
+      let own = floods.get(src);
+      if (!own) {
+        own = this.lib.materials.add(src.clone());
+        floods.set(src, own);
+        ground.floodMats.push(own);
+        ground.floodFull.push(src.emissiveIntensity);
+      }
+      mesh.material = own;
+    });
+    return ground;
+  }
 
   private build(model: Model, modelName: string): Built {
     const obj = this.lib.instantiate(model);
-    const built: Built = { siteId: 0, modelName, model, obj, gate: null, pulseMats: [], pulseFull: [], seen: 0 };
+    const built: Built = { siteId: 0, modelName, model, obj, gate: null, ground: null, pulseMats: [], pulseFull: [], seen: 0 };
+    if (obj.getObjectByName('ground')) built.ground = this.buildGround(obj, model, modelName);
     if (modelName === 'beacon') {
       obj.traverse((o) => {
         const mesh = o as Mesh;
@@ -268,11 +441,18 @@ export class Structures {
     list.push(b);
   }
 
-  update(view: FrameView, light: Lighting, pxPerRad: number): void {
+  /**
+   * `light` is the light that reaches the camera (the sun dimmed to nothing on the night side of
+   * the body it is near); `sun` is where the sun stands, seen or not, as a unit vector.
+   */
+  update(view: FrameView, light: Lighting, sun: readonly number[], pxPerRad: number): void {
     const frame = ++this.frame;
     this.focusBound = 0;
     let focusAngle = 0;
     const sites = view.sites;
+    /** The ground base nearest to the camera whose floodlights are on, for the real lights. */
+    let flood: Built | null = null;
+    let floodDist = FLOOD_RANGE;
 
     for (let i = 0; i < sites.length; i++) {
       const sv = sites[i]!;
@@ -289,11 +469,26 @@ export class Structures {
       const lit = state !== 'dormant' && state !== 'planned';
       tmp.set(sv.rel[0], sv.rel[1], sv.rel[2]);
 
+      // A base on the ground is hidden by its own body from most of the sky, and has day and night.
+      /** 1 with the sun up at the structure, 0 with it down; always 1 in orbit. */
+      let day = 1;
+      const host = def.ground ? view.bodies[def.ground.body] : undefined;
+      if (host) {
+        // The pad as seen from the body centre; the camera is at minus the body's position.
+        const ox = tmp.x - host.rel[0], oy = tmp.y - host.rel[1], oz = tmp.z - host.rel[2];
+        const rr = ox * ox + oy * oy + oz * oz;
+        const r = Math.sqrt(rr);
+        if (dist > LIMB_NEAR && -(ox * host.rel[0] + oy * host.rel[1] + oz * host.rel[2]) < rr - r * LIMB_SLACK) continue;
+        day = smooth(DUSK_LOW, DUSK_HIGH, (ox * sun[0]! + oy * sun[1]! + oz * sun[2]!) / r);
+      }
+      /** Light of its own that keeps a structure findable in shadow: windows, and at night the floodlights of a base. */
+      const glow = !lit ? 0.02 : def.ground ? 0.08 + 0.3 * (1 - day) : 0.35;
+
       const near = px > MODEL_ABOVE_PX && dist + bound < FAR_LIMIT;
       const model = this.lib.get(name);
       if (!near || !model) {
         // Open structures fill about a third of their bounding disc; lit windows keep them findable in shadow.
-        this.glints.addBody(tmp, dist, bound * 0.55, model?.albedo ?? 0.2, lit ? 0.35 : 0.02, 1, pxPerRad);
+        this.glints.addBody(tmp, dist, bound * 0.55, (model?.albedo ?? 0.2) * day, glow, 1, pxPerRad);
         if (!model) this.lib.request(name, bound);
         // Too far for its lamps to be told apart: one flash for the whole structure.
         const beacon = name === 'beacon';
@@ -303,7 +498,7 @@ export class Structures {
         continue;
       }
       if (px < POINT_BELOW_PX) {
-        this.glints.addBody(tmp, dist, bound * 0.55, model.albedo, lit ? 0.35 : 0.02, clamp01((POINT_BELOW_PX - px) / 4), pxPerRad);
+        this.glints.addBody(tmp, dist, bound * 0.55, model.albedo * day, glow, clamp01((POINT_BELOW_PX - px) / 4), pxPerRad);
       }
 
       let b = this.bySite.get(def.id);
@@ -323,7 +518,22 @@ export class Structures {
 
       const obj = b.obj;
       obj.position.copy(tmp);
-      obj.quaternion.setFromAxisAngle(Y, wrap(view.time * (spec?.spin ?? 0), TAU));
+      const ground = def.ground ? b.ground : null;
+      if (ground && def.ground) {
+        // Up along the pad normal, nose north: the site's axes, turned with the body.
+        if (ground.site !== def) {
+          const q = groundSiteRotation(def);
+          ground.siteRot.set(q[0], q[1], q[2], q[3]);
+          ground.site = def;
+        }
+        const surface = view.surface;
+        // The view carries the rotation of the body the camera is near, which is this one in all but freak cases.
+        const turn = surface && surface.body === def.ground.body ? surface.rot : bodyRotation(view.system.bodies[def.ground.body]!, view.time);
+        obj.quaternion.set(turn[0], turn[1], turn[2], turn[3]).multiply(ground.siteRot);
+        ground.night = 1 - day;
+      } else {
+        obj.quaternion.setFromAxisAngle(Y, wrap(view.time * (spec?.spin ?? 0), TAU));
+      }
       obj.updateMatrix();
 
       if (b.pulseMats.length) {
@@ -332,7 +542,16 @@ export class Structures {
         for (let k = 0; k < b.pulseMats.length; k++) b.pulseMats[k]!.emissiveIntensity = b.pulseFull[k]! * level;
       }
       if (b.gate) this.updateGate(b.gate, state ?? 'active', def.gate?.progress ?? 1, view, light);
-      if (view.graphics.quality > 0 || px > 40) this.lamps(b, name, bound, state, view, pxPerRad);
+      if (ground) {
+        for (let k = 0; k < ground.floodMats.length; k++) ground.floodMats[k]!.emissiveIntensity = ground.floodFull[k]! * ground.night;
+        this.groundLamps(b, ground, dist, view, pxPerRad);
+        if (ground.night > 0.01 && dist < floodDist) {
+          flood = b;
+          floodDist = dist;
+        }
+      } else if (view.graphics.quality > 0 || px > 40) {
+        this.lamps(b, name, bound, state, view, pxPerRad);
+      }
 
       const angle = bound / dist;
       if (angle > focusAngle) {
@@ -350,6 +569,67 @@ export class Structures {
       this.release(b);
       this.active[i] = this.active[this.active.length - 1]!;
       this.active.pop();
+    }
+    this.floodlights(flood, floodDist, view.graphics.quality);
+  }
+
+  /** Puts the real lights on the masts of `b`, or switches them off when it is null. */
+  private floodlights(b: Built | null, dist: number, quality: number): void {
+    const ground = b?.ground;
+    // The lowest quality level does without them; the lamps themselves still shine.
+    const level = b && ground && quality > 0 ? ground.night * clamp01((FLOOD_RANGE - dist) / (FLOOD_RANGE * 0.25)) : 0;
+    for (let i = 0; i < this.floods.length; i++) {
+      const spot = this.floods[i]!;
+      const from = ground?.plan.floodFrom[i];
+      const at = ground?.plan.floodAt[i];
+      if (!b || !from || !at || level <= 0) {
+        spot.intensity = 0;
+        continue;
+      }
+      spot.intensity = FLOOD_INTENSITY * level;
+      spot.position.copy(from).applyMatrix4(b.obj.matrix);
+      spot.target.position.copy(at).applyMatrix4(b.obj.matrix);
+    }
+    const work = ground?.plan.work;
+    if (!b || !work || level <= 0) {
+      this.work.intensity = 0;
+      return;
+    }
+    this.work.intensity = WORK_INTENSITY * level;
+    this.work.position.copy(work).applyMatrix4(b.obj.matrix);
+  }
+
+  /**
+   * The lamps of a ground base as points of light. Edge lights and the beacon burn day and night;
+   * floodlights and work lights only with the sun down. In daylight a lamp is a dim speck.
+   */
+  private groundLamps(b: Built, g: GroundParts, dist: number, view: FrameView, pxPerRad: number): void {
+    const lamps = g.plan.lamps;
+    const m = b.obj.matrix;
+    const night = g.night;
+    const dim = 0.35 + 0.65 * night;
+    // The beacon on the mast: one second on, one off.
+    const beacon = wrap(view.time, 2) < 1 ? 7 : 0.4;
+    for (let k = 0; k < lamps.length; k++) {
+      const lamp = lamps[k]!;
+      if (lamp.kind === LAMP_EDGE && dist > EDGE_LIGHT_RANGE) continue;
+      tmp2.copy(lamp.pos).applyMatrix4(m);
+      switch (lamp.kind) {
+        case LAMP_FLOOD:
+          if (night > 0.01) this.glints.addLamp(tmp2, 1, 0.9, 0.74, 0.7, 11 * night, pxPerRad);
+          break;
+        case LAMP_WORK:
+          if (night > 0.01) this.glints.addLamp(tmp2, 1, 0.9, 0.74, 0.6, 6 * night, pxPerRad);
+          break;
+        case LAMP_BEACON:
+          this.glints.addLamp(tmp2, 1, 0.07, 0.03, 0.5, beacon, pxPerRad);
+          break;
+        case LAMP_DOOR:
+          this.glints.addLamp(tmp2, 1, 0.62, 0.2, 0.15, 2.2 * dim, pxPerRad);
+          break;
+        default:
+          this.glints.addLamp(tmp2, 0.72, 0.88, 1, 0.2, 3 * dim, pxPerRad);
+      }
     }
   }
 
@@ -404,6 +684,7 @@ export class Structures {
   dispose(): void {
     for (const m of this.portalMats) m.dispose();
     this.portalMats.length = 0;
+    this.plans.clear();
     this.group.clear();
     this.bySite.clear();
     this.active.length = 0;

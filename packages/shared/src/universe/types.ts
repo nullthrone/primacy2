@@ -122,8 +122,8 @@ export interface SiteDef {
   frameRadius: number;
   seed: number;
   /**
-   * Model key, e.g. `station_ring`: a key of `STRUCTURES`. Present for stations, outposts, gates
-   * and beacons. Ground bases have none until their model is built (`GROUND_BASE_STRUCTURE`).
+   * Model key, e.g. `station_ring`: a key of `STRUCTURES`. Present for stations, outposts, gates,
+   * beacons and ground bases (`base_ground`).
    */
   model?: string;
   /** Collision radius of the structure in metres. */

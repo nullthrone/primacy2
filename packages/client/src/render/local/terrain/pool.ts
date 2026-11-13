@@ -88,6 +88,8 @@ export class TerrainPool {
       if (this.queue[i]!.key === key) this.queue.splice(i, 1)[0]!.cancelled = true;
     }
     for (const s of this.slots) {
+      // A job of that body that is running finishes, and its result is thrown away.
+      if (s.job && s.job.key === key) s.job.cancelled = true;
       if (s.dead || !s.known.delete(key)) continue;
       s.worker.postMessage({ type: 'forget', key } satisfies WorkerRequest);
     }
