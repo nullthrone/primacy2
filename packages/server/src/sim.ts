@@ -41,7 +41,7 @@ import {
   type Vec3,
 } from '@primacy2/shared';
 import { CRUISE_ZONE, NO_ZONE, inSpace, type Player, type Ship, type SimObject } from './game.ts';
-import { IMPACT_EPISODE, collideBase, impactFraction, padPose, zoneSurface } from './ground.ts';
+import { CRASH_CREDIT_SECONDS, IMPACT_EPISODE, collideBase, impactFraction, padPose, zoneSurface } from './ground.ts';
 import type { World } from './world.ts';
 
 const INPUT_QUEUE_MAX = 5;
@@ -387,7 +387,9 @@ export class SystemSim {
     const r = v3.len(s.pos);
     const at = r > 0 ? v3.scale(s.pos, 1 - ship.stats.belly / r) : v3.clone(s.pos);
     if (s.hull <= amount) ship.player?.notice('danger', 'crash', 'Crashed into the ground.');
-    this.damage(ship, amount, { bypassShield: true, at });
+    // Whoever hit the ship a moment ago gets the credit if the ground finishes it.
+    const hunter = ship.lastHitBy !== null && t - ship.lastHitAt <= CRASH_CREDIT_SECONDS ? this.ships.get(ship.lastHitBy) : undefined;
+    this.damage(ship, amount, { bypassShield: true, at, by: hunter && !hunter.gone ? hunter : null });
   }
 
   private setFlags(ship: Ship): void {

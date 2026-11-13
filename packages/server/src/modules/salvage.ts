@@ -110,8 +110,11 @@ function makeWreck(sim: SystemSim, ship: Ship): void {
     belly: ship.stats.belly,
   });
 
-  // A zone keeps a dozen wrecks: the oldest ones fade away first.
-  const wrecks = wrecksIn(sim, anchor).sort((a, b) => wreckData(a)!.bornAt - wreckData(b)!.bornAt || a.id - b.id);
+  // A zone keeps a dozen wrecks: the empty ones fade away first, then the oldest. A free starter
+  // ship leaves an empty wreck, and over the shell of a landable body one can be crashed anywhere,
+  // so empty wrecks must not be able to push a loaded one out.
+  const worth = (o: SimObject): number => (wreckData(o)!.total * wreckData(o)!.fill > 0 ? 1 : 0);
+  const wrecks = wrecksIn(sim, anchor).sort((a, b) => worth(a) - worth(b) || wreckData(a)!.bornAt - wreckData(b)!.bornAt || a.id - b.id);
   for (let i = 0; i < wrecks.length - MAX_WRECKS; i++) sim.removeObject(wrecks[i]!.id);
 }
 

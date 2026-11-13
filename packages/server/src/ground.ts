@@ -76,6 +76,11 @@ export const IMPACT_SCALE_MAX = 1.6;
  * ground pays again as the memory fades: after half a second 61 % of a slam is still remembered.
  */
 export const IMPACT_EPISODE = 1;
+/**
+ * A ship that hits the ground within this many seconds of being hit by another ship counts as
+ * destroyed by that ship: crashing on purpose must not keep a bounty or a kill from the hunter.
+ */
+export const CRASH_CREDIT_SECONDS = 15;
 
 /** Kilograms per hull point of the stock Wisp, the hull the impact rule is stated for. */
 const REF_MASS_PER_HULL = ((): number => {

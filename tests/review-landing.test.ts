@@ -6,6 +6,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   Button,
+  COMMODITIES,
   DOCK_RANGE,
   DT,
   EntityFlag,
@@ -32,6 +33,7 @@ import {
   starterLoadout,
   surfaceAnchor,
   terrainNormal,
+  terrainRelief,
   v3,
   type BodyDef,
   type BodySurface,
@@ -46,6 +48,9 @@ import {
   Player, newShip, type GameModule, type PlayerRecord, type PrimacyServer, type Ship, type SimObject, type SystemSim, type World,
 } from '@primacy2/server';
 import { BASE_COLLIDER, IMPACT_EPISODE, collideBase, groundRay, impactFraction, padPose } from '../packages/server/src/ground.ts';
+import { deductible } from '../packages/server/src/modules/insurance.ts';
+import { lawOf } from '../packages/server/src/modules/combat/law.ts';
+import { MAX_WRECKS } from '../packages/server/src/modules/salvage.ts';
 import { spawnNpc } from '../packages/server/src/modules/npc.ts';
 import { wreckData } from '../packages/server/src/modules/salvage.ts';
 import { Bot } from './bot.ts';
@@ -366,18 +371,183 @@ describe('saved states, the second look', () => {
     c.bots.delete(bot);
   });
 });
-describe('zz', () => { it('probe los', () => {
-  let blocked = 0, total = 0, worst = 0; let ex = '';
-  const belly = 3;
-  for (let b = 0; b < 360; b += 2) for (let d = 700; d <= 1700; d += 50) for (const h of [2, 10]) {
-    const east = Math.cos(b * Math.PI / 180) * d, north = Math.sin(b * Math.PI / 180) * d;
+describe('docking at a base, the second look', () => {
+  /** Where the ship's origin is when it hovers `h` metres above the ground at (east, north) from the pad centre. */
+  function hoverPoint(east: number, north: number, h: number, belly: number): Vec3 {
     const p0 = padPoint(east, north, 0);
-    const up = upAt(p0);
-    const p = v3.scale(up, v3.len(p0) - altitude(p0) + belly + h);
-    const target = v3.add(base.ground!.pos, v3.scale(upAt(base.ground!.pos), 10));
-    const dir = v3.sub(target, p); const dist = v3.len(dir);
-    const hit = groundRay(surface, p, v3.scale(dir, 1 / dist), dist);
-    total++; if (hit >= 0) { blocked++; if (!ex) ex = `b${b} d${d} h${h} hit ${hit.toFixed(0)}/${dist.toFixed(0)}`; }
+    return v3.scale(upAt(p0), v3.len(p0) - altitude(p0) + belly + h);
   }
-  console.log('PROBE los blocked', blocked, 'of', total, ex);
-}); });
+  /** The first spot 700 to 1700 m from the pad, 2 m over the ground, with natural terrain between it and the base. */
+  function findHiddenSpot(belly: number): { east: number; north: number } | null {
+    const top = v3.add(base.ground!.pos, v3.scale(upAt(base.ground!.pos), 60));
+    for (let d = 1700; d >= 700; d -= 50) {
+      for (let b = 0; b < 360; b += 2) {
+        const east = Math.cos((b * Math.PI) / 180) * d;
+        const north = Math.sin((b * Math.PI) / 180) * d;
+        const p = hoverPoint(east, north, 2, belly);
+        const dir = v3.sub(top, p);
+        const dist = v3.len(dir);
+        if (groundRay(surface, p, v3.scale(dir, 1 / dist), dist) >= 0) return { east, north };
+      }
+    }
+    return null;
+  }
+
+  it('a ship behind a hill cannot dock through it; the same distance in the open can', async () => {
+    const t = pilot(padPoint(0, 0, 500), 'wisp', 1_000);
+    const hidden = findHiddenSpot(t.ship.stats.belly);
+    expect(hidden, 'some approach to the base is hidden behind the terrain').not.toBeNull();
+    t.ship.state.pos = hoverPoint(hidden!.east, hidden!.north, 2, t.ship.stats.belly);
+    t.ship.state.vel = [0, 0, 0];
+    expect(Math.hypot(hidden!.east, hidden!.north)).toBeLessThan((base.radius ?? 300) + DOCK_RANGE);
+    expect(await cmd(t, { k: 'dock' })).toMatchObject({ ok: false });
+    expect(t.ship.state.mode).toBe(FlightMode.Normal);
+    // The same distance straight above the pad: nothing in the way.
+    t.ship.state.pos = padPoint(0, 0, Math.hypot(hidden!.east, hidden!.north));
+    expect(await cmd(t, { k: 'dock' })).toMatchObject({ ok: true });
+    expect(await cmd(t, { k: 'undock' })).toMatchObject({ ok: true });
+    sim.removeShip(t.ship);
+    world.players.delete(t.p.id);
+  });
+
+  it('a ship at another landable body cannot dock at this base, whatever the distance in space', async () => {
+    const other = def.bodies.find((b) => b.id !== body.id && isLandable(b))!;
+    const t = pilot(padPoint(0, 0, 500), 'wisp', 1_000);
+    t.ship.state.anchor = surfaceAnchor(other.id);
+    t.ship.state.pos = [0, other.radius + 5_000, 0];
+    expect(await cmd(t, { k: 'dock' })).toMatchObject({ ok: false, err: 'No base here.' });
+    sim.removeShip(t.ship);
+    world.players.delete(t.p.id);
+  });
+
+  it('a pad full of landed ships blocks neither docking nor undocking, and no time of day puts the ship under the ground', async () => {
+    const parked: Ship[] = [];
+    for (let k = 0; k < 8; k++) {
+      const s = drone(padPoint(0, 0, 20), padRot, 'drover');
+      standAt(s, padPoint(-300 + 70 * k, 20 * k - 60, 0));
+      parked.push(s);
+    }
+    const t = pilot(padPoint(120, 0, 200), 'wisp', 1_000);
+    for (let day = 0; day < 6; day++) {
+      expect(await cmd(t, { k: 'dock' })).toMatchObject({ ok: true });
+      expect(await cmd(t, { k: 'undock' })).toMatchObject({ ok: true });
+      expect(altitude(t.ship.state.pos), `undocked at hour ${day * 4}`).toBeGreaterThan(300);
+      expect(collideBase(padPose(base), t.ship.state.pos, t.ship.stats.radius)).toBeNull();
+      // The moon turns; the pilot is back at the pad and docks again, and so on round the clock.
+      t.ship.state.pos = padPoint(150, 0, 100);
+      t.ship.state.vel = [0, 0, 0];
+      c.nowMs += 4 * 3600 * 1000;
+      run(60);
+    }
+    // Nobody was hurt by the crowd: the landed ships stand where they stood.
+    for (const s of parked) {
+      expect(s.state.mode).toBe(FlightMode.Landed);
+      expect(s.state.hull).toBe(s.stats.hullMax);
+    }
+    for (const s of parked) sim.removeShip(s);
+    sim.removeShip(t.ship);
+    world.players.delete(t.p.id);
+  });
+});
+
+/**
+ * Crashes a pilot's ship into level ground: 3 m up, 90 m/s down (fast enough to be wrecked even by
+ * the steep face of a small crater that a spot of gentle average slope can have). Returns once it is dead.
+ */
+function crash(t: TestPilot, where: Vec3): void {
+  const up = upAt(where);
+  t.ship.state.mode = FlightMode.Normal;
+  t.ship.state.anchor = zone;
+  t.ship.state.pos = v3.scale(up, v3.len(where) + t.ship.stats.belly + 3);
+  t.ship.state.vel = v3.scale(up, -90);
+  t.ship.input.buttons = Button.FaOff;
+  const dead = runUntil(() => t.ship.state.mode === FlightMode.Dead, 3);
+  expect(dead, 'the crash destroys the ship').toBe(true);
+}
+const wrecksHere = (): SimObject[] => objectsOf(EntityKind.Wreck);
+
+describe('crashing on purpose', () => {
+  it('pays the deductible, leaves the cargo in the wreck once, and the scrap and parts are worth less than the deductible', async () => {
+    const t = pilot(padPoint(0, 0, 100), 'drover', 200_000);
+    t.p.addCargo('textiles', 7, world.id, false);
+    t.p.addCargo('food', 4, 'elsewhere', false);
+    const tonnes = 11;
+    const credits = t.p.rec.credits;
+    crash(t, groundSpot(25));
+    expect(t.p.rec.passport.ship.cargo, 'nothing stays aboard').toHaveLength(0);
+    expect(t.ship.cargo).toHaveLength(0);
+    const wreck = wrecksHere().find((o) => o.info.name === `Wreck of ${t.ship.name}`)!;
+    const contents = wreckData(wreck)!.contents;
+    // The goods went into the wreck exactly once: no more, no fewer tonnes.
+    expect(contents.filter((x) => x.c === 'textiles' || x.c === 'food').reduce((n, x) => n + x.n, 0)).toBe(tonnes);
+    // Whatever scrap and parts the wreck holds on top is worth less than the deductible.
+    let salvage = 0;
+    for (const it of contents) if (it.c !== 'textiles' && it.c !== 'food') salvage += it.n * (COMMODITIES[it.c]?.price ?? 0);
+    const cost = deductible(t.p.rec.passport.ship.loadout, world.config.insuranceRate);
+    expect(cost).toBeGreaterThan(0);
+    expect(salvage).toBeLessThan(cost);
+    // Insurance charges the deductible once, and saving does not bring the cargo back.
+    expect(await cmd(t, { k: 'respawn' })).toMatchObject({ ok: true });
+    expect(t.p.rec.credits).toBe(credits - cost);
+    world.save(t.p);
+    expect(t.p.rec.passport.ship.cargo).toHaveLength(0);
+    sim.removeShip(t.p.ship!);
+    world.players.delete(t.p.id);
+  });
+
+  it('a ship destroyed twice in one breath leaves one wreck and costs one deductible', async () => {
+    const t = pilot(padPoint(0, 0, 100), 'delver', 200_000);
+    t.p.addCargo('textiles', 5, world.id, false);
+    const before = wrecksHere().length;
+    crash(t, groundSpot(26));
+    sim.destroy(t.ship, null);
+    sim.damage(t.ship, 1e6);
+    run(5);
+    expect(wrecksHere().length - before).toBe(1);
+    const credits = t.p.rec.credits;
+    expect(await cmd(t, { k: 'respawn' })).toMatchObject({ ok: true });
+    expect(await cmd(t, { k: 'respawn' })).toMatchObject({ ok: false });
+    expect(credits - t.p.rec.credits).toBe(deductible(t.p.rec.passport.ship.loadout, world.config.insuranceRate));
+    sim.removeShip(t.p.ship!);
+    world.players.delete(t.p.id);
+  });
+
+  it('the wrecks of free starter ships cannot push the wreck of a loaded ship out of the zone', () => {
+    // A zone keeps a dozen wrecks. Over the whole shell of a moon a free starter ship can be crashed
+    // anywhere, so twelve crashes would wipe out whatever a loaded ship had left on the ground.
+    const victim = pilot(padPoint(0, 0, 100), 'drover', 0);
+    victim.p.addCargo('textiles', 9, world.id, false);
+    crash(victim, groundSpot(27));
+    const mine = wrecksHere().find((o) => o.info.name === `Wreck of ${victim.ship.name}`)!;
+    expect(mine).toBeTruthy();
+    for (let k = 0; k < MAX_WRECKS + 2; k++) {
+      const fodder = pilot(padPoint(0, 0, 100), 'wisp', 0);
+      crash(fodder, groundSpot(28 + k));
+      sim.removeShip(fodder.ship);
+      world.players.delete(fodder.p.id);
+    }
+    expect(wrecksHere().length).toBeLessThanOrEqual(MAX_WRECKS);
+    expect(wrecksHere().some((o) => o.id === mine.id), 'the loaded wreck is still there').toBe(true);
+  });
+
+  it('a wanted pilot under fire cannot crash on purpose to keep the bounty from the hunter', async () => {
+    const hunter = pilot(padPoint(0, 0, 400), 'lancet', 0);
+    const quarry = pilot(padPoint(0, 0, 100), 'wisp', 0);
+    const law = lawOf(quarry.p);
+    law.bounty = 5_000;
+    law.wantedUntil = sim.time + 600;
+    quarry.ship.wanted = true;
+    // The hunter has just hit the quarry; the quarry flies into the ground.
+    sim.damage(quarry.ship, 1, { by: hunter.ship });
+    run(10);
+    const before = hunter.p.rec.credits;
+    const kills = hunter.p.rec.passport.stats.kills;
+    crash(quarry, groundSpot(45));
+    expect(hunter.p.rec.credits, 'the bounty goes to the hunter').toBe(before + 5_000);
+    expect(hunter.p.rec.passport.stats.kills).toBe(kills + 1);
+    for (const x of [hunter, quarry]) {
+      sim.removeShip(x.ship);
+      world.players.delete(x.p.id);
+    }
+  });
+});

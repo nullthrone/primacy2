@@ -9,6 +9,7 @@ import {
   FlightMode,
   MAX_CHAT_LENGTH,
   anchorBody,
+  bodySurface,
   canEngageCruise,
   disengageCruise,
   findSite,
@@ -23,7 +24,11 @@ import {
   type SiteDef,
 } from '@primacy2/shared';
 import { CRUISE_ZONE, fail, inSpace, ok, type GameModule, type Player } from '../game.ts';
+import { groundRay } from '../ground.ts';
 import type { World } from '../world.ts';
+
+/** A ship docks at a ground base only with a clear line to this height above the pad, metres (the block is 40 high, the tower 110). */
+const DOCK_SIGHT_HEIGHT = 60;
 
 /** Removes control characters and trims; chat is plain text. */
 export function cleanChat(text: string): string {
@@ -183,6 +188,15 @@ export const coreModule: GameModule = {
         const near = nearestGroundSite(sim.def, anchorBody(s.anchor), s.pos);
         if (!near) return fail('No base here.');
         if (near.dist > (near.site.radius ?? 300) + DOCK_RANGE) return fail('Too far from the base.');
+        // Near is not enough on the ground: a hill between the ship and the base is in the way.
+        const surface = bodySurface(sim.def, anchorBody(s.anchor));
+        const pad = near.site.ground!.pos;
+        const top = v3.add(pad, v3.scale(v3.normalize(pad), DOCK_SIGHT_HEIGHT));
+        const way = v3.sub(top, s.pos);
+        const length = v3.len(way);
+        if (surface && length > 1 && groundRay(surface, s.pos, v3.scale(way, 1 / length), length) >= 0) {
+          return fail('No clear approach: the terrain is in the way.');
+        }
         site = near.site;
       } else {
         if (s.mode !== FlightMode.Normal) return fail('Docking needs normal flight.');
