@@ -2,19 +2,28 @@
  * Everything that flies: other ships, wrecks, cargo pods, missiles and, in chase view, the pilot's
  * own ship. Entities come and go between frames, so the drawn objects are pooled: one per entity
  * id while it is in view, returned to a free list per model when it is gone.
+ *
+ * Near the ground of a landable body a ship shows where it stands to it: a ship hovering under
+ * flight assist burns its attitude jets against gravity, one that is low enough has its landing
+ * lamp on, and one that has landed is quiet, with idle engines and no jets.
  */
-import { EntityFlag, EntityKind } from '@primacy2/shared';
+import { EntityFlag, EntityKind, FlightMode, G, HULLS } from '@primacy2/shared';
 import { Group, Vector3, type Mesh, type MeshStandardMaterial, type Object3D } from 'three';
 import type { FrameView } from '../../../contracts.ts';
 import { clamp01, damp, hash01, wrap } from '../util.ts';
 import type { Exhaust } from './exhaust.ts';
 import type { Glints } from './glints.ts';
+import { GroundProbe, LANDING_LIGHT_HEIGHT, landingLampLevel } from './landing.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
 
 /** Below this projected radius in pixels a craft is drawn as a point of light instead. */
 const POINT_BELOW_PX = 3;
 /** Navigation lamps flash twice every this many seconds. */
 const STROBE_PERIOD = 2.4;
+/** Other ships are asked for their height above the ground, for the landing lamp, within this distance. */
+const LAMP_RANGE = 30_000;
+/** A landed ship keeps its landing lamp on at this level. */
+const LAMP_PARKED = 0.45;
 
 interface Craft {
   id: number;
@@ -35,6 +44,10 @@ interface Craft {
   boost: number;
   /** Smoothed attitude-jet levels, index-aligned with `model.jets`. */
   jets: Float32Array;
+  /** Metres from the origin down to the underside of the hull, for the lamp under the nose. */
+  belly: number;
+  /** 0..1: how brightly the landing lamp burns this frame. */
+  lamp: number;
   seen: number;
 }
 
@@ -48,7 +61,10 @@ export class Fleet {
   private readonly free = new Map<string, Craft[]>();
   private readonly keys = new Map<string, string>();
   private own: Craft | null = null;
+  private readonly probe = new GroundProbe();
   private frame = 0;
+  /** 0..1: how far the landing light of the pilot's ship is on; set before `update`. */
+  ownLamp = 0;
   /** Camera-relative position and radius of the pilot's ship while it is drawn, else radius 0. */
   readonly ownPos = new Vector3();
   ownRadius = 0;
@@ -87,6 +103,8 @@ export class Fleet {
     craft.thrust = 0;
     craft.boost = 0;
     craft.jets.fill(0);
+    craft.belly = (kind === EntityKind.Ship ? HULLS[modelName]?.belly : undefined) ?? model.radius * 0.2;
+    craft.lamp = 0;
     this.group.add(craft.obj);
     return craft;
   }
@@ -96,7 +114,7 @@ export class Fleet {
     const craft: Craft = {
       id: 0, kind: 0, modelName: '', poolKey, model, obj, wreck,
       engineMat: null, engineFull: 0, sparkMats: [], sparkFull: [],
-      thrust: 0, boost: 0, jets: new Float32Array(model.jets.length), seen: 0,
+      thrust: 0, boost: 0, jets: new Float32Array(model.jets.length), belly: 0, lamp: 0, seen: 0,
     };
     obj.traverse((o) => {
       const mesh = o as Mesh;
@@ -138,6 +156,7 @@ export class Fleet {
     const dt = view.dt;
     this.nearRadius = 0;
     let nearDist = Infinity;
+    this.probe.begin(view);
 
     const ents = view.ents;
     for (let i = 0; i < ents.length; i++) {
@@ -164,6 +183,14 @@ export class Fleet {
       const boost = powered && (e.flags & (EntityFlag.Boost | EntityFlag.Cruise)) ? 1 : 0;
       craft.thrust = damp(craft.thrust, thrust, 7, dt);
       craft.boost = damp(craft.boost, boost, 5, dt);
+      // A ship low over the ground has its landing lamp on; one that stands on it keeps it burning low.
+      craft.lamp = 0;
+      if (kind === EntityKind.Ship) {
+        if (e.flags & EntityFlag.Landed) craft.lamp = LAMP_PARKED;
+        else if (Math.abs(e.rel[0]) + Math.abs(e.rel[1]) + Math.abs(e.rel[2]) < LAMP_RANGE) {
+          craft.lamp = landingLampLevel(this.probe.height(e.rel[0], e.rel[1], e.rel[2], LANDING_LIGHT_HEIGHT) - craft.belly);
+        }
+      }
       const dist = this.place(craft, e.rel, e.rot, view, pxPerRad, e.hull);
       if (kind === EntityKind.Ship && dist < nearDist) {
         nearDist = dist;
@@ -186,15 +213,36 @@ export class Fleet {
       if (own) {
         const t = self.input.thrust;
         const cruising = view.fx.cruise > 0 ? 1 : 0;
-        own.thrust = damp(own.thrust, clamp01(Math.max(t[2], self.input.throttle, cruising)), 7, dt);
-        own.boost = damp(own.boost, view.fx.boosting || cruising ? 1 : 0, 5, dt);
+        // Standing on the ground the engines idle and no jet fires, whatever the throttle is set to.
+        const landed = view.mode === FlightMode.Landed;
+        own.thrust = damp(own.thrust, landed ? 0 : clamp01(Math.max(t[2], self.input.throttle, cruising)), 7, dt);
+        own.boost = damp(own.boost, !landed && (view.fx.boosting || cruising) ? 1 : 0, 5, dt);
+        // Over a landable body flight assist holds the ship up against gravity: the jets that push
+        // away from the ground burn all the time, the harder the less thrust the hull has to spare.
+        let hx = 0, hy = 0, hz = 0;
+        const surface = view.surface;
+        const over = surface?.ship;
+        if (surface && over && !landed && self.state.fa && view.mode === FlightMode.Normal) {
+          const body = view.system.bodies[surface.body]!;
+          const rr = over.pos[0] * over.pos[0] + over.pos[1] * over.pos[1] + over.pos[2] * over.pos[2];
+          const hold = Math.min(1, (G * body.mass) / (Math.max(rr, 1) * Math.max(self.stats.accelVert, 0.1)));
+          // Straight up, in ship axes: the ship's orientation undone.
+          const q = self.rot;
+          const u = over.up;
+          const qx = -q[0], qy = -q[1], qz = -q[2], qw = q[3];
+          const ax = 2 * (qy * u[2] - qz * u[1]), ay = 2 * (qz * u[0] - qx * u[2]), az = 2 * (qx * u[1] - qy * u[0]);
+          hx = (u[0] + qw * ax + (qy * az - qz * ay)) * hold;
+          hy = (u[1] + qw * ay + (qz * ax - qx * az)) * hold;
+          hz = -(u[2] + qw * az + (qx * ay - qy * ax)) * hold;
+        }
         // Thrust is [right, up, forward] in ship axes; a jet fires when it pushes that way.
         const jets = own.model.jets;
         for (let k = 0; k < jets.length; k++) {
           const d = jets[k]!.dir;
-          const push = -(d.x * t[0] + d.y * t[1] - d.z * t[2]);
+          const push = landed ? 0 : -(d.x * (t[0] + hx) + d.y * (t[1] + hy) - d.z * (t[2] + hz));
           own.jets[k] = damp(own.jets[k]!, clamp01(push), 14, dt);
         }
+        own.lamp = this.ownLamp;
         this.place(own, self.rel, self.rot, view, pxPerRad, 1);
         this.ownPos.set(self.rel[0], self.rel[1], self.rel[2]);
         this.ownRadius = own.model.radius;
@@ -270,6 +318,11 @@ export class Fleet {
             this.glints.addLamp(tmp, side < 0 ? 1 : side > 0 ? 0.1 : 1, side < 0 ? 0.12 : side > 0 ? 1 : 0.95, side < 0 ? 0.08 : side > 0 ? 0.25 : 0.85, 0.16, 5, pxPerRad);
           }
         }
+      }
+      // The landing lamp under the nose: steady and warm, and seen from much farther than the hull.
+      if (craft.lamp > 0.01) {
+        tmp.set(0, -craft.belly * 0.7, -model.radius * 0.4).applyMatrix4(obj.matrix);
+        this.glints.addLamp(tmp, 1, 0.95, 0.86, 0.22, 9 * craft.lamp, pxPerRad);
       }
       // A missile is tiny; its motor is what you see of it.
       if (craft.kind === EntityKind.Missile && craft.thrust > 0.05) {

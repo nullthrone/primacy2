@@ -17,8 +17,11 @@ import {
   generateAsteroids,
   generateSector,
   groundSiteRotation,
+  idFromPublicKey,
   newShipState,
+  publicKeyOf,
   quat,
+  sha256Hex,
   starterLoadout,
   surfaceAnchor,
   terrainHeight,
@@ -42,6 +45,17 @@ export const DEMO_SERVER_ID = 'demodemodemodemo';
 /** A deterministic sector for development: index 0 is a capital, 3 a black hole, 5 a neutron star. */
 export function demoSector(count = 8, seed = 'demo'): SystemDef[] {
   return generateSector({ serverId: DEMO_SERVER_ID, seed, center: [0, 0, 0], radius: 18, count });
+}
+
+/**
+ * The first `count` systems of server Alpha in the fixed test universe `label`: the systems the
+ * browser test and a developer with `PRIMACY2_FIXED_UNIVERSE=<label>` play in, generated here as
+ * that server generates them. `scripts/dev.ts` derives the server's identity from the label, and
+ * the content of a system depends on nothing but the server's id, its seed and the index.
+ */
+export function fixedSector(label: string, count = 4): SystemDef[] {
+  const serverId = idFromPublicKey(publicKeyOf(sha256Hex(`primacy2-dev:alpha-${label}`)));
+  return generateSector({ serverId, seed: 'alpha', center: [0, 0, 0], radius: 18, count });
 }
 
 export function demoGalaxy(systems: SystemDef[]): GalaxyView {

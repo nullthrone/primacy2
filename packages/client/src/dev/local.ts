@@ -30,6 +30,8 @@
  *   gate=planned|building|active|dormant, progress=0..1   state of the gate
  *   t=<seconds>        start value of the scene clock, to look at a later moment
  *   q=0..2, bloom=0, and the effect overrides cruise, fold, charge, kind, dil, heat, hit
+ *   universe=<label>   server Alpha of the fixed test universe <label> instead of the demo sector
+ *                      (16 is what scripts/e2e.mjs plays in; its capital has the ground base)
  *
  * Options of the surface scene
  *   state=flying|landed  the pilot's ship (default flying); landed fails where the ground is too steep
@@ -42,20 +44,28 @@
  *   rate=<n>             universe seconds per second (default 1); 600 shows the sun move
  *   look=<yaw>,<pitch>   free look in degrees
  *   base=<n>             which ground base of the demo sector (default 0)
+ *   ground=<sys>,<body>  instead of a generated base: a stand-in base on that landable body of
+ *                        system <sys> of the sector (at its south pole), to look at any ground
  *   extras=0             without the other ships, the wreck, the pod and the effects
  *   info=0               without the readout of the view data in the corner
+ *   stats=1              a readout of the terrain part: tiles, levels, time per frame
+ *
+ * Any scene
+ *   hud=1                the game's real HUD over the scene (`lang=en|de`), fed with the scene's
+ *                        frame views; see `dev/hud.ts`
  *
  * `window.__ready` turns true after thirty frames; `window.__clock` is the scene clock;
  * `window.__view` is the frame view last drawn and, in the surface scene, `window.__place` the
  * place it was made for (see `SurfacePlace`).
  */
-import { Button, EntityFlag, EntityKind, HULLS, STRUCTURES, anchorState, quat, v3 } from '@primacy2/shared';
+import { Button, EntityFlag, EntityKind, HULLS, SITE_ID_BASE, STRUCTURES, anchorState, isLandable, quat, terrainHeight, terrainParams, v3 } from '@primacy2/shared';
 import type { GameEvent, GateState, Quat, SiteDef, SystemDef, Vec3 } from '@primacy2/shared';
 import type { EntityView, FrameFx, FrameView } from '../contracts.ts';
 import { createLocalLayer } from '../render/local/index.ts';
 import type { PartName } from '../render/local/part.ts';
+import { terrainDebug } from '../render/local/terrain/index.ts';
 import { createRenderer } from '../render/Renderer.ts';
-import { demoGalaxy, demoSector, makeSurfaceView, makeView, type FakeViewOptions, type SurfacePlace, type SurfaceViewOptions } from './fakeView.ts';
+import { demoGalaxy, demoSector, fixedSector, makeSurfaceView, makeView, type FakeViewOptions, type SurfacePlace, type SurfaceViewOptions } from './fakeView.ts';
 
 const params = new URLSearchParams(location.search);
 const sceneName = params.get('scene') ?? 'ships';
@@ -68,7 +78,9 @@ const rad = (deg: number): number => (deg * Math.PI) / 180;
 
 const T0 = 1_000_000;
 const HULL_IDS = Object.keys(HULLS);
-const systems = demoSector();
+// `universe=<label>` shows server Alpha of that fixed test universe instead of the demo sector;
+// 16 is the one the browser test plays in, with a ground base in its capital (`base=0`).
+const systems = params.get('universe') ? fixedSector(params.get('universe')!) : demoSector();
 const galaxy = demoGalaxy(systems);
 const graphics = { quality: Math.min(2, Math.max(0, Math.round(num('q', 2)))) as 0 | 1 | 2, bloom: params.get('bloom') !== '0' };
 const fxOverride: Partial<FrameFx> = {
@@ -363,9 +375,28 @@ function fight(): SceneFn {
 /** What the surface scene last drew, for the readout and for scripts. */
 let surfacePlace: SurfacePlace | null = null;
 
+/**
+ * A base that the generator did not build, on any landable body: `spec` is "<system index>,<body
+ * id>". It stands at the south pole, out of the way of whatever `lat` and `lon` look at; like
+ * every base it flattens the ground under itself.
+ */
+function standInBase(spec: string): Place {
+  const [s, b] = spec.split(',').map((x) => Math.round(Number(x) || 0));
+  const sys = systems[Math.min(systems.length - 1, Math.max(0, s ?? 0))]!;
+  const body = sys.bodies[b ?? 0];
+  if (!body || !isLandable(body)) throw new Error(`body ${b} of system ${s} cannot be landed on`);
+  const r = body.radius + terrainHeight(terrainParams(body), 0, -1, 0);
+  const site: SiteDef = {
+    id: SITE_ID_BASE + sys.sites.length, kind: 'base', name: 'Dev Ground', seed: 1, frameRadius: 0, radius: 250,
+    orbit: { parent: body.id, a: 0, e: 0, inc: 0, node: 0, argp: 0, m0: 0, period: 0 },
+    ground: { body: body.id, pos: [0, -r, 0] },
+  };
+  return { sys: { ...sys, sites: [...sys.sites, site] }, site };
+}
+
 function surface(): SceneFn {
   const bases = systems.flatMap((sys) => sys.sites.filter((s) => s.ground !== undefined).map((site) => ({ sys, site })));
-  const pick = bases[Math.min(bases.length - 1, Math.max(0, Math.round(num('base', 0))))];
+  const pick = params.get('ground') ? standInBase(str('ground', '0,0')) : bases[Math.min(bases.length - 1, Math.max(0, Math.round(num('base', 0))))];
   if (!pick) throw new Error('the demo sector has no ground base');
   const landed = str('state', 'flying') === 'landed';
   const opt = (key: string): number | undefined => (params.get(key) === null || params.get(key) === '' ? undefined : num(key, 0));
@@ -462,6 +493,32 @@ function surfaceReadout(): (view: FrameView) => void {
   };
 }
 
+/** A corner readout of the terrain part (`stats=1`): how many tiles, how deep, and what the frame cost. */
+function terrainReadout(): (view: FrameView) => void {
+  const box = document.createElement('pre');
+  box.id = 'terrain-info';
+  box.style.cssText = 'position:fixed;right:12px;top:12px;margin:0;padding:8px 10px;font:12px/1.45 ui-monospace,Consolas,monospace;color:#cfd6dc;background:rgba(8,12,16,0.72);border:1px solid #2a343c;pointer-events:none;white-space:pre';
+  document.body.appendChild(box);
+  let next = 0;
+  let worst = 0;
+  let before = performance.now();
+  return (view) => {
+    const now = performance.now();
+    worst = Math.max(worst, now - before);
+    before = now;
+    if (view.clock < next) return;
+    next = view.clock + 0.25;
+    const s = terrainDebug.stats;
+    box.textContent = s ? [
+      `tiles         ${s.drawn} drawn, ${s.loaded} loaded, ${s.waiting} waiting, ${s.total} baked so far`,
+      `level         ${s.level} of ${s.deepest}, relief ${terrainDebug.relief.toFixed(2)}${terrainDebug.shown ? '' : ', not drawn'}`,
+      `part update   ${terrainDebug.updateMs.toFixed(2)} ms (choosing ${s.selectMs.toFixed(2)}, uploading ${s.uploadMs.toFixed(2)})`,
+      `longest frame ${worst.toFixed(1)} ms in the last quarter second`,
+    ].join('\n') : 'terrain: no ground near';
+    worst = 0;
+  };
+}
+
 const SCENES: Record<string, () => SceneFn> = {
   ships,
   chase,
@@ -481,17 +538,29 @@ async function main(): Promise<void> {
   const fit = (): void => renderer.resize(window.innerWidth, window.innerHeight, window.devicePixelRatio);
   fit();
   window.addEventListener('resize', fit);
-  const parts = (params.get('parts') ?? 'objects,fx').split(',').filter((p): p is PartName => p === 'objects' || p === 'fx');
+  const parts = (params.get('parts') ?? 'objects,fx,terrain').split(',').filter((p): p is PartName => p === 'objects' || p === 'fx' || p === 'terrain');
   await renderer.init(createLocalLayer(parts));
 
   const scene = (SCENES[sceneName] ?? ships)();
   const readout = sceneName === 'surface' && params.get('info') !== '0' ? surfaceReadout() : null;
-  const hooks = window as unknown as { __ready: boolean; __clock: number; __view: FrameView; __place: SurfacePlace | null };
+  const stats = params.get('stats') === '1' ? terrainReadout() : null;
+  const hooks = window as unknown as {
+    __ready: boolean; __clock: number; __view: FrameView; __place: SurfacePlace | null;
+    __terrain: typeof terrainDebug; __frames: number[]; __work: number[];
+  };
+  // For measurements: what the terrain part is doing, and for the frames since a script last
+  // emptied the lists the time from frame to frame and the time this page's own work took (ms).
+  hooks.__terrain = terrainDebug;
+  hooks.__frames = [];
+  hooks.__work = [];
+  if (params.get('hud') === '1') (await import('./hud.ts')).mountDevHud(() => hooks.__view ?? null, params.get('lang'));
   const start = performance.now();
   let last = num('t', 10);
   let frames = 0;
+  let before = start;
   const frame = (): void => {
-    const clock = num('t', 10) + (performance.now() - start) / 1000;
+    const now = performance.now();
+    const clock = num('t', 10) + (now - start) / 1000;
     const dt = Math.min(0.1, Math.max(1e-4, clock - last));
     last = clock;
     hooks.__clock = clock;
@@ -500,6 +569,12 @@ async function main(): Promise<void> {
     hooks.__place = surfacePlace;
     readout?.(view);
     renderer.render(view);
+    stats?.(view);
+    if (hooks.__frames.length < 100_000) {
+      hooks.__frames.push(now - before);
+      hooks.__work.push(performance.now() - now);
+    }
+    before = now;
     if (++frames === 30) hooks.__ready = true;
     requestAnimationFrame(frame);
   };

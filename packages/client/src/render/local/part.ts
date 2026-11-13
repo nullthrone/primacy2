@@ -21,7 +21,7 @@
 import type { Object3D, WebGLRenderer } from 'three';
 import type { FrameView, Lighting } from '../../contracts.ts';
 
-export type PartName = 'objects' | 'fx';
+export type PartName = 'objects' | 'fx' | 'terrain';
 
 export interface Part {
   /** Added to the local scene. */

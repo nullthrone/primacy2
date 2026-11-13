@@ -9,6 +9,7 @@
  *   asteroids.ts   the asteroid field, instanced
  *   exhaust.ts     engine plumes and attitude jets
  *   glints.ts      lamps and far-away objects as points of light
+ *   landing.ts     landing lights, and the height of things above the ground
  */
 import { HULLS, STRUCTURES } from '@primacy2/shared';
 import { Group, Vector2, type Object3D, type WebGLRenderer } from 'three';
@@ -19,6 +20,7 @@ import { Rocks } from './asteroids.ts';
 import { Fleet } from './craft.ts';
 import { Exhaust } from './exhaust.ts';
 import { Glints } from './glints.ts';
+import { LandingLight } from './landing.ts';
 import { SunRig } from './lights.ts';
 import { ModelLibrary } from './models.ts';
 import { Structures } from './structures.ts';
@@ -39,6 +41,7 @@ export function createObjects(): Part {
   const fleet = new Fleet(lib, exhaust, glints);
   const structures = new Structures(lib, glints);
   const rocks = new Rocks(lib);
+  const landing = new LandingLight(root);
   // The cockpit is fixed to the view: it turns with the camera while its light stays in system axes.
   const cabin = new Group();
   let cabinModel: Object3D | null = null;
@@ -95,6 +98,8 @@ export function createObjects(): Part {
       glints.begin(light);
       structures.update(view, light, light.sunDir, pxPerRad);
       rocks.update(view, pxPerRad);
+      landing.update(view, shade);
+      fleet.ownLamp = landing.level;
       fleet.update(view, pxPerRad);
       exhaust.end();
       glints.end();

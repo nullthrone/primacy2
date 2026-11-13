@@ -63,9 +63,10 @@ class Tile {
   /** Angle between the directions of the tile centre and its farthest corner. */
   gamma = 0;
   maxH = 0;
-  /** Clock time the tile was last wanted, selected as a leaf, and first drawn. */
+  /** Clock time the tile was last wanted, last selected as a leaf, last put in the view, and first drawn. */
   used = 0;
   leaf = -1;
+  drawn = -1;
   born = -1;
   split = false;
   dist = 0;
@@ -365,6 +366,7 @@ export class Ground {
     t.leaf = this.clock;
     if (reach >= 0) {
       t.dist = dist;
+      t.drawn = this.clock;
       this.draw.push(t);
     }
   }
@@ -434,14 +436,12 @@ export class Ground {
       (mesh.material.uniforms.uMorph!.value as Vector3).z = Math.max(0, 1 - (clock - t.born) / FADE_IN);
       if (t.level > level) level = t.level;
     }
+    // Whatever was drawn in the frame before and is not drawn now is hidden.
     for (const t of this.shown) {
-      if (t.mesh && (t.leaf !== clock || !show)) t.mesh.visible = false;
+      if (t.mesh && (t.drawn !== clock || !show)) t.mesh.visible = false;
     }
-    // A tile selected but outside the view this frame is in neither list; hide it by its own flag.
-    for (let i = n; i < draw.length; i++) draw[i]!.mesh!.visible = false;
     this.draw = this.shown;
     this.shown = draw;
-    for (const t of draw) if (t.mesh && t.dist < 0) t.mesh.visible = false;
 
     this.evict();
     stats.drawn = n;

@@ -10,6 +10,7 @@ import type { Part, PartName } from './part.ts';
 const LOADERS: Record<PartName, () => Promise<Part>> = {
   objects: async () => (await import('./objects/index.ts')).createObjects(),
   fx: async () => (await import('./fx/index.ts')).createFx(),
+  terrain: async () => (await import('./terrain/index.ts')).createTerrain(),
 };
 
 export const ALL_PARTS: readonly PartName[] = ['objects', 'fx'];
