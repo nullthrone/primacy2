@@ -13,7 +13,7 @@ import { bodyRotation as sharedBodyRotation, bodySpinAxis, bodyTerrain, isLandab
 import type { BeltDef, BodyDef } from '@primacy2/shared';
 import type { BodyView } from '../../contracts.ts';
 import { farMap } from '../local/terrain/farmap.ts';
-import { FAR_SPHERE_MARGIN, handoverAltitude, reliefAt } from '../local/terrain/relief.ts';
+import { FAR_SPHERE_MARGIN, groundShown, handoverAltitude } from '../local/terrain/relief.ts';
 import { groundKind } from '../local/terrain/shade.ts';
 import { BlackHoleVisual } from './BlackHole.ts';
 import { GLSL_NOISE } from './glsl.ts';
@@ -149,9 +149,11 @@ class PlanetVisual implements Visual {
     const s = this.shared;
     // A landable body seen large: its far map, and close to it the hand-over to the ground
     // tiles of the local layer (see local/terrain/relief.ts). The sphere sinks under the lowest
-    // ground as the tiles' relief grows, so it never shows through or above them.
+    // ground as the tiles' relief grows, so it never shows through or above them. It does so
+    // only while the terrain part says it is drawing the tiles of this body: without them (the
+    // part not loaded, the first tiles not there yet) the sphere is all there is of the ground.
     const map = this.landable && px > BAKE_ABOVE_PX ? farMap(frame.system, def.id, frame.clock) : null;
-    const relief = map ? reliefAt(def.radius, body.dist) : 0;
+    const relief = groundShown.body === def.id && groundShown.system === frame.system ? groundShown.relief : 0;
     const terrain = relief > 0 ? bodyTerrain(frame.system, def.id) : null;
     const radius = (def.radius + (terrain ? relief * (terrainMin(terrain) - FAR_SPHERE_MARGIN) : 0)) * k;
     s.uRadius!.value = radius;
