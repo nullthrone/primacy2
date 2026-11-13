@@ -1079,7 +1079,16 @@ async function landing(browser, problems, steps, findings) {
       if (!/cruise ended/i.test(P.dropNotice)) await page.waitForTimeout(50);
     }
     P.drop = await P.status();
-    await page.evaluate((h) => window.__L.setServo({ alt: h, vcap: 0 }), Math.max(P.drop.height, 50));
+    // The throttle setpoint of cruise carries over into normal flight, where flight assist flies the ship
+    // forward at that fraction of its top speed, here at the ground (see the report). Hold still instead.
+    P.dropThrottle = await page.evaluate((h) => {
+      const g = window.primacy2.game;
+      const t = g.input.throttle;
+      g.input.throttle = 0;
+      window.__L.setServo({ alt: h, vcap: 0 });
+      return t;
+    }, Math.max(P.drop.height, 50));
+    P.log(`dropped at the ceiling with the throttle setpoint at ${P.dropThrottle.toFixed(2)}, ${P.drop.vs.toFixed(0)} m/s vertical`);
     return base;
   };
 
