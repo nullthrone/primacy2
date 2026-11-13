@@ -26,8 +26,9 @@
  *   drawn and not cut off; the part draws such tiles far to near.
  *
  * What the fragment shader does
- * - Normal and tone from the tile's map, blended toward the parent's map by the same amount the
- *   vertices moved, and toward the far map by `uRelief`.
+ * - Normal and tone from the tile's map, blended toward the parent's map (its normals turned
+ *   from the parent's frame into the tile's) by the same amount the vertices moved, and toward
+ *   the far map by `uRelief`.
  * - Small relief the terrain function does not have (below its 10 m): gradient noise on the
  *   body-fixed position, each octave only while its bumps are larger than a few pixels. It bends
  *   the shading normal and nothing else; the ground a ship stands on is the mesh.
@@ -103,6 +104,7 @@ uniform sampler2D uMapParent;
 uniform samplerCube uFar;
 uniform vec2 uUv;
 uniform vec3 uUvParent;
+uniform mat3 uFromParent;
 uniform float uRelief;
 uniform vec3 uBase;
 uniform int uKind;
@@ -169,10 +171,12 @@ vec4 detailNoise(vec3 x, float wrap) {
 void main() {
   vec4 own = texture2D(uMap, vUv * uUv.x + uUv.y);
   vec4 par = texture2D(uMapParent, vUv * uUvParent.x + uUvParent.yz);
-  vec4 t = mix(own, par, vMorph);
-  // Normal in the tile frame: the map holds x and z.
-  vec3 nl = vec3(t.x, sqrt(max(1.0 - t.x * t.x - t.y * t.y, 0.0)), t.y);
-  float tone = t.z;
+  // Normals in the tile frame: a map holds x and z in the frame of its own tile, so the parent's
+  // is turned into this tile's first. Between the largest tiles the two frames are degrees apart.
+  vec3 nOwn = vec3(own.x, sqrt(max(1.0 - own.x * own.x - own.y * own.y, 0.0)), own.y);
+  vec3 nPar = uFromParent * vec3(par.x, sqrt(max(1.0 - par.x * par.x - par.y * par.y, 0.0)), par.y);
+  vec3 nl = normalize(mix(nOwn, nPar, vMorph));
+  float tone = mix(own.z, par.z, vMorph);
   vec3 dirB = normalize(vDir);
   if (uRelief < 1.0) {
     vec4 far = textureCube(uFar, cubeWarp(dirB));
@@ -283,7 +287,7 @@ export function tileMaterial(shared: GroundUniforms): ShaderMaterial {
       uMap: { value: null }, uMapParent: { value: null },
       uUv: { value: new Vector2() }, uUvParent: { value: new Vector3() },
       uMorph: { value: new Vector3(0, 0, 0) },
-      uToBody: { value: new Matrix3() }, uOriginMod: { value: new Vector3() },
+      uToBody: { value: new Matrix3() }, uFromParent: { value: new Matrix3() }, uOriginMod: { value: new Vector3() },
     },
     lights: true,
     side: FrontSide,

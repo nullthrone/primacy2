@@ -107,7 +107,7 @@ export const LANDING_LIGHT_HEIGHT = 500;
 /** The lamp comes up to full strength over this many metres of descent. */
 const LAMP_SWITCH_ON = 60;
 /** Illuminance of level ground straight under the lamp; direct sunlight is about 3. */
-const LAMP_POOL = 3;
+const LAMP_POOL = 4;
 /** Up to this height above the ground the lamp holds the pool at `LAMP_POOL`; above, the pool thins. */
 const LAMP_REGULATED_TO = 160;
 /** The lamp is not turned down further than for this height, however near the ground is. */

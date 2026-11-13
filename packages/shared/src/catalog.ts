@@ -31,9 +31,11 @@ export interface HullDef {
   radius: number;
   /**
    * Metres from the ship origin down to the underside of the hull; the origin stands this high
-   * above the ground when landed. Measured from the models: the lowest height at which the hull is
-   * at least a metre wide and a metre long, so a thin antenna or keel blade below it (the Drover
-   * has one, the Bulwark the other) does not hold the ship up in the air.
+   * above the ground when landed. Measured from the models: the lowest point of the model, except
+   * where something thin hangs below the hull, which must not hold the ship up in the air. The
+   * Drover has an antenna there that reaches 0.88 m below its hull and the Bulwark a keel blade
+   * 1.65 m deep; for those two it is the lowest height at which the hull is at least a metre wide
+   * and a metre long, and the antenna and the blade stand in the ground of a landed ship.
    */
   belly: number;
   accelFwd: number;
@@ -198,7 +200,7 @@ export const HULLS: Record<string, HullDef> = table<HullDef>(Object.values({
   },
   bulwark: {
     id: 'bulwark', name: 'Bulwark', role: 'gunship', model: 'ship_bulwark', price: 1_350_000,
-    mass: 420_000, radius: 26, belly: 2.9,
+    mass: 420_000, radius: 26, belly: 2.85,
     accelFwd: 25, accelBack: 18, accelLat: 14, accelVert: 14,
     maxSpeed: 225, boostSpeed: 305,
     turnPitch: 31 * DEG, turnYaw: 23 * DEG, turnRoll: 62 * DEG, angAccel: 110 * DEG,

@@ -4,18 +4,25 @@
  * for the pilot's own ship it is also a real spot light, so the ground, a pad and whatever stands
  * near are lit by it and a landing at night can be flown by eye.
  *
- * The beam leans forward, halfway between straight down and the nose, and is wide: it lights the
- * ground from under the ship to a few ship heights ahead, which is the ground a pilot looks at
- * over the nose from the cockpit and from the chase camera. The lit patch shrinks and sharpens as
- * the ship comes down, and that is how a pilot reads the last metres.
+ * It is a flood, not a beam: a wide cone that leans a little toward the nose and lights the
+ * ground under the ship and about two ship heights around and ahead of it. The lit pool shrinks
+ * and sharpens as the ship comes down, and that is how a pilot reads the last metres. It stands
+ * for a cluster of lamps aimed near and far, so its light falls off with the distance and not
+ * with its square, as the floodlights of a base do; one bare lamp would burn out the ground under
+ * the ship and leave what the pilot looks at dark.
  *
- * The lamp is a working light, not a searchlight. It is regulated: its output follows the square
- * of the distance its beam travels to the ground, so where the middle of the beam meets the
- * ground it gives the same modest light (a fifth of direct sunlight; nearer the ship up to twice
- * that) from far up down to the ground. Its power ends at 250 m of beam, about 160 m of height:
- * above that the patch thins out, and at 500 m, where the lamp is switched on, it is a glimmer.
- * The numbers are in `util.ts`, shared with the dust the lamp shines on. In daylight the lamp is
- * turned far down, where the sun drowns it anyway.
+ * The lamp is a working light, not a searchlight. It is regulated by height: straight below it the
+ * ground gets about as much light as from the sun, whatever the height, up to 160 m; above that
+ * the pool thins out, and at 500 m, where the lamp is switched on, it is a glimmer. That is what
+ * it takes to see the pool at all: the picture is exposed for daylight, and a pool at a fifth of
+ * it was lost in black. Nothing of the cone points above the level of the lamp, and nothing beyond
+ * `LAMP_RANGE` is lit. In daylight the lamp is turned far down, where the sun drowns it anyway.
+ * The numbers are in `util.ts`, shared with the dust the lamp shines on.
+ *
+ * The light leaves the ship from just under its lowest point, so nothing of the hull is inside
+ * the cone: a light without a shadow would shine on the inside of every wing and nacelle. On a
+ * ship standing on the ground that is a hand's breadth above it, so the lamp of a landed ship
+ * lights a small patch under the nose and no more.
  *
  * The light is in the scene from the start and only changes strength: a light that comes or goes
  * makes the renderer rebuild every lit shader.
@@ -102,8 +109,7 @@ export class LandingLight {
     const q = self.rot;
     const ux = 2 * (q[0] * q[1] - q[3] * q[2]), uy = 1 - 2 * (q[0] * q[0] + q[2] * q[2]), uz = 2 * (q[1] * q[2] + q[3] * q[0]);
     const fx = -2 * (q[0] * q[2] + q[3] * q[1]), fy = -2 * (q[1] * q[2] - q[3] * q[0]), fz = -(1 - 2 * (q[0] * q[0] + q[1] * q[1]));
-    // The lamp hangs just under the hull, below the nose, so nothing of the ship is inside its
-    // cone: a light without a shadow would shine on the inside of every wing and nacelle.
+    // The light leaves from below the nose, just under the lowest point of the hull.
     const below = self.stats.belly + LAMP_DROP;
     const fore = LAMP_FORE * self.stats.radius;
     const px = self.rel[0] + fx * fore - ux * below, py = self.rel[1] + fy * fore - uy * below, pz = self.rel[2] + fz * fore - uz * below;

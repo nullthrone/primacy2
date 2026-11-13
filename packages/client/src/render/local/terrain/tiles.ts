@@ -317,6 +317,10 @@ export class Ground {
     const range = 2 * SPLIT * tileSize(this.radius, t.level);
     (u.uMorph!.value as Vector3).set(t.level === 0 ? 0 : 1 / ((1 - MORPH_START) * range), MORPH_START * range, 0);
     (u.uToBody!.value as Matrix3).set(f[3]!, f[6]!, f[9]!, f[4]!, f[7]!, f[10]!, f[5]!, f[8]!, f[11]!);
+    // From the parent's frame into this one: each axis of the parent along each axis of the tile.
+    const pf = parent.frame;
+    const dot = (a: number, b: number): number => f[a]! * pf[b]! + f[a + 1]! * pf[b + 1]! + f[a + 2]! * pf[b + 2]!;
+    (u.uFromParent!.value as Matrix3).set(dot(3, 3), dot(3, 6), dot(3, 9), dot(6, 3), dot(6, 6), dot(6, 9), dot(9, 3), dot(9, 6), dot(9, 9));
     const mod = (x: number): number => ((x % DETAIL_PERIOD) + DETAIL_PERIOD) % DETAIL_PERIOD;
     (u.uOriginMod!.value as Vector3).set(mod(f[0]!), mod(f[1]!), mod(f[2]!));
 

@@ -157,6 +157,8 @@ const CRATER_WORN = 0.18;
  */
 const ICE_BAND_DARK = 0.2;
 const ICE_BAND_MEAN = 0.56;
+/** The same for the dunes of a desert body: the mean of a dune's profile across a field. */
+const DUNE_MEAN = 0.63;
 
 /**
  * Arguments and results of the functions on the sampling path (see the note on allocation at the
@@ -735,9 +737,10 @@ function sample(p: TerrainParams): void {
     }
     tone = 0.72 + 0.16 * high + 0.09 * mottle - ICE_BAND_DARK * band * (1 - 0.85 * high) + 0.3 * craterTone;
   } else if (p.kind === DESERT) {
-    // Dune fields where a broad mask allows them.
+    // Dune fields where a broad mask allows them. A sample too coarse to see single dunes
+    // still gets the tone a dune field has on average, so the fields show from far away.
     let dune = 0;
-    if (p.lineShort >= detail) {
+    if (p.lineMaskLambda >= detail) {
       const f = 1 / p.lineMaskLambda;
       R[AX] = px * f + 2.2;
       R[AY] = py * f + 6.6;
@@ -745,10 +748,14 @@ function sample(p: TerrainParams): void {
       noise3(p.lineMaskSeed);
       const mask = smooth(0.0, 0.35, 2 * R[NOISE]!) * (1 - mtn);
       if (mask > 0) {
-        lines(p, 0, p.lineSeed);
-        const a = R[LINES]!;
-        dune = mask * a * a;
-        h += p.lineAmp * dune;
+        if (p.lineShort >= detail) {
+          lines(p, 0, p.lineSeed);
+          const a = R[LINES]!;
+          dune = mask * a * a;
+          h += p.lineAmp * dune;
+        } else {
+          dune = mask * DUNE_MEAN;
+        }
       }
     }
     tone = 0.42 + 0.2 * high + 0.08 * mottle + 0.14 * dune - 0.1 * mtn;

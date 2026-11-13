@@ -24,6 +24,8 @@ const STROBE_PERIOD = 2.4;
 const LAMP_RANGE = 30_000;
 /** A landed ship keeps its landing lamp on at this level. */
 const LAMP_PARKED = 0.45;
+/** The point of light of the landing lamp stands this far off the hull, metres. */
+const LAMP_CLEAR = 0.12;
 
 interface Craft {
   id: number;
@@ -321,7 +323,10 @@ export class Fleet {
       }
       // The landing lamp under the nose: steady and warm, and seen from much farther than the hull.
       if (craft.lamp > 0.01) {
-        tmp.set(0, -craft.belly - LAMP_DROP, -model.radius * LAMP_FORE).applyMatrix4(obj.matrix);
+        // On the hull where the model has the place for it, just clear of the plating.
+        if (model.chin) tmp.set(model.chin.x, model.chin.y - LAMP_CLEAR, model.chin.z);
+        else tmp.set(0, -craft.belly - LAMP_DROP, -model.radius * LAMP_FORE);
+        tmp.applyMatrix4(obj.matrix);
         this.glints.addLamp(tmp, 1, 0.95, 0.86, 0.22, 9 * craft.lamp, pxPerRad);
       }
       // A missile is tiny; its motor is what you see of it.

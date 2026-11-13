@@ -353,7 +353,7 @@ describe('landing', () => {
   it('stands the ship on its belly: the underside of the hull as measured from its model', () => {
     // Measured from the models (see HullDef.belly): every hull is flatter than the first guess
     // of 0.3 radii was, and none is a plate.
-    const measured: Record<string, number> = { wisp: 0.94, lancet: 1.35, drover: 3.43, delver: 3.73, wayfarer: 2.92, bulwark: 2.9 };
+    const measured: Record<string, number> = { wisp: 0.94, lancet: 1.35, drover: 3.43, delver: 3.73, wayfarer: 2.92, bulwark: 2.85 };
     expect(Object.keys(HULLS).sort()).toEqual(Object.keys(measured).sort());
     for (const id of Object.keys(HULLS)) {
       expect(HULLS[id]!.belly).toBe(measured[id]);

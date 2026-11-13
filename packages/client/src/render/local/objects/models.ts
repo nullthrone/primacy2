@@ -19,6 +19,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { modelUrl } from '../assets.ts';
+import { LAMP_FORE } from '../util.ts';
 
 /** Every lit material of the part, so the sky reflection reaches all of them, clones included. */
 export class MaterialRegistry {
@@ -73,6 +74,8 @@ export interface Model {
   readonly engines: readonly Nozzle[];
   readonly lamps: readonly Vector3[];
   readonly jets: readonly Jet[];
+  /** Where a ship's landing lamp sits: a point on the underside of the hull below the nose, model space; null when there is none. */
+  readonly chin: Vector3 | null;
   readonly standIn: boolean;
   /** Mean diffuse reflectance, for the point drawn when the model is too far away to resolve. */
   readonly albedo: number;
@@ -197,9 +200,10 @@ export class ModelLibrary {
     const radius = box.isEmpty() ? 1 : Math.max(box.min.length(), box.max.length());
     const engines = nozzles(enginePos, glow, radius);
     const jets = key.startsWith('ship_') && !isStandIn ? attitudeJets(solid, box) : [];
+    const chin = key.startsWith('ship_') && !isStandIn ? lampMount(solid, box) : null;
     // The baked occlusion in the vertex colours takes roughly a fifth off the base colour.
     const albedo = albedoWeight > 0 ? (albedoSum / albedoWeight) * 0.8 : 0.2;
-    return { key, template, radius, engines, lamps, jets, standIn: isStandIn, albedo };
+    return { key, template, radius, engines, lamps, jets, chin, standIn: isStandIn, albedo };
   }
 
   /** A fresh copy of the model that shares its geometry and materials. Its nodes never move. */
@@ -303,4 +307,16 @@ function attitudeJets(solid: Mesh[], box: Box3): Jet[] {
   cast(side, cy, 0, 0, 0, 1);
   cast(-side, cy, 0, 0, 0, 1);
   return jets;
+}
+
+/**
+ * Finds the place of the landing lamp by casting a ray up at the hull from below, on the centre
+ * line and `LAMP_FORE` of the way from the origin to the nose. The lamp sits on the real surface;
+ * most hulls are shallower under the nose than at their lowest point.
+ */
+function lampMount(solid: Mesh[], box: Box3): Vector3 | null {
+  if (!solid.length || box.isEmpty()) return null;
+  const ray = new Raycaster(new Vector3(0, box.min.y - 1, box.min.z * LAMP_FORE), new Vector3(0, 1, 0), 0, box.max.y - box.min.y + 2);
+  const hit = ray.intersectObjects(solid, false)[0];
+  return hit ? hit.point.clone() : null;
 }
