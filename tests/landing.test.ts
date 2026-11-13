@@ -23,6 +23,7 @@ import {
   computeShipStats,
   groundAltitude,
   groundSiteRotation,
+  isLandable,
   isSurfaceAnchor,
   newPassport,
   newShipState,
@@ -414,6 +415,25 @@ describe('hard landings', () => {
     run(300);
     expect(wreck.pos).toEqual(at);
     expect(v3.dist(wreck.pos, padPoint(320, -150, belly))).toBeLessThan(200);
+  });
+
+  it('flying into a body that cannot be landed on still destroys the ship outright', () => {
+    const solid = def.bodies.find((b) => b.kind !== 'star' && !isLandable(b))!;
+    expect(solid, 'the capital has a planet that cannot be landed on').toBeTruthy();
+    const t = pilot(padPoint(0, 0, 5000));
+    // Just inside the exclusion radius of that body, in its own frame.
+    Object.assign(t.ship.state, { anchor: solid.id, pos: [solid.radius * 1.03, 0, 0], vel: [0, 0, 0] });
+    run(2);
+    expect(t.ship.state.mode).toBe(FlightMode.Dead);
+    expect(t.notices.some((n) => n.code === 'impact')).toBe(true);
+    expect(t.notices.some((n) => n.code === 'crash')).toBe(false);
+    // The same height over the moon with the base is just a place to fly: its ground is the limit.
+    const u = pilot(padPoint(0, 0, 0.03 * body.radius));
+    run(30);
+    expect(u.ship.state.mode).toBe(FlightMode.Normal);
+    expect(u.ship.state.hull).toBe(u.ship.stats.hullMax);
+    sim.removeShip(u.ship);
+    world.players.delete(u.p.id);
   });
 
   it('a ship destroyed above the ground leaves a wreck that falls to it', () => {

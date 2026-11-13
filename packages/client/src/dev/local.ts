@@ -383,12 +383,17 @@ function surface(): SceneFn {
   const clock0 = num('t', 10);
   const rate = num('rate', 1);
   const extras = params.get('extras') !== '0';
-  const ticked = (clock: number, dt: number, perSecond: number): boolean => Math.floor(clock * perSecond) !== Math.floor((clock - dt) * perSecond);
+  // Events are timed against the clock of the frame before, not against `dt`, which is capped: a
+  // long frame must not swallow the one blast it happens to span.
+  let before = clock0;
 
   return (clock, dt) => {
     const since = clock - clock0;
     const { view, place } = makeSurfaceView({ ...fixed, time: start + since * rate, since, clock, dt });
     surfacePlace = place;
+    const last = before;
+    before = clock;
+    const ticked = (perSecond: number): boolean => Math.floor(clock * perSecond) !== Math.floor(last * perSecond);
     if (!extras) return view;
 
     // Everything below is given in the surface frame of the body and so stays where it is on the
@@ -412,13 +417,13 @@ function surface(): SceneFn {
     // A shot from the hovering ship into the ground beside the wreck four times a second, a hit
     // there, and every twelve seconds a ship blowing up on the ground a little farther off.
     const mark = place.point(300, -40, 0.5);
-    if (ticked(clock, dt, 4)) {
+    if (ticked(4)) {
       view.events.push(
         { e: 'shot', from: 11, w: 'pulse_1', slot: 0, at: place.at(mark) },
         { e: 'hit', id: 80, by: 11, dmg: 20, shield: false, at: place.at(mark) },
       );
     }
-    if (ticked(clock, dt, 1 / 12)) view.events.push({ e: 'destroyed', id: 90, at: place.at(place.point(380, 90, 3)) });
+    if (ticked(1 / 12)) view.events.push({ e: 'destroyed', id: 90, at: place.at(place.point(380, 90, 3)) });
     return view;
   };
 }
