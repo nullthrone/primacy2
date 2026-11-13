@@ -123,8 +123,9 @@ export const LAMP_PENUMBRA = 0.5;
 /** The beam leaves the lamp leaning this far from straight down toward the nose, radians. */
 export const LAMP_FORWARD = 0.52;
 /**
- * Where the light leaves the ship: this far below the lowest point of the hull (metres) and this
- * share of the hull radius ahead of the origin.
+ * Where the light leaves the ship: this far below the underside of the hull (`ShipStats.belly`,
+ * metres) and this share of the hull radius ahead of the origin. The point of light that shows
+ * the lamp sits on the hull itself, above that (`Model.chin`).
  */
 export const LAMP_DROP = 0.3;
 export const LAMP_FORE = 0.4;

@@ -19,7 +19,8 @@
  * `LAMP_RANGE` is lit. In daylight the lamp is turned far down, where the sun drowns it anyway.
  * The numbers are in `util.ts`, shared with the dust the lamp shines on.
  *
- * The light leaves the ship from just under its lowest point, so nothing of the hull is inside
+ * The light leaves the ship from just under the underside of its hull (the point of light that
+ * shows the lamp sits on the hull above that, see `Model.chin`), so nothing of the hull is inside
  * the cone: a light without a shadow would shine on the inside of every wing and nacelle. On a
  * ship standing on the ground that is a hand's breadth above it, so the lamp of a landed ship
  * lights a small patch under the nose and no more.
@@ -109,7 +110,7 @@ export class LandingLight {
     const q = self.rot;
     const ux = 2 * (q[0] * q[1] - q[3] * q[2]), uy = 1 - 2 * (q[0] * q[0] + q[2] * q[2]), uz = 2 * (q[1] * q[2] + q[3] * q[0]);
     const fx = -2 * (q[0] * q[2] + q[3] * q[1]), fy = -2 * (q[1] * q[2] - q[3] * q[0]), fz = -(1 - 2 * (q[0] * q[0] + q[1] * q[1]));
-    // The light leaves from below the nose, just under the lowest point of the hull.
+    // The light leaves from below the nose, just under the underside of the hull.
     const below = self.stats.belly + LAMP_DROP;
     const fore = LAMP_FORE * self.stats.radius;
     const px = self.rel[0] + fx * fore - ux * below, py = self.rel[1] + fy * fore - uy * below, pz = self.rel[2] + fz * fore - uz * below;
