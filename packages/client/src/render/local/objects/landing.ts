@@ -11,13 +11,16 @@
  * with its square, as the floodlights of a base do; one bare lamp would burn out the ground under
  * the ship and leave what the pilot looks at dark.
  *
- * The lamp is a working light, not a searchlight. It is regulated by height: straight below it the
- * ground gets about as much light as from the sun, whatever the height, up to 160 m; above that
- * the pool thins out, and at 500 m, where the lamp is switched on, it is a glimmer. That is what
- * it takes to see the pool at all: the picture is exposed for daylight, and a pool at a fifth of
- * it was lost in black. Nothing of the cone points above the level of the lamp, and nothing beyond
- * `LAMP_RANGE` is lit. In daylight the lamp is turned far down, where the sun drowns it anyway.
- * The numbers are in `util.ts`, shared with the dust the lamp shines on.
+ * The lamp is a working light, not a searchlight. It is regulated twice. By height: the ground
+ * straight below it gets the same light whatever the height, up to 160 m; above that the pool
+ * thins out, and at 500 m, where the lamp is switched on, it is a glimmer. And by the ground: the
+ * lamp gives what it takes for the ground under the ship to send back a fixed amount, so the pool
+ * looks the same on dark regolith and on bright ice. On the regolith of a rocky moon that is a
+ * little more light than the sun gives. Less is not seen at all: the picture is exposed for
+ * daylight, and a pool at a fifth of it was lost in black. Nothing of the cone points above the
+ * level of the lamp, and nothing beyond `LAMP_RANGE` is lit. In daylight the lamp is turned far
+ * down, where the sun drowns it anyway. The numbers are in `util.ts`, shared with the dust the
+ * lamp shines on.
  *
  * The light leaves the ship from just under the underside of its hull (the point of light that
  * shows the lamp sits on the hull above that, see `Model.chin`), so nothing of the hull is inside
