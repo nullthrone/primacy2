@@ -30,8 +30,10 @@ import {
   newPassport,
   newShipState,
   quat,
+  reanchor,
   starterLoadout,
   surfaceAnchor,
+  BASE_PAD_RADIUS,
   terrainNormal,
   terrainRelief,
   v3,
@@ -548,6 +550,202 @@ describe('crashing on purpose', () => {
     for (const x of [hunter, quarry]) {
       sim.removeShip(x.ship);
       world.players.delete(x.p.id);
+    }
+  });
+});
+
+describe('things at rest on the ground, the second look', () => {
+  /** Steepest sampled ground within 30 km of the pad, over a 6 m baseline (about 30 degrees is as steep as it gets). */
+  function steepSpot(): Vec3 {
+    const n: Vec3 = [0, 0, 0];
+    let best: Vec3 = padPoint(3_000, 0, 0);
+    let bestSlope = 0;
+    for (let i = 0; i < 3_000; i++) {
+      const bearing = i * 0.7;
+      const km = 1.5 + ((i * 13) % 280) / 10;
+      const p = padPoint(Math.cos(bearing) * km * 1000, Math.sin(bearing) * km * 1000, 0);
+      const up = upAt(p);
+      const slope = terrainNormal(surface.terrain, up[0], up[1], up[2], 6, n);
+      if (slope > bestSlope) { bestSlope = slope; best = v3.scale(up, v3.len(p) - altitude(p)); }
+    }
+    expect(bestSlope).toBeGreaterThan(Math.tan((25 * Math.PI) / 180));
+    return best;
+  }
+  /** The sampled spot within 30 km of the pad with the largest height difference over 150 m: a crater rim or a ridge. */
+  function rimSpot(): Vec3 {
+    let best: Vec3 = padPoint(3_000, 0, 0);
+    let bestRelief = 0;
+    for (let i = 0; i < 3_000; i++) {
+      const bearing = i * 0.9;
+      const km = 1.5 + ((i * 17) % 280) / 10;
+      const p = padPoint(Math.cos(bearing) * km * 1000, Math.sin(bearing) * km * 1000, 0);
+      const up = upAt(p);
+      const relief = terrainRelief(surface.terrain, up[0], up[1], up[2], 150);
+      if (relief > bestRelief) { bestRelief = relief; best = v3.scale(up, v3.len(p) - altitude(p)); }
+    }
+    expect(bestRelief).toBeGreaterThan(40);
+    return best;
+  }
+
+  it('pods and wrecks dropped on a slope, on the pad, at its edge and at a crater rim come to rest on the ground and stay there', () => {
+    const spots: [string, Vec3][] = [
+      ['steep slope', steepSpot()],
+      ['crater rim or ridge', rimSpot()],
+      ['pad centre', padPoint(0, 0, 0)],
+      ['pad edge', padPoint(BASE_PAD_RADIUS, 0, 0)],
+      ['where the pad blends into the terrain', padPoint(BASE_PAD_RADIUS + 200, 100, 0)],
+    ];
+    const things: { label: string; o: SimObject }[] = [];
+    for (const [label, at] of spots) {
+      const up = upAt(at);
+      const across = v3.normalize(v3.cross(up, [0, 0, 1]));
+      for (const drift of [0, 6]) {
+        const start = v3.scale(up, v3.len(at) + 25);
+        things.push({ label: `pod at ${label}, drifting ${drift} m/s`, o: sim.spawnLoot(zone, start, v3.scale(across, drift), 'alloys', 2, 900) });
+      }
+      // A wreck: a ship destroyed above the spot, moving along the ground.
+      const d = drone(v3.scale(up, v3.len(at) + 30), padRot, 'drover');
+      d.state.vel = v3.scale(across, 12);
+      sim.destroy(d, null);
+      const wreck = wrecksHere().find((o) => o.info.name === `Wreck of ${d.name}` && !things.some((x) => x.o === o))!;
+      expect(wreck, `wreck at ${label}`).toBeTruthy();
+      things.push({ label: `wreck at ${label}`, o: wreck });
+    }
+    run(600);
+    const settled = things.map(({ o }) => [...o.pos]);
+    run(4_000);
+    things.forEach(({ label, o }, i) => {
+      expect(o.resting, label).toBe(true);
+      expect(altitude(o.pos), `${label}: not below the ground`).toBeGreaterThanOrEqual((o.belly ?? o.radius) - 1e-6);
+      expect(altitude(o.pos), `${label}: on the ground`).toBeLessThan((o.belly ?? o.radius) + 1e-6);
+      // Whatever the pod did in the first seconds, it has not moved since it came to rest.
+      expect(o.pos, label).toEqual(settled[i]);
+    });
+    for (const { o } of things) sim.removeObject(o.id);
+  });
+
+  it('a pod thrown fast over a ridge never ends up under the ground', () => {
+    const at = rimSpot();
+    const up = upAt(at);
+    const along = v3.normalize(v3.cross(up, [0, 0, 1]));
+    const pods: SimObject[] = [];
+    for (let k = 0; k < 20; k++) {
+      pods.push(sim.spawnLoot(zone, v3.scale(up, v3.len(at) + 10 + k), v3.add(v3.scale(along, 100 + 15 * k), v3.scale(up, -30)), 'alloys', 1, 900));
+    }
+    run(2_000);
+    for (const o of pods) {
+      expect(altitude(o.pos)).toBeGreaterThanOrEqual((o.belly ?? o.radius) - 1e-6);
+    }
+    for (const o of pods) sim.removeObject(o.id);
+  });
+});
+
+describe('zones, the second look', () => {
+  it.fails('two ships at the very same place are in the same zone, between where the surface frame begins and where it ends', () => {
+    // The frame begins 300 km up and ends 390 km up (1.3 times the height): between them a ship
+    // that came from above is in the body's frame and one that came from below is in the surface
+    // frame, so two ships side by side are in two zones: they neither see nor hit each other.
+    const P = v3.scale(upAt(padPoint(500_000, 0, 0)), body.radius + 345_000);
+    const below = drone(P, padRot);
+    const above = drone(P, padRot);
+    reanchor(above.state, def, body.id, sim.time);
+    expect(above.state.anchor).toBe(body.id);
+    run(1);
+    expect(isSurfaceAnchor(below.state.anchor)).toBe(true);
+    try {
+      expect(sim.zoneOf(above)).toBe(sim.zoneOf(below));
+    } finally {
+      sim.removeShip(below);
+      sim.removeShip(above);
+    }
+  });
+});
+
+describe('ramming a landed ship and leaving the world', () => {
+  it('a ship that rams a landed one at ground level is never left below the ground for more than the tick of the collision', () => {
+    const spot = groundSpot(33);
+    const up = upAt(spot);
+    const along = v3.normalize(v3.cross(up, [1, 0, 0]));
+    const landed = drone(v3.scale(up, v3.len(spot) + 5), padRot, 'drover');
+    standAt(landed, spot);
+    // 60 m back along the ground, belly just clear of it, running at the landed ship at 25 m/s.
+    const back = v3.add(spot, v3.scale(along, -60));
+    const rammer = drone(v3.scale(upAt(back), v3.len(back) - altitude(back) + 5), padRot, 'drover');
+    rammer.state.vel = v3.scale(along, 25);
+    rammer.input.buttons = Button.FaOff;
+    let under = 0;
+    for (let i = 0; i < 20 / DT && rammer.state.mode !== FlightMode.Dead; i++) {
+      run(1);
+      if (altitude(rammer.state.pos) < rammer.stats.belly - 0.01) under++;
+    }
+    // At most the odd tick of a collision, and the landed ship has not moved an inch.
+    expect(under).toBeLessThan(10);
+    expect(landed.state.mode).toBe(FlightMode.Landed);
+    if (rammer.state.mode !== FlightMode.Dead) {
+      expect(altitude(rammer.state.pos)).toBeGreaterThanOrEqual(rammer.stats.belly - 0.01);
+    }
+    sim.removeShip(landed);
+    sim.removeShip(rammer);
+  });
+
+  it('logging out removes a landed ship from the world at once, exactly as it removes a flying one', async () => {
+    // Nothing about landing lets a pilot leave a fight any better than before: the ship is gone
+    // in every mode, and nothing is left behind to be shot at.
+    for (const landed of [false, true]) {
+      const bot = c.track(await Bot.connect(S.url, { name: `Leaver ${landed}` }));
+      const ship = world.players.get(bot.id)!.ship!;
+      const spot = groundSpot(34);
+      if (landed) standAt(ship, spot);
+      else Object.assign(ship.state, { mode: FlightMode.Normal, anchor: zone, pos: v3.scale(upAt(spot), v3.len(spot) + 50), vel: [0, 0, 0] });
+      run(2);
+      const id = ship.id;
+      bot.close();
+      await c.settle(() => !world.players.has(bot.id), 'the pilot to be logged out');
+      c.bots.delete(bot);
+      expect(sim.ships.has(id), `landed ${landed}`).toBe(false);
+      run(1);
+      expect(sim.shipsInZone(zone).some((o) => o.id === id)).toBe(false);
+    }
+  });
+});
+
+describe('NPC traffic around a landable body', () => {
+  it('never has a ship in a surface frame at any tick, and none is taken out in ordinary running', async () => {
+    const removed: Ship[] = [];
+    const removeShip = sim.removeShip.bind(sim);
+    sim.removeShip = (ship) => {
+      if (ship.npc !== null) removed.push(ship);
+      removeShip(ship);
+    };
+    // Pilots at a station and in a ring field keep the zones with traffic active.
+    const bots: Bot[] = [];
+    const spots: [string, number][] = [
+      ['NPC station', def.sites.find((x) => x.kind === 'station')!.id],
+      ['NPC ring', def.sites.find((x) => x.kind === 'ring')!.id],
+    ];
+    for (const [name, zoneId] of spots) {
+      const b = c.track(await Bot.connect(S.url, { name }));
+      const ship = world.players.get(b.id)!.ship!;
+      Object.assign(ship.state, { mode: FlightMode.Normal, anchor: zoneId, pos: [3_000, 0, 0], vel: [0, 0, 0] });
+      bots.push(b);
+    }
+    let seen = 0;
+    for (let i = 0; i < 3_000; i++) {
+      run(1);
+      for (const ship of sim.ships.values()) {
+        if (ship.npc !== null) {
+          seen++;
+          if (isSurfaceAnchor(ship.state.anchor)) throw new Error(`NPC ${ship.name} in surface frame ${ship.state.anchor}`);
+        }
+      }
+    }
+    sim.removeShip = removeShip;
+    expect(seen, 'NPC ships were around to be checked').toBeGreaterThan(100);
+    expect(removed.filter((x) => isSurfaceAnchor(x.state.anchor))).toHaveLength(0);
+    for (const b of bots) {
+      b.close();
+      await c.settle(() => !world.players.has(b.id), 'logout');
+      c.bots.delete(b);
     }
   });
 });
