@@ -24,9 +24,12 @@ varying vec4 vImpact;
 varying vec3 vTint;
 
 void main() {
-  vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+  vec4 local = instanceMatrix * vec4(position, 1.0);
+  vec4 world = modelMatrix * local;
   vN = normalize(position);
-  vToCam = -world.xyz; // the camera sits at the origin of the scene
+  // The camera sits at the origin of the scene. Taken before the part is turned (in a surface
+  // frame the effects are kept in the body's axes), so it is in the same axes as the normal.
+  vToCam = -local.xyz;
   vImpact = iImpact;
   vTint = iTint;
   gl_Position = projectionMatrix * viewMatrix * world;

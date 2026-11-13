@@ -2,7 +2,7 @@
  * Procedural audio: every sound is synthesised with the Web Audio API, so the game ships no
  * sound files. Engine and drive tones follow the frame view; one-shot sounds follow its events.
  */
-import { v3, type GameEvent, type Vec3 } from '@primacy2/shared';
+import { quat, v3, type GameEvent, type Vec3 } from '@primacy2/shared';
 import type { FrameView } from '../contracts.ts';
 
 export type UiSound = 'click' | 'hover' | 'open' | 'close' | 'confirm' | 'deny' | 'notice' | 'warning';
@@ -143,7 +143,8 @@ class Synth implements GameAudio {
 
   private event(e: GameEvent, view: FrameView): void {
     // Loudness falls off with distance from the pilot's ship; own events are always close.
-    const at = 'at' in e && view.zone ? v3.add(view.zone, e.at as Vec3) : null;
+    // Event coordinates are in the zone's frame, whose axes turn with the body near the ground.
+    const at = 'at' in e && view.zone && view.zoneRot ? v3.add(view.zone, quat.rotate(view.zoneRot, e.at as Vec3)) : null;
     const dist = at ? v3.len(at) : 0;
     const near = 1 / (1 + dist / 700);
     const own = view.self?.id;

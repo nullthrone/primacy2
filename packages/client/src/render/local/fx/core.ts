@@ -2,6 +2,13 @@
  * Frame state shared by the effects. Live effects keep their positions relative to the zone anchor
  * as plain float64 numbers and are re-based on the camera when they are written into vertex
  * buffers, because the camera moves every frame and the anchor does not.
+ *
+ * Everything the effects store is in the axes of the zone's frame: positions, velocities,
+ * orientations, and the camera-relative positions they write into their buffers. In space those
+ * are system axes. In a surface frame they turn with the body (`FrameView.zoneRot`), which is
+ * what keeps a blast on the ground on the ground. The effects part turns its whole subtree by
+ * `Frame.q*` when it draws, so no effect has to know about it; what an effect takes from the
+ * frame view itself is brought into zone axes here.
  */
 import { HULLS } from '@primacy2/shared';
 import type { Quat, Vec3 } from '@primacy2/shared';
@@ -51,8 +58,10 @@ export class Pool<T> {
 
 export class Frame {
   view!: FrameView;
-  /** Zone anchor relative to the camera. Anchor coordinates plus this are camera-relative. */
+  /** Zone anchor relative to the camera, in zone axes. Anchor coordinates plus this are camera-relative, in zone axes. */
   zx = 0; zy = 0; zz = 0;
+  /** Orientation of the zone's axes in system axes (`FrameView.zoneRot`); the identity in space. */
+  qx = 0; qy = 0; qz = 0; qw = 1;
   dt = 0;
   /** Effect time in seconds, summed from frame times. */
   now = 0;
@@ -65,15 +74,21 @@ export class Frame {
     if (this.now - t.seen > 6) this.tracks.delete(id);
   };
 
-  /** Takes in a frame. Returns false when the anchor changed, which makes every stored position stale. */
+  /**
+   * Takes in a frame; `zone` is `view.zone`. Returns false when the anchor changed, which makes
+   * every stored position stale.
+   */
   begin(view: FrameView, zone: Readonly<Vec3>): boolean {
-    const jump = Math.abs(zone[0] - this.zx) + Math.abs(zone[1] - this.zy) + Math.abs(zone[2] - this.zz);
+    const q = view.zoneRot;
+    this.qx = q ? q[0] : 0; this.qy = q ? q[1] : 0; this.qz = q ? q[2] : 0; this.qw = q ? q[3] : 1;
+    this.unrotate(zone[0], zone[1], zone[2], Z);
+    const jump = Math.abs(Z[0] - this.zx) + Math.abs(Z[1] - this.zy) + Math.abs(Z[2] - this.zz);
     const anchor = view.self ? view.self.state.anchor : this.anchor;
     const same = anchor === this.anchor && view.system.id === this.system && jump < 20000;
     this.anchor = anchor;
     this.system = view.system.id;
     this.view = view;
-    this.zx = zone[0]; this.zy = zone[1]; this.zz = zone[2];
+    this.zx = Z[0]; this.zy = Z[1]; this.zz = Z[2];
     this.dt = view.dt;
     this.now += view.dt;
     this.quality = view.graphics.quality;
@@ -85,7 +100,7 @@ export class Frame {
       this.touch(e.id, e.rel, e.vel, e.rot, e.info.radius, e.info.kind, false);
     }
     const self = view.self;
-    if (self) this.touch(self.id, self.rel, self.state.vel, self.rot, HULLS[self.hull]?.radius ?? 10, 1, true);
+    if (self) this.touch(self.id, self.rel, self.vel, self.rot, HULLS[self.hull]?.radius ?? 10, 1, true);
     if (this.now - this.pruned > 2) {
       this.pruned = this.now;
       this.tracks.forEach(this.prune);
@@ -93,15 +108,43 @@ export class Frame {
     return same;
   }
 
+  /** Writes the vector (x, y, z), given in system axes, into `out` in zone axes. */
+  private unrotate(x: number, y: number, z: number, out: Vec3): void {
+    if (this.qw === 1) {
+      out[0] = x; out[1] = y; out[2] = z;
+      return;
+    }
+    // Rotation by the conjugate of the zone orientation.
+    const qx = -this.qx, qy = -this.qy, qz = -this.qz, qw = this.qw;
+    const tx = 2 * (qy * z - qz * y);
+    const ty = 2 * (qz * x - qx * z);
+    const tz = 2 * (qx * y - qy * x);
+    out[0] = x + qw * tx + (qy * tz - qz * ty);
+    out[1] = y + qw * ty + (qz * tx - qx * tz);
+    out[2] = z + qw * tz + (qx * ty - qy * tx);
+  }
+
+  /** Records where an entity is: `rel`, `vel` and `rot` come from the frame view, in system axes. */
   private touch(id: number, rel: Readonly<Vec3>, vel: Readonly<Vec3>, rot: Readonly<Quat>, radius: number, kind: number, own: boolean): void {
     let t = this.tracks.get(id);
     if (!t) {
       t = { id, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, qx: 0, qy: 0, qz: 0, qw: 1, radius, kind, seen: 0, own };
       this.tracks.set(id, t);
     }
-    t.x = rel[0] - this.zx; t.y = rel[1] - this.zy; t.z = rel[2] - this.zz;
-    t.vx = vel[0]; t.vy = vel[1]; t.vz = vel[2];
-    t.qx = rot[0]; t.qy = rot[1]; t.qz = rot[2]; t.qw = rot[3];
+    this.unrotate(rel[0], rel[1], rel[2], Z);
+    t.x = Z[0] - this.zx; t.y = Z[1] - this.zy; t.z = Z[2] - this.zz;
+    this.unrotate(vel[0], vel[1], vel[2], Z);
+    t.vx = Z[0]; t.vy = Z[1]; t.vz = Z[2];
+    if (this.qw === 1) {
+      t.qx = rot[0]; t.qy = rot[1]; t.qz = rot[2]; t.qw = rot[3];
+    } else {
+      // Orientation in zone axes: the conjugate of the zone orientation times the orientation.
+      const ax = -this.qx, ay = -this.qy, az = -this.qz, aw = this.qw;
+      t.qx = aw * rot[0] + ax * rot[3] + ay * rot[2] - az * rot[1];
+      t.qy = aw * rot[1] - ax * rot[2] + ay * rot[3] + az * rot[0];
+      t.qz = aw * rot[2] + ax * rot[1] - ay * rot[0] + az * rot[3];
+      t.qw = aw * rot[3] - ax * rot[0] - ay * rot[1] - az * rot[2];
+    }
     t.radius = radius;
     t.kind = kind;
     t.seen = this.now;
@@ -132,7 +175,10 @@ export class Frame {
   }
 }
 
-/** Rotates a ship-local vector into system axes by the orientation of `t`. */
+// Scratch for vectors brought into zone axes.
+const Z: Vec3 = [0, 0, 0];
+
+/** Rotates a ship-local vector into zone axes by the orientation of `t`. */
 export function rotate(t: Track, vx: number, vy: number, vz: number, out: Vec3): void {
   const tx = 2 * (t.qy * vz - t.qz * vy);
   const ty = 2 * (t.qz * vx - t.qx * vz);

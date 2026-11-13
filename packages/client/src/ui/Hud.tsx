@@ -5,7 +5,7 @@
 import { useRef, useState } from 'preact/hooks';
 import {
   Button, COMMODITIES, ChargeKind, DOCK_RANGE, EntityFlag, EntityKind, FlightMode, HULLS, PIP_MAX,
-  cargoTonnes, detectionRange, unpackPips, v3, type ChatChannel,
+  anchorBody, bodySurface, cargoTonnes, detectionRange, isSurfaceAnchor, nearestGroundSite, unpackPips, v3, type ChatChannel,
 } from '@primacy2/shared';
 import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
@@ -204,10 +204,11 @@ function flightHud(view: FrameView, api: GameApi) {
   const cargo = pilot ? cargoTonnes(pilot.passport.ship.cargo) : 0;
   const sealed = pilot ? holdInFlight(pilot.passport.ship.cargo, store.serverId.value, store.galaxy.value).sealed : 0;
 
-  // Velocity vector marker: where the ship is actually going.
+  // Velocity vector marker: where the ship is actually going. `self.vel` is the velocity in
+  // system axes, as the projection needs it; near the ground `st.vel` is in axes that turn with the body.
   let vel: { x: number; y: number } | null = null;
   if (!cruise && speed > 3) {
-    const p = api.project(v3.addScaled(self.rel, st.vel, 1000 / speed));
+    const p = api.project(v3.addScaled(self.rel, self.vel, 1000 / speed));
     if (!p.behind) vel = p;
   }
 
@@ -262,9 +263,17 @@ function flightHud(view: FrameView, api: GameApi) {
   const navBody = nav !== null && !navSite ? view.bodies.find((b) => b.def.id === nav) : undefined;
   const navDist = navSite ? navSite.dist : navBody ? Math.max(0, navBody.dist - navBody.def.radius) : null;
   const here = view.sites.find((s) => s.def.id === st.anchor);
-  const canDock = view.mode === FlightMode.Normal && here && (here.def.kind === 'station' || here.def.kind === 'outpost') &&
-    v3.len(st.pos) < (here.def.radius ?? 300) + DOCK_RANGE;
-  const canDrop = cruise && navSite && navSite.dist < navSite.def.frameRadius;
+  // Near the ground the ship is in the surface frame of the body, flying or landed, and the base
+  // it can dock at is the nearest one on that body.
+  const base = isSurfaceAnchor(st.anchor) && (view.mode === FlightMode.Normal || view.mode === FlightMode.Landed)
+    ? nearestGroundSite(view.system, anchorBody(st.anchor), st.pos) : null;
+  const canDock = (view.mode === FlightMode.Normal && here && (here.def.kind === 'station' || here.def.kind === 'outpost') &&
+    v3.len(st.pos) < (here.def.radius ?? 300) + DOCK_RANGE) ||
+    (base !== null && base.dist < (base.site.radius ?? 300) + DOCK_RANGE);
+  // A ground base has no frame of its own to drop into: the place to leave cruise for it is where
+  // normal flight is in the surface frame of its body.
+  const navGround = navSite?.def.ground && view.surface?.body === navSite.def.ground.body ? bodySurface(view.system, navSite.def.ground.body) : null;
+  const canDrop = cruise && navSite && (navGround ? v3.len(view.surface!.cam) < navGround.enter : navSite.dist < navSite.def.frameRadius);
 
   const silent = (self.input.buttons & Button.Silent) !== 0;
   const pips = unpackPips(st.pips);

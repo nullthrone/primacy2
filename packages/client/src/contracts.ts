@@ -5,7 +5,11 @@
  *
  * All positions in a `FrameView` are **relative to the camera**, in metres, in system axes
  * (non-rotating, +Y north), computed in float64. Renderers put the camera at the origin and
- * never see absolute coordinates.
+ * never see absolute coordinates. Velocities and orientations are in system axes too. The
+ * simulation keeps ships near the ground of a landable body in a frame that turns with the body;
+ * the game core turns all of that into system axes when it builds the view. Two things are
+ * deliberately not in system axes and say so: the raw `SelfView.state`, and event coordinates
+ * (see `zone` and `zoneRot`).
  */
 import type {
   AsteroidDef,
@@ -60,11 +64,21 @@ export interface SelfView {
   id: number;
   /** Hull id, e.g. `wisp`; the model is `models/ship_<hull>.glb`. */
   hull: string;
-  /** Predicted state as of this frame. */
+  /**
+   * Predicted state as of this frame, as the simulation keeps it: `pos`, `vel` and `rot` are in
+   * the axes of the frame of `state.anchor`, which near the ground of a landable body turn with
+   * the body. Use `rel`, `vel` and `rot` below for anything that is drawn; the scalar fields
+   * (hull, shield, fuel, mode, `|vel|` as the speed readout) can be read from here.
+   */
   state: ShipState;
   stats: ShipStats;
   /** Ship origin relative to the camera. */
   rel: Vec3;
+  /**
+   * Velocity relative to the ship's anchor frame, in system axes, m/s: zero for a ship at rest
+   * over the ground or at a station. In cruise it is `forward * cruiseSpeed`.
+   */
+  vel: Vec3;
   /** Smoothed render orientation. */
   rot: Quat;
   /** Latest input, for thruster effects. */
@@ -75,6 +89,7 @@ export interface EntityView {
   id: number;
   info: EntityInfo;
   rel: Vec3;
+  /** Velocity relative to the zone's frame, in system axes: zero for a ship standing on the ground. */
   vel: Vec3;
   rot: Quat;
   /** `EntityFlag` bits. */
@@ -94,8 +109,49 @@ export interface FieldView {
   left: Float32Array;
 }
 
+/** The pilot's ship in relation to the ground of the landable body in `SurfaceView`. */
+export interface SurfaceShipView {
+  /** Ship origin in the body-fixed axes of the body, metres from its centre (float64). */
+  pos: Vec3;
+  /** Height of the ship's lowest point above the ground beneath it, metres; 0 when it stands on it. */
+  height: number;
+  /** Speed away from the body centre, m/s: positive climbing, negative sinking. */
+  verticalSpeed: number;
+  /** Speed along the ground, m/s, relative to the turning ground. */
+  groundSpeed: number;
+  /** Slope of the ground under the ship in radians, measured over the ship's footprint as the landing check does. */
+  slope: number;
+  /** Standing on the ground (`FlightMode.Landed`). */
+  landed: boolean;
+  /** Unit vector straight up at the ship (away from the body centre), system axes. */
+  up: Vec3;
+  /** Unit normal of the ground under the ship, system axes. */
+  normal: Vec3;
+}
+
+/**
+ * The landable body the camera is near, for drawing its ground and for landing readouts. Its
+ * terrain is `bodyTerrain(view.system, body)` from the shared package, sampled in body-fixed axes.
+ */
+export interface SurfaceView {
+  /** Body id (index into `system.bodies` and `FrameView.bodies`). */
+  body: number;
+  /** Turns the body-fixed axes of the body into system axes at `FrameView.time` (the shared `bodyRotation`). */
+  rot: Quat;
+  /** Camera position in body-fixed axes, metres from the body centre, float64. */
+  cam: Vec3;
+  /** Height of the camera above the ground beneath it, metres. */
+  camHeight: number;
+  /** The pilot's ship over this ground; null whenever `FrameView.self` is null. */
+  ship: SurfaceShipView | null;
+}
+
 export interface FrameFx {
-  /** 0..1: cruise speed as a fraction of the log range between minimum and maximum cruise speed; 0 outside cruise. */
+  /**
+   * 0..1: cruise speed as a fraction of the log range between minimum and maximum cruise speed;
+   * 0 outside cruise. In cruise it is never below 0.02, also at the low speeds close above a
+   * landable body, so `cruise > 0` says the ship is in cruise.
+   */
   cruise: number;
   /** 0..1 progress of a cruise or fold charge; 0 when nothing charges. */
   charge: number;
@@ -133,14 +189,32 @@ export interface FrameView {
   bodies: BodyView[];
   /** Index-aligned with `system.sites`. */
   sites: SiteView[];
-  /** The pilot's own ship, or null while it has no position (fold tunnel, handoff, not yet spawned). */
+  /**
+   * The pilot's own ship, or null while it has no position or is not flown (fold tunnel, handoff,
+   * docked, destroyed, not yet spawned). A ship standing on the ground (`FlightMode.Landed`) is
+   * here like a flying one.
+   */
   self: SelfView | null;
   mode: FlightMode;
   /** Other ships, cargo pods and missiles, interpolated. */
   ents: EntityView[];
   field: FieldView | null;
-  /** Position of the current zone anchor relative to the camera; null outside normal space. Event coordinates are relative to this anchor. */
+  /**
+   * Position of the origin of the current zone's frame relative to the camera, in system axes;
+   * null outside normal space. In a surface frame the origin is the centre of the body.
+   */
   zone: Vec3 | null;
+  /**
+   * Orientation of the zone's frame: turns its axes into system axes. The identity except in a
+   * surface frame, where the axes turn with the body. Null exactly when `zone` is null.
+   * Event coordinates (`GameEvent.at`) are in this frame: an event is seen at
+   * `zone + rotate(zoneRot, at)` relative to the camera. Whatever must stay in place relative to
+   * the zone over several frames (an effect on the ground) has to be kept in the frame's own
+   * coordinates and turned each frame.
+   */
+  zoneRot: Quat | null;
+  /** The landable body the camera is near (its centre within three radii), or null. */
+  surface: SurfaceView | null;
   /** Game events that arrived since the previous frame. */
   events: GameEvent[];
   fx: FrameFx;

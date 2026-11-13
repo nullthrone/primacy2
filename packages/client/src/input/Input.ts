@@ -142,7 +142,9 @@ export class Input {
 
   /**
    * Called on mode changes: clamps the throttle setpoint to what the flight mode allows and ends
-   * silent running when the ship docks or is lost.
+   * silent running when the ship docks or is lost. Touching down sets the throttle to zero, so
+   * the ship does not leap forward when it lifts off; everything else stays as it is on the
+   * ground, where the ship's systems run as in flight.
    */
   setMode(mode: FlightMode): void {
     this.mode = mode;

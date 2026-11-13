@@ -78,6 +78,9 @@ export function createFx(): Part {
       }
       root.visible = true;
       if (!frame.begin(view, zone)) clear();
+      // Every effect writes its positions in the axes of the zone's frame (see `core.ts`); in a
+      // surface frame those turn with the body, and this turns the whole part into system axes.
+      root.quaternion.set(frame.qx, frame.qy, frame.qz, frame.qw);
 
       const events = view.events;
       for (let i = 0; i < events.length; i++) {

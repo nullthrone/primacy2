@@ -10,6 +10,7 @@ import {
   GROUND_BASELINE_MIN,
   anchorBody,
   anchorFrame,
+  anchorState,
   bodyRotation,
   bodySurface,
   findSite,
@@ -32,7 +33,7 @@ import {
   type SystemDef,
   type Vec3,
 } from '@primacy2/shared';
-import type { SurfaceShipView, SurfaceView } from '../contracts.ts';
+import type { BodyView, SiteView, SurfaceShipView, SurfaceView } from '../contracts.ts';
 
 /** The view carries `surface` while the camera is within this many body radii of the centre of a landable body. */
 export const SURFACE_VIEW_RADII = 3;
@@ -49,10 +50,15 @@ export interface ViewFrame {
   rot: Quat | null;
 }
 
-/** The frame of an anchor at universe time `t`. Throws on unknown ids, as `anchorFrame` does. */
-export function viewFrame(sys: SystemDef, anchor: number, t: number): ViewFrame {
+/**
+ * The frame of an anchor at universe time `t`. Throws on unknown ids, as `anchorFrame` does.
+ * With `bodyStates` (the body positions at `t`) the origin of a body or surface frame is taken
+ * from there, so the body it belongs to is exactly at the origin of the frame.
+ */
+export function viewFrame(sys: SystemDef, anchor: number, t: number, bodyStates?: readonly StateVector[]): ViewFrame {
   const f = anchorFrame(sys, anchor, t);
-  return { anchor, pos: f.pos, rot: isRotatingAnchor(sys, anchor) ? f.rot : null };
+  const own = bodyStates?.[anchorBody(anchor)];
+  return { anchor, pos: own ? v3.clone(own.pos) : f.pos, rot: isRotatingAnchor(sys, anchor) ? f.rot : null };
 }
 
 /** A vector in the axes of the frame, in system axes. Always a new array. */
@@ -98,6 +104,40 @@ export function liftAboveGround(sys: SystemDef, f: ViewFrame, local: Readonly<Ve
   if (!(low > 0)) return out;
   const up = v3.scale(p, low / Math.sqrt(r2));
   return v3.add(out, siteRot ? quat.unrotate(siteRot, up) : up);
+}
+
+/**
+ * Where the chase camera sits: behind and above a ship at `shipPos` (frame of `f`), `radius`
+ * being the hull's, for a camera orientation `camRot` in system axes. The result is a position in
+ * the frame of `f`, and it is never below the terrain.
+ */
+export function chaseCamera(sys: SystemDef, f: ViewFrame, shipPos: Readonly<Vec3>, camRot: Readonly<Quat>, radius: number): Vec3 {
+  return liftAboveGround(sys, f, v3.add(shipPos, toFrame(f, quat.rotate(camRot, [0, radius * 0.8, radius * 3.4]))));
+}
+
+/**
+ * The bodies and sites of a system as a frame view lists them, relative to a camera at `camLocal`
+ * in the frame of `f`. Also returns that camera position relative to the frame's origin in
+ * system axes. `bodyStates` are the body positions at `t`.
+ */
+export function sceneryView(
+  sys: SystemDef, t: number, f: ViewFrame, camLocal: Readonly<Vec3>, bodyStates: readonly StateVector[],
+): { camSys: Vec3; bodies: BodyView[]; sites: SiteView[] } {
+  const camSys = toSystem(f, camLocal);
+  const bodies = sys.bodies.map((def, i) => {
+    const rel = v3.sub(v3.sub(bodyStates[i]!.pos, f.pos), camSys);
+    return { def, rel, dist: v3.len(rel) };
+  });
+  const groundBody = isSurfaceAnchor(f.anchor) ? anchorBody(f.anchor) : -1;
+  const sites = sys.sites.map((def) => {
+    let rel: Vec3;
+    if (def.id === f.anchor) rel = v3.neg(camSys);
+    // A base on the body whose surface frame this is does not move in that frame.
+    else if (def.ground && def.ground.body === groundBody) rel = toSystem(f, v3.sub(def.ground.pos, camLocal));
+    else rel = v3.sub(v3.sub(anchorState(sys, def.id, t).pos, f.pos), camSys);
+    return { def, rel, dist: v3.len(rel) };
+  });
+  return { camSys, bodies, sites };
 }
 
 /** Unit vector straight up at a point of the frame `f`, in the frame's axes: away from the body in a surface frame, +Y elsewhere. */

@@ -12,7 +12,6 @@ import {
   FlightMode,
   SITE_ID_BASE,
   allBodyStates,
-  anchorState,
   computeShipStats,
   findSite,
   forwardOf,
@@ -42,6 +41,7 @@ import { Input } from '../input/Input.ts';
 import { ConnectError, Connection, normalizeServerUrl, type Welcome } from '../net/Connection.ts';
 import { importIdentity, loadIdentity } from '../net/identity.ts';
 import { store, updateSettings, type BindAction, type Contact, type Panel } from '../state/store.ts';
+import { chaseCamera, frameUp, liftAboveGround, rotToSystem, sceneryView, surfaceView, toSystem, viewFrame, type ViewFrame } from './surface.ts';
 
 export interface GameDeps {
   canvas: HTMLCanvasElement;
@@ -88,7 +88,19 @@ const cloneState = (s: ShipState): ShipState => ({
   aim: [s.aim[0], s.aim[1]],
 });
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
-const isFlying = (m: FlightMode): boolean => m === FlightMode.Normal || m === FlightMode.Cruise;
+/**
+ * Modes in which the pilot's ship is simulated here tick by tick and drawn: in flight, and
+ * standing on the ground, where the next input may lift it off again.
+ */
+const isFlying = (m: FlightMode): boolean => m === FlightMode.Normal || m === FlightMode.Cruise || m === FlightMode.Landed;
+/**
+ * Normal flight and standing on the ground are one and the same zone: touching down or lifting
+ * off changes nothing about who is around or which frame their positions are in.
+ */
+const zoneClass = (m: FlightMode): FlightMode => (m === FlightMode.Landed ? FlightMode.Normal : m);
+/** The docked camera circles a ground base at least this far above the terrain, metres. */
+const DOCK_CAMERA_CLEARANCE = 60;
+const NO_FRAME: ViewFrame = { anchor: -1, pos: [0, 0, 0], rot: null };
 
 class GameImpl implements Game {
   view: FrameView | null = null;
@@ -118,14 +130,18 @@ class GameImpl implements Game {
   private readonly tracks = new Map<number, Sample[]>();
   private readonly infos = new Map<number, EntityInfo>();
   private trackAnchor = -9;
+  /** `zoneClass` of the mode the entity samples belong to. */
   private trackMode: FlightMode = FlightMode.Docked;
   private events: GameEvent[] = [];
   private readonly rocks = new Map<number, readonly AsteroidDef[]>();
   private readonly rockLeft = new Map<number, Float32Array>();
+  /** Orientation the chase camera has reached, in system axes. */
   private chaseRot: Quat = [0, 0, 0, 1];
   private lastCamRot: Quat = [0, 0, 0, 1];
   private hitFlash = 0;
   private foldStart = 0;
+  /** Counts handoffs and disconnects, so a handoff that waits in the tunnel knows when it was overtaken. */
+  private handoffs = 0;
   private noticeId = 0;
   private nextContacts = 0;
   private nextPing = 0;
@@ -152,8 +168,9 @@ class GameImpl implements Game {
     };
     window.addEventListener('resize', () => this.resize());
     window.addEventListener('beforeunload', (e) => {
-      // Leaving mid-flight is usually an accident (Ctrl+W while thrusting down).
-      if (store.phase.value === 'playing' && this.pred && isFlying(this.pred.mode)) {
+      // Leaving mid-flight is usually an accident (Ctrl+W while thrusting down). A ship standing
+      // on the ground is found again where it stands, so leaving then needs no warning.
+      if (store.phase.value === 'playing' && this.pred && (this.pred.mode === FlightMode.Normal || this.pred.mode === FlightMode.Cruise)) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -189,6 +206,7 @@ class GameImpl implements Game {
   }
 
   disconnect(): void {
+    this.handoffs++;
     this.conn?.close();
     this.conn = null;
     this.reset();
@@ -271,6 +289,13 @@ class GameImpl implements Game {
     store.status.value = store.galaxy.value?.sectors.find((s) => s.id === m.server)?.name ?? m.url;
     this.foldStart = performance.now() / 1000;
     if (this.pred) this.pred.mode = FlightMode.Fold;
+    // The ship spends the tunnel time under way, as in a jump inside one sector. Connecting takes
+    // a few hundredths of a second and the other server places the ship straight into its
+    // system, so without this wait there may be no frame at all in which the tunnel is seen.
+    const jump = ++this.handoffs;
+    await new Promise((r) => setTimeout(r, FOLD_TUNNEL_TIME * 1000));
+    // The pilot went back to the menu or connected elsewhere while the ship was in the tunnel.
+    if (jump !== this.handoffs || store.phase.value !== 'handoff') return;
     try {
       await this.open(m.url, m.ticket, 0);
     } catch (err) {
@@ -442,10 +467,10 @@ class GameImpl implements Game {
     if (!me || !sys || !stats) return;
 
     // Entity samples live in the frame of the server's own-ship anchor at that tick.
-    if (me.anchor !== this.trackAnchor || me.mode !== this.trackMode) {
+    if (me.anchor !== this.trackAnchor || zoneClass(me.mode) !== this.trackMode) {
       this.tracks.clear();
       this.trackAnchor = me.anchor;
-      this.trackMode = me.mode;
+      this.trackMode = zoneClass(me.mode);
     }
     for (const e of s.ents) {
       let list = this.tracks.get(e.id);
@@ -507,12 +532,15 @@ class GameImpl implements Game {
     if (this.pending.length > 120) this.pending.shift();
     this.prev = cloneState(st);
     const anchor = st.anchor;
+    const mode = st.mode;
     simulateShip(st, input, stats, sys, this.universeTime(), DT);
     if (st.anchor !== anchor) {
-      // Crossed into another sphere of influence: positions are now in a different frame.
+      // Crossed into another sphere of influence or frame: positions are now in different axes.
       this.prev = cloneState(st);
       this.err = [0, 0, 0];
     }
+    // Touching down and lifting off are predicted here before the server confirms them.
+    if (st.mode !== mode) this.input.setMode(st.mode);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -587,60 +615,65 @@ class GameImpl implements Game {
       shipRot = quat.slerp(prev.rot, st.rot, a);
     }
 
-    // Camera pose in the same frame.
-    let anchorAbs: Vec3 = [0, 0, 0];
+    // The frame all of that is in. Near the ground of a landable body its axes turn with the
+    // body: everything that leaves this function is turned into system axes here.
+    const bodyStates = allBodyStates(sys, t);
+    const placed = st.mode !== FlightMode.Fold && st.anchor >= 0;
+    const frame = placed ? viewFrame(sys, st.anchor, t, bodyStates) : NO_FRAME;
+    const anchorAbs = frame.pos;
+    const shipRotSys = rotToSystem(frame, shipRot);
+
+    // Camera: its position in the frame of the anchor (exact near the ship), its orientation in
+    // system axes. A camera outside the ship is kept above the terrain.
     let camLocal: Vec3;
     let camRot: Quat;
     const mode: CameraMode = settings.camera;
-    if (st.mode === FlightMode.Fold || st.anchor < 0) {
+    if (!placed) {
       camLocal = [3e10, 1e10, 3e10];
       camRot = this.lastCamRot;
+    } else if (st.mode === FlightMode.Docked) {
+      // Docked: a slow orbit around the station. The axes of a ground base have +Y along the pad
+      // normal, so there the orbit runs level around the base.
+      const site = findSite(sys, st.anchor);
+      const d = (site?.radius ?? 300) * 2.6 + 400;
+      const a = now * 0.03;
+      camLocal = liftAboveGround(sys, frame, [Math.cos(a) * d, d * 0.22, Math.sin(a) * d], DOCK_CAMERA_CLEARANCE);
+      camRot = rotToSystem(frame, quat.lookRotation(v3.neg(camLocal)));
+    } else if (st.mode === FlightMode.Dead) {
+      // Destroyed: a look back at the place from above and behind ("above" is away from the ground).
+      const up = frameUp(frame, shipPos);
+      const back = v3.normalize(v3.cross(Math.abs(up[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1], up));
+      camLocal = liftAboveGround(sys, frame, v3.add(shipPos, v3.add(v3.scale(up, 40), v3.scale(back, 120))));
+      camRot = rotToSystem(frame, quat.lookRotation(v3.sub(shipPos, camLocal), up));
     } else {
-      anchorAbs = anchorState(sys, st.anchor, t).pos;
-      if (st.mode === FlightMode.Docked) {
-        // Docked: a slow orbit around the station.
-        const site = findSite(sys, st.anchor);
-        const d = (site?.radius ?? 300) * 2.6 + 400;
-        const a = now * 0.03;
-        camLocal = [Math.cos(a) * d, d * 0.22, Math.sin(a) * d];
-        camRot = quat.lookRotation(v3.neg(camLocal));
-      } else if (st.mode === FlightMode.Dead) {
-        camLocal = v3.add(shipPos, [0, 40, 120]);
-        camRot = quat.lookRotation(v3.sub(shipPos, camLocal));
+      const look = quat.mul(quat.fromAxisAngle([0, 1, 0], this.input.look[0]), quat.fromAxisAngle([1, 0, 0], this.input.look[1]));
+      if (mode === 'chase') {
+        // The camera follows in system axes, so a change of frame does not disturb it. Over a
+        // landed ship it comes to rest: the ship's orientation then only turns with the body.
+        this.chaseRot = quat.slerp(this.chaseRot, shipRotSys, 1 - Math.exp(-dt * 9));
+        camRot = quat.mul(this.chaseRot, look);
+        camLocal = chaseCamera(sys, frame, shipPos, camRot, stats.radius);
       } else {
-        const look = quat.mul(quat.fromAxisAngle([0, 1, 0], this.input.look[0]), quat.fromAxisAngle([1, 0, 0], this.input.look[1]));
-        if (mode === 'chase') {
-          this.chaseRot = quat.slerp(this.chaseRot, shipRot, 1 - Math.exp(-dt * 9));
-          camRot = quat.mul(this.chaseRot, look);
-          const r = stats.radius;
-          camLocal = v3.add(shipPos, quat.rotate(camRot, [0, r * 0.8, r * 3.4]));
-        } else {
-          this.chaseRot = shipRot;
-          camRot = quat.mul(shipRot, look);
-          camLocal = v3.add(shipPos, quat.rotate(shipRot, EYE[this.hull] ?? [0, 1, -2]));
-        }
+        this.chaseRot = shipRotSys;
+        camRot = quat.mul(shipRotSys, look);
+        camLocal = v3.add(shipPos, quat.rotate(shipRot, EYE[this.hull] ?? [0, 1, -2]));
       }
     }
     this.lastCamRot = camRot;
-
-    const bodyStates = allBodyStates(sys, t);
-    const bodies = sys.bodies.map((def, i) => {
-      const rel = v3.sub(v3.sub(bodyStates[i]!.pos, anchorAbs), camLocal);
-      return { def, rel, dist: v3.len(rel) };
-    });
-    const sites = sys.sites.map((def) => {
-      const rel = def.id === st.anchor ? v3.neg(camLocal) : v3.sub(v3.sub(anchorState(sys, def.id, t).pos, anchorAbs), camLocal);
-      return { def, rel, dist: v3.len(rel) };
-    });
+    // `camSys` is the camera relative to the origin of the anchor frame, in system axes.
+    const { camSys, bodies, sites } = sceneryView(sys, t, frame, camLocal, bodyStates);
 
     const ents: EntityView[] = [];
-    if (flying && st.anchor === this.trackAnchor && st.mode === this.trackMode) {
+    if (flying && st.anchor === this.trackAnchor && zoneClass(st.mode) === this.trackMode) {
       const at = t - INTERP_DELAY - store.ping.value / 2000;
       for (const [id, samples] of this.tracks) {
         const info = this.infos.get(id);
         if (!info || samples.length === 0) continue;
         const e = interpolate(samples, at);
-        ents.push({ id, info, rel: v3.sub(e.pos, camLocal), vel: e.vel, rot: e.rot, flags: e.flags, hull: e.hull, shield: e.shield });
+        ents.push({
+          id, info, rel: toSystem(frame, v3.sub(e.pos, camLocal)), vel: toSystem(frame, e.vel), rot: rotToSystem(frame, e.rot),
+          flags: e.flags, hull: e.hull, shield: e.shield,
+        });
       }
     }
 
@@ -657,26 +690,38 @@ class GameImpl implements Game {
     const cruiseSpan = Math.log(stats.cruiseMax / CRUISE_MIN_SPEED);
     const events = this.events;
     this.events = [];
+    // In normal space, flying or landed, the ship is in a zone: effects and events live there.
+    const inZone = placed && zoneClass(st.mode) === FlightMode.Normal;
 
     return {
       time: t,
       dt,
       clock: now,
       system: sys,
-      camera: { rot: camRot, fov: settings.fov + (st.boost > 0 ? 6 : 0), mode, abs: v3.add(anchorAbs, camLocal) },
+      camera: { rot: camRot, fov: settings.fov + (st.boost > 0 ? 6 : 0), mode, abs: v3.add(anchorAbs, camSys) },
       bodies,
       sites,
-      self: flying ? { id: this.selfId, hull: this.hull, state: st, stats, rel: v3.sub(shipPos, camLocal), rot: shipRot, input: this.lastInput } : null,
+      self: flying
+        ? {
+          id: this.selfId, hull: this.hull, state: st, stats, rel: toSystem(frame, v3.sub(shipPos, camLocal)),
+          vel: toSystem(frame, st.vel), rot: shipRotSys, input: this.lastInput,
+        }
+        : null,
       mode: st.mode,
       ents,
-      field: site && rocks && left ? { site, rel: v3.neg(camLocal), rocks, left } : null,
-      zone: st.mode === FlightMode.Normal ? v3.neg(camLocal) : null,
+      field: site && rocks && left ? { site, rel: v3.neg(camSys), rocks, left } : null,
+      zone: inZone ? v3.neg(camSys) : null,
+      zoneRot: inZone ? (frame.rot ?? [0, 0, 0, 1]) : null,
+      surface: placed ? surfaceView(sys, t, frame, camLocal, bodyStates, flying ? { state: st, stats } : null) : null,
       events,
       fx: {
-        cruise: st.mode === FlightMode.Cruise ? clamp(Math.log(Math.max(st.cruiseSpeed, CRUISE_MIN_SPEED) / CRUISE_MIN_SPEED) / cruiseSpan, 0, 1) : 0,
+        // Never zero in cruise: close above a landable body the speed falls below the bottom of the scale.
+        cruise: st.mode === FlightMode.Cruise ? clamp(Math.log(Math.max(st.cruiseSpeed, CRUISE_MIN_SPEED) / CRUISE_MIN_SPEED) / cruiseSpan, 0.02, 1) : 0,
         charge: st.chargeKind !== ChargeKind.None ? st.charge : 0,
         chargeKind: st.chargeKind,
-        fold: st.mode === FlightMode.Fold ? (handoff ? 0.5 + 0.4 * Math.sin(now * 2) : clamp(foldT, 0.02, 1)) : 0,
+        // A handoff shows the same progress as a jump inside the sector, and pulses for as long
+        // as the other server takes to answer after that.
+        fold: st.mode === FlightMode.Fold ? (handoff && foldT >= 1 ? 0.5 + 0.4 * Math.sin(now * 2) : clamp(foldT, 0.02, 1)) : 0,
         dilation: st.dilation,
         heat: st.heat / stats.heatCap,
         boosting: st.boost > 0,
@@ -766,7 +811,8 @@ class GameImpl implements Game {
     if (st.mode === FlightMode.Cruise) {
       const nav = store.navAnchor.value;
       void this.act(nav !== null && nav >= SITE_ID_BASE ? { k: 'cruise', on: false, site: nav } : { k: 'cruise', on: false });
-    } else if (st.mode === FlightMode.Normal) {
+    } else if (st.mode === FlightMode.Normal || st.mode === FlightMode.Landed) {
+      // From the ground the server answers with the reason (lift off first).
       void this.act({ k: 'cruise', on: st.chargeKind !== ChargeKind.Cruise });
     }
   }
