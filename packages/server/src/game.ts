@@ -2,6 +2,7 @@
  * Core game objects shared by the simulation and the gameplay modules.
  */
 import {
+  FlightMode,
   NEUTRAL_INPUT,
   addLot,
   cargoTonnes,
@@ -39,6 +40,13 @@ export interface Connection {
 export const CRUISE_ZONE = -2;
 /** Zone id for ships that are in no zone (fold tunnel, docked, dead). */
 export const NO_ZONE = -1;
+
+/**
+ * Whether a ship is at a place in normal space: flying there or standing on the ground. Such a
+ * ship is in the zone of its anchor and can be detected, targeted, hit and collided with. What a
+ * ship may *do* (fire, mine, scoop, charge a drive) still needs normal flight.
+ */
+export const inSpace = (s: Pick<ShipState, 'mode'>): boolean => s.mode === FlightMode.Normal || s.mode === FlightMode.Landed;
 
 export interface Ship {
   id: number;
@@ -91,6 +99,13 @@ export interface SimObject {
   ttl: number;
   /** Module-owned data. */
   data?: unknown;
+  /**
+   * In a surface zone: how high the origin lies above the ground when the object has come to
+   * rest (a wreck sits as the ship stood). Defaults to `radius`.
+   */
+  belly?: number;
+  /** In a surface zone: lying on the ground. Set and cleared by the simulation. */
+  resting?: boolean;
 }
 
 export class Player {
