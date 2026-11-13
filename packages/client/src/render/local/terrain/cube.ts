@@ -101,6 +101,22 @@ export function tileFrame(face: number, level: number, ix: number, iy: number, r
   out[11] = xx * yy - xy * yx;
 }
 
+/**
+ * The rotation that takes a vector given in the axes of the tile frame `from` into the axes of the
+ * tile frame `to` (both as `tileFrame` writes them): nine numbers row by row, entry `i, j` being
+ * axis `j` of `from` along axis `i` of `to`. A tile uses it to read its parent's normal map, whose
+ * normals are in the parent's frame.
+ */
+export function frameTurn(from: ArrayLike<number>, to: ArrayLike<number>, out: { [i: number]: number }): void {
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const a = 3 + i * 3;
+      const b = 3 + j * 3;
+      out[i * 3 + j] = to[a]! * from[b]! + to[a + 1]! * from[b + 1]! + to[a + 2]! * from[b + 2]!;
+    }
+  }
+}
+
 /** The deepest quadtree level of a body: the one whose mesh cells are between `finest` and twice that, metres. */
 export function deepestLevel(radius: number, cells: number, finest: number): number {
   return Math.max(0, Math.floor(Math.log2((radius * Math.PI * 0.5) / (cells * finest))));

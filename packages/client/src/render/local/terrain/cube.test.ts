@@ -4,7 +4,7 @@
  * proper set of axes.
  */
 import { describe, expect, it } from 'vitest';
-import { FACES, deepestLevel, directionToFace, faceDirection, tileFrame, tileSize, tileSpan } from './cube.ts';
+import { FACES, deepestLevel, directionToFace, faceDirection, frameTurn, tileFrame, tileSize, tileSpan } from './cube.ts';
 
 /** A small deterministic generator of numbers in 0..1. */
 function rng(seed: number): () => number {
@@ -138,6 +138,39 @@ describe('cube sphere', () => {
         expect(Y[k]).toBeCloseTo(c[k]!, 12);
       }
     }
+  });
+
+  it('turns a normal of a parent tile map into the frame of the child', () => {
+    const r = rng(11);
+    const parent = new Float64Array(12);
+    const child = new Float64Array(12);
+    const turn = new Float64Array(9);
+    let apart = 0;
+    for (let n = 0; n < 200; n++) {
+      const face = Math.floor(r() * FACES);
+      const level = 1 + Math.floor(r() * 5);
+      const ix = Math.floor(r() * 2 ** level);
+      const iy = Math.floor(r() * 2 ** level);
+      tileFrame(face, level, ix, iy, 1_057_000, child);
+      tileFrame(face, level - 1, ix >> 1, iy >> 1, 1_057_000, parent);
+      frameTurn(parent, child, turn);
+      // Any vector: its numbers in the parent's axes, turned, are its numbers in the child's axes.
+      const v = [r() - 0.5, r() - 0.5, r() - 0.5];
+      const inFrame = (f: Float64Array, axis: number): number => f[3 + axis * 3]! * v[0]! + f[4 + axis * 3]! * v[1]! + f[5 + axis * 3]! * v[2]!;
+      const p = [inFrame(parent, 0), inFrame(parent, 1), inFrame(parent, 2)];
+      for (let i = 0; i < 3; i++) {
+        expect(turn[i * 3]! * p[0]! + turn[i * 3 + 1]! * p[1]! + turn[i * 3 + 2]! * p[2]!).toBeCloseTo(inFrame(child, i), 12);
+      }
+      // How far the two frames are apart: the angle between their vertical axes.
+      const cos = child[6]! * parent[6]! + child[7]! * parent[7]! + child[8]! * parent[8]!;
+      if (level <= 3) apart = Math.max(apart, Math.acos(Math.min(1, cos)));
+    }
+    // Between the large tiles that is many degrees: a map read without the turn is shaded wrongly.
+    expect((apart * 180) / Math.PI).toBeGreaterThan(5);
+    // A face tile is its own parent: no turn.
+    tileFrame(2, 0, 0, 0, 1_057_000, parent);
+    frameTurn(parent, parent, turn);
+    for (let i = 0; i < 9; i++) expect(turn[i]).toBeCloseTo(i % 4 === 0 ? 1 : 0, 12);
   });
 
   it('ends at cells of one to two and a half metres on any body', () => {

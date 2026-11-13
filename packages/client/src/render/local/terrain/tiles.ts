@@ -17,7 +17,7 @@ import { BufferAttribute, BufferGeometry, Group, Matrix3, Matrix4, Mesh, Vector2
 import type { DataTexture, ShaderMaterial } from 'three';
 import { terrainMax, terrainMin, type TerrainParams } from '@primacy2/shared';
 import { gridDetail, tileIndexCount, tileIndices, tileOrder, tileUvs, type TileBake } from './bake.ts';
-import { FACES, deepestLevel, directionToFace, faceDirection, tileFrame, tileSize, tileSpan } from './cube.ts';
+import { FACES, deepestLevel, directionToFace, faceDirection, frameTurn, tileFrame, tileSize, tileSpan } from './cube.ts';
 import { DETAIL_PERIOD, mapTexture, tileMaterial, type GroundUniforms } from './material.ts';
 import type { Job, TerrainPool } from './pool.ts';
 
@@ -119,6 +119,7 @@ export interface GroundStats {
 
 const D = new Float64Array(3);
 const F3 = new Float64Array(3);
+const TURN = new Float64Array(9);
 const basis = new Matrix4();
 const vx = new Vector3();
 const vy = new Vector3();
@@ -317,10 +318,9 @@ export class Ground {
     const range = 2 * SPLIT * tileSize(this.radius, t.level);
     (u.uMorph!.value as Vector3).set(t.level === 0 ? 0 : 1 / ((1 - MORPH_START) * range), MORPH_START * range, 0);
     (u.uToBody!.value as Matrix3).set(f[3]!, f[6]!, f[9]!, f[4]!, f[7]!, f[10]!, f[5]!, f[8]!, f[11]!);
-    // From the parent's frame into this one: each axis of the parent along each axis of the tile.
-    const pf = parent.frame;
-    const dot = (a: number, b: number): number => f[a]! * pf[b]! + f[a + 1]! * pf[b + 1]! + f[a + 2]! * pf[b + 2]!;
-    (u.uFromParent!.value as Matrix3).set(dot(3, 3), dot(3, 6), dot(3, 9), dot(6, 3), dot(6, 6), dot(6, 9), dot(9, 3), dot(9, 6), dot(9, 9));
+    // The parent's map holds its normals in the parent's frame: this turns them into the tile's.
+    frameTurn(parent.frame, f, TURN);
+    (u.uFromParent!.value as Matrix3).set(TURN[0]!, TURN[1]!, TURN[2]!, TURN[3]!, TURN[4]!, TURN[5]!, TURN[6]!, TURN[7]!, TURN[8]!);
     const mod = (x: number): number => ((x % DETAIL_PERIOD) + DETAIL_PERIOD) % DETAIL_PERIOD;
     (u.uOriginMod!.value as Vector3).set(mod(f[0]!), mod(f[1]!), mod(f[2]!));
 

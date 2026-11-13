@@ -200,6 +200,10 @@ void main() {
  * an apron is darker than the ground it lies on, though it has the same colour. The change is one
  * line of three's own shading; should a later version word that line differently, nothing is
  * replaced and the material is matte as before.
+ *
+ * Dust also has no gloss, and the ground has none. Three gives every surface the mirror-like
+ * sheen of a smooth one at grazing angles, which turns a flat apron seen against a low sun into a
+ * white disc; that reflection is taken out here (`MATTE`).
  */
 function dustLit(m: MeshStandardMaterial): void {
   m.onBeforeCompile = (shader) => {
@@ -209,10 +213,20 @@ function dustLit(m: MeshStandardMaterial): void {
         'vec3 irradiance = dotNL * directLight.color;',
         'vec3 irradiance = mix( dotNL, min( 2.0 * dotNL / ( dotNL + saturate( dot( geometryNormal, geometryViewDir ) ) + 0.02 ), 1.5 ), 0.3 ) * directLight.color;',
       ),
-    );
+    ).replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>\n${MATTE}`);
   };
   m.customProgramCacheKey = () => 'regolith';
 }
+
+/**
+ * Shader lines that take the specular reflection off a material, for after three has set the
+ * material up: they set to nothing whatever this version of three keeps the strength of that
+ * reflection in. A field it does not have is left alone, so the lines always compile.
+ */
+const MATTE = ([['specularColor', 'vec3( 0.0 )'], ['specularColorBlended', 'vec3( 0.0 )'], ['specularF90', '0.0']] as const)
+  .filter(([field]) => new RegExp(`\\s${field};`).test(ShaderChunk.lights_physical_pars_fragment))
+  .map(([field, none]) => `material.${field} = ${none};`)
+  .join('\n');
 
 const REVEAL_FRAG = /* glsl */ `
 #include <clipping_planes_fragment>
