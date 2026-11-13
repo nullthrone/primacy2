@@ -155,8 +155,8 @@ const CRATER_WORN = 0.18;
  * centre in the plains, and the mean of the band profile over a body (measured over random
  * directions), which stands in for the bands where a coarse sample skips the ridges.
  */
-const ICE_BAND_DARK = 0.3;
-const ICE_BAND_MEAN = 0.62;
+const ICE_BAND_DARK = 0.2;
+const ICE_BAND_MEAN = 0.56;
 
 /**
  * Arguments and results of the functions on the sampling path (see the note on allocation at the
@@ -730,7 +730,8 @@ function sample(p: TerrainParams): void {
       const ra = a4 * a4;
       const rb = b4 * b4;
       h += p.lineAmp * (ra + rb);
-      band = a4 > b4 ? a4 : b4;
+      // A band is evenly dark across the crest and ends within a few hundred metres of it.
+      band = smooth(0.37, 0.78, a4 > b4 ? a4 : b4);
     }
     tone = 0.72 + 0.16 * high + 0.09 * mottle - ICE_BAND_DARK * band * (1 - 0.85 * high) + 0.3 * craterTone;
   } else if (p.kind === DESERT) {
