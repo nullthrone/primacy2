@@ -106,8 +106,15 @@ export function sunVisibility(view: FrameView, sunDir: readonly number[]): numbe
 export const LANDING_LIGHT_HEIGHT = 500;
 /** The lamp comes up to full strength over this many metres of descent. */
 const LAMP_SWITCH_ON = 60;
-/** Illuminance of level ground straight under the lamp; direct sunlight is about 3. */
-const LAMP_POOL = 4;
+/**
+ * What the lamp is regulated to: the light that level ground straight under it sends back, as
+ * illuminance times reflectance. On the dark regolith of a rocky moon (reflectance about an
+ * eighth) that takes a little more light than the sun gives, which is about 3; on bright ice far
+ * less. The illuminance itself is kept between the two limits.
+ */
+const LAMP_POOL = 0.5;
+const LAMP_POOL_MIN = 0.5;
+const LAMP_POOL_MAX = 5;
 /** Up to this height above the ground the lamp holds the pool at `LAMP_POOL`; above, the pool thins. */
 const LAMP_REGULATED_TO = 160;
 /** The lamp is not turned down further than for this height, however near the ground is. */
@@ -136,13 +143,19 @@ export const landingLampLevel = (height: number): number => clamp01((LANDING_LIG
 /**
  * Strength of the landing lamp of a ship whose lowest point is `height` metres above the ground,
  * scene-referred, for a light that falls off with the distance (not its square): `level` is how
- * far the lamp is switched on (0..1) and `sunlight` how much of the sun reaches the place (0..1).
- * The lamp is regulated by its height above the ground.
+ * far the lamp is switched on (0..1), `sunlight` how much of the sun reaches the place (0..1) and
+ * `albedo` the reflectance of the ground under the ship (`reflectance`). The lamp is regulated by
+ * its height above the ground and by how bright that ground is, so the pool looks the same on
+ * dark regolith and on ice.
  */
-export function landingLampIntensity(height: number, level: number, sunlight: number): number {
+export function landingLampIntensity(height: number, level: number, sunlight: number, albedo: number): number {
   const reach = clamp(height + LAMP_DROP, LAMP_REGULATED_FROM, LAMP_REGULATED_TO);
-  return LAMP_POOL * reach * level * (LAMP_DAY_LEVEL + (1 - LAMP_DAY_LEVEL) * (1 - sunlight));
+  const pool = clamp(LAMP_POOL / Math.max(albedo, 1e-3), LAMP_POOL_MIN, LAMP_POOL_MAX);
+  return pool * reach * level * (LAMP_DAY_LEVEL + (1 - LAMP_DAY_LEVEL) * (1 - sunlight));
 }
+
+/** How much light a surface of the linear colour (r, g, b) sends back, as the eye weighs it. */
+export const reflectance = (r: number, g: number, b: number): number => 0.2126 * r + 0.7152 * g + 0.0722 * b;
 
 const srgbToLinear = (c: number): number => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;

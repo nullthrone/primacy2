@@ -28,15 +28,21 @@
  * The light is in the scene from the start and only changes strength: a light that comes or goes
  * makes the renderer rebuild every lit shader.
  */
-import { FlightMode, bodySurface, terrainHeight, type BodySurface } from '@primacy2/shared';
+import { FlightMode, bodySurface, terrainHeight, terrainSample, type BodySurface } from '@primacy2/shared';
 import { SpotLight, type Object3D } from 'three';
 import type { FrameView } from '../../../contracts.ts';
-import { LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, damp, landingLampIntensity, landingLampLevel } from '../util.ts';
+import {
+  LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, damp, groundAlbedo, landingLampIntensity, landingLampLevel, reflectance,
+} from '../util.ts';
 
 export { LAMP_DROP, LAMP_FORE, LANDING_LIGHT_HEIGHT, landingLampLevel } from '../util.ts';
 
 /** Nothing farther from the lamp than this is lit by it, metres. */
 const LAMP_RANGE = 1200;
+
+// Scratch: a terrain sample (height, tone) and a colour.
+const SAMPLE = new Float64Array(2);
+const TINT = [0.2, 0.2, 0.2];
 
 /** Height above the ground of points given relative to the camera, by the shared terrain. */
 export class GroundProbe {
@@ -118,6 +124,19 @@ export class LandingLight {
     const light = this.light;
     light.position.set(px, py, pz);
     light.target.position.set(px + (fx * ahead - ux * down) * 100, py + (fy * ahead - uy * down) * 100, pz + (fz * ahead - uz * down) * 100);
-    light.intensity = landingLampIntensity(ship.height, this.level, sunlight);
+    light.intensity = landingLampIntensity(ship.height, this.level, sunlight, groundReflectance(view));
   }
+}
+
+/** Reflectance of the ground under the pilot's ship, from the shared terrain; that of dark regolith away from any ground. */
+function groundReflectance(view: FrameView): number {
+  const s = view.surface;
+  const pos = s?.ship?.pos;
+  const body = s ? view.system.bodies[s.body] : undefined;
+  const terrain = s ? bodySurface(view.system, s.body)?.terrain : undefined;
+  if (!pos || !body || !terrain) return 0.12;
+  const r = Math.hypot(pos[0], pos[1], pos[2]) || 1;
+  terrainSample(terrain, pos[0] / r, pos[1] / r, pos[2] / r, 0, SAMPLE);
+  groundAlbedo(body.color, body.cls, SAMPLE[1]!, TINT);
+  return reflectance(TINT[0]!, TINT[1]!, TINT[2]!);
 }

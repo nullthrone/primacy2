@@ -31,7 +31,7 @@ import type { BodySurface, GameEvent, Vec3 } from '@primacy2/shared';
 import type { Lighting } from '../../../contracts.ts';
 import {
   LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, TAU, clamp, clamp01, damp, groundAlbedo, landingLampIntensity,
-  landingLampLevel, smooth,
+  landingLampLevel, reflectance, smooth,
 } from '../util.ts';
 import { QuadBatch } from './batch.ts';
 import { Pool, rand, rotate, type Frame, type Track } from './core.ts';
@@ -419,7 +419,7 @@ export class Regolith {
       // The landing light, for dust at night: the lamp of `objects/landing.ts`, under the nose
       // with its beam leaning forward, by the numbers the two share.
       if (view.mode === FlightMode.Normal || landed) {
-        lamp = landingLampIntensity(ship.height, landingLampLevel(ship.height), sunlight);
+        lamp = landingLampIntensity(ship.height, landingLampLevel(ship.height), sunlight, reflectance(this.albedo[0]!, this.albedo[1]!, this.albedo[2]!));
         const below = self.stats.belly + LAMP_DROP;
         const fore = LAMP_FORE * self.stats.radius;
         const down = Math.cos(LAMP_FORWARD), ahead = Math.sin(LAMP_FORWARD);
