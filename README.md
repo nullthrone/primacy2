@@ -15,9 +15,14 @@ PRIMACY2 is free software under the [AGPL-3.0](LICENSE).
 > Also played through in the browser: buying cargo, a fold jump with the handoff of the pilot to a
 > second server, docking there, selling the cargo as an import with the tariff withheld, and the
 > flight home.
+> Landing on airless moons is in: cruise down, descend, touch down, lift off and dock at a ground
+> base. The test plays it on one rocky moon in daylight; nobody has judged it in motion, at night,
+> or on ice and desert bodies, and the ground close to the ship still looks soft.
 > Implemented and covered by server tests, but not yet played through in the browser: mining,
 > salvaging a wreck, missions, NPC behaviour and warp gates.
-> Planned: landing on moons, multi-crew ships and walking in ships.
+> Decided and not built yet: docking on scarce landing pads with clearance, customs and police,
+> controller support, a sound library, deeper mining, missions, exploration, economy, factions and
+> onboarding. See [docs/ROADMAP.md](docs/ROADMAP.md) for the state, the decisions and the order.
 
 ## Play
 
