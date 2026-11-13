@@ -22,3 +22,7 @@ __pycache__/
 # local scratch
 .claude/
 assets/blender/previews/_spike.glb
+
+# Local Python environment and caches of the audio tools (see tools/audio)
+.venv-audio/
+assets/audio/cache/
