@@ -293,6 +293,12 @@ export class Ground {
     geometry.setAttribute('uv', this.uv);
     geometry.setIndex(this.index);
     const texture = mapTexture(bake.map, bake.mapSize, this.anisotropy);
+    // Once the map is on the GPU its copy here is of no more use, and it is three quarters of
+    // what a tile holds in memory. (After a lost context every tile is baked again.)
+    texture.onUpdate = () => {
+      (texture.image as { data: Uint16Array | null }).data = null;
+      bake.map = NO_MAP;
+    };
     const material = this.materials.pop() ?? tileMaterial(this.uniforms);
     const u = material.uniforms;
     const parent = t.parent ?? t;
@@ -597,4 +603,6 @@ export class Ground {
 }
 
 const heightScratch = new Float64Array(9);
+/** Stands in for the map of a tile whose map lives on the GPU only. */
+const NO_MAP = new Uint16Array(0);
 const byDistance = (a: Tile, b: Tile): number => a.dist - b.dist;

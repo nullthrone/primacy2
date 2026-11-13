@@ -107,19 +107,25 @@ export const LANDING_LIGHT_HEIGHT = 500;
 /** The lamp comes up to full strength over this many metres of descent. */
 const LAMP_SWITCH_ON = 60;
 /** Illuminance of level ground straight under the lamp; direct sunlight is about 3. */
-const LAMP_POOL = 2.4;
+const LAMP_POOL = 3;
 /** Up to this height above the ground the lamp holds the pool at `LAMP_POOL`; above, the pool thins. */
 const LAMP_REGULATED_TO = 160;
 /** The lamp is not turned down further than for this height, however near the ground is. */
 const LAMP_REGULATED_FROM = 1.5;
 /** Share of its night strength the lamp keeps in daylight. */
 const LAMP_DAY_LEVEL = 0.1;
-/** Half angle of the cone, radians, and the share of it over which the edge fades. */
-export const LAMP_HALF_ANGLE = 1.3;
+/**
+ * Half angle of the cone, radians, and the share of it over which the edge fades. Together with
+ * the lean the cone ends at the level of the lamp: nothing of it goes up.
+ */
+export const LAMP_HALF_ANGLE = 1.08;
 export const LAMP_PENUMBRA = 0.5;
-/** The beam leaves the ship's underside leaning this far from straight down toward the nose, radians. */
-export const LAMP_FORWARD = 0.79;
-/** Where the lamp hangs: this far below the underside of the hull (metres) and this share of the hull radius ahead of the origin. */
+/** The beam leaves the lamp leaning this far from straight down toward the nose, radians. */
+export const LAMP_FORWARD = 0.52;
+/**
+ * Where the light leaves the ship: this far below the lowest point of the hull (metres) and this
+ * share of the hull radius ahead of the origin.
+ */
 export const LAMP_DROP = 0.3;
 export const LAMP_FORE = 0.4;
 
