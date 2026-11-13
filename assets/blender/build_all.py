@@ -43,6 +43,7 @@ MODELS = {
     'cargo_pod': 'props.cargo_pod',
     'missile': 'props.missile',
     'beacon': 'structures.beacon',
+    'base_ground': 'structures.base_ground',
     'cockpit_generic': 'props.cockpit_generic',
     'debris_0': 'props.debris_0',
     'debris_1': 'props.debris_1',

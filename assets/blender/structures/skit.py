@@ -255,11 +255,12 @@ def fit(obs, colliders, bound):
 
 def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, export=True, preview=True,
            direction=(0.5, -0.72, 0.62), zoom=1.2, preview_radius=None, target=(0, 0, 0), children=(),
-           require=(), merge=0.0, fit_skip=('portal',), preview_hide=(), post=None):
+           require=(), merge=0.0, fit_skip=('portal',), preview_hide=(), post=None, child_post=None):
     """Finalize, add child meshes, check collider fit, export, verify and render one preview.
 
     post(m) runs on the finished mesh object after the ambient occlusion bake and before the
-    export; generators use it to multiply tints into the "Col" attribute.
+    export; generators use it to multiply tints into the "Col" attribute. child_post(m, kids)
+    runs once the child meshes exist, with them as a dict by name, for the same purpose.
     """
     t0 = time.time()
     m.finalize(sharp_angle=sharp, ao=ao, ao_distance=ao_distance, merge_dist=merge)
@@ -270,6 +271,8 @@ def finish(m, colliders=None, bound=None, sharp=38.0, ao=True, ao_distance=2.0, 
     kids = []
     for name, sub, kw in children:
         kids.append((name, child_mesh(m, name, sub, **kw)))
+    if child_post is not None:
+        child_post(m, dict(kids))
     st = m.stats
     tris = st['triangles'] + sum(sum(len(pl.vertices) - 2 for pl in ob.data.polygons) for _, ob in kids)
     rep = dict(key=m.key, tris=tris, radius=st['bounding_radius'], bbox=[st['bbox_min'], st['bbox_max']],
