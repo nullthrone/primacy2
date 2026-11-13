@@ -4,7 +4,7 @@
 //
 // Starts two linked servers (scripts/dev.ts), opens the game in GPU-accelerated headless Chromium,
 // logs in, undocks, is shot down by a second pilot, comes back through insurance, engages cruise
-// and opens the maps.
+// and opens the maps; a new pilot trades across the servers; two more land at a ground base.
 // Screenshots go to screenshots/e2e/.
 // Exits with code 1 when a step fails or the page logged an error.
 import { spawn, spawnSync } from 'node:child_process';
@@ -14,6 +14,8 @@ import { chromium } from 'playwright';
 const OUT = 'screenshots/e2e';
 // PRIMACY2_JOURNEY_ONLY=1 skips the fight and flight checks and plays only the cross-server journey.
 const JOURNEY_ONLY = process.env.PRIMACY2_JOURNEY_ONLY === '1';
+// PRIMACY2_LANDING_ONLY=1 plays only the landing at a ground base.
+const LANDING_ONLY = process.env.PRIMACY2_LANDING_ONLY === '1';
 const URL = process.env.PRIMACY2_URL ?? 'http://localhost:8420';
 mkdirSync(OUT, { recursive: true });
 
@@ -216,6 +218,70 @@ async function throttleKeys(page, held, want) {
   }
 }
 
+/** From an undocked ship out of the station's mass lock, nose away from the station. */
+async function flyOutOf(page) {
+  await page.waitForTimeout(800);
+  if (!(await aimAwayFromStation(page))) throw new Error('journey: could not turn away from the station');
+  await page.keyboard.down('KeyW');
+  await page.keyboard.down('ShiftLeft');
+  try {
+    await page.waitForFunction(() => {
+      const self = window.primacy2.game.view?.self;
+      if (!self) throw new Error('the pilot lost the ship on the way out');
+      return Math.hypot(...self.state.pos) > 4700;
+    }, null, { timeout: 90_000 });
+  } catch (err) {
+    if (/lost the ship/.test(String(err?.message))) throw new ShipLost('the ship was shot down on the way out of the station');
+    throw err;
+  } finally {
+    await page.keyboard.up('ShiftLeft');
+    await page.keyboard.up('KeyW');
+  }
+}
+
+/**
+ * Fold jumps along `hops`; waits for the arrival (on the last hop including a handoff to another server).
+ * `c` is { page, shot, log, fail, problems, who }. A tunnel that is never seen is a failure.
+ */
+async function foldHops(c, hops, tunnelShot) {
+  const { page, shot, log, fail, problems, who } = c;
+  const final = hops[hops.length - 1];
+  for (const hop of hops) {
+    const last = hop === final;
+    // A frame watcher keeps the largest tunnel value seen: the tunnel can be over between two polls of the page.
+    await page.evaluate((id) => {
+      const g = window.primacy2.game;
+      window.__foldMax = 0;
+      const watch = () => { window.__foldMax = Math.max(window.__foldMax, g.view?.fx.fold ?? 0); if (!window.__foldStop) requestAnimationFrame(watch); };
+      window.__foldStop = false;
+      requestAnimationFrame(watch);
+      g.setFoldTarget(id);
+      g.startFold();
+    }, hop.id);
+    try {
+      await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+    } catch {
+      // The start was refused. Ask the server directly to learn why.
+      const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), hop.id);
+      if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+      else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
+    }
+    // The tunnel opens while the drive carries the ship; the last one may be photographed. Then wait until
+    // the ship is in the new system (on the last hop that includes the handoff to the other server).
+    const tunnel = await page.waitForFunction(() => window.__foldMax > 0.1, null, { timeout: 60_000, polling: 50 }).then(() => true, () => false);
+    if (tunnel && last && tunnelShot) await shot(tunnelShot);
+    // Every handoff shows the tunnel (warp gates included), so a jump without one is a failure.
+    if (!tunnel) problems.push(`${who}: the fold tunnel to ${hop.name} was never seen`);
+    await page.waitForFunction((id) => {
+      const v = window.primacy2.game.view;
+      return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
+    }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
+    await page.evaluate(() => { window.__foldStop = true; });
+    await page.waitForTimeout(600);
+    log(`arrived at ${hop.name}`);
+  }
+}
+
 async function journey(browser, problems, steps) {
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   const page = await ctx.newPage();
@@ -244,65 +310,10 @@ async function journey(browser, problems, steps) {
   const creditsNow = async () => digits(await page.innerText('.panel.wide header .credits'));
   const tap = () => page.evaluate(() => ({ serverId: window.__tap.serverId, welcomes: window.__tap.welcomes, pilot: window.__tap.pilot }));
 
-  // From the undocked ship out of the station's mass lock, nose away from the station.
-  const flyOut = async () => {
-    await page.waitForTimeout(800);
-    if (!(await aimAwayFromStation(page))) throw new Error('journey: could not turn away from the station');
-    await page.keyboard.down('KeyW');
-    await page.keyboard.down('ShiftLeft');
-    try {
-      await page.waitForFunction(() => {
-        const self = window.primacy2.game.view?.self;
-        if (!self) throw new Error('the pilot lost the ship on the way out');
-        return Math.hypot(...self.state.pos) > 4700;
-      }, null, { timeout: 90_000 });
-    } catch (err) {
-      if (/lost the ship/.test(String(err?.message))) throw new ShipLost('the ship was shot down on the way out of the station');
-      throw err;
-    } finally {
-      await page.keyboard.up('ShiftLeft');
-      await page.keyboard.up('KeyW');
-    }
-  };
+  const flyOut = () => flyOutOf(page);
 
   // Fold jumps along `hops`; waits for the arrival (on the last hop including a handoff to another server).
-  const foldTo = async (hops, tunnelShot) => {
-    const final = hops[hops.length - 1];
-    for (const hop of hops) {
-      const last = hop === final;
-      // A frame watcher keeps the largest tunnel value seen: the tunnel can be over between two polls of the page.
-      await page.evaluate((id) => {
-        const g = window.primacy2.game;
-        window.__foldMax = 0;
-        const watch = () => { window.__foldMax = Math.max(window.__foldMax, g.view?.fx.fold ?? 0); if (!window.__foldStop) requestAnimationFrame(watch); };
-        window.__foldStop = false;
-        requestAnimationFrame(watch);
-        g.setFoldTarget(id);
-        g.startFold();
-      }, hop.id);
-      try {
-        await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-      } catch {
-        // The start was refused. Ask the server directly to learn why.
-        const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), hop.id);
-        if (r.ok) await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
-        else throw new Error(`the fold jump to ${hop.name} was refused: ${r.err}`);
-      }
-      // The tunnel opens while the drive carries the ship; the last one may be photographed. Then wait until
-      // the ship is in the new system (on the last hop that includes the handoff to the other server).
-      const tunnel = await page.waitForFunction(() => window.__foldMax > 0.1, null, { timeout: 60_000, polling: 50 }).then(() => true, () => false);
-      if (tunnel && last && tunnelShot) await shot(tunnelShot);
-      // Not a failure: in some handoffs the client never reports a tunnel value above 0.1 (see the report).
-      if (!tunnel) log(`warning: the fold tunnel to ${hop.name} was never seen`);
-      await page.waitForFunction((id) => {
-        const v = window.primacy2.game.view;
-        return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
-      }, hop.id, { timeout: 120_000 }).catch(() => fail(`the pilot never arrived at ${hop.name}`));
-      await page.evaluate(() => { window.__foldStop = true; });
-      await page.waitForTimeout(600);
-      log(`arrived at ${hop.name}`);
-    }
-  };
+  const foldTo = (hops, tunnelShot) => foldHops({ page, shot, log, fail, problems, who: 'journey' }, hops, tunnelShot);
 
   // Remember the latest game events, so a failure can say what happened to the ship.
   await page.addInitScript(() => {
@@ -672,7 +683,579 @@ async function journey(browser, problems, steps) {
   check(t.pilot?.credits === alphaCredits, `credits are back at ${alphaCredits}, what the pilot had at Alpha before leaving`, `credits should be ${alphaCredits}, got ${t.pilot?.credits}`);
 }
 
+// ---------------------------------------------------------------------------------------------
+// The landing: two new pilots fly from Alpha's station to a ground base in cruise and drop at the
+// cruise ceiling; one lands beside the pad, flies to it and docks, the other crashes on purpose.
+// Nothing draws the ground or shows the base yet, so the pilots fly by the client's numbers
+// (`view.surface`): height above ground, vertical and ground speed, slope, landed.
+// ---------------------------------------------------------------------------------------------
+
+const MODE_LANDED = 5;
+
+/**
+ * Installed into the page of a landing pilot as `window.__L`: the steering that the numbers need.
+ * `cruiseAim` steers cruise toward the base's body; `setServo` runs a 50 Hz controller that holds
+ * the ship level and flies it by velocity over the ground (keys are pressed through the input
+ * module's own state); `status` reads the numbers back.
+ */
+function installLandingTools() {
+  const g = window.primacy2.game;
+  const L = (window.__L = { servo: null, active: false, err: null, rec: { minVs: 0, gs: 0 }, last: null });
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+  const scale = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const len = (a) => Math.hypot(a[0], a[1], a[2]);
+  const unit = (a) => scale(a, 1 / (len(a) || 1));
+  const clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
+  const qrot = (q, v) => {
+    const [x, y, z, w] = q;
+    const tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+    return [v[0] + w * tx + (y * tz - z * ty), v[1] + w * ty + (z * tx - x * tz), v[2] + w * tz + (x * ty - y * tx)];
+  };
+  const qun = (q, v) => qrot([-q[0], -q[1], -q[2], q[3]], v);
+  L.qun = qun;
+
+  // Distance from point c to the segment from the origin to p.
+  const segDist = (c, p) => {
+    const t = clamp(dot(c, p) / (dot(p, p) || 1), 0, 1);
+    return len(sub(c, scale(p, t)));
+  };
+
+  /**
+   * One cruise steering step toward the base `siteId`. Phase 'transfer' aims at a point three radii
+   * straight above the pad (by way of a point beside the body when the body is in the way), phase
+   * 'dive' at the pad itself, so that the cruise ceiling ends the flight over the base. Other
+   * bodies are passed at a distance. Returns the state of the approach, null when the site is gone.
+   */
+  L.cruiseAim = (siteId, phase) => {
+    const v = g.view;
+    const site = v?.sites.find((s) => s.def.id === siteId);
+    const self = v?.self;
+    if (!v || !self || !site) return null;
+    const o = self.rel;
+    const host = v.bodies[site.def.ground.body];
+    const R = host.def.radius;
+    const C = sub(host.rel, o);
+    const pad = sub(site.rel, o);
+    const u = unit(sub(pad, C));
+    const s = unit(scale(C, -1));
+    let aim = pad;
+    let label = 'pad';
+    let near = false;
+    if (phase === 'transfer') {
+      const T1 = add(C, scale(u, 3 * R));
+      if (segDist(C, T1) < 1.3 * R) {
+        let w = sub(u, scale(s, dot(u, s)));
+        if (len(w) < 1e-3) w = cross(s, Math.abs(s[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]);
+        aim = add(C, scale(unit(w), 3 * R));
+        label = 'beside the body';
+      } else {
+        aim = T1;
+        label = 'above the pad';
+      }
+      near = len(T1) < 0.5 * R && dot(s, u) > 0.9;
+    }
+    // Other bodies on the way are passed at 2.6 radii.
+    let detour = null;
+    let worst = Infinity;
+    for (const [i, b] of v.bodies.entries()) {
+      if (i === site.def.ground.body) continue;
+      const bc = sub(b.rel, o);
+      const u2 = dot(bc, aim) / dot(aim, aim);
+      if (u2 <= 0 || u2 >= 1) continue;
+      const side = sub(bc, scale(aim, u2));
+      const miss = len(side);
+      if (miss >= b.def.radius * 2.2 || miss >= worst) continue;
+      worst = miss;
+      const away = miss > 1 ? scale(side, -1 / miss) : unit(cross(aim, [0, 1, 0]));
+      aim = add(bc, scale(away, b.def.radius * 2.6));
+      detour = b.def.name;
+    }
+    const p = g.project(add(aim, o));
+    let off;
+    if (p.behind) { g.input.addMouse(60, 0); off = Infinity; } else {
+      const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
+      g.input.addMouse(ex * 0.2, ey * 0.2);
+      off = Math.hypot(ex, ey);
+    }
+    const st = self.state;
+    return {
+      off, label, near, detour, mode: v.mode, aimDist: len(aim), padDist: len(pad), centreDist: len(C), R,
+      speed: st.mode === 1 ? st.cruiseSpeed : len(self.vel), surface: v.surface ? v.surface.body : null,
+    };
+  };
+
+  const KEYS = ['thrustRight', 'thrustLeft', 'thrustUp', 'thrustDown', 'thrustForward', 'thrustBack', 'rollLeft', 'rollRight'];
+  const press = (k, on) => { if (on) g.input.held.add(k); else g.input.held.delete(k); };
+  const release = () => { for (const k of KEYS) g.input.held.delete(k); };
+
+  /**
+   * Sets the controller (null stops it). Fields of `p`: `site` and `off` compute `target` as the point
+   * `off` metres from the pad of that base on the ship's side; `target` is a body-fixed point to hold
+   * position over; `land` descends to the ground; `alt` holds a height; `sink` descends at that speed
+   * without care; `liftoff` presses thrust up while landed; `vcap` caps the speed over the ground.
+   */
+  L.setServo = (p) => {
+    if (p && p.site !== undefined) {
+      const v = g.view;
+      const site = v.sites.find((s) => s.def.id === p.site);
+      const pad = site.def.ground.pos;
+      const ship = v.surface.ship.pos;
+      const up = unit(pad);
+      let d = sub(ship, pad);
+      d = sub(d, scale(up, dot(d, up)));
+      if (len(d) < 1) d = cross(up, [0, 1, 0]);
+      p = { ...p, target: add(pad, scale(unit(d), p.off ?? 350)) };
+    }
+    L.servo = p;
+    L.rec = { minVs: 0, gs: 0 };
+    if (!p) release();
+  };
+
+  /** The numbers of the ship over the ground, and how far it is from the controller's target. */
+  L.status = () => {
+    const v = g.view;
+    const ship = v?.surface?.ship;
+    if (!v || !v.self || !ship) return null;
+    let hdist = null;
+    const p = L.servo;
+    if (p?.target) {
+      const e = sub(p.target, ship.pos);
+      const up = unit(ship.pos);
+      hdist = len(sub(e, scale(up, dot(e, up))));
+    }
+    return {
+      mode: v.mode, height: ship.height, vs: ship.verticalSpeed, gs: ship.groundSpeed, slope: ship.slope, landed: ship.landed,
+      hull: v.self.state.hull, hullMax: v.self.stats.hullMax, hdist, pos: ship.pos, minVs: L.rec.minVs, recGs: L.rec.gs, last: L.last, err: L.err,
+    };
+  };
+
+  L.tick = () => {
+    const p = L.servo;
+    const v = g.view;
+    const ship = v?.surface?.ship;
+    if (!p || !v || !v.self || !ship || (v.mode !== 0 && v.mode !== MODE_LANDED)) {
+      if (L.active) { release(); L.active = false; }
+      return;
+    }
+    L.active = true;
+    if (ship.height < 400) {
+      if (ship.verticalSpeed < L.rec.minVs) { L.rec.minVs = ship.verticalSpeed; L.rec.gs = ship.groundSpeed; }
+      L.last = { pos: ship.pos, height: ship.height, vs: ship.verticalSpeed, gs: ship.groundSpeed, hull: v.self.state.hull };
+    }
+    if (v.mode === MODE_LANDED) {
+      release();
+      if (p.liftoff) press('thrustUp', true);
+      return;
+    }
+    const self = v.self;
+    const st = self.state;
+    const up = ship.up;
+    // Level: pitch through the aim buffer (the part still pending is counted), roll through the keys.
+    const eL = qun(self.rot, cross(qrot(self.rot, [0, 1, 0]), up));
+    const pending = (st.aim ? st.aim[1] : 0) + g.input.aimY;
+    const want = 0.7 * eL[0];
+    if (Math.abs(want - pending) > 0.004) g.input.aimY += want - pending;
+    const diff = clamp(1.5 * eL[2], -1.2, 1.2) - st.angVel[2];
+    press('rollLeft', diff > 0.1);
+    press('rollRight', diff < -0.1);
+    // Velocity: toward the target over the ground, and along the vertical.
+    const rot = v.surface.rot;
+    const upBF = unit(ship.pos);
+    let vdes = [0, 0, 0];
+    let hdist = 0;
+    if (p.target) {
+      const e = sub(p.target, ship.pos);
+      const eh = sub(e, scale(upBF, dot(e, upBF)));
+      hdist = len(eh);
+      vdes = scale(qrot(rot, scale(eh, 1 / (hdist || 1))), Math.min(p.vcap ?? 100, 0.08 * hdist));
+    }
+    const h = ship.height;
+    let vu;
+    if (p.sink != null) vu = -p.sink;
+    else if (p.land) vu = hdist < 150 + 0.5 * h ? -clamp(0.06 * h, 1.8, 60) : 0;
+    else vu = clamp(0.25 * ((p.alt ?? 0) - h), -30, 30);
+    vdes = add(vdes, scale(up, vu));
+    const el = qun(self.rot, sub(vdes, self.vel));
+    const db = 0.4;
+    press('thrustRight', el[0] > db);
+    press('thrustLeft', el[0] < -db);
+    press('thrustUp', el[1] > db);
+    press('thrustDown', el[1] < -db);
+    press('thrustForward', el[2] < -db);
+    press('thrustBack', el[2] > db);
+  };
+  setInterval(() => { try { L.tick(); } catch (e) { L.err = String((e && e.stack) || e); } }, 20);
+
+  // Frame times, for the frame rate of a descent.
+  L.fpsStart = () => {
+    L.frames = [];
+    L.fpsOn = true;
+    let last = performance.now();
+    const f = (t) => { if (!L.fpsOn) return; L.frames.push(t - last); last = t; requestAnimationFrame(f); };
+    requestAnimationFrame(f);
+  };
+  L.fpsStop = () => { L.fpsOn = false; return L.frames; };
+}
+
+/** Minimum (over one-second windows) and median (over frames) frame rate of a list of frame times in ms. */
+function frameRates(frames) {
+  const fps = frames.filter((d) => d > 0).map((d) => 1000 / d).sort((a, b) => a - b);
+  let min = Infinity, acc = 0, n = 0;
+  for (const d of frames) {
+    acc += d; n++;
+    if (acc >= 1000) { min = Math.min(min, (n * 1000) / acc); acc = 0; n = 0; }
+  }
+  return { frames: frames.length, seconds: frames.reduce((a, b) => a + b, 0) / 1000, min: Number.isFinite(min) ? min : null, median: fps.length ? fps[Math.floor(fps.length / 2)] : null };
+}
+
+async function landing(browser, problems, steps, findings) {
+  const log = (msg) => console.log(`landing: ${msg}`);
+  const REMOTE = process.env.PRIMACY2_LANDING_REMOTE === '1';  // tests the search for a base in another system
+  const stamp = Date.now() % 100000;
+
+  /** A new pilot in a fresh browser context, with the landing tools installed. */
+  const newPilot = async (who, name) => {
+    const ctx = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => problems.push(`pageerror (${who}): ${e.message}`));
+    page.on('console', (m) => { if (m.type() === 'error') problems.push(`console (${who}): ${m.text()}`); });
+    await page.addInitScript(() => {
+      window.__events = [];
+      const watch = () => {
+        const ev = window.primacy2?.game?.view?.events;
+        if (ev && ev !== window.__last) { window.__last = ev; for (const e of ev) if (e.e !== 'cruise') window.__events.push(JSON.stringify(e).slice(0, 160)); window.__events.splice(0, Math.max(0, window.__events.length - 40)); }
+        requestAnimationFrame(watch);
+      };
+      requestAnimationFrame(watch);
+    });
+    await page.goto(URL, { waitUntil: 'load' });
+    await page.waitForSelector('.start-card', { timeout: 20_000 });
+    await login(page, name);
+    await page.waitForTimeout(800);
+    await page.evaluate(installLandingTools);
+    const P = { who, name, ctx, page, log: (m) => log(`${who}: ${m}`) };
+    P.shot = async (n) => { await page.screenshot({ path: `${OUT}/${n}.png` }); steps.push(n); };
+    P.dump = () => page.evaluate(() => {
+      const v = window.primacy2.game.view;
+      const s = window.__L?.status();
+      return { mode: v?.mode, system: v?.system.id, surface: s ? { ...s, pos: undefined, last: undefined } : null, events: (window.__events ?? []).slice(-8) };
+    }).catch(() => null);
+    P.fail = async (what) => {
+      await page.screenshot({ path: `${OUT}/landing-failure-${who}.png` }).catch(() => {});
+      throw new Error(`${who}: ${what} (${JSON.stringify(await P.dump())})`);
+    };
+    P.check = (ok, fact, problem) => { if (ok) P.log(`ok: ${fact}`); else problems.push(`landing (${who}): ${problem ?? `NOT ${fact}`}`); };
+    P.status = () => page.evaluate(() => window.__L.status());
+    /** Polls the controller's numbers every 100 ms until `done` says so; logs progress now and then. */
+    P.until = async (what, done, timeoutMs, every = 15_000) => {
+      const t0 = Date.now();
+      let lastLog = t0;
+      for (;;) {
+        const s = await P.status();
+        if (!s) await P.fail(`lost the ship while ${what}`);
+        if (s.err) await P.fail(`the controller failed while ${what}: ${s.err}`);
+        if (s.mode === MODE.destroyed) return s;
+        if (done(s)) return s;
+        if (Date.now() - t0 > timeoutMs) await P.fail(`timeout while ${what}`);
+        if (Date.now() - lastLog > every) {
+          lastLog = Date.now();
+          P.log(`${what}: height ${s.height.toFixed(1)} m, vertical ${s.vs.toFixed(1)} m/s, ground ${s.gs.toFixed(1)} m/s, off target ${s.hdist === null ? '-' : s.hdist.toFixed(0)} m`);
+        }
+        await page.waitForTimeout(100);
+      }
+    };
+    return P;
+  };
+
+  const baseOf = (page) => page.evaluate(() => {
+    const s = window.primacy2.game.view.sites.find((x) => x.def.kind === 'base');
+    return s ? { id: s.def.id, name: s.def.name, body: s.def.ground.body, dist: s.dist } : null;
+  });
+
+  /**
+   * Undock, find a base (here, else in the nearest system in range that has one, jumping there) and
+   * fly to it in cruise until the drive ends cruise at the ceiling above the ground. Returns the base.
+   */
+  const flyToBase = async (P, orbitShot) => {
+    const { page } = P;
+    await undock(page);
+    await flyOutOf(page);
+    let base = REMOTE ? null : await baseOf(page);
+    if (!base) {
+      await page.evaluate(() => window.primacy2.game.cmd({ k: 'galaxy' }));
+      await page.waitForFunction(() => (window.primacy2.game.view?.galaxy?.sectors.length ?? 0) > 0, null, { timeout: 8000 });
+      const route = await page.evaluate(() => {
+        const v = window.primacy2.game.view;
+        const range = v.self.stats.jumpRange;
+        const all = v.galaxy.sectors.flatMap((sec) => sec.systems.map((sys) => ({ id: sys.id, name: sys.name, pos: sys.pos, tags: sys.tags ?? [] })));
+        const dist = (a, b) => Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1], a.pos[2] - b.pos[2]);
+        const start = all.find((x) => x.id === v.system.id);
+        // Breadth first over the systems in range, so that the system with a base that takes the fewest jumps wins.
+        const prev = new Map([[start.id, null]]);
+        const queue = [start];
+        let goal = null;
+        while (queue.length && !goal) {
+          const a = queue.shift();
+          for (const b of all) {
+            if (prev.has(b.id) || dist(a, b) > range) continue;
+            prev.set(b.id, a);
+            if (b.tags.includes('base')) { goal = b; break; }
+            queue.push(b);
+          }
+        }
+        const hops = [];
+        for (let x = goal; x && prev.get(x.id); x = prev.get(x.id)) hops.unshift({ id: x.id, name: x.name });
+        return { range, hops };
+      });
+      if (!route.hops.length) throw new Error(`${P.who}: no other system with a ground base within the drive range of ${route.range} ly`);
+      P.log(`no base here; jumping ${route.hops.map((h) => h.name).join(' -> ')}`);
+      await foldHops({ page, shot: P.shot, log: P.log, fail: P.fail, problems, who: `landing (${P.who})` }, route.hops, null);
+      base = await baseOf(page);
+      if (!base) await P.fail('the system with the base tag has no base site');
+    }
+    P.log(`base ${base.name} (site ${base.id}) on body ${base.body}, ${(base.dist / 1000).toFixed(0)} km away`);
+    await page.evaluate((id) => window.primacy2.game.setNav(id), base.id);
+
+    const held = {};
+    let phase = 'transfer';
+    let everCruise = false;
+    let lastEngage = 0;
+    let lastLog = 0;
+    let shotDone = false;
+    const t0 = Date.now();
+    for (;;) {
+      if (Date.now() - t0 > 20 * 60_000) await P.fail('the base was not reached in cruise in time');
+      const s = await page.evaluate(([id, ph]) => window.__L.cruiseAim(id, ph), [base.id, phase]);
+      if (!s) {
+        const d = await P.dump();
+        if (d?.mode === MODE.destroyed) throw new ShipLost(`${P.who}: the ship was lost on the way to the base`);
+        await P.fail('lost sight of the base');
+      }
+      if (Date.now() - lastLog > 10_000) {
+        lastLog = Date.now();
+        P.log(`${phase}: ${JSON.stringify({ aim: s.label, aimKm: Math.round(s.aimDist / 1000), centreKm: Math.round(s.centreDist / 1000), speedKms: +(s.speed / 1000).toFixed(1), off: Math.round(s.off), detour: s.detour, mode: s.mode })}`);
+      }
+      if (s.mode === MODE.cruise) {
+        everCruise = true;
+        const aligned = s.off < 140;
+        let want = null;
+        if (phase === 'transfer') {
+          // Slow down toward a waypoint: about an eighth of the distance per second at most.
+          const ceiling = Math.max(s.aimDist / 8, 45_000);
+          if (aligned && s.speed < ceiling * 0.5) want = 'KeyW';
+          else if (s.speed > ceiling) want = 'KeyS';
+        } else if (aligned) {
+          want = 'KeyW';  // the drive's own limit above the ground does the slowing
+        } else if (s.speed > 20_000) {
+          want = 'KeyS';
+        }
+        await throttleKeys(page, held, want);
+        if (phase === 'transfer' && s.near) { phase = 'dive'; P.log(`above the pad at ${Math.round(s.centreDist / 1000)} km from the centre, diving at it`); }
+        if (!shotDone && s.centreDist < 6 * s.R) { shotDone = true; await P.shot(orbitShot); }
+      } else if (s.mode === MODE.normal) {
+        if (everCruise && s.surface === base.body) break;  // the drive ended cruise at the ceiling
+        if (Date.now() - lastEngage > 9000) {
+          lastEngage = Date.now();
+          await throttleKeys(page, held, null);
+          await page.evaluate(() => window.primacy2.game.toggleCruise());
+          await page.waitForTimeout(5500);
+          continue;
+        }
+      } else if (s.mode === MODE.destroyed) {
+        throw new ShipLost(`${P.who}: the ship was lost on the way to the base`);
+      }
+      await page.waitForTimeout(80);
+    }
+    await throttleKeys(page, held, null);
+    return base;
+  };
+
+  // ---- the pilots ---------------------------------------------------------------------------
+  const A = await newPilot('lander', `Lander ${stamp}`);
+  const B = await newPilot('crasher', `Crasher ${stamp}`);
+  let rates = null;
+  try {
+    // Both fly to the ground at the same time; the second waits above it until the first has landed.
+    const [baseA, baseB] = await Promise.all([flyToBase(A, '40-landing-orbit'), flyToBase(B, '40b-landing-orbit-crasher')]);
+    if (baseA.id !== baseB.id) problems.push(`landing: the pilots found different bases (${baseA.id} and ${baseB.id})`);
+    const base = baseA;
+
+    // 2. The drop: cruise ended by the game at the ceiling, with its notice.
+    const noticeText = () => A.page.$eval('.notices', (n) => n.innerText).catch(() => '');
+    let notice = await noticeText();
+    for (let i = 0; i < 30 && !/cruise ended/i.test(notice); i++) { await A.page.waitForTimeout(100); notice = await noticeText(); }
+    const drop = await A.status();
+    A.log(`dropped at the ceiling: height ${drop.height.toFixed(0)} m, vertical ${drop.vs.toFixed(1)} m/s, ground ${drop.gs.toFixed(1)} m/s, notice ${JSON.stringify(notice.replace(/\s+/g, ' ').trim())}`);
+    A.check(drop.mode === MODE.normal && !drop.landed, 'cruise ended in normal flight over the ground', `after the drop the mode should be normal flight, got ${drop.mode}`);
+    A.check(/cruise ended/i.test(notice), 'the HUD says the cruise ended at the ceiling', `no cruise-ended notice after the drop, notices: ${JSON.stringify(notice)}`);
+    A.check(drop.height > 500, `the drop is high above the ground (${drop.height.toFixed(0)} m)`, `the drop should be well above the ground, height ${drop.height}`);
+    await A.shot('41-landing-after-drop');
+    await B.shot('41b-landing-after-drop-crasher');
+    // The crasher stays where it is until it is needed.
+    const bDrop = await B.status();
+    await B.page.evaluate((h) => window.__L.setServo({ alt: h, vcap: 0 }), Math.min(bDrop.height, 2000));
+
+    // 3. Descent: the pilot's controller holds the ship level and flies it to a point 350 m beside the pad.
+    const hullBefore = drop.hull;
+    await A.page.evaluate(() => window.__L.fpsStart());
+    await A.page.evaluate((id) => window.__L.setServo({ site: id, off: 350, land: true }), base.id);
+    let shotMid = false;
+    const landedState = await A.until('descending', (s) => {
+      if (!shotMid && s.height < 1500) { shotMid = true; A.shot('42-landing-descent').catch(() => {}); }
+      return s.mode === MODE_LANDED;
+    }, 8 * 60_000);
+    const frames = await A.page.evaluate(() => window.__L.fpsStop());
+    rates = frameRates(frames);
+    if (landedState.mode === MODE.destroyed) await A.fail('the lander was destroyed');
+    await A.page.evaluate(() => window.__L.setServo({ liftoff: false }));
+    await A.page.waitForTimeout(500);
+    const landedNow = await A.page.evaluate(() => {
+      const v = window.primacy2.game.view;
+      const sh = v.surface?.ship;
+      return { mode: v.mode, landed: sh?.landed, hull: v.self.state.hull, hullMax: v.self.stats.hullMax, vs: sh?.verticalSpeed, gs: sh?.groundSpeed, slope: sh?.slope, height: sh?.height, pos: sh?.pos };
+    });
+    A.log(`landed: ${JSON.stringify({ ...landedNow, pos: undefined })}`);
+    A.check(landedNow.mode === MODE_LANDED && landedNow.landed === true, 'the client reports the ship landed (mode 5, surface.ship.landed)', `the ship should be landed, got ${JSON.stringify({ ...landedNow, pos: undefined })}`);
+    A.check(landedNow.hull === hullBefore && landedNow.hull === landedNow.hullMax, `the hull took no damage (${landedNow.hull} of ${landedNow.hullMax})`, `the hull changed on the way down: ${hullBefore} before, ${landedNow.hull} landed, maximum ${landedNow.hullMax}`);
+    A.check(landedNow.height === 0 && Math.abs(landedNow.vs) < 0.01 && landedNow.gs < 0.05, 'landed means height 0 and no speed over the ground', `a landed ship should have height 0 and no speed, got ${JSON.stringify({ ...landedNow, pos: undefined })}`);
+    const pad = await A.page.evaluate((id) => window.primacy2.game.view.sites.find((s) => s.def.id === id).def.ground.pos, base.id);
+    const distPad = (p) => Math.hypot(p[0] - pad[0], p[1] - pad[1], p[2] - pad[2]);
+    A.check(distPad(landedNow.pos) < 700, `it stands ${distPad(landedNow.pos).toFixed(0)} m from the pad centre`, `the ship should stand within 700 m of the pad, got ${distPad(landedNow.pos)} m`);
+    await A.shot('43-landed-cockpit');
+    await A.page.keyboard.press('KeyV');
+    await A.page.waitForTimeout(900);
+    await A.shot('44-landed-chase');
+    await A.page.keyboard.press('KeyV');
+    await A.page.waitForTimeout(500);
+
+    // 4. Thirty seconds on the ground: the ship does not move relative to the base.
+    const posAt = () => A.page.evaluate(() => { const v = window.primacy2.game.view; return { pos: v.surface?.ship.pos, mode: v.mode, hull: v.self?.state.hull }; });
+    const p0 = await posAt();
+    let drift = 0;
+    for (let i = 0; i < 6; i++) {
+      await A.page.waitForTimeout(5000);
+      const p = await posAt();
+      drift = Math.max(drift, Math.hypot(p.pos[0] - p0.pos[0], p.pos[1] - p0.pos[1], p.pos[2] - p0.pos[2]));
+      if (p.mode !== MODE_LANDED || p.hull !== p0.hull) { drift = Infinity; break; }
+    }
+    A.check(drift < 0.01, `30 s on the ground: the ship moved ${drift.toExponential(1)} m in the body-fixed frame and stayed landed`, `the landed ship moved ${drift} m (or left the landed state) in 30 s`);
+    await A.shot('45-landed-30s');
+
+    // 6. The second pilot crashes on purpose, 150 m from the lander, while the lander watches.
+    const crash = await (async () => {
+      await B.page.evaluate((p) => {
+        const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+        const n = Math.hypot(...p);
+        const up = p.map((x) => x / n);
+        let t = cross(up, [0, 1, 0]);
+        if (Math.hypot(...t) < 1e-3) t = cross(up, [1, 0, 0]);
+        const tl = Math.hypot(...t);
+        window.__crashTarget = [p[0] + (t[0] / tl) * 150, p[1] + (t[1] / tl) * 150, p[2] + (t[2] / tl) * 150];
+        window.__L.setServo({ target: window.__crashTarget, alt: 600, vcap: 100 });
+      }, landedNow.pos);
+      await B.until('crasher moving over the lander', (s) => s.hdist !== null && s.hdist < 20 && Math.abs(s.height - 600) < 25 && s.gs < 3, 6 * 60_000);
+      const hullFull = (await B.status()).hull;
+      // First a hard landing the ship survives: 18 m/s down.
+      await B.page.evaluate(() => window.__L.setServo({ target: window.__crashTarget, sink: 18, vcap: 100 }));
+      await B.until('crasher diving', (s) => s.hull < hullFull || s.mode === MODE_LANDED, 90_000, 5000);
+      await B.page.waitForTimeout(1500);
+      const hit1 = await B.status();
+      const sink = -hit1.minVs;
+      const side = hit1.recGs;
+      const over = Math.hypot(Math.max(0, sink - 6), Math.max(0, side - 8));
+      const predicted = 0.25 * Math.pow(over / 10, 1.5);
+      const lost = (hullFull - hit1.hull) / hit1.hullMax;
+      B.log(`hard landing: approach ${sink.toFixed(1)} m/s down, ${side.toFixed(1)} m/s along; excess ${over.toFixed(1)} m/s; the rule says ${(predicted * 100).toFixed(0)}% of the hull for a stock Wisp, the hull lost ${(lost * 100).toFixed(1)}% (${hullFull} -> ${hit1.hull} of ${hit1.hullMax})`);
+      B.check(hit1.hull < hullFull && hit1.mode !== MODE.destroyed, `the 18 m/s landing damaged the hull (${hullFull} -> ${hit1.hull}) and the ship survived`, `an 18 m/s landing should damage the hull of a stock ship without destroying it: ${JSON.stringify({ hullFull, hit1: { ...hit1, pos: undefined, last: undefined } })}`);
+      B.check(lost > predicted * 0.5 && lost < predicted * 1.6, `the loss (${(lost * 100).toFixed(1)}%) is within 0.5x to 1.6x of the rule's ${(predicted * 100).toFixed(1)}%`, `the hull loss ${(lost * 100).toFixed(1)}% does not fit the rule's ${(predicted * 100).toFixed(1)}% for an excess of ${over.toFixed(1)} m/s`);
+      await B.shot('50-hard-landing-damaged');
+
+      // Then up again and straight down at 70 m/s: that destroys the ship.
+      await B.page.evaluate(() => window.__L.setServo({ target: window.__crashTarget, alt: 600, vcap: 100, liftoff: true }));
+      await B.until('crasher climbing', (s) => s.mode === MODE.normal && Math.abs(s.height - 600) < 25 && s.gs < 3 && s.hdist < 20, 4 * 60_000);
+      await B.page.evaluate(() => window.__L.setServo({ target: window.__crashTarget, sink: 70, vcap: 100 }));
+      const t0 = Date.now();
+      for (;;) {
+        const d = await B.page.evaluate(() => ({ mode: window.primacy2.game.view?.mode, self: window.primacy2.game.view?.self != null }));
+        if (d.mode === MODE.destroyed || !d.self) break;
+        if (Date.now() - t0 > 90_000) await B.fail('the 70 m/s dive did not end the ship');
+        await B.page.waitForTimeout(50);
+      }
+      const gone = await B.page.evaluate(() => ({ mode: window.primacy2.game.view?.mode, last: window.__L.last }));
+      await B.page.waitForTimeout(600);
+      const crashNotice = await B.page.$eval('.notices', (n) => n.innerText).catch(() => '');
+      B.log(`destroyed: last seen ${JSON.stringify({ ...gone.last, pos: undefined })}; notices ${JSON.stringify(crashNotice.replace(/\s+/g, ' ').trim().slice(0, 120))}`);
+      await B.shot('51-crash-destroyed');
+      B.check(gone.mode === MODE.destroyed, 'the 70 m/s dive destroyed the ship (mode 4)', `the ship should be destroyed, mode ${gone.mode}`);
+      B.check(gone.last.vs < -40, `it was descending at ${(-gone.last.vs).toFixed(0)} m/s at the last look`, `the crasher was not diving: ${JSON.stringify({ ...gone.last, pos: undefined })}`);
+      return gone.last;
+    })();
+
+    // The wreck is listed in the lander's contacts where the ship hit.
+    await A.page.waitForFunction(() => window.primacy2.game.view?.ents.some((e) => e.info.kind === 6), null, { timeout: 15_000 }).catch(() => {});
+    const wreck = await A.page.evaluate(() => {
+      const v = window.primacy2.game.view;
+      const w = v.ents.filter((e) => e.info.kind === 6).sort((p, q) => Math.hypot(...p.rel) - Math.hypot(...q.rel));
+      if (!w.length || !v.surface?.ship) return null;
+      // The wreck relative to the lander's ship in system axes, turned into body-fixed axes by the inverse body rotation.
+      const rel = [w[0].rel[0] - v.self.rel[0], w[0].rel[1] - v.self.rel[1], w[0].rel[2] - v.self.rel[2]];
+      const bf = window.__L.qun(v.surface.rot, rel);
+      const p = v.surface.ship.pos;
+      return { count: w.length, pos: [p[0] + bf[0], p[1] + bf[1], p[2] + bf[2]] };
+    });
+    if (!wreck) problems.push('landing (lander): the lander sees no wreck after the crash');
+    else {
+      const d = Math.hypot(wreck.pos[0] - crash.pos[0], wreck.pos[1] - crash.pos[1], wreck.pos[2] - crash.pos[2]);
+      A.check(d < 80, `a wreck is listed ${d.toFixed(0)} m from where the crasher last was (${wreck.count} wreck(s) in view)`, `the wreck is ${d.toFixed(0)} m from the crash point, expected within 80 m`);
+    }
+    await A.shot('52-wreck-seen-from-lander');
+
+    // 5. Lift off, fly to the pad, dock, market, undock.
+    await A.page.evaluate((id) => window.__L.setServo({ site: id, off: 170, alt: 40, liftoff: true, vcap: 60 }), base.id);
+    const lifted = await A.until('lifting off', (s) => s.mode === MODE.normal && s.height > 5, 30_000, 5000);
+    A.check(lifted.mode === MODE.normal && !lifted.landed, `thrust up lifts the ship off (height ${lifted.height.toFixed(1)} m)`, `the ship did not lift off: ${JSON.stringify({ ...lifted, pos: undefined, last: undefined })}`);
+    await A.shot('46-liftoff');
+    await A.until('flying to the pad', (s) => s.hdist !== null && s.hdist < 25 && Math.abs(s.height - 40) < 15 && s.gs < 4, 4 * 60_000);
+    await A.shot('47-at-the-pad');
+    const nearPad = await A.page.evaluate(() => window.primacy2.game.view.surface.ship.pos);
+    A.log(`at the pad: ${distPad(nearPad).toFixed(0)} m from its centre`);
+    const prompt = await A.page.$eval('.prompt', (n) => n.innerText).catch(() => '');
+    A.check(/dock/i.test(prompt), `the HUD offers docking at the pad (${JSON.stringify(prompt.trim())})`, `no dock prompt at the pad: ${JSON.stringify(prompt)}`);
+    await A.page.evaluate(() => window.__L.setServo(null));
+    const docked = await A.page.evaluate(() => window.primacy2.game.cmd({ k: 'dock' }));
+    A.check(docked.ok === true, 'the dock command is accepted at the base', `docking at the base was refused: ${JSON.stringify(docked)}`);
+    await A.page.waitForFunction(() => window.primacy2.game.view?.mode === 3, null, { timeout: 10_000 }).catch(() => A.fail('the ship did not dock at the base'));
+    await A.page.waitForSelector('.panel.wide .scroll > table tbody tr', { timeout: 10_000 }).catch(() => A.fail('the market of the base did not open'));
+    await A.page.waitForTimeout(1000);
+    const headText = await A.page.$eval('.panel.wide header', (n) => n.innerText).catch(() => '');
+    const rows = await A.page.$$eval('.panel.wide .scroll > table tbody tr:not(.lots)', (rs) => rs.length);
+    A.check(headText.includes(base.name) && rows > 0, `docked: the panel is headed ${JSON.stringify(headText.replace(/\s+/g, ' ').trim().slice(0, 60))} and the market lists ${rows} goods`, `the base panel should name ${base.name} and list goods: ${JSON.stringify(headText)}, ${rows} rows`);
+    await A.shot('48-docked-at-base');
+    await A.page.click('.panel header button.primary');
+    await A.page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 10_000 }).catch(() => A.fail('the ship did not undock at the base'));
+    await A.page.waitForTimeout(1500);
+    const out = await A.page.evaluate(() => { const v = window.primacy2.game.view; return { pos: v.surface?.ship.pos, height: v.surface?.ship.height }; });
+    A.check(out.pos && Math.abs(distPad(out.pos) - 750) < 250, `undocked ${out.pos ? distPad(out.pos).toFixed(0) : '?'} m from the pad centre`, `an undocked ship should be about 750 m from the pad, got ${out.pos ? distPad(out.pos) : null}`);
+    await A.shot('49-undocked-at-base');
+  } finally {
+    await A.page.evaluate(() => window.__L?.setServo(null)).catch(() => {});
+    await B.page.evaluate(() => window.__L?.setServo(null)).catch(() => {});
+    await A.ctx.close().catch(() => {});
+    await B.ctx.close().catch(() => {});
+  }
+
+  // 7. The frame rate of the descent.
+  if (rates) {
+    log(`frame rate during the descent (${rates.frames} frames in ${rates.seconds.toFixed(0)} s, a second pilot rendering at the same time): minimum ${rates.min?.toFixed(1)} fps over a second, median ${rates.median?.toFixed(1)} fps`);
+    if ((rates.min ?? 99) < 30 || (rates.median ?? 99) < 30) findings.push(`frame rate below 30 during the landing descent: minimum ${rates.min?.toFixed(1)}, median ${rates.median?.toFixed(1)} fps`);
+  }
+}
+
 const problems = [];
+const findings = [];
 const steps = [];
 let servers = null;
 let browser = null;
@@ -685,7 +1268,7 @@ try {
       '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-background-timer-throttling',
     ],
   });
-  if (!JOURNEY_ONLY) {  // the fight, insurance and flight checks; skipped when only the journey is wanted
+  if (!JOURNEY_ONLY && !LANDING_ONLY) {  // the fight, insurance and flight checks; skipped when only the journey is wanted
     const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
     page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') problems.push(`console: ${m.text()}`); });
@@ -894,14 +1477,28 @@ try {
     console.log(`steps: ${steps.join(', ')}`);
     console.log(`state: ${JSON.stringify(await state())}, fps ${fps}`);
   }
-  // The journey runs last, as a new pilot in a fresh browser context.
-  for (let attempt = 1; ; attempt++) {
-    try {
-      await journey(browser, problems, steps);
-      break;
-    } catch (err) {
-      if (!(err instanceof ShipLost) || attempt >= 4) throw err;
-      console.log(`journey: ${err.message}; starting over with a new pilot (attempt ${attempt + 1})`);
+  // The journey runs next, as a new pilot in a fresh browser context.
+  if (!LANDING_ONLY) {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await journey(browser, problems, steps);
+        break;
+      } catch (err) {
+        if (!(err instanceof ShipLost) || attempt >= 4) throw err;
+        console.log(`journey: ${err.message}; starting over with a new pilot (attempt ${attempt + 1})`);
+      }
+    }
+  }
+  // The landing runs last: two new pilots fly to a ground base.
+  if (!JOURNEY_ONLY) {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await landing(browser, problems, steps, findings);
+        break;
+      } catch (err) {
+        if (!(err instanceof ShipLost) || attempt >= 3) throw err;
+        console.log(`landing: ${err.message}; starting over with new pilots (attempt ${attempt + 1})`);
+      }
     }
   }
 } catch (err) {
