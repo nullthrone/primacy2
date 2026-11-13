@@ -372,7 +372,7 @@ function flightHud(view: FrameView, api: GameApi) {
         </div>
       </div>
 
-      <div class="hud-block hud-centre">
+      <div class={`hud-block hud-centre ${ground ? 'over-ground' : ''}`}>
         {/* Which landing limits a touchdown would break right now, in words. */}
         {cues?.sink.over && <div class="landing-over">{t('hud.cueSinkOver')}</div>}
         {cues?.side.over && <div class="landing-over">{t('hud.cueSideOver')}</div>}
