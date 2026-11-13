@@ -18,6 +18,7 @@ if (!OLD_ROOT) throw new Error('set OLD_ROOT to the extracted tree of commit 546
 const OLD: any = await import(pathToFileURL(`${OLD_ROOT}/packages/shared/src/index.ts`).href);
 
 type Lib = typeof NEW;
+const NEW_LIB: Lib = NEW;
 const lib = (l: unknown): Lib => l as Lib;
 
 // ---------------------------------------------------------------------------------------------
@@ -96,11 +97,15 @@ function dirOf(i: number): [number, number, number] {
 }
 
 /** The digest of one scene: states every 20 ticks, hazards and cruise limits every 20 ticks, mass locks and cruise answers. */
-function fly(l: Lib, sys: any, scene: Scene, ticks: number): string {
+function fly(l: Lib, sys: any, scene: Scene, ticks: number, shells: { id: number; exit: number }[]): { digest: string; margin: number; limitsWrong: number; limitsChanged: number } {
   const stats = hullStats(l);
   const s = scene.start(l, sys);
   const out: unknown[] = [];
   let t = 1e6;
+  // How close the ship came to the surface-frame shell of a landable body: distance to its centre minus where its surface frame ends.
+  let margin = Infinity;
+  let limitsWrong = 0;
+  let limitsChanged = 0;
   for (let i = 0; i < ticks; i++) {
     if (scene.cruise && i === 0) {
       const can = l.canEngageCruise(s, sys, t);
@@ -109,13 +114,38 @@ function fly(l: Lib, sys: any, scene: Scene, ticks: number): string {
     }
     const env = l.simulateShip(s, input(l, i, s.mode === l.FlightMode.Cruise), stats, sys, t, DT);
     t += DT;
+    if (shells.length > 0 && i % 5 === 0) {
+      const abs = l.absolutePosition(s, sys, t);
+      for (const sh of shells) margin = Math.min(margin, l.v3.dist(abs, l.bodyState(sys, sh.id, t).pos) - sh.exit);
+    }
     if (i % 20 === 0) {
       const h = l.hazardsAt(env, s, stats);
-      out.push([s.mode, s.anchor, s.pos, s.vel, s.rot, s.cruiseSpeed, s.hull, s.heat, h, l.cruiseSpeedLimit(env, s.pos, stats), l.isMassLocked(s, sys, t)]);
+      const limit = l.cruiseSpeedLimit(env, s.pos, stats);
+      out.push([s.mode, s.anchor, s.pos, s.vel, s.rot, s.cruiseSpeed, s.hull, s.heat, h, l.isMassLocked(s, sys, t)]);
+      // The cruise limit: before the landing work it was the smallest of K * (distance - radius) over all bodies,
+      // clamped. Now landable bodies limit by their ceiling and may let it fall to 250 m/s; every other body must
+      // limit exactly as before. The expected value is built here from the rule as it was.
+      if (l === NEW_LIB) {
+        let nonLandable = stats.cruiseMax;
+        let landable = Infinity;
+        for (const src of env.sources) {
+          const d = l.v3.dist(s.pos, src.pos);
+          if (src.surface) landable = Math.min(landable, Math.max(250, 0.28 * Math.max(0, d - src.surface.ceiling)));
+          else nonLandable = Math.min(nonLandable, 0.28 * Math.max(0, d - (src.rs > 0 ? Math.max(src.radius, src.rs * l.COMPACT_KILL_FACTOR) : src.radius)));
+        }
+        if (!(nonLandable > l.CRUISE_MIN_SPEED)) nonLandable = l.CRUISE_MIN_SPEED;
+        const expected = Math.min(nonLandable, landable);
+        if (Math.abs(limit - expected) > 1e-9 * expected) limitsWrong++;
+        // What it would have been before.
+        let before = stats.cruiseMax;
+        for (const src of env.sources) before = Math.min(before, 0.28 * Math.max(0, l.v3.dist(s.pos, src.pos) - (src.rs > 0 ? Math.max(src.radius, src.rs * l.COMPACT_KILL_FACTOR) : src.radius)));
+        if (!(before > l.CRUISE_MIN_SPEED)) before = l.CRUISE_MIN_SPEED;
+        if (limit !== before) limitsChanged++;
+      }
     }
     if (s.mode === l.FlightMode.Dead) break;
   }
-  return JSON.stringify(out);
+  return { digest: JSON.stringify(out), margin, limitsWrong, limitsChanged };
 }
 
 // The gates above were added to those systems; the flights use freshly generated ones.
@@ -128,15 +158,22 @@ for (const sec of SECTORS) {
 const isLandable = (b: any): boolean => NEW.isLandable(b);
 let scenes = 0;
 let identical = 0;
-const differing: string[] = [];
 let classA = 0;
 let classB = 0;
+let nearShell = 0;
+let limitsWrong = 0;
+let limitsChanged = 0;
+const leaks: string[] = [];
 function compare(sysO: any, sysN: any, scene: Scene, ticks: number): void {
   scenes++;
-  const a = fly(lib(OLD), sysO, scene, ticks);
-  const b = fly(NEW, sysN, scene, ticks);
-  if (a === b) identical++;
-  else if (differing.length < 6) differing.push(`${sysN.id} ${scene.label}`);
+  const shells = sysN.bodies.filter(isLandable).map((b: any) => ({ id: b.id, exit: NEW.bodySurface(sysN, b.id)!.exit }));
+  const a = fly(lib(OLD), sysO, scene, ticks, shells);
+  const b = fly(NEW, sysN, scene, ticks, shells);
+  limitsWrong += b.limitsWrong;
+  limitsChanged += b.limitsChanged;
+  if (a.digest === b.digest) identical++;
+  else if (Math.min(a.margin, b.margin) <= 0) nearShell++;
+  else leaks.push(`${sysN.id} ${scene.label} (closest to a surface-frame shell ${(Math.min(a.margin, b.margin) / 1000).toFixed(0)} km)`);
 }
 
 for (const { o, n } of pairs) {
@@ -188,4 +225,6 @@ for (const { o, n } of pairs) {
   const chosen = sc.filter((_, idx) => idx % Math.max(1, Math.floor(sc.length / 6)) === 0).slice(0, 8);
   for (const scene of chosen) compare(o, n, scene, scene.cruise ? 900 : 400);
 }
-console.log(`FLIGHTS: ${scenes} scripted flights (${classA} systems without any landable body, ${classB} with one, flown only in normal flight around bodies that cannot be landed on and at stations whose parent cannot be landed on): ${identical} identical tick by tick, ${scenes - identical} differ ${differing.join(' | ')}`);
+console.log(`FLIGHTS: ${scenes} scripted flights (${classA} systems without any landable body, ${classB} with one; normal flight around bodies that cannot be landed on and at stations, cruise only in the systems without a landable body): ${identical} identical tick by tick; ${nearShell} differ and came inside the surface-frame shell of a landable body; ${leaks.length} differ without ever being inside one`);
+console.log(`CRUISE LIMITS: in the new run the limit differed from the old rule at ${limitsChanged} sampled points (all at landable bodies by design) and from the rule as intended at ${limitsWrong}`);
+for (const l of leaks.slice(0, 12)) console.log('  LEAK?', l);
