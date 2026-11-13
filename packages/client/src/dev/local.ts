@@ -2,7 +2,7 @@
  * Development page for the local layer: the real layer over the real space renderer, fed with
  * synthetic frame views, so ships, structures and effects can be worked on without a server.
  *
- *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight
+ *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight|surface
  *
  * Scenes
  *   ships    every hull in a row, turning slowly; `hull=<id>` shows that one alone and close
@@ -13,6 +13,12 @@
  *   fight    five ships circling and shooting, a missile, cargo pods, a kill every twelve seconds
  *            (the wreck stays for three seconds and is salvaged), ships arriving by fold and
  *            leaving by cruise
+ *   surface  the pilot's ship over a real generated landable body near one of its ground bases,
+ *            flying or standing on the ground. The frame view is the one the game builds there
+ *            (the ship is in the surface frame of the body, everything is turned into system
+ *            axes, `view.surface` is filled in). With it a second ship on the ground, one in the
+ *            air, a wreck and a cargo pod at rest, and a hit and a blast on the ground at fixed
+ *            spots, to see that they stay there while the body turns.
  *
  * Options
  *   parts=objects,fx   parts of the layer to load (default both); a broken part is left out
@@ -25,7 +31,23 @@
  *   t=<seconds>        start value of the scene clock, to look at a later moment
  *   q=0..2, bloom=0, and the effect overrides cruise, fold, charge, kind, dil, heat, hit
  *
- * `window.__ready` turns true after thirty frames; `window.__clock` is the scene clock.
+ * Options of the surface scene
+ *   state=flying|landed  the pilot's ship (default flying); landed fails where the ground is too steep
+ *   alt=<m>              height of the ship's lowest point above the ground (default 40, flying only)
+ *   east, north=<m>      where, from the centre of the pad (default 220 m east); or
+ *   lat, lon=<deg>       anywhere on the body, in its own axes
+ *   tod=<hours>          local solar time at the ship, 0..24, 12 = noon (default 10)
+ *   heading, pitch=<deg> nose clockwise from north and above the horizon (default: toward the pad, level)
+ *   speed, climb=<m/s>   the ship flies on at that speed over the ground and rate of climb
+ *   rate=<n>             universe seconds per second (default 1); 600 shows the sun move
+ *   look=<yaw>,<pitch>   free look in degrees
+ *   base=<n>             which ground base of the demo sector (default 0)
+ *   extras=0             without the other ships, the wreck, the pod and the effects
+ *   info=0               without the readout of the view data in the corner
+ *
+ * `window.__ready` turns true after thirty frames; `window.__clock` is the scene clock;
+ * `window.__view` is the frame view last drawn and, in the surface scene, `window.__place` the
+ * place it was made for (see `SurfacePlace`).
  */
 import { Button, EntityFlag, EntityKind, HULLS, STRUCTURES, anchorState, quat, v3 } from '@primacy2/shared';
 import type { GameEvent, GateState, Quat, SiteDef, SystemDef, Vec3 } from '@primacy2/shared';
@@ -33,7 +55,7 @@ import type { EntityView, FrameFx, FrameView } from '../contracts.ts';
 import { createLocalLayer } from '../render/local/index.ts';
 import type { PartName } from '../render/local/part.ts';
 import { createRenderer } from '../render/Renderer.ts';
-import { demoGalaxy, demoSector, makeView, type FakeViewOptions } from './fakeView.ts';
+import { demoGalaxy, demoSector, makeSurfaceView, makeView, type FakeViewOptions, type SurfacePlace, type SurfaceViewOptions } from './fakeView.ts';
 
 const params = new URLSearchParams(location.search);
 const sceneName = params.get('scene') ?? 'ships';
@@ -338,12 +360,109 @@ function fight(): SceneFn {
   };
 }
 
+/** What the surface scene last drew, for the readout and for scripts. */
+let surfacePlace: SurfacePlace | null = null;
+
+function surface(): SceneFn {
+  const bases = systems.flatMap((sys) => sys.sites.filter((s) => s.ground !== undefined).map((site) => ({ sys, site })));
+  const pick = bases[Math.min(bases.length - 1, Math.max(0, Math.round(num('base', 0))))];
+  if (!pick) throw new Error('the demo sector has no ground base');
+  const landed = str('state', 'flying') === 'landed';
+  const opt = (key: string): number | undefined => (params.get(key) === null || params.get(key) === '' ? undefined : num(key, 0));
+  const look = str('look', '0,0').split(',').map((x) => rad(Number(x) || 0));
+  const fixed: SurfaceViewOptions = {
+    system: pick.sys, site: pick.site, landed, hull: str('hull', 'wisp'),
+    east: opt('east'), north: opt('north'), lat: opt('lat'), lon: opt('lon'), height: num('alt', 40),
+    heading: opt('heading'), pitch: opt('pitch'), speed: opt('speed'), climb: opt('climb'),
+    look: [look[0] ?? 0, look[1] ?? 0],
+    cameraMode: str('cam', 'chase') === 'cockpit' ? 'cockpit' : 'chase',
+    galaxy, fx: fxOverride, graphics,
+  };
+  // The scene starts at the hour asked for and runs on from there.
+  const start = makeSurfaceView({ ...fixed, time: T0, hour: num('tod', 10) }).place.time;
+  const clock0 = num('t', 10);
+  const rate = num('rate', 1);
+  const extras = params.get('extras') !== '0';
+  const ticked = (clock: number, dt: number, perSecond: number): boolean => Math.floor(clock * perSecond) !== Math.floor((clock - dt) * perSecond);
+
+  return (clock, dt) => {
+    const since = clock - clock0;
+    const { view, place } = makeSurfaceView({ ...fixed, time: start + since * rate, since, clock, dt });
+    surfacePlace = place;
+    if (!extras) return view;
+
+    // Everything below is given in the surface frame of the body and so stays where it is on the
+    // ground. Positions are metres east and north of the pad and above the ground.
+    const parked = place.point(160, 60, HULLS.drover!.radius * 0.3);
+    const wreck = place.point(260, -70, HULLS.lancet!.radius * 0.3);
+    const pod = place.point(250, -52, 2);
+    const hover = place.point(120, 260, 180);
+    view.ents.push(
+      { ...shipEnt(10, 'drover', place.rel(parked), place.standing(parked, 140)), flags: EntityFlag.Landed },
+      { ...shipEnt(11, 'lancet', place.rel(hover), place.standing(hover, 250)), flags: 0 },
+      {
+        id: 80, info: { id: 80, kind: EntityKind.Wreck, name: 'Wreck of Lancet 12', model: 'lancet', radius: HULLS.lancet!.radius },
+        rel: place.rel(wreck), vel: [0, 0, 0], rot: place.standing(wreck, 20), flags: 0, hull: 0.6, shield: 0,
+      },
+      {
+        id: 60, info: { id: 60, kind: EntityKind.Loot, name: 'alloys', model: 'cargo_pod', radius: 2, c: 'alloys', n: 4 },
+        rel: place.rel(pod), vel: [0, 0, 0], rot: place.standing(pod, 75), flags: 0, hull: 1, shield: 0,
+      },
+    );
+    // A shot from the hovering ship into the ground beside the wreck four times a second, a hit
+    // there, and every twelve seconds a ship blowing up on the ground a little farther off.
+    const mark = place.point(300, -40, 0.5);
+    if (ticked(clock, dt, 4)) {
+      view.events.push(
+        { e: 'shot', from: 11, w: 'pulse_1', slot: 0, at: place.at(mark) },
+        { e: 'hit', id: 80, by: 11, dmg: 20, shield: false, at: place.at(mark) },
+      );
+    }
+    if (ticked(clock, dt, 1 / 12)) view.events.push({ e: 'destroyed', id: 90, at: place.at(place.point(380, 90, 3)) });
+    return view;
+  };
+}
+
+/** A corner readout of what the frame view says about the ground: the numbers a renderer or HUD is given. */
+function surfaceReadout(): (view: FrameView) => void {
+  const box = document.createElement('pre');
+  box.id = 'surface-info';
+  box.style.cssText = 'position:fixed;left:12px;top:12px;margin:0;padding:8px 10px;font:12px/1.45 ui-monospace,Consolas,monospace;color:#cfd6dc;background:rgba(8,12,16,0.72);border:1px solid #2a343c;pointer-events:none;white-space:pre';
+  document.body.appendChild(box);
+  let next = 0;
+  const f = (x: number, digits = 1): string => x.toFixed(digits);
+  return (view) => {
+    if (view.clock < next) return;
+    next = view.clock + 0.2;
+    const s = view.surface;
+    const place = surfacePlace;
+    if (!s || !place) {
+      box.textContent = 'view.surface: null';
+      return;
+    }
+    const ship = s.ship;
+    const pad = view.sites.find((x) => x.def.id === place.site.id);
+    box.textContent = [
+      `${place.body.name}  (body ${s.body}, radius ${f(place.body.radius / 1000, 0)} km, day ${f(Math.abs(place.body.rotPeriod) / 3600)} h)`,
+      `base          ${place.site.name}, ${f(pad?.dist ?? 0, 0)} m from the camera`,
+      `local time    ${f(place.hour, 2)} h, sun ${f(place.sunElevation)} deg above the horizon`,
+      `mode          ${ship?.landed ? 'landed' : 'flying'}`,
+      `height        ${ship ? f(ship.height, 2) : '-'} m`,
+      `vertical      ${ship ? f(ship.verticalSpeed, 2) : '-'} m/s`,
+      `ground speed  ${ship ? f(ship.groundSpeed, 2) : '-'} m/s`,
+      `slope         ${ship ? f((ship.slope * 180) / Math.PI) : '-'} deg`,
+      `camera        ${f(s.camHeight, 2)} m above the ground, ${f(Math.hypot(s.cam[0], s.cam[1], s.cam[2]) / 1000, 3)} km from the centre`,
+    ].join('\n');
+  };
+}
+
 const SCENES: Record<string, () => SceneFn> = {
   ships,
   chase,
   cockpit,
   belt,
   fight,
+  surface,
   station: () => structureScene('station_ring'),
   outpost: () => structureScene('station_outpost'),
   gate: () => structureScene('gate'),
@@ -360,7 +479,8 @@ async function main(): Promise<void> {
   await renderer.init(createLocalLayer(parts));
 
   const scene = (SCENES[sceneName] ?? ships)();
-  const hooks = window as unknown as { __ready: boolean; __clock: number };
+  const readout = sceneName === 'surface' && params.get('info') !== '0' ? surfaceReadout() : null;
+  const hooks = window as unknown as { __ready: boolean; __clock: number; __view: FrameView; __place: SurfacePlace | null };
   const start = performance.now();
   let last = num('t', 10);
   let frames = 0;
@@ -369,7 +489,11 @@ async function main(): Promise<void> {
     const dt = Math.min(0.1, Math.max(1e-4, clock - last));
     last = clock;
     hooks.__clock = clock;
-    renderer.render(scene(clock, dt));
+    const view = scene(clock, dt);
+    hooks.__view = view;
+    hooks.__place = surfacePlace;
+    readout?.(view);
+    renderer.render(view);
     if (++frames === 30) hooks.__ready = true;
     requestAnimationFrame(frame);
   };
