@@ -208,7 +208,7 @@
 .hud-centre .throttle, .hud-centre .charge { width: 18em; }
 /* Near a landable body the ground fills the lower half of the view and can be sunlit: the centre
    block then stands on a dark plate, like the prompts and the target panel do. */
-.hud-centre.over-ground { padding: 0.5em 1em; background: rgba(6, 14, 28, 0.55); }
+.hud-centre.over-ground { padding: 0.5em 1em; background: rgba(6, 14, 28, 0.72); }
 .ground { display: grid; grid-template-columns: 9.2em 8em 9.2em; column-gap: 0.8em; justify-content: center; margin-bottom: 0.2em; white-space: nowrap; }
 .speed-row { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 0.8em; align-items: end; width: 100%; white-space: nowrap; }
 .ground-cell { display: flex; flex-direction: column; align-items: center; }
