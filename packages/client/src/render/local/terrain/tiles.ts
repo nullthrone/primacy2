@@ -48,6 +48,17 @@ const FADE_IN = 0.5;
  */
 const FAR_ORDER = 2000;
 const INDICES = tileIndexCount(CELLS);
+/** The first indices of every drawing order are the skirt (`tileIndices`). */
+const SKIRT_INDICES = 4 * CELLS * 6;
+/**
+ * Tiles beyond this distance (m) are drawn without their skirt. A skirt hangs from the very edge
+ * it shares with the neighbour's surface, so close to that edge the depth buffer has to tell the
+ * two apart: at 20 km one of its steps is about 50 m, half a pixel on the ground, and from there
+ * on skirts showed through the ground beside them as specks along the tile edges and, at the
+ * limb, as whole patches. What a skirt is for, a gap beside a tile that is still settling, is at
+ * that distance a pixel or two wide for half a second, with the far view of the body behind it.
+ */
+const SKIRT_RANGE = 20_000;
 /** Baked tiles handed to the GPU per frame at most. */
 const UPLOADS = 4;
 /** Seconds after which tiles nobody asked for are dropped. */
@@ -446,7 +457,8 @@ export class Ground {
       mesh.visible = true;
       mesh.position.set(f[0]! - cam[0]!, f[1]! - cam[1]!, f[2]! - cam[2]!);
       mesh.renderOrder = t.dist < FAR_ORDER ? 10 + i : 10 + n + (n - i);
-      mesh.geometry.setDrawRange(t.order * INDICES, INDICES);
+      const skirt = t.dist < SKIRT_RANGE ? 0 : SKIRT_INDICES;
+      mesh.geometry.setDrawRange(t.order * INDICES + skirt, INDICES - skirt);
       (mesh.material.uniforms.uMorph!.value as Vector3).z = Math.max(0, 1 - (clock - t.born) / FADE_IN);
       if (t.level > level) level = t.level;
     }

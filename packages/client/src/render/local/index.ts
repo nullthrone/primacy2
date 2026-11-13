@@ -13,7 +13,7 @@ const LOADERS: Record<PartName, () => Promise<Part>> = {
   terrain: async () => (await import('./terrain/index.ts')).createTerrain(),
 };
 
-export const ALL_PARTS: readonly PartName[] = ['objects', 'fx'];
+export const ALL_PARTS: readonly PartName[] = ['objects', 'fx', 'terrain'];
 
 export function createLocalLayer(names: readonly PartName[] = ALL_PARTS): LocalLayer {
   const scene = new Scene();

@@ -151,6 +151,14 @@ const CRATER_RIM_HEIGHT = 0.2;
 const CRATER_WORN = 0.18;
 
 /**
+ * Tone of the dust bands along the ridges of an ice body: how much darker a band is at its
+ * centre in the plains, and the mean of the band profile over a body (measured over random
+ * directions), which stands in for the bands where a coarse sample skips the ridges.
+ */
+const ICE_BAND_DARK = 0.3;
+const ICE_BAND_MEAN = 0.62;
+
+/**
  * Arguments and results of the functions on the sampling path (see the note on allocation at the
  * top of the file). Each function says which elements it reads and which it writes.
  */
@@ -546,7 +554,11 @@ function craters(p: TerrainParams): void {
           const a = dist > 0 ? ((dx - dn * nx) * GX[g]! + (dy - dn * ny) * GY[g]! + (dz - dn * nz) * GZ[g]!) / (dist * 1.4142135623730951) : 0;
           const a2 = a * a;
           const ray = 1 + a2 * (-32 + a2 * (160 + a2 * (-256 + a2 * 128)));
-          bright = t * t * (0.3 + 0.7 * (ray > 0 ? ray * ray : 0));
+          const rays = 0.3 + 0.7 * (ray > 0 ? ray * ray : 0);
+          // At the rim the ejecta are a closed blanket as bright as the rim itself, so the tone
+          // has no step there; farther out the blanket thins and the rays are left.
+          const t2 = t * t;
+          bright = t2 * (rays + (1 - rays) * t2 * t2);
         }
         const add = f * f * bright;
         if (add > tone) tone = add;
@@ -701,8 +713,10 @@ function sample(p: TerrainParams): void {
   // Tone: dark plains against bright highlands, with bright fresh craters.
   let tone: number;
   if (p.kind === ICE) {
-    // Two sets of long ridges; dust gathers on them, so they are dark against the ice.
-    let crest = 0;
+    // Two sets of long ridges. Dust gathers along them in the plains, in bands broader than the
+    // crest itself; the ridges of the highlands are clean ice and show by their relief alone.
+    // A sample too coarse to see single ridges gets the tone they have on average.
+    let band = ICE_BAND_MEAN;
     if (p.lineShort >= detail) {
       lines(p, 0, p.lineSeed);
       const a = R[LINES]!;
@@ -716,9 +730,9 @@ function sample(p: TerrainParams): void {
       const ra = a4 * a4;
       const rb = b4 * b4;
       h += p.lineAmp * (ra + rb);
-      crest = ra > rb ? ra : rb;
+      band = a4 > b4 ? a4 : b4;
     }
-    tone = 0.74 + 0.14 * high + 0.06 * mottle - 0.4 * crest + 0.3 * craterTone;
+    tone = 0.72 + 0.16 * high + 0.09 * mottle - ICE_BAND_DARK * band * (1 - 0.85 * high) + 0.3 * craterTone;
   } else if (p.kind === DESERT) {
     // Dune fields where a broad mask allows them.
     let dune = 0;
