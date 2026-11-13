@@ -70,7 +70,9 @@ planet's full gravity. Compact objects use the Paczynski-Wiita potential `GM / (
 | `Landed` | Standing on the ground of a landable body. Nothing moves; systems run as in flight. | the surface anchor of the body |
 
 Ships in `Normal` mode that share an anchor form a **zone**: they collide, fight and see each other.
-Ships in `Cruise` share the system-wide cruise layer and see each other as contacts only.
+A `Landed` ship is in the zone of its surface anchor like a flying one: it is detected, targeted,
+hit and collided with, and its shields work. Ships in `Cruise` share the system-wide cruise layer
+and see each other as contacts only.
 
 ### Flight model
 
@@ -144,14 +146,36 @@ expressed in a frame that turns with the body.
   harder is a collision: the ship is lifted out of the ground, keeps a quarter of its speed into it
   as a bounce and loses a tenth of its speed along it. The speed in excess of the gentle limits is
   written to `StepEnv.impact`; the server turns it into hull damage.
+- **Hard landings** (`impactFraction` in `server/ground.ts`). A ship that hits the ground `v` m/s
+  harder than a landing allows loses `0.25 * (v / 10)^1.5` of its full hull: a quarter at 10 m/s
+  over, all of it at about 25 m/s over. That is for the stock Wisp; a hull that carries more mass
+  per hull point loses more, by the cube root of that ratio relative to the Wisp's, between 0.7
+  and 1.6 (a Drover about 1.5 times as much, so it is lost at about 20 m/s over; armour plating
+  helps). The shields do not take any of it. A ship that bounces or scrapes is in one impact
+  until a second has passed without a hard contact, and only the hardest contact of it counts.
+  Bodies that cannot be landed on keep the old rule: flying into one destroys the ship.
 - **Landed.** Nothing moves and no input but one has any effect: up thrust above 0.2, or the
-  boost, lifts the ship off with a 3 m/s hop into normal flight.
+  boost, lifts the ship off with a 3 m/s hop into normal flight. A landed ship cannot fire, use
+  its mining laser, scoop cargo, jettison, or charge the cruise or fold drive (a charge in
+  progress ends at touchdown); it can dock at a base in range, receive fuel and survey. Another
+  ship that rams it bounces off; the landed ship does not give way, and both take the damage.
+  Logging out leaves it where it stands, and it is there again at the next login.
+- **Things on the ground.** Wrecks, cargo pods and missiles in a surface frame fall under what a
+  body in free fall feels there (`accelerationAt`). A wreck or pod stops where it meets the terrain
+  and stays; a missile goes off. A ship destroyed on or near the ground leaves its wreck there with
+  the cargo; the wreck comes to rest as the ship stood. Objects elsewhere drift in straight lines
+  as before.
+- **Shots and the ground.** In a surface frame a shot ends where it meets the terrain
+  (`groundRay`): the line is walked in steps of half its height above the ground, at most 48 of
+  them, and nothing is sampled when the whole line lies above the highest ground of the body. A
+  ridge thinner than a step that a shot only grazes can be missed.
 - **Cruise near a landable body.** The ceiling is `radius + terrainMax + 2,000 m`. Above it the
   proximity limit is `CRUISE_PROXIMITY_K` times the height above the ceiling and may fall to 250 m/s
   (elsewhere the lower bound stays 30 km/s), so a pilot can fly down in cruise. Below the ceiling
   cruise ends without damage: normal flight in the surface frame at 100 m/s along the nose over the
-  ground (`StepEnv.cruiseDrop`). Cruise cannot be engaged below the ceiling (`ground`). Landable
-  bodies have no exclusion radius; the terrain is the limit.
+  ground (`StepEnv.cruiseDrop`); the server tells the pilot and both zones. Neither the cruise nor
+  the fold drive can be charged below the ceiling (`ground`). Landable bodies have no exclusion
+  radius; the terrain is the limit.
 - **Ground bases** are sites of kind `base` with `ground: { body, pos }`, the pad centre in
   body-fixed axes. Their `orbit` is empty except for the parent body. `anchorState` gives the true
   moving position, `groundSitePose` the position and orientation (up along the pad normal, nose
@@ -161,6 +185,15 @@ expressed in a frame that turns with the body.
   before them changed. `summarize` counts them as places to dock. Their shape is
   `GROUND_BASE_STRUCTURE`; its model is not built yet, so it is not in `STRUCTURES` and bases name
   no `model` (the client loads every model it is told of).
+  A base is docked at from the surface frame, flying or landed: the nearest base of the body,
+  within the usual dock range of its pad, at no more than the usual speed over the ground. A
+  docked ship has the base as its anchor; undocking puts it over the pad in the surface frame.
+  Market, services, missions, home, respawn and insurance are the station code, unchanged. Ships
+  collide with the structure, which the server carries on below the pad so that nothing is pushed
+  into the ground (`BASE_COLLIDER`). In secure space weapons are locked within 4 km of the pad, as
+  around a station. Bases have no NPC traffic, and NPC ships are never in a surface frame: none is
+  spawned there, and one that strays below the height where the frame begins is removed in the
+  same tick.
 
 ## 4. Federation
 
@@ -315,7 +348,7 @@ Server settings such as the tariff are not part of it.
 
 ### Wrecks, salvage and insurance
 
-A ship destroyed in normal space leaves a wreck for 900 seconds (a zone keeps at most 12; the oldest
+A ship destroyed in normal space, flying or standing on the ground, leaves a wreck for 900 seconds (a zone keeps at most 12; the oldest
 goes first). The wreck holds the ship's whole cargo with the origin of each stack, scrap in proportion
 to hull mass and, by chance, parts for fitted modules. Scrap and parts are the only goods that enter
 the economy this way. A pilot's stock starter ship, which insurance hands out for free, leaves none, so
@@ -343,6 +376,27 @@ and keeps their credits. Credits stay local to each server, as before.
   into system axes with `anchorFrame(...).rot` before drawing.
 - Snapshot entity positions are float32 offsets from the recipient's own position; the recipient's
   own state is float64.
+- The client predicts touching down and lifting off like any other flight (`simulateShip` on a
+  `Landed` ship), so the mode changes on screen before the server confirms it.
+- A jump that hands the pilot to another server spends `FOLD_TUNNEL_TIME` in the tunnel on the
+  client before it connects there, as a jump inside one sector spends it on the server; the ticket
+  is valid for much longer.
+
+### The frame view
+
+The game core builds one `FrameView` per rendered frame (`client/contracts.ts`); renderers, HUD
+and audio only read it. Every position in it is relative to the camera in system axes, and so
+are velocities and orientations. What the simulation keeps in the turning axes of a surface frame
+is turned by `client/game/surface.ts`, which the development pages use as well:
+
+- `zone` and `zoneRot` are the origin and the orientation of the current zone's frame. Event
+  coordinates are in that frame. Effects keep what they store in the frame's own coordinates and
+  the effects part turns its whole subtree by `zoneRot`, so a blast on the ground stays there.
+- `surface` is present while the camera is within three radii of the centre of a landable body:
+  which body, its rotation (body-fixed to system axes), the camera position in body-fixed axes in
+  float64, and for the pilot's ship its height above the ground, vertical speed, speed over the
+  ground, the slope under it and whether it is landed. The ground itself is the shared terrain.
+- A chase, docked or wreck camera is kept above the terrain (`liftAboveGround`).
 
 ## 6. Naming
 

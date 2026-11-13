@@ -430,7 +430,8 @@ function surfaceReadout(): (view: FrameView) => void {
   box.style.cssText = 'position:fixed;left:12px;top:12px;margin:0;padding:8px 10px;font:12px/1.45 ui-monospace,Consolas,monospace;color:#cfd6dc;background:rgba(8,12,16,0.72);border:1px solid #2a343c;pointer-events:none;white-space:pre';
   document.body.appendChild(box);
   let next = 0;
-  const f = (x: number, digits = 1): string => x.toFixed(digits);
+  // Values that round to zero are shown as zero, not as "-0.00".
+  const f = (x: number, digits = 1): string => (Math.abs(x) < 0.5 * 10 ** -digits ? 0 : x).toFixed(digits);
   return (view) => {
     if (view.clock < next) return;
     next = view.clock + 0.2;

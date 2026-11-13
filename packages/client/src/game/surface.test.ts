@@ -370,6 +370,11 @@ describe('time of day on the development page', () => {
     expect(morning.sunElevation).toBeGreaterThan(0);
     expect(morning.sunElevation).toBeLessThan(noon.sunElevation);
     expect(makeSurfaceView({ system: sys, site: base, hour: 7.5 }).place.sunElevation).toBeGreaterThan(morning.sunElevation);
+    // In the morning the sun is rising, in the afternoon it is sinking.
+    const later = makeSurfaceView({ system: sys, site: base, time: morning.time + 300 }).place;
+    expect(later.sunElevation).toBeGreaterThan(morning.sunElevation);
+    const afternoon = makeSurfaceView({ system: sys, site: base, hour: 16 }).place;
+    expect(makeSurfaceView({ system: sys, site: base, time: afternoon.time + 300 }).place.sunElevation).toBeLessThan(afternoon.sunElevation);
   });
 });
 
@@ -411,6 +416,23 @@ describe('effects in a surface zone', () => {
     const a = makeSurfaceView({ system: sys, site: base, time: T, landed: true }).place;
     const b = makeSurfaceView({ system: sys, site: base, time: T + 900, landed: true }).place;
     expect(v3.dist(toSystem(a.frame, spot), toSystem(b.frame, spot))).toBeGreaterThan(100_000);
+  });
+
+  it('take the velocity of a flying ship in the axes of the zone as well', () => {
+    const frame = new Frame();
+    const { view, place } = makeSurfaceView({ system: sys, site: base, time: T, east: 800, north: 100, height: 60, heading: 110, speed: 90, climb: 5 });
+    const other: EntityView = {
+      id: 12, info: { id: 12, kind: EntityKind.Ship, name: 'Other', model: 'lancet', radius: 10 },
+      rel: place.rel(place.point(700, 0, 80)), vel: toSystem(place.frame, [30, -4, 12]), rot: place.standing(place.point(700, 0, 80), 0),
+      flags: 0, hull: 1, shield: 1,
+    };
+    view.ents = [other];
+    frame.begin(view, view.zone!);
+    const own = frame.tracks.get(view.self!.id)!;
+    expect(Math.hypot(own.vx - place.state.vel[0], own.vy - place.state.vel[1], own.vz - place.state.vel[2])).toBeLessThan(1e-9);
+    expect(Math.hypot(own.vx, own.vy, own.vz)).toBeCloseTo(Math.hypot(90, 5), 9);
+    const t = frame.tracks.get(12)!;
+    expect(Math.hypot(t.vx - 30, t.vy + 4, t.vz - 12)).toBeLessThan(1e-9);
   });
 
   it('in space nothing is turned', () => {
