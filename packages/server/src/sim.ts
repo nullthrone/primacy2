@@ -75,10 +75,10 @@ export class SystemSim {
   private readonly events = new Map<number, GameEvent[]>();
   private readonly absCache = new Map<number, Vec3>();
   /**
-   * Per ship: the share of its hull the current ground impact has already cost, and the universe
-   * time until which further contacts belong to the same impact.
+   * Per ship: the share of its hull that recent ground impacts have cost and are still
+   * remembered (they fade with IMPACT_EPISODE), and the universe time of the last one.
    */
-  private readonly groundHits = new WeakMap<Ship, { paid: number; until: number }>();
+  private readonly groundHits = new WeakMap<Ship, { paid: number; at: number }>();
 
   constructor(
     readonly world: World,
@@ -369,15 +369,16 @@ export class SystemSim {
 
   /**
    * A ship hit the ground `impact` m/s harder than a landing allows. The hull takes the damage
-   * directly (see `impactFraction` for the rule). While the ship keeps bouncing and scraping,
-   * only what a harder contact adds to the first one is charged.
+   * directly (see `impactFraction` for the rule). A contact is charged for what it adds to the
+   * share of earlier ones that is still remembered, so a scrape of many weakening contacts costs
+   * once and repeated slams cost again as the memory of the last one fades.
    */
   private groundImpact(ship: Ship, impact: number, t: number): void {
     const s = ship.state;
     let hit = this.groundHits.get(ship);
-    if (!hit) this.groundHits.set(ship, (hit = { paid: 0, until: 0 }));
-    if (t > hit.until) hit.paid = 0;
-    hit.until = t + IMPACT_EPISODE;
+    if (!hit) this.groundHits.set(ship, (hit = { paid: 0, at: t }));
+    if (t > hit.at) hit.paid *= Math.exp(-(t - hit.at) / IMPACT_EPISODE);
+    hit.at = t;
     const share = impactFraction(ship.stats, impact);
     if (share <= hit.paid) return;
     const amount = (share - hit.paid) * ship.stats.hullMax;
@@ -694,7 +695,11 @@ export class SystemSim {
       if (added.length) p.send({ t: 'ent+', e: added });
       if (removed.length) p.send({ t: 'ent-', ids: removed });
 
-      const evs = this.events.get(zone);
+      let evs = this.events.get(zone);
+      // A surface zone is the whole shell around a body, hundreds or thousands of kilometres across.
+      // An event that says where it happened (and who) goes only to pilots within view of it, so a
+      // hit or a shot does not give away a ship on the other side of the moon.
+      if (evs && isSurfaceAnchor(zone)) evs = evs.filter((ev) => !('at' in ev) || v3.distSq(ev.at, me.state.pos) <= viewSq);
       if (evs && evs.length) p.send({ t: 'ev', e: evs });
 
       p.conn.sendBinary(encodeSnapshot({ tick: this.world.tickCount, ackSeq: p.ackSeq, time: t, self: me.state, ents }));

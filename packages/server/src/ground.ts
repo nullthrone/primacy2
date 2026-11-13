@@ -5,9 +5,11 @@
  * (body-fixed axes, origin at the body centre).
  */
 import {
+  FlightMode,
   GROUND_BASE_STRUCTURE,
   MASS_LOCK_RADIUS,
   SURFACE_ID_BASE,
+  anchorBody,
   bodySurface,
   collideStructure,
   computeShipStats,
@@ -20,6 +22,7 @@ import {
   type BodySurface,
   type Contact,
   type Quat,
+  type ShipState,
   type ShipStats,
   type SiteDef,
   type StructureDef,
@@ -30,6 +33,28 @@ import {
 /** The ground of a surface zone, or null when the zone is not the surface frame of a landable body. */
 export function zoneSurface(def: SystemDef, zone: number): BodySurface | null {
   return isSurfaceAnchor(zone) ? bodySurface(def, zone - SURFACE_ID_BASE) : null;
+}
+
+/** How far from standing a saved landed ship may be and still be put back as it stands, metres. */
+const RESEAT_TOLERANCE = 0.5;
+
+/**
+ * A ship saved standing on the ground comes back standing on the ground as it is now. A landed ship
+ * never looks at the terrain again, so one saved at a height the terrain no longer has (a pad was
+ * added, the generator changed) would stay below the ground or hang above it for good. A ship that
+ * is not within RESEAT_TOLERANCE of standing is in flight again, at rest: raised onto the ground
+ * if it was under it, and left to fall if it was above it.
+ */
+export function reseatLanded(state: ShipState, def: SystemDef, belly: number): void {
+  if (state.mode !== FlightMode.Landed) return;
+  const surface = isSurfaceAnchor(state.anchor) ? bodySurface(def, anchorBody(state.anchor)) : null;
+  const altitude = surface ? groundAltitude(surface, state.pos) : NaN;
+  if (Math.abs(altitude - belly) <= RESEAT_TOLERANCE) return;
+  state.mode = FlightMode.Normal;
+  state.vel = [0, 0, 0];
+  state.angVel = [0, 0, 0];
+  const r = v3.len(state.pos);
+  if (surface && altitude < belly && r > 0) state.pos = v3.scale(state.pos, (r + (belly - altitude) + 1) / r);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -45,8 +70,10 @@ export const IMPACT_EXPONENT = 1.5;
 export const IMPACT_SCALE_MIN = 0.7;
 export const IMPACT_SCALE_MAX = 1.6;
 /**
- * A ship that bounces or scrapes is in one impact for this long after its last hard contact;
- * within it only the hardest contact counts, so scraping along does not multiply the damage.
+ * What a ship has paid for earlier hard contacts wears off with this time constant, seconds. A
+ * contact is charged only for what it adds to what is still remembered, so scraping along (a long
+ * run of contacts that grow weaker) is paid for once, while a ship that goes on slamming into the
+ * ground pays again as the memory fades: after half a second 61 % of a slam is still remembered.
  */
 export const IMPACT_EPISODE = 1;
 

@@ -155,5 +155,9 @@ describe('orbital sites stay outside the surface-frame shell of every landable b
     }
     console.log(`shell test: ${pairs} site/landable-body pairs (${sameParent} orbit the body, ${proven} proven apart by their orbit ranges, ${sampled} sampled); smallest margin ${(smallest / 1000).toFixed(1)} km above the exit height, ${where}`);
     expect(pairs).toBeGreaterThan(500);
+    // Stations are generated 400 km or more above the surface of their planet; the frame ends at most
+    // 1.3 * 300 km = 390 km up. The 10 km between them is the whole margin, so a change to either
+    // number that closes it must show here.
+    expect(smallest).toBeGreaterThan(5_000);
   });
 });

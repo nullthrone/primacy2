@@ -57,6 +57,7 @@ import {
 import type { ServerConfig } from './config.ts';
 import type { Federation, KnownServer } from './federation.ts';
 import { Player, newShip, type CommandHandler, type CommandResult, type Connection, type GameModule, type Ship } from './game.ts';
+import { reseatLanded } from './ground.ts';
 import { SystemSim } from './sim.ts';
 import type { PlayerRecord, Store } from './store.ts';
 import { TradeBook, boundParts, departedShip, isHullBound, recordDeparture, shipLimitPrices, type CustomsRecord } from './trade.ts';
@@ -471,6 +472,8 @@ export class World {
         state.fuel = Math.min(stats.fuelCap, Math.max(0, saved.fuel));
         state.chargeKind = ChargeKind.None;
         state.charge = 0;
+        // The terrain may have changed since the ship was saved on it.
+        reseatLanded(state, def, stats.belly);
       } else {
         const home = this.homeOf(rec);
         systemId = home.system.id;
