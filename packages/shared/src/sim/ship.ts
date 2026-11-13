@@ -27,8 +27,6 @@ import {
   HEAT_FLUX_K,
   LAND_MAX_SIDE,
   LAND_MAX_SINK,
-  LAND_MAX_SLOPE_DEG,
-  LAND_MAX_TILT_DEG,
   LIFTOFF_SPEED,
   LIFTOFF_THRUST,
   SCOOP_MAX_RADII,
@@ -78,10 +76,17 @@ const CRUISE_TAU_DOWN = 0.6;
 const GRAVITY_INNER_RS = 1.5;
 /** Pending aim smaller than this is treated as worked off, radians. */
 const AIM_EPSILON = 1e-9;
-/** Steepest ground a ship can stand on, as rise over run. */
-const LAND_MAX_SLOPE = Math.tan((LAND_MAX_SLOPE_DEG * Math.PI) / 180);
-/** Smallest cosine of the angle between the ship's up axis and the ground normal at which it can touch down. */
-const LAND_MIN_UPRIGHT = Math.cos((LAND_MAX_TILT_DEG * Math.PI) / 180);
+/**
+ * Steepest ground a ship can stand on, as rise over run: tan(LAND_MAX_SLOPE_DEG). Written as a
+ * literal, not computed, because Math.tan is not required to round the same way in every engine
+ * and a touchdown near the limit must be judged alike by the server and by every client.
+ */
+export const LAND_MAX_SLOPE = 0.36397023426620234;
+/**
+ * Smallest cosine of the angle between the ship's up axis and the ground normal at which it can
+ * touch down: cos(LAND_MAX_TILT_DEG). A literal for the same reason as LAND_MAX_SLOPE.
+ */
+export const LAND_MIN_UPRIGHT = 0.8660254037844387;
 /** The ground normal under a ship is measured over its footprint, but over at least this many metres. */
 export const GROUND_BASELINE_MIN = 10;
 
