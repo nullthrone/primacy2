@@ -8,7 +8,7 @@ import { en } from '../i18n/en.ts';
 import { store } from '../state/store.ts';
 import { fmtHeight, fmtRate } from './format.ts';
 import {
-  BASE_DROP_RANGE, LANDING_CUE_HEIGHT, LANDING_CUE_SECONDS, baseDropHere, landingCues, landingNear, liftBalance, noticeKey,
+  BASE_DROP_RANGE, LANDING_CUE_CLIMB, LANDING_CUE_HEIGHT, LANDING_CUE_SECONDS, baseDropHere, landingCues, landingNear, liftBalance, noticeKey,
 } from './landing.ts';
 
 const UP: Vec3 = [0, 1, 0];
@@ -62,9 +62,13 @@ describe('landing cues', () => {
 });
 
 describe('landingNear', () => {
-  it('is true very low whatever the ship does, and higher up only while sinking toward the ground', () => {
+  it('is true very low for a ship that hovers or sinks, and higher up only while sinking toward the ground', () => {
     expect(landingNear(LANDING_CUE_HEIGHT - 1, 0)).toBe(true);
-    expect(landingNear(LANDING_CUE_HEIGHT - 1, 5)).toBe(true);
+    expect(landingNear(LANDING_CUE_HEIGHT - 1, -2)).toBe(true);
+    expect(landingNear(LANDING_CUE_HEIGHT - 1, LANDING_CUE_CLIMB / 2)).toBe(true);
+    // Climbing away after lift-off is no landing, however low.
+    expect(landingNear(2, 3)).toBe(false);
+    expect(landingNear(LANDING_CUE_HEIGHT - 1, LANDING_CUE_CLIMB)).toBe(false);
     expect(landingNear(300, 0)).toBe(false);
     expect(landingNear(300, 12)).toBe(false);
     expect(landingNear(300, -300 / LANDING_CUE_SECONDS - 1)).toBe(true);

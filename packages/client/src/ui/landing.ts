@@ -10,8 +10,10 @@ import {
 } from '@primacy2/shared';
 import type { StringKey } from '../i18n/en.ts';
 
-/** Below this height the landing cues show whatever the ship is doing, metres. */
+/** Below this height the landing cues show for a ship that hovers or sinks, metres. */
 export const LANDING_CUE_HEIGHT = 50;
+/** A ship rising faster than this is leaving, not landing, m/s. Above zero so that a hover does not flicker. */
+export const LANDING_CUE_CLIMB = 1;
 /** Higher up they show once the ground is this many seconds away at the present sink rate. */
 export const LANDING_CUE_SECONDS = 15;
 /**
@@ -62,12 +64,12 @@ export function landingCues(vel: Readonly<Vec3>, rot: Readonly<Quat>, normal: Re
 }
 
 /**
- * Whether a touchdown is close enough for the landing cues: the ship is very low, or it is
- * sinking and would reach the ground within LANDING_CUE_SECONDS. A ship passing high over the
- * ground or climbing away is left alone.
+ * Whether a touchdown is close enough for the landing cues: the ship is very low and hovering or
+ * sinking, or it is sinking and would reach the ground within LANDING_CUE_SECONDS. A ship passing
+ * high over the ground or climbing away, also right after lift-off, is left alone.
  */
 export function landingNear(height: number, verticalSpeed: number): boolean {
-  if (height < LANDING_CUE_HEIGHT) return true;
+  if (height < LANDING_CUE_HEIGHT) return verticalSpeed < LANDING_CUE_CLIMB;
   return verticalSpeed < 0 && height < -verticalSpeed * LANDING_CUE_SECONDS;
 }
 
