@@ -1,6 +1,7 @@
 /**
  * Small numeric helpers shared by the local layer. Nothing here allocates per call.
  */
+import type { FrameView } from '../../contracts.ts';
 
 export const TAU = Math.PI * 2;
 
@@ -70,4 +71,29 @@ export function fbm3(x: number, y: number, z: number, octaves: number): number {
     z = z * 2.03 + 9.7;
   }
   return sum / norm;
+}
+
+/**
+ * Half the width of dusk in radians: the sun fades over twice this as it crosses the horizon. A
+ * little more than the disc of a sun-like star at 1 AU (0.0047), so the light does not snap off.
+ */
+const DUSK = 0.012;
+
+/**
+ * How much of the sun reaches the camera past the landable body it is near (`view.surface`): 1 in
+ * full light, 0 once the mean sphere of that body hides the sun, with a short dusk in between.
+ * `sunDir` is the unit vector from the camera toward the sun in system axes. Away from any
+ * landable body the answer is 1. Mountains are not looked at: the horizon is that of the sphere,
+ * and it drops as the camera climbs, so a ship high above the night side is in sunlight again.
+ */
+export function sunVisibility(view: FrameView, sunDir: readonly number[]): number {
+  const s = view.surface;
+  const body = s ? view.bodies[s.body] : undefined;
+  if (!body || !(body.dist > 0)) return 1;
+  const rel = body.rel;
+  // Height of the sun above the level plane at the camera; straight up is away from the centre.
+  const sine = -(rel[0] * sunDir[0]! + rel[1] * sunDir[1]! + rel[2] * sunDir[2]!) / body.dist;
+  const elevation = Math.asin(clamp(sine, -1, 1));
+  const horizon = -Math.acos(Math.min(1, body.def.radius / body.dist));
+  return smooth(horizon - DUSK, horizon + DUSK, elevation);
 }

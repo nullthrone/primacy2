@@ -130,7 +130,7 @@ def build_hub(m, acc):
     ]
     rows = p.lathe([(z, r) for z, r, _, _ in lower], 16, mats=[s[2] for s in lower[:-1]], axis='Z')
     win = [f for i, s in enumerate(lower[:-1]) if s[3] == 'win' for k, f in enumerate(rows[i]) if k % 4 in (0, 1)]
-    p.inset(win, 0.55, -0.25, rim=D, inner=LAMP, individual=True)
+    p.inset(win, 0.85, -0.25, rim=D, inner=LAMP, individual=True)
     panel = [f for i, s in enumerate(lower[:-1]) if s[3] == 'panel' for f in rows[i]]
     p.inset(panel, 0.3, 0.12, rim=D, individual=True)
     # Roof of the lower tier: radiators, hatches and plant between the tiers.
@@ -241,8 +241,10 @@ def vehicle_shed(m, acc):
     p.inset([b['sides'][2]], 1.2, -0.35, rim=S2, inner=D)                 # roller door
     for z in (2.2, 3.8, 5.4):
         p.box((70.0, 0, z), (0.25, 10.6, 0.2), S2)
-    p.inset([b['cap0'], b['cap1']], 1.0, 0.1, rim=D)
-    p.box((60.0, 0, 8.8), (21.0, 15.0, 0.7), S2, chamfer=0.2)              # roof slab
+    for x in (53.0, 57.0, 61.0, 65.0, 69.0):                                 # wall ribs
+        for sy in (-1, 1):
+            p.box((x, sy * 7.05, 4.2), (0.4, 0.2, 8.0), S2)
+    p.box((60.0, 0, 8.8), (21.0, 15.0, 0.7), H, chamfer=0.2)               # roof slab
     p.box((55.0, 3.0, 9.6), (3.0, 2.4, 1.0), D, chamfer=0.2)
     p.tube((63.0, -4.0, 9.1), (63.0, -4.0, 11.4), 0.4, segs=6, mat=D)
     p.box((70.1, 6.2, 6.4), (0.14, 1.2, 0.5), LAMP)
