@@ -151,24 +151,33 @@ expressed in a frame that turns with the body.
   over, all of it at about 25 m/s over. That is for the stock Wisp; a hull that carries more mass
   per hull point loses more, by the cube root of that ratio relative to the Wisp's, between 0.7
   and 1.6 (a Drover about 1.5 times as much, so it is lost at about 20 m/s over; armour plating
-  helps). The shields do not take any of it. A ship that bounces or scrapes is in one impact
-  until a second has passed without a hard contact, and only the hardest contact of it counts.
+  helps). The shields do not take any of it. A contact is charged for what it adds to what the
+  earlier ones cost and is still remembered, and the memory fades with a time constant of a second
+  (`IMPACT_EPISODE`): a scrape of many weakening contacts costs about once, while a ship that goes
+  on slamming into the ground pays again each time (61 % of a slam is still remembered after half
+  a second). A ship that is destroyed by the ground within 15 s of another ship's hit counts as
+  destroyed by that ship, so crashing on purpose keeps neither a bounty nor a kill from the hunter.
   Bodies that cannot be landed on keep the old rule: flying into one destroys the ship.
 - **Landed.** Nothing moves and no input but one has any effect: up thrust above 0.2, or the
   boost, lifts the ship off with a 3 m/s hop into normal flight. A landed ship cannot fire, use
   its mining laser, scoop cargo, jettison, or charge the cruise or fold drive (a charge in
   progress ends at touchdown); it can dock at a base in range, receive fuel and survey. Another
   ship that rams it bounces off; the landed ship does not give way, and both take the damage.
-  Logging out leaves it where it stands, and it is there again at the next login.
+  Logging out leaves it where it stands, and it is there again at the next login if the ground is
+  still where it was: a ship saved standing at a height the terrain no longer has comes back in
+  flight, at rest, raised onto the ground or left to fall (`reseatLanded`).
 - **Things on the ground.** Wrecks, cargo pods and missiles in a surface frame fall under what a
   body in free fall feels there (`accelerationAt`). A wreck or pod stops where it meets the terrain
   and stays; a missile goes off. A ship destroyed on or near the ground leaves its wreck there with
   the cargo; the wreck comes to rest as the ship stood. Objects elsewhere drift in straight lines
   as before.
 - **Shots and the ground.** In a surface frame a shot ends where it meets the terrain
-  (`groundRay`): the line is walked in steps of half its height above the ground, at most 48 of
-  them, and nothing is sampled when the whole line lies above the highest ground of the body. A
-  ridge thinner than a step that a shot only grazes can be missed.
+  (`groundRay`): the line is walked in steps of half its height above the ground, between 24 and
+  250 m long, at most 128 of them, and nothing is sampled when the whole line lies above the
+  highest ground of the body. A ridge thinner than 24 m that a shot only grazes can be missed
+  (against a march in steps of a metre, 0.4 % of the hits of low shots are missed). Events that say
+  where they happened go only to pilots within `ZONE_VIEW_RADIUS` of the place, because a surface
+  zone is the whole shell around the body.
 - **Cruise near a landable body.** The ceiling is `radius + terrainMax + 2,000 m`. Above it the
   proximity limit is `CRUISE_PROXIMITY_K` times the height above the ceiling and may fall to 250 m/s
   (elsewhere the lower bound stays 30 km/s), so a pilot can fly down in cruise. Below the ceiling
@@ -186,7 +195,8 @@ expressed in a frame that turns with the body.
   `GROUND_BASE_STRUCTURE`; its model is not built yet, so it is not in `STRUCTURES` and bases name
   no `model` (the client loads every model it is told of).
   A base is docked at from the surface frame, flying or landed: the nearest base of the body,
-  within the usual dock range of its pad, at no more than the usual speed over the ground. A
+  within the usual dock range of its pad, with no terrain between it and a point 60 m
+  above the pad, at no more than the usual speed over the ground. A
   docked ship has the base as its anchor; undocking puts it over the pad in the surface frame.
   Market, services, missions, home, respawn and insurance are the station code, unchanged. Ships
   collide with the structure, which the server carries on below the pad so that nothing is pushed
@@ -348,8 +358,8 @@ Server settings such as the tariff are not part of it.
 
 ### Wrecks, salvage and insurance
 
-A ship destroyed in normal space, flying or standing on the ground, leaves a wreck for 900 seconds (a zone keeps at most 12; the oldest
-goes first). The wreck holds the ship's whole cargo with the origin of each stack, scrap in proportion
+A ship destroyed in normal space, flying or standing on the ground, leaves a wreck for 900 seconds (a zone keeps at most 12; the empty ones
+go first, then the oldest: a free starter ship leaves an empty wreck, and over the shell of a landable body one can be crashed anywhere). The wreck holds the ship's whole cargo with the origin of each stack, scrap in proportion
 to hull mass and, by chance, parts for fitted modules. Scrap and parts are the only goods that enter
 the economy this way. A pilot's stock starter ship, which insurance hands out for free, leaves none, so
 it cannot be destroyed and salvaged for credits; neither does a bound hull or a bound module. A pilot with a mining laser cuts a wreck open with

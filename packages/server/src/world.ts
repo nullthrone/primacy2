@@ -374,7 +374,9 @@ export class World {
     // What the issuer counts as right now: the operator's rating, or partner while a customs union is not mutual.
     const tier = this.fed.tierOf(t.issuer);
     if (!this.defs.has(t.arrival.system)) return { ok: false, msg: 'Transfer refused: unknown destination system.' };
-    if (t.arrival.kind === 'gate' && (t.arrival.site === undefined || !findSite(this.defs.get(t.arrival.system)!, t.arrival.site))) {
+    // The ticket is signed by the sender, who may name any anchor: only a gate is somewhere to arrive at (a station
+    // would put the ship at its door, a ground base on the ground).
+    if (t.arrival.kind === 'gate' && (t.arrival.site === undefined || findSite(this.defs.get(t.arrival.system)!, t.arrival.site)?.kind !== 'gate')) {
       return { ok: false, msg: 'Transfer refused: unknown destination gate.' };
     }
     // A ship can only arrive if it is not here already. Without this rule any server could replace

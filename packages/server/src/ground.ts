@@ -175,9 +175,9 @@ export function baseCovering(surface: BodySurface, pos: Readonly<Vec3>): SiteDef
 // ---------------------------------------------------------------------------------------------
 
 /** A shot is followed over the terrain in at most this many steps. */
-const RAY_STEPS = 48;
+const RAY_STEPS = 128;
 /** Step length: half the height above the ground, between these bounds in metres. */
-const RAY_STEP_MIN = 4;
+const RAY_STEP_MIN = 24;
 const RAY_STEP_MAX = 250;
 /** Halvings that narrow down the point where the ray enters the ground. */
 const RAY_REFINE = 6;
@@ -188,9 +188,13 @@ const RAY_REFINE = 6;
  *
  * The cost is bounded: nothing is sampled when the whole segment lies above the highest ground of
  * the body, and otherwise at most RAY_STEPS + RAY_REFINE terrain samples are taken. The ray is
- * walked in steps of half its height above the ground (4 to 250 m), so a ridge thinner than a
- * step that the ray only grazes can be missed, and a very long, very low shot is given up as a
- * miss when the steps run out.
+ * walked in steps of half its height above the ground (24 to 250 m), so a ridge thinner than a
+ * step that the ray only grazes can be missed. The shortest step is long on purpose: a shot that
+ * skims the ground at a shallow angle makes steps of a few metres and would need hundreds of them
+ * to get anywhere (it used to run out of steps and pass through every hill); 24 m steps carry it
+ * a range of 3 km in about 125. Against a march in steps of a metre this finds all but 0.4 % of
+ * the hits of shots fired low over the ground, and finds a later hit instead of an earlier one
+ * that is thinner than 24 m in about one case in twenty.
  */
 export function groundRay(surface: BodySurface, origin: Readonly<Vec3>, dir: Readonly<Vec3>, maxDist: number): number {
   if (!(maxDist > 0)) return -1;
