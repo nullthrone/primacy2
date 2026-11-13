@@ -8,7 +8,7 @@ import {
   Button, COMMODITIES, EntityFlag, EntityKind, FlightMode, HULLS, MODULES, STARTER_HULL, findSite, forwardOf, v3, weaponEnergyMul,
   type CargoItem, type EntityInfo, type Vec3,
 } from '@primacy2/shared';
-import type { GameModule, Ship, SimObject } from '../game.ts';
+import { inSpace, type GameModule, type Ship, type SimObject } from '../game.ts';
 import type { SystemSim } from '../sim.ts';
 import { isHullBound, isSlotBound } from '../trade.ts';
 
@@ -68,8 +68,9 @@ function isStockStarter(ship: Ship): boolean {
 
 /** Moves everything a destroyed ship carries, plus scrap and parts, into a new wreck. */
 function makeWreck(sim: SystemSim, ship: Ship): void {
-  // Only ships in normal space leave a wreck; in cruise there is no place to put one.
-  if (ship.state.mode !== FlightMode.Normal) return;
+  // Only ships in normal space, flying or standing on the ground, leave a wreck; in cruise there
+  // is no place to put one.
+  if (!inSpace(ship.state)) return;
   const contents: CargoItem[] = [];
   for (const it of ship.cargo) {
     if (!Object.hasOwn(COMMODITIES, it.c) || !Number.isInteger(it.n) || it.n <= 0) continue;
@@ -105,6 +106,8 @@ function makeWreck(sim: SystemSim, ship: Ship): void {
   sim.addObject({
     id, kind: EntityKind.Wreck, anchor, pos: v3.clone(ship.state.pos), vel: v3.clone(ship.state.vel),
     rot: [...ship.state.rot], radius: ship.stats.radius, info, ttl: WRECK_LIFETIME, data,
+    // Near the ground the wreck falls and comes to rest as the ship would stand.
+    belly: ship.stats.belly,
   });
 
   // A zone keeps a dozen wrecks: the oldest ones fade away first.

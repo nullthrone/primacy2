@@ -11,6 +11,7 @@ import {
   canDetect,
   findSite,
   forwardOf,
+  isSurfaceAnchor,
   quat,
   v3,
   weaponEnergyMul,
@@ -21,7 +22,8 @@ import {
   type Vec3,
   type WeaponMount,
 } from '@primacy2/shared';
-import type { Ship } from '../../game.ts';
+import { inSpace, type Ship } from '../../game.ts';
+import { baseCovering, groundRay, zoneSurface } from '../../ground.ts';
 import type { SystemSim } from '../../sim.ts';
 import { onAttack } from './law.ts';
 
@@ -132,13 +134,14 @@ function interceptTime(to: Readonly<Vec3>, vel: Readonly<Vec3>, speed: number): 
 }
 
 /**
- * The ship's locked target if it is a live ship in the same zone that the ship's sensors still
- * pick up. A target that went dark gives neither gimbal tracking nor a missile lock.
+ * The ship's locked target if it is a live ship in the same zone (flying or standing on the
+ * ground) that the ship's sensors still pick up. A target that went dark gives neither gimbal
+ * tracking nor a missile lock.
  */
 function lockedTarget(sim: SystemSim, ship: Ship): Ship | null {
   if (ship.target === null) return null;
   const t = sim.ships.get(ship.target);
-  if (!t || t === ship || t.gone || t.state.mode !== FlightMode.Normal || t.state.anchor !== ship.state.anchor) return null;
+  if (!t || t === ship || t.gone || !inSpace(t.state) || t.state.anchor !== ship.state.anchor) return null;
   return sim.detects(ship, t, true) ? t : null;
 }
 
@@ -160,8 +163,9 @@ function aimDir(m: WeaponMount, origin: Readonly<Vec3>, fwd: Vec3, target: Ship 
 }
 
 /**
- * First thing a shot meets within `range`: a ship (returned) or an asteroid (ship null, shorter
- * distance). For projectiles (`speed` > 0) ships are tested where they will be on arrival.
+ * First thing a shot meets within `range`: a ship (returned), or an asteroid or the ground (ship
+ * null, shorter distance). For projectiles (`speed` > 0) ships are tested where they will be on
+ * arrival. In a surface zone the shot ends where it meets the terrain (`groundRay`).
  */
 function trace(
   sim: SystemSim, shooter: Ship, origin: Readonly<Vec3>, dir: Readonly<Vec3>, range: number, speed: number,
@@ -170,7 +174,7 @@ function trace(
   let best = range;
   let hit: Ship | null = null;
   for (const o of sim.shipsInZone(shooter.state.anchor)) {
-    if (o === shooter || o.gone || o.state.mode !== FlightMode.Normal) continue;
+    if (o === shooter || o.gone || !inSpace(o.state)) continue;
     let c: Readonly<Vec3> = o.state.pos;
     if (speed > 0) c = v3.addScaled(c, o.state.vel, v3.dist(origin, c) / speed);
     const d = raySphere(origin, dir, c, o.stats.radius, best);
@@ -188,6 +192,14 @@ function trace(
       }
     }
   }
+  const surface = zoneSurface(sim.def, shooter.state.anchor);
+  if (surface) {
+    const d = groundRay(surface, origin, dir, best);
+    if (d >= 0 && d < best) {
+      best = d;
+      hit = null;
+    }
+  }
   return { ship: hit, dist: best };
 }
 
@@ -195,7 +207,7 @@ function trace(
 export function strike(
   sim: SystemSim, attacker: Ship | null, victim: Ship, dmg: number, shieldMul: number, hullMul: number, at: Vec3, silent = false,
 ): void {
-  if (victim.gone || victim.state.mode !== FlightMode.Normal) return;
+  if (victim.gone || !inSpace(victim.state)) return;
   if (attacker) onAttack(sim, attacker, victim);
   sim.damage(victim, dmg, { by: attacker, shieldMul, hullMul, at, silent });
 }
@@ -232,11 +244,17 @@ function fire(sim: SystemSim, ship: Ship, buttons: number, dt: number): boolean 
   const s = ship.state;
   const zone = s.anchor;
   const site = findSite(sim.def, zone);
-  // Station defences jam weapons around stations in secure space; the patrols are exempt.
-  if (
-    site && sim.def.security === 'secure' && (site.kind === 'station' || site.kind === 'outpost') &&
-    ship.npc !== 'security' && v3.lenSq(s.pos) < MASS_LOCK_RADIUS * MASS_LOCK_RADIUS
-  ) {
+  // Station defences jam weapons around stations in secure space; the patrols are exempt. A ground
+  // base does the same around its pad; ships near it are in the surface frame of its body.
+  let jammed = false;
+  if (sim.def.security === 'secure' && ship.npc !== 'security') {
+    if (site) jammed = (site.kind === 'station' || site.kind === 'outpost') && v3.lenSq(s.pos) < MASS_LOCK_RADIUS * MASS_LOCK_RADIUS;
+    else if (isSurfaceAnchor(zone)) {
+      const surface = zoneSurface(sim.def, zone);
+      jammed = surface !== null && baseCovering(surface, s.pos) !== null;
+    }
+  }
+  if (jammed) {
     const p = ship.player;
     if (p && sim.time - (lockNoticeAt.get(ship) ?? -1e12) >= LOCK_NOTICE_INTERVAL) {
       lockNoticeAt.set(ship, sim.time);
@@ -353,7 +371,7 @@ export function stepImpacts(sim: SystemSim): void {
       continue;
     }
     const victim = sim.ships.get(im.victim);
-    if (!victim || victim.gone || victim.state.mode !== FlightMode.Normal || victim.state.anchor !== im.zone) continue;
+    if (!victim || victim.gone || !inSpace(victim.state) || victim.state.anchor !== im.zone) continue;
     // The shell flew to where the target was heading; one that changed course far enough is missed.
     const reach = victim.stats.radius * 2 + DODGE_MARGIN;
     if (v3.distSq(victim.state.pos, im.at) > reach * reach) continue;
@@ -379,7 +397,7 @@ export function stepMissiles(sim: SystemSim, dt: number): void {
     // Proximity fuse against the target, contact fuse against anything else in the way.
     let hit: Ship | null = null;
     for (const sh of sim.shipsInZone(o.anchor)) {
-      if (sh.id === d.from || sh.gone || sh.state.mode !== FlightMode.Normal) continue;
+      if (sh.id === d.from || sh.gone || !inSpace(sh.state)) continue;
       const fuse = sh.stats.radius + (sh.id === d.target ? MISSILE_FUSE : MISSILE_CONTACT);
       const rel = v3.sub(o.pos, sh.state.pos);
       if (rel[0] > 400 || rel[0] < -400 || rel[1] > 400 || rel[1] < -400 || rel[2] > 400 || rel[2] < -400) continue;
@@ -415,7 +433,7 @@ export function stepMissiles(sim: SystemSim, dt: number): void {
     }
 
     const target = d.target !== null ? sim.ships.get(d.target) : undefined;
-    if (!target || target.gone || target.state.mode !== FlightMode.Normal || target.state.anchor !== o.anchor) continue;
+    if (!target || target.gone || !inSpace(target.state) || target.state.anchor !== o.anchor) continue;
     const speed = v3.len(o.vel);
     if (!(speed > 1e-3)) continue;
     const cur = v3.scale(o.vel, 1 / speed);

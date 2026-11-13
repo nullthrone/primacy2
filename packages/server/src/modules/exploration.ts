@@ -2,7 +2,7 @@
  * Exploration: surveying bodies with a scanner, first-discovery records and selling survey data.
  */
 import { FlightMode, absolutePosition, bodyState, findSite, v3, type BodyDef } from '@primacy2/shared';
-import { fail, ok, type GameModule, type Player } from '../game.ts';
+import { fail, inSpace, ok, type GameModule, type Player } from '../game.ts';
 
 interface ExplorationData {
   /** System ids visited on this server. */
@@ -57,7 +57,8 @@ export const explorationModule: GameModule = {
       const ship = p.ship;
       const sim = p.sim;
       if (!ship || !sim) return fail('no ship');
-      if (ship.state.mode !== FlightMode.Normal && ship.state.mode !== FlightMode.Cruise) return fail('Surveys need the ship in flight.');
+      // A survey works from anywhere in space, also from the ground of the body itself.
+      if (!inSpace(ship.state) && ship.state.mode !== FlightMode.Cruise) return fail('Surveys need the ship in flight.');
       if (!ship.stats.scanner) return fail('A survey scanner is not fitted.');
       const body = sim.def.bodies[cmd.body];
       if (!body) return fail('No such body.');

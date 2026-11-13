@@ -2,7 +2,7 @@
  * Cargo in space: jettisoning, scooping floating canisters and ship-to-ship fuel transfer.
  */
 import { COMMODITIES, EntityKind, FlightMode, SCOOP_RANGE, forwardOf, v3, type CargoItem } from '@primacy2/shared';
-import { fail, ok, type GameModule } from '../game.ts';
+import { fail, inSpace, ok, type GameModule } from '../game.ts';
 
 /** Fuel can be handed over within this distance, metres. */
 const FUEL_TRANSFER_RANGE = 600;
@@ -14,6 +14,7 @@ export const cargoModule: GameModule = {
     jettison(p, cmd, world) {
       const ship = p.ship;
       const sim = p.sim;
+      if (ship?.state.mode === FlightMode.Landed) return fail('Lift off first.');
       if (!ship || !sim || ship.state.mode !== FlightMode.Normal) return fail('Cargo can only be jettisoned in normal flight.');
       if (!Object.hasOwn(COMMODITIES, cmd.c)) return fail('Unknown commodity.');
       const taken = p.removeCargo(cmd.c, cmd.n);
@@ -35,7 +36,8 @@ export const cargoModule: GameModule = {
       const sim = p.sim;
       if (!ship || !sim || ship.state.mode !== FlightMode.Normal) return fail('Fuel transfer needs normal flight.');
       const other = sim.ships.get(cmd.to);
-      if (!other || other === ship || other.state.mode !== FlightMode.Normal || other.state.anchor !== ship.state.anchor) {
+      // The ship that gives must be flying; the one that receives may also stand on the ground.
+      if (!other || other === ship || !inSpace(other.state) || other.state.anchor !== ship.state.anchor) {
         return fail('No such ship nearby.');
       }
       if (v3.dist(other.state.pos, ship.state.pos) > FUEL_TRANSFER_RANGE) return fail('Too far away for a fuel line.');
@@ -59,7 +61,8 @@ export const cargoModule: GameModule = {
       const data = o.data as { origins?: CargoItem[]; droppedBy?: number; at?: number } | undefined;
       for (const ship of sim.shipsInZone(o.anchor)) {
         const p = ship.player;
-        if (!p || ship.gone) continue;
+        // Scooping needs a ship in flight: one standing on the ground picks nothing up.
+        if (!p || ship.gone || ship.state.mode !== FlightMode.Normal) continue;
         // A ship does not immediately scoop back what it just threw out.
         if (data?.droppedBy === ship.id && sim.time - (data.at ?? 0) < 6) continue;
         if (v3.distSq(ship.state.pos, o.pos) > SCOOP_RANGE * SCOOP_RANGE) continue;

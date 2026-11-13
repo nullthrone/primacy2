@@ -21,6 +21,7 @@ import {
   findSite,
   foldFuelCost,
   hullAllowed,
+  isSurfaceAnchor,
   isValidAnchor,
   largestHullWithin,
   publishedRating,
@@ -781,10 +782,15 @@ function dockState(state: ShipState, siteId: number): void {
 /** Whether a saved ship state can be loaded into this system as it is. */
 function isUsableState(s: ShipState, def: SystemDef): boolean {
   if (!s || typeof s !== 'object') return false;
-  if (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise && s.mode !== FlightMode.Docked && s.mode !== FlightMode.Dead) return false;
+  if (
+    s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise && s.mode !== FlightMode.Docked &&
+    s.mode !== FlightMode.Dead && s.mode !== FlightMode.Landed
+  ) return false;
   if (!Array.isArray(s.pos) || !Array.isArray(s.vel) || !Array.isArray(s.rot) || !Array.isArray(s.angVel)) return false;
   if (!v3.isFinite(s.pos) || !v3.isFinite(s.vel) || !quat.isFinite(s.rot) || !v3.isFinite(s.angVel)) return false;
   if (!isValidAnchor(def, s.anchor)) return false;
   if (s.mode === FlightMode.Docked && s.anchor < SITE_ID_BASE) return false;
+  // A ship stands on the ground of a landable body, in its surface frame, and nowhere else.
+  if (s.mode === FlightMode.Landed && !isSurfaceAnchor(s.anchor)) return false;
   return true;
 }

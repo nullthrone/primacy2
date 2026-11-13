@@ -15,6 +15,8 @@ import {
   TIDAL_DAMAGE_THRESHOLD,
   ZONE_VIEW_RADIUS,
   absolutePosition,
+  accelerationAt,
+  buildStepEnv,
   canDetect,
   canEngageCruise,
   collideStructure,
@@ -24,18 +26,22 @@ import {
   findSite,
   generateAsteroids,
   hazardsAt,
+  isSurfaceAnchor,
   shieldDamageMul,
   simulateShip,
+  terrainHeight,
   v3,
   type AsteroidDef,
   type EntityInfo,
   type GameEvent,
   type SnapshotEntity,
+  type StepEnv,
   type StructureDef,
   type SystemDef,
   type Vec3,
 } from '@primacy2/shared';
-import { CRUISE_ZONE, NO_ZONE, type Player, type Ship, type SimObject } from './game.ts';
+import { CRUISE_ZONE, NO_ZONE, inSpace, type Player, type Ship, type SimObject } from './game.ts';
+import { IMPACT_EPISODE, collideBase, impactFraction, padPose, zoneSurface } from './ground.ts';
 import type { World } from './world.ts';
 
 const INPUT_QUEUE_MAX = 5;
@@ -68,6 +74,11 @@ export class SystemSim {
   private readonly zones = new Map<number, Ship[]>();
   private readonly events = new Map<number, GameEvent[]>();
   private readonly absCache = new Map<number, Vec3>();
+  /**
+   * Per ship: the share of its hull the current ground impact has already cost, and the universe
+   * time until which further contacts belong to the same impact.
+   */
+  private readonly groundHits = new WeakMap<Ship, { paid: number; until: number }>();
 
   constructor(
     readonly world: World,
@@ -78,9 +89,13 @@ export class SystemSim {
   // Queries used by modules
   // -------------------------------------------------------------------------------------------
 
+  /**
+   * The zone a ship is in: the anchor of a ship in normal flight or standing on the ground (a
+   * surface frame is a zone of its own), the cruise layer for a ship in cruise, none otherwise.
+   */
   zoneOf(ship: Ship): number {
     const m = ship.state.mode;
-    return m === FlightMode.Normal ? ship.state.anchor : m === FlightMode.Cruise ? CRUISE_ZONE : NO_ZONE;
+    return inSpace(ship.state) ? ship.state.anchor : m === FlightMode.Cruise ? CRUISE_ZONE : NO_ZONE;
   }
 
   /** Ships currently in a zone. The array is owned by the simulation; do not keep or mutate it. */
@@ -190,7 +205,7 @@ export class SystemSim {
   /** Applies damage to shields first, then hull, and destroys the ship when the hull is gone. */
   damage(ship: Ship, amount: number, opts: DamageOptions = {}): void {
     const s = ship.state;
-    if (ship.gone || !(amount > 0) || (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise)) return;
+    if (ship.gone || !(amount > 0) || (!inSpace(s) && s.mode !== FlightMode.Cruise)) return;
     const zone = this.zoneOf(ship);
     let left = amount;
     let total = 0;
@@ -264,9 +279,25 @@ export class SystemSim {
       if (ship.gone) continue;
       const s = ship.state;
       ship.flags = 0;
-      if (s.mode === FlightMode.Normal || s.mode === FlightMode.Cruise) {
+      if (inSpace(s) || s.mode === FlightMode.Cruise) {
         // States belong to t - dt before the step and to t after it.
         const env = simulateShip(s, ship.input, ship.stats, this.def, t - dt, dt);
+        // NPC traffic stays out of surface frames: one that strays below the height where the
+        // shared step moves ships into the frame of the ground has left its area and is taken out.
+        if (ship.npc !== null && isSurfaceAnchor(s.anchor)) {
+          this.removeShip(ship);
+          continue;
+        }
+        if (env.cruiseDrop) this.cruiseDropped(ship);
+        if ((env.impact ?? 0) > 0) this.groundImpact(ship, env.impact!, t);
+        if (ship.gone || s.mode === FlightMode.Dead) continue;
+        if (s.mode === FlightMode.Landed && s.chargeKind !== ChargeKind.None) {
+          // A drive cannot charge on the ground: touching down ends a charge in progress.
+          s.chargeKind = ChargeKind.None;
+          s.charge = 0;
+          ship.fold = null;
+          ship.player?.notice('info', 'charge_landed', 'Drive charge cancelled: the ship has landed.');
+        }
         ship.hazards = hazardsAt(env, s, ship.stats);
         this.applyHazards(ship, t, dt);
         if (!ship.gone && s.chargeKind !== ChargeKind.None && s.charge >= 1) this.completeCharge(ship, t);
@@ -328,9 +359,44 @@ export class SystemSim {
     }
   }
 
+  /** Cruise ended because the ship came below the cruise ceiling of a landable body (no harm done). */
+  private cruiseDropped(ship: Ship): void {
+    const s = ship.state;
+    this.emit(CRUISE_ZONE, { e: 'cruise', id: ship.id, on: false, at: [0, 0, 0] });
+    this.emit(s.anchor, { e: 'cruise', id: ship.id, on: false, at: v3.clone(s.pos) });
+    ship.player?.notice('info', 'cruise_ceiling', 'Cruise ended: below the cruise ceiling.');
+  }
+
+  /**
+   * A ship hit the ground `impact` m/s harder than a landing allows. The hull takes the damage
+   * directly (see `impactFraction` for the rule). While the ship keeps bouncing and scraping,
+   * only what a harder contact adds to the first one is charged.
+   */
+  private groundImpact(ship: Ship, impact: number, t: number): void {
+    const s = ship.state;
+    let hit = this.groundHits.get(ship);
+    if (!hit) this.groundHits.set(ship, (hit = { paid: 0, until: 0 }));
+    if (t > hit.until) hit.paid = 0;
+    hit.until = t + IMPACT_EPISODE;
+    const share = impactFraction(ship.stats, impact);
+    if (share <= hit.paid) return;
+    const amount = (share - hit.paid) * ship.stats.hullMax;
+    hit.paid = share;
+    // The contact point is under the ship, a belly's height toward the body centre.
+    const r = v3.len(s.pos);
+    const at = r > 0 ? v3.scale(s.pos, 1 - ship.stats.belly / r) : v3.clone(s.pos);
+    if (s.hull <= amount) ship.player?.notice('danger', 'crash', 'Crashed into the ground.');
+    this.damage(ship, amount, { bypassShield: true, at });
+  }
+
   private setFlags(ship: Ship): void {
     const s = ship.state;
     const i = ship.input;
+    if (s.mode === FlightMode.Landed) {
+      // Standing on the ground: nothing burns and nothing fires, whatever keys are held.
+      ship.flags = EntityFlag.Landed | (ship.wanted ? EntityFlag.Wanted : 0);
+      return;
+    }
     let f = 0;
     if (Math.abs(i.thrust[0]) + Math.abs(i.thrust[1]) + Math.abs(i.thrust[2]) > 0.1 || Math.abs(s.throttle) > 0.05) f |= EntityFlag.Thrust;
     if (s.boost > 0) f |= EntityFlag.Boost;
@@ -386,7 +452,12 @@ export class SystemSim {
       if (s.mode !== FlightMode.Normal) return;
       const can = canEngageCruise(s, this.def, t);
       if (!can.ok) {
-        ship.player?.notice('warn', 'cruise_' + can.reason, can.reason === 'masslock' ? 'Mass-locked: move away from the structure.' : 'Cruise unavailable.');
+        ship.player?.notice(
+          'warn', 'cruise_' + can.reason,
+          can.reason === 'masslock' ? 'Mass-locked: move away from the structure.'
+            : can.reason === 'ground' ? 'Too close to the ground: climb above the cruise ceiling.'
+            : 'Cruise unavailable.',
+        );
         return;
       }
       this.emit(this.zoneOf(ship), { e: 'cruise', id: ship.id, on: true, at: v3.clone(s.pos) });
@@ -402,10 +473,25 @@ export class SystemSim {
       const site = findSite(this.def, zone);
       const structure = site?.model && Object.hasOwn(STRUCTURES, site.model) ? STRUCTURES[site.model]! : null;
       const rocks = site && (site.kind === 'belt' || site.kind === 'ring' || site.kind === 'anomaly') ? this.asteroids(site.id) : null;
+      // In a surface zone the ground bases of the body stand somewhere on the ground.
+      const bases = zoneSurface(this.def, zone)?.sites ?? null;
 
       for (const ship of ships) {
         if (ship.gone) continue;
+        // A ship standing on the ground is not moved by anything: the flight step does not look
+        // at the terrain again until it lifts off.
+        if (ship.state.mode === FlightMode.Landed) continue;
         if (structure && v3.lenSq(ship.state.pos) < (structure.bound + ship.stats.radius) ** 2) this.bounceOffStructure(ship, structure);
+        if (bases) {
+          for (const base of bases) {
+            const hit = collideBase(padPose(base), ship.state.pos, ship.stats.radius);
+            if (!hit) continue;
+            v3.addScaledIn(ship.state.pos, hit.normal, hit.depth + 0.05);
+            this.reflect(ship, hit.normal, v3.addScaled(ship.state.pos, hit.normal, -ship.stats.radius));
+            if (ship.gone) break;
+          }
+          if (ship.gone) continue;
+        }
         if (rocks) {
           const p = ship.state.pos;
           const r = ship.stats.radius;
@@ -439,13 +525,18 @@ export class SystemSim {
           const rel = v3.dot(v3.sub(b.state.vel, a.state.vel), n);
           const ma = a.stats.mass;
           const mb = b.stats.mass;
+          // A ship standing on the ground does not give way: the other one takes the whole push
+          // and bounce. Both still take the damage of the collision.
+          const ia = a.state.mode === FlightMode.Landed ? 0 : 1 / ma;
+          const ib = b.state.mode === FlightMode.Landed ? 0 : 1 / mb;
+          if (ia + ib === 0) continue;
           const overlap = reach - dist;
-          v3.addScaledIn(a.state.pos, n, (-overlap * mb) / (ma + mb));
-          v3.addScaledIn(b.state.pos, n, (overlap * ma) / (ma + mb));
+          v3.addScaledIn(a.state.pos, n, (-overlap * ia) / (ia + ib));
+          v3.addScaledIn(b.state.pos, n, (overlap * ib) / (ia + ib));
           if (rel < 0) {
-            const impulse = (-(1 + 0.4) * rel) / (1 / ma + 1 / mb);
-            v3.addScaledIn(a.state.vel, n, -impulse / ma);
-            v3.addScaledIn(b.state.vel, n, impulse / mb);
+            const impulse = (-(1 + 0.4) * rel) / (ia + ib);
+            v3.addScaledIn(a.state.vel, n, -impulse * ia);
+            v3.addScaledIn(b.state.vel, n, impulse * ib);
             const speed = -rel;
             if (speed > 6) {
               const dmg = (speed - 6) ** 2 * 0.012;
@@ -492,11 +583,48 @@ export class SystemSim {
     if (speed > 5) this.damage(ship, (speed - 5) ** 2 * 0.02, { at });
   }
 
+  /**
+   * Moves the floating objects. In space they drift on straight lines. In a surface zone they
+   * fall under what a body in free fall feels there and stop where they meet the terrain: wrecks
+   * and cargo pods come to rest, a missile goes off.
+   */
   private stepObjects(dt: number): void {
+    let envs: Map<number, StepEnv> | null = null;
     for (const o of this.objects.values()) {
-      v3.addScaledIn(o.pos, o.vel, dt);
       o.ttl -= dt;
-      if (o.ttl <= 0) this.objects.delete(o.id);
+      if (o.ttl <= 0) {
+        this.objects.delete(o.id);
+        continue;
+      }
+      const surface = zoneSurface(this.def, o.anchor);
+      if (!surface) {
+        v3.addScaledIn(o.pos, o.vel, dt);
+        continue;
+      }
+      if (o.resting) continue;
+      let env = (envs ??= new Map()).get(o.anchor);
+      if (!env) envs.set(o.anchor, (env = buildStepEnv(this.def, o.anchor, this.time - dt)));
+      v3.addScaledIn(o.vel, accelerationAt(env, o.pos, o.vel), dt);
+      v3.addScaledIn(o.pos, o.vel, dt);
+
+      // Above the highest ground of the body the terrain need not be asked.
+      const belly = o.belly ?? o.radius;
+      const r2 = v3.lenSq(o.pos);
+      if (r2 >= (surface.top + belly) ** 2) continue;
+      const r = Math.sqrt(r2);
+      if (!(r > 0)) continue;
+      const floor = surface.radius + terrainHeight(surface.terrain, o.pos[0] / r, o.pos[1] / r, o.pos[2] / r) + belly;
+      if (r >= floor) continue;
+      v3.copy(o.pos, v3.scale(o.pos, floor / r));
+      if (o.kind === EntityKind.Missile) {
+        // Shown to the pilots around as a hit on the ground where the missile went in.
+        const dmg = (o.data as { dmg?: number } | undefined)?.dmg ?? 0;
+        this.emit(o.anchor, { e: 'hit', id: o.id, dmg, shield: false, at: v3.clone(o.pos) });
+        this.objects.delete(o.id);
+        continue;
+      }
+      o.vel = [0, 0, 0];
+      o.resting = true;
     }
   }
 

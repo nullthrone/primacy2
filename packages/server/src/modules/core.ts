@@ -8,17 +8,21 @@ import {
   DOCK_RANGE,
   FlightMode,
   MAX_CHAT_LENGTH,
+  anchorBody,
   canEngageCruise,
   disengageCruise,
   findSite,
   foldFuelCost,
+  isSurfaceAnchor,
+  nearestGroundSite,
   placeAtSite,
   quat,
   v3,
   type ChatChannel,
   type ChatMessage,
+  type SiteDef,
 } from '@primacy2/shared';
-import { CRUISE_ZONE, fail, ok, type GameModule, type Player } from '../game.ts';
+import { CRUISE_ZONE, fail, inSpace, ok, type GameModule, type Player } from '../game.ts';
 import type { World } from '../world.ts';
 
 /** Removes control characters and trims; chat is plain text. */
@@ -82,10 +86,12 @@ export const coreModule: GameModule = {
       const s = ship.state;
       if (cmd.on) {
         if (s.mode === FlightMode.Cruise) return ok();
+        if (s.mode === FlightMode.Landed) return fail('Lift off first.');
         const can = canEngageCruise(s, sim.def, sim.time);
         if (!can.ok) {
           return fail(
             can.reason === 'masslock' ? 'Mass-locked: move away from the structure.'
+              : can.reason === 'ground' ? 'Too close to the ground: climb above the cruise ceiling.'
               : can.reason === 'fuel' ? 'No fuel.'
               : can.reason === 'charging' ? 'A drive is already charging.'
               : 'Cruise is not available now.',
@@ -116,6 +122,7 @@ export const coreModule: GameModule = {
       const sim = p.sim;
       if (!ship || !sim) return fail('no ship');
       const s = ship.state;
+      if (s.mode === FlightMode.Landed) return fail('Lift off first.');
       if (s.mode !== FlightMode.Normal && s.mode !== FlightMode.Cruise) return fail('The fold drive cannot charge now.');
       if (s.chargeKind !== ChargeKind.None) return fail('A drive is already charging.');
       if (cmd.system === sim.def.id) return fail('You are already in that system.');
@@ -129,8 +136,10 @@ export const coreModule: GameModule = {
       if (!Number.isFinite(cost)) return fail(`Out of range: ${distance.toFixed(1)} ly, drive reaches ${ship.stats.jumpRange.toFixed(1)} ly.`);
       if (s.fuel < cost) return fail(`Not enough fuel: the jump needs ${cost.toFixed(1)} t.`);
       if (s.mode === FlightMode.Normal) {
+        // The fold drive is held by the same things as the cruise drive: structures and the ground.
         const can = canEngageCruise(s, sim.def, sim.time);
         if (!can.ok && can.reason === 'masslock') return fail('Mass-locked: move away from the structure.');
+        if (!can.ok && can.reason === 'ground') return fail('Too close to the ground: climb above the cruise ceiling.');
       }
       if (target.server) {
         if (world.fed.trustOf(target.server.id) === 'blocked') return fail('That sector is blocked by this server.');
@@ -166,13 +175,26 @@ export const coreModule: GameModule = {
       const sim = p.sim;
       if (!ship || !sim) return fail('no ship');
       const s = ship.state;
-      if (s.mode !== FlightMode.Normal) return fail('Docking needs normal flight.');
-      const site = findSite(sim.def, s.anchor);
-      if (!site || (site.kind !== 'station' && site.kind !== 'outpost')) return fail('No station here.');
-      if (v3.len(s.pos) > (site.radius ?? 300) + DOCK_RANGE) return fail('Too far from the station.');
+      let site: SiteDef | undefined;
+      if (isSurfaceAnchor(s.anchor)) {
+        // Near the ground a ship is in the surface frame of the body, never in the frame of a
+        // base: the base it can dock at is the nearest one, and its speed is the speed over the ground.
+        if (!inSpace(s)) return fail('Docking needs normal flight.');
+        const near = nearestGroundSite(sim.def, anchorBody(s.anchor), s.pos);
+        if (!near) return fail('No base here.');
+        if (near.dist > (near.site.radius ?? 300) + DOCK_RANGE) return fail('Too far from the base.');
+        site = near.site;
+      } else {
+        if (s.mode !== FlightMode.Normal) return fail('Docking needs normal flight.');
+        site = findSite(sim.def, s.anchor);
+        if (!site || (site.kind !== 'station' && site.kind !== 'outpost')) return fail('No station here.');
+        if (v3.len(s.pos) > (site.radius ?? 300) + DOCK_RANGE) return fail('Too far from the station.');
+      }
       if (v3.len(s.vel) > DOCK_MAX_SPEED) return fail('Too fast to dock.');
       const zone = sim.zoneOf(ship);
       s.mode = FlightMode.Docked;
+      // A docked ship has the site as its anchor, also at a ground base.
+      s.anchor = site.id;
       s.pos = [0, 0, 0];
       s.vel = [0, 0, 0];
       s.angVel = [0, 0, 0];
@@ -198,10 +220,11 @@ export const coreModule: GameModule = {
       if (s.mode !== FlightMode.Docked) return fail('Not docked.');
       const site = findSite(sim.def, s.anchor);
       if (!site) return fail('The station is gone.');
+      // At a ground base this puts the ship over the pad, in the surface frame of the body.
       placeAtSite(s, sim.def, site.id, sim.time, world.random(), (site.radius ?? 300) + 500);
       // Leave the bay facing outward: half a turn about the ship's own up axis.
       s.rot = quat.mul(s.rot, [0, 1, 0, 0]);
-      sim.emit(site.id, { e: 'dock', id: ship.id, docked: false });
+      sim.emit(sim.zoneOf(ship), { e: 'dock', id: ship.id, docked: false });
       p.send({ t: 'station', s: null });
       return ok();
     },

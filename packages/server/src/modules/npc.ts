@@ -7,6 +7,7 @@ import {
   FlightMode,
   computeShipStats,
   findSite,
+  isSurfaceAnchor,
   newShipState,
   quat,
   starterLoadout,
@@ -92,6 +93,8 @@ function spawnPoint(sim: SystemSim, site: SiteDef | undefined, rng: Rng): Vec3 {
  * at a free spot 3 to 12 km from the centre of the site.
  */
 export function spawnNpc(sim: SystemSim, zone: number, role: NpcRole, at?: Readonly<Vec3>): Ship {
+  // NPC traffic does not fly near the ground: its piloting knows nothing of terrain.
+  if (isSurfaceAnchor(zone)) throw new Error(`NPC ships are not spawned in a surface frame (zone ${zone})`);
   const world = sim.world;
   const rng = world.random();
   const site = findSite(sim.def, zone);
