@@ -83,7 +83,7 @@ const LAND_MAX_SLOPE = Math.tan((LAND_MAX_SLOPE_DEG * Math.PI) / 180);
 /** Smallest cosine of the angle between the ship's up axis and the ground normal at which it can touch down. */
 const LAND_MIN_UPRIGHT = Math.cos((LAND_MAX_TILT_DEG * Math.PI) / 180);
 /** The ground normal under a ship is measured over its footprint, but over at least this many metres. */
-const GROUND_BASELINE_MIN = 10;
+export const GROUND_BASELINE_MIN = 10;
 
 const ORIGIN: Readonly<Vec3> = [0, 0, 0];
 

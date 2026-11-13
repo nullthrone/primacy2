@@ -43,7 +43,7 @@ import {
 import {
   Player, newShip, type GameModule, type PlayerRecord, type PrimacyServer, type Ship, type SimObject, type SystemSim, type World,
 } from '@primacy2/server';
-import { BASE_COLLIDER, IMPACT_EPISODE, groundRay, impactFraction } from '../packages/server/src/ground.ts';
+import { BASE_COLLIDER, IMPACT_EPISODE, collideBase, groundRay, impactFraction, padPose } from '../packages/server/src/ground.ts';
 import { spawnNpc } from '../packages/server/src/modules/npc.ts';
 import { wreckData } from '../packages/server/src/modules/salvage.ts';
 import { Bot } from './bot.ts';
@@ -507,7 +507,10 @@ describe('a landed ship in a fight', () => {
     // The attacker hovers 500 m off and 250 m up, nose on the target.
     const side = v3.normalize(v3.cross(upAt(spot), [0.2, 0.9, 0.4]));
     const from = v3.add(v3.addScaled(spot, side, 500), v3.scale(upAt(spot), 250));
-    const attacker = drone(from, quat.lookRotation(v3.sub(t.ship.state.pos, from), upAt(from)));
+    // Its nose is two and a half degrees off, inside the gimbal: only a lock brings the shots home.
+    const to = v3.normalize(v3.sub(t.ship.state.pos, from));
+    const off = v3.normalize(v3.cross(to, upAt(from)));
+    const attacker = drone(from, quat.lookRotation(v3.addScaled(to, off, Math.tan((2.5 * Math.PI) / 180)), upAt(from)));
     attacker.target = t.ship.id;
     run(2);
     expect(sim.shipsInZone(zone)).toContain(t.ship);
@@ -606,6 +609,112 @@ describe('a landed ship in a fight', () => {
     const high = v3.scale(up, surface.top + 5000);
     const level = v3.normalize(v3.cross(up, [0.1, 0.2, 0.9]));
     expect(groundRay(surface, high, level, 6000)).toBe(-1);
+  });
+});
+
+describe('a landed ship among others', () => {
+  it('is hit by cannon shells that were under way and by a missile that had to turn for it', () => {
+    const spot = levelSpot(21);
+    const up = upAt(spot);
+    const t = pilot(v3.addScaled(spot, up, 5));
+    standAt(t.ship, spot);
+    const side = v3.normalize(v3.cross(up, [0.5, 0.2, 0.8]));
+    const from = v3.add(v3.addScaled(spot, side, 500), v3.scale(up, 250));
+    const gunner = drone(from, quat.lookRotation(v3.sub(t.ship.state.pos, from), upAt(from)), 'lancet');
+    gunner.target = t.ship.id;
+    run(2);
+    const shield = t.ship.state.shield;
+    // The secondary group of a stock Lancet is its cannon: shells that take a moment to arrive.
+    gunner.input.buttons = Button.Fire2;
+    run(60);
+    gunner.input.buttons = 0;
+    run(30);
+    expect(t.ship.state.mode).toBe(FlightMode.Landed);
+    expect(t.ship.state.shield).toBeLessThan(shield);
+
+    t.ship.state.shield = t.ship.stats.shieldMax;
+    t.ship.state.hull = t.ship.stats.hullMax;
+    const start = v3.add(v3.addScaled(spot, side, -700), v3.scale(up, 400));
+    const toTarget = v3.normalize(v3.sub(t.ship.state.pos, start));
+    // Launched twenty-five degrees off the line to the target.
+    const launch = v3.normalize(v3.addScaled(toTarget, v3.normalize(v3.cross(toTarget, up)), Math.tan((25 * Math.PI) / 180)));
+    const id = world.allocId();
+    sim.addObject({
+      id, kind: EntityKind.Missile, anchor: zone, pos: v3.clone(start), vel: v3.scale(launch, 650), rot: quat.lookRotation(launch), radius: 1,
+      info: { id, kind: EntityKind.Missile, name: 'Missile', model: 'missile', radius: 1 }, ttl: 14,
+      data: { missile: true, from: gunner.id, target: t.ship.id, dmg: 120, shieldMul: 1, hullMul: 1, speed: 650, seeker: 12_000, tracking: true },
+    });
+    expect(runUntil(() => !sim.objects.has(id), 6)).toBe(true);
+    expect(t.ship.state.shield).toBeLessThan(t.ship.stats.shieldMax);
+    expect(t.ship.state.mode).toBe(FlightMode.Landed);
+    sim.removeShip(gunner);
+  });
+
+  it('does not give way when it is rammed: the other ship bounces off and both take the damage', () => {
+    const t = pilot(padPoint(-250, -250, 4));
+    standAt(t.ship, padPoint(-250, -250, 0));
+    const pos = [...t.ship.state.pos];
+    const east = quat.rotate(padRot, [1, 0, 0]);
+    const rammer = drone(padPoint(-340, -250, t.ship.stats.belly + 1), quat.lookRotation(east, upAt(base.ground!.pos)));
+    rammer.input.thrust = [0, 0, 0.12];
+    let nearest = Infinity;
+    let bounced = false;
+    for (let i = 0; i < 4 / DT; i++) {
+      run(1);
+      nearest = Math.min(nearest, v3.dist(rammer.state.pos, t.ship.state.pos));
+      if (v3.dot(rammer.state.vel, east) < -1) bounced = true;
+    }
+    expect(bounced).toBe(true);
+    expect(t.ship.state.mode).toBe(FlightMode.Landed);
+    expect(t.ship.state.pos).toEqual(pos);
+    // The two hulls never overlap: the flying ship alone is moved out of the way.
+    expect(nearest).toBeGreaterThan(t.ship.stats.radius + rammer.stats.radius - 0.01);
+    expect(t.ship.state.shield).toBeLessThan(t.ship.stats.shieldMax);
+    expect(rammer.state.shield).toBeLessThan(rammer.stats.shieldMax);
+    sim.removeShip(rammer);
+  });
+
+  it('receives fuel from a ship in flight, and can survey the body it stands on', async () => {
+    const spot = levelSpot(24);
+    const t = pilot(v3.addScaled(spot, upAt(spot), 5), 'wayfarer');
+    standAt(t.ship, spot);
+    t.ship.state.fuel = t.ship.stats.fuelCap - 5;
+    const giver = pilot(v3.addScaled(spot, upAt(spot), 200));
+    run(2);
+    expect(await cmd(giver, { k: 'giveFuel', to: t.ship.id, n: 2 })).toMatchObject({ ok: true, data: { n: 2 } });
+    expect(t.ship.state.fuel).toBeCloseTo(t.ship.stats.fuelCap - 3, 6);
+    // The other way round it is refused: a fuel line needs the giving ship in flight.
+    expect(await cmd(t, { k: 'giveFuel', to: giver.ship.id, n: 1 })).toMatchObject({ ok: false });
+    expect(t.ship.stats.scanner).toBe(true);
+    expect(await cmd(t, { k: 'scan', body: body.id })).toMatchObject({ ok: true });
+    expect(t.ship.state.mode).toBe(FlightMode.Landed);
+  });
+
+  it('cannot work a wreck with its mining laser until it has lifted off', () => {
+    const spot = levelSpot(27);
+    const t = pilot(v3.addScaled(spot, upAt(spot), 8), 'delver');
+    standAt(t.ship, spot);
+    const nose = quat.rotate(t.ship.state.rot, [0, 0, -1]);
+    const ahead = v3.addScaled(t.ship.state.pos, nose, 120);
+    const hauler = drone(v3.addScaled(ahead, upAt(ahead), Math.max(0, 20 - altitude(ahead))), quat.clone(padRot), 'drover');
+    hauler.cargo = [{ c: 'textiles', n: 30, origin: world.id }];
+    sim.destroy(hauler, null);
+    const wreck = objectsOf(EntityKind.Wreck).find((o) => o.info.name === 'Wreck of Drone' && v3.dist(o.pos, ahead) < 100)!;
+    expect(runUntil(() => wreck.resting === true, 30)).toBe(true);
+    const pods = objectsOf(EntityKind.Loot).length;
+    t.ship.input.buttons = Button.Fire3;
+    run(120);
+    expect(t.ship.state.mode).toBe(FlightMode.Landed);
+    expect(wreckData(wreck)!.fill).toBe(1);
+    expect(objectsOf(EntityKind.Loot).length).toBe(pods);
+    expect(t.ship.flags & EntityFlag.Mining).toBe(0);
+    t.ship.input.thrust = [0, 1, 0];
+    run(15);
+    t.ship.input.thrust = [0, 0, 0];
+    expect(runUntil(() => wreckData(wreck)!.fill < 1, 10)).toBe(true);
+    expect(t.ship.state.mode).toBe(FlightMode.Normal);
+    // What is cut loose comes out as pods, and the ship, now in flight and in range, scoops them.
+    expect(runUntil(() => t.p.cargoCount('textiles') > 0, 10)).toBe(true);
   });
 });
 
@@ -776,6 +885,33 @@ describe('ground bases', () => {
     expect(altitude(ship.state.pos)).toBeGreaterThan(500);
   });
 
+  it('a ship standing beside the block is left alone, and nothing is ever pushed into the ground', () => {
+    const block = BASE_COLLIDER.colliders[0] as { r: number; y1: number };
+    // Closer to the block than a flying ship of its size could be.
+    const s = pilot(padPoint(block.r + 5, 0, 4));
+    standAt(s.ship, padPoint(block.r + 5, 0, 0));
+    const pos = [...s.ship.state.pos];
+    run(60);
+    expect(s.ship.state.mode).toBe(FlightMode.Landed);
+    expect(s.ship.state.pos).toEqual(pos);
+    sim.removeShip(s.ship);
+    world.players.delete(s.p.id);
+
+    const padUp = quat.rotate(padRot, [0, 1, 0]);
+    let contacts = 0;
+    for (let east = 0; east <= block.r + 8; east += 4) {
+      for (let up = 0; up <= block.y1 + 8; up += 2) {
+        const hit = collideBase(padPose(base), padPoint(east, 3, up), 9);
+        if (!hit) continue;
+        contacts++;
+        expect(v3.dot(hit.normal, padUp)).toBeGreaterThanOrEqual(-1e-9);
+        expect(hit.depth).toBeGreaterThan(0);
+      }
+    }
+    expect(contacts).toBeGreaterThan(100);
+    expect(collideBase(padPose(base), padPoint(block.r + 60, 0, 10), 9)).toBeNull();
+  });
+
   it('ships collide with the base structure and never get inside it', () => {
     const block = BASE_COLLIDER.colliders[0] as { r: number; y1: number };
     const f = pilot(padPoint(-135, 0, 20));
@@ -794,6 +930,27 @@ describe('ground bases', () => {
     // It was thrown back the way it came.
     const local = quat.unrotate(padRot, v3.sub(f.ship.state.pos, base.ground!.pos));
     expect(local[0]).toBeLessThan(-(block.r + f.ship.stats.radius) + 1);
+  });
+});
+
+describe('saved states', () => {
+  it('a ship saved as landed anywhere but in a surface frame is not put back as it is', async () => {
+    const station = def.sites.find((s) => s.kind === 'station')!;
+    for (const anchor of [station.id, body.id]) {
+      const bot = c.track(await Bot.connect(S.url, { name: `Stray ${anchor}` }));
+      const ship = world.players.get(bot.id)!.ship!;
+      Object.assign(ship.state, { mode: FlightMode.Landed, anchor, pos: [0, 5000, 0], vel: [0, 0, 0] });
+      bot.close();
+      await c.settle(() => !world.players.has(bot.id), 'the pilot to be logged out');
+      c.bots.delete(bot);
+      const again = c.track(await Bot.connect(S.url, { keys: bot.keys, name: `Stray ${anchor}` }));
+      await c.run(4);
+      // Back in the dock at home instead.
+      expect(again.self?.mode).toBe(FlightMode.Docked);
+      again.close();
+      await c.settle(() => !world.players.has(bot.id), 'the pilot to be logged out');
+      c.bots.delete(again);
+    }
   });
 });
 

@@ -76,14 +76,16 @@ export function impactFraction(stats: Pick<ShipStats, 'mass' | 'hullMax'>, impac
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The shape ships collide with at a ground base: `GROUND_BASE_STRUCTURE` with every part that
- * stands on the pad carried on below it. A ship pressed against the foot of the block is then
- * pushed out sideways or upward, never down into the ground.
+ * The shape ships collide with at a ground base: `GROUND_BASE_STRUCTURE` with every part carried
+ * on downward to below the pad. Nothing can be underneath a building that stands on the ground,
+ * so no part has an underside to push a ship out through: a ship pressed against the foot of the
+ * block, or against the tower where it rises from the roof, is pushed sideways or upward, never
+ * down into the block or the ground.
  */
 export const BASE_COLLIDER: StructureDef = {
   ...GROUND_BASE_STRUCTURE,
   colliders: GROUND_BASE_STRUCTURE.colliders.map((c) =>
-    c.kind === 'cylinder' && c.y0 <= 0 ? { ...c, y0: -2 * GROUND_BASE_STRUCTURE.bound } : c),
+    c.kind === 'cylinder' ? { ...c, y0: -2 * GROUND_BASE_STRUCTURE.bound } : c),
 };
 
 /** A ground base as the collision and docking code needs it: where its pad is and how it is turned. */
