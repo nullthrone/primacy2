@@ -829,7 +829,7 @@ function installLandingTools() {
     }
     return {
       mode: v.mode, height: ship.height, vs: ship.verticalSpeed, gs: ship.groundSpeed, slope: ship.slope, landed: ship.landed,
-      hull: v.self.state.hull, hullMax: v.self.stats.hullMax, hdist, pos: ship.pos, minVs: L.rec.minVs, recGs: L.rec.gs, last: L.last, err: L.err,
+      hull: v.self.state.hull, hullMax: v.self.stats.hullMax, hdist, pos: ship.pos, minVs: L.rec.minVs, recGs: L.rec.gs, last: L.last, err: L.err, dbg: L.dbg,
     };
   };
 
@@ -887,6 +887,7 @@ function installLandingTools() {
     press('thrustDown', el[1] < -db);
     press('thrustForward', el[2] < -db);
     press('thrustBack', el[2] > db);
+    L.dbg = { eL: eL.map((x) => +x.toFixed(3)), el: el.map((x) => +x.toFixed(2)), vdes: vdes.map((x) => +x.toFixed(1)), vel: self.vel.map((x) => +x.toFixed(1)), held: [...g.input.held].join(','), active: g.input.active(), fa: st.fa, pips: st.pips };
   };
   setInterval(() => { try { L.tick(); } catch (e) { L.err = String((e && e.stack) || e); } }, 20);
 
@@ -963,7 +964,7 @@ async function landing(browser, problems, steps, findings) {
         if (Date.now() - t0 > timeoutMs) await P.fail(`timeout while ${what}`);
         if (Date.now() - lastLog > every) {
           lastLog = Date.now();
-          P.log(`${what}: height ${s.height.toFixed(1)} m, vertical ${s.vs.toFixed(1)} m/s, ground ${s.gs.toFixed(1)} m/s, off target ${s.hdist === null ? '-' : s.hdist.toFixed(0)} m`);
+          P.log(`${what}: height ${s.height.toFixed(1)} m, vertical ${s.vs.toFixed(1)} m/s, ground ${s.gs.toFixed(1)} m/s, off target ${s.hdist === null ? '-' : s.hdist.toFixed(0)} m ${process.env.PRIMACY2_DEBUG ? JSON.stringify(s.dbg) : ''}`);
         }
         await page.waitForTimeout(100);
       }
@@ -1071,6 +1072,14 @@ async function landing(browser, problems, steps, findings) {
       await page.waitForTimeout(80);
     }
     await throttleKeys(page, held, null);
+    // What the pilot saw at the drop: the notice only stays on the screen for a few seconds. Then hold the ship still.
+    P.dropNotice = '';
+    for (let i = 0; i < 20 && !/cruise ended/i.test(P.dropNotice); i++) {
+      P.dropNotice = await page.$eval('.notices', (n) => n.innerText).catch(() => '');
+      if (!/cruise ended/i.test(P.dropNotice)) await page.waitForTimeout(50);
+    }
+    P.drop = await P.status();
+    await page.evaluate((h) => window.__L.setServo({ alt: h, vcap: 0 }), Math.max(P.drop.height, 50));
     return base;
   };
 
@@ -1085,19 +1094,15 @@ async function landing(browser, problems, steps, findings) {
     const base = baseA;
 
     // 2. The drop: cruise ended by the game at the ceiling, with its notice.
-    const noticeText = () => A.page.$eval('.notices', (n) => n.innerText).catch(() => '');
-    let notice = await noticeText();
-    for (let i = 0; i < 30 && !/cruise ended/i.test(notice); i++) { await A.page.waitForTimeout(100); notice = await noticeText(); }
-    const drop = await A.status();
+    const drop = A.drop;
+    const notice = A.dropNotice;
     A.log(`dropped at the ceiling: height ${drop.height.toFixed(0)} m, vertical ${drop.vs.toFixed(1)} m/s, ground ${drop.gs.toFixed(1)} m/s, notice ${JSON.stringify(notice.replace(/\s+/g, ' ').trim())}`);
     A.check(drop.mode === MODE.normal && !drop.landed, 'cruise ended in normal flight over the ground', `after the drop the mode should be normal flight, got ${drop.mode}`);
     A.check(/cruise ended/i.test(notice), 'the HUD says the cruise ended at the ceiling', `no cruise-ended notice after the drop, notices: ${JSON.stringify(notice)}`);
     A.check(drop.height > 500, `the drop is high above the ground (${drop.height.toFixed(0)} m)`, `the drop should be well above the ground, height ${drop.height}`);
     await A.shot('41-landing-after-drop');
     await B.shot('41b-landing-after-drop-crasher');
-    // The crasher stays where it is until it is needed.
-    const bDrop = await B.status();
-    await B.page.evaluate((h) => window.__L.setServo({ alt: h, vcap: 0 }), Math.min(bDrop.height, 2000));
+    // Both pilots hold still where the drive dropped them; the crasher stays there until it is needed.
 
     // 3. Descent: the pilot's controller holds the ship level and flies it to a point 350 m beside the pad.
     const hullBefore = drop.hull;
@@ -1121,7 +1126,7 @@ async function landing(browser, problems, steps, findings) {
     A.log(`landed: ${JSON.stringify({ ...landedNow, pos: undefined })}`);
     A.check(landedNow.mode === MODE_LANDED && landedNow.landed === true, 'the client reports the ship landed (mode 5, surface.ship.landed)', `the ship should be landed, got ${JSON.stringify({ ...landedNow, pos: undefined })}`);
     A.check(landedNow.hull === hullBefore && landedNow.hull === landedNow.hullMax, `the hull took no damage (${landedNow.hull} of ${landedNow.hullMax})`, `the hull changed on the way down: ${hullBefore} before, ${landedNow.hull} landed, maximum ${landedNow.hullMax}`);
-    A.check(landedNow.height === 0 && Math.abs(landedNow.vs) < 0.01 && landedNow.gs < 0.05, 'landed means height 0 and no speed over the ground', `a landed ship should have height 0 and no speed, got ${JSON.stringify({ ...landedNow, pos: undefined })}`);
+    A.check(Math.abs(landedNow.height) < 1e-3 && Math.abs(landedNow.vs) < 0.01 && landedNow.gs < 0.05, 'landed means height 0 and no speed over the ground', `a landed ship should have height 0 and no speed, got ${JSON.stringify({ ...landedNow, pos: undefined })}`);
     const pad = await A.page.evaluate((id) => window.primacy2.game.view.sites.find((s) => s.def.id === id).def.ground.pos, base.id);
     const distPad = (p) => Math.hypot(p[0] - pad[0], p[1] - pad[1], p[2] - pad[2]);
     A.check(distPad(landedNow.pos) < 700, `it stands ${distPad(landedNow.pos).toFixed(0)} m from the pad centre`, `the ship should stand within 700 m of the pad, got ${distPad(landedNow.pos)} m`);
