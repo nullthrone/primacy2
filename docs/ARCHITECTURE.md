@@ -142,14 +142,16 @@ expressed in a frame that turns with the body.
 - **Drawing the ground** (`client/render/local/terrain`, the `terrain` part of the local layer).
   What is drawn is the shared terrain function and nothing else: a pool of web workers samples it
   into the tiles of a quadtree on a cube sphere (mesh, normal and tone map per tile, down to cells
-  of about 1.6 m under the camera), and into one coarse cube map of the whole body, the *far map*,
+  of 1.25 to 2.5 m under the camera, by the size of the body), and into one coarse cube map of the
+  whole body, the *far map*,
   from which the space layer draws a landable body seen from orbit. Above
   `max(radius, 100 km)` the body is that far view alone; below it the tiles are drawn over it, flat
   at first, with the relief growing in down to half that height. Tiles are placed relative to the
   camera in float64, slide onto their parent's surface before the parent takes over, and are lit by
-  the frame's sun and ambient light and by the shadow map of the `objects` part. The mesh under a
-  landed ship is the ground it stands on to within millimetres. Small relief below the 10 m the
-  terrain function ends at is shading only.
+  the frame's sun and ambient light and by the shadow map of the `objects` part. At the deepest
+  level the mesh is the ground ships stand on to within millimetres on smooth ground and a few
+  centimetres at the smallest craters. Small relief below the 10 m the terrain function ends at
+  is shading only.
 - **Ground contact** happens in `stepShip`: the ship touches when its belly (`ShipStats.belly`
   below its origin) reaches the terrain beneath it. A gentle touch (sink at most 6 m/s, sideways at
   most 8 m/s, slope at most 20 degrees, the ship's up axis within 30 degrees of the ground normal)

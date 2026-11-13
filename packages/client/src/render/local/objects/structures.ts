@@ -61,7 +61,7 @@ const DUSK_LOW = -0.02;
 /** The real lights of a base are switched on within this distance and reach full strength a quarter nearer. */
 const FLOOD_RANGE = 5000;
 /** Luminous intensity of one pad's floodlight and of the work lights on the tower, scene-referred. */
-const FLOOD_INTENSITY = 95;
+const FLOOD_INTENSITY = 150;
 const WORK_INTENSITY = 80;
 /** How far each reaches, metres; both fall off with the distance, not its square (see `Structures`). */
 const FLOOD_REACH = 280;
@@ -228,6 +228,26 @@ const MATTE = ([['specularColor', 'vec3( 0.0 )'], ['specularColorBlended', 'vec3
   .map(([field, none]) => `material.${field} = ${none};`)
   .join('\n');
 
+/** The most a plate or paint that lies on the ground reflects at a grazing angle; a clean smooth surface reflects all of it. */
+const DUSTY_SHEEN = 0.12;
+
+/**
+ * Takes the mirror out of what lies flat on the ground (pad plates, markings). Every surface
+ * reflects like a mirror when it is looked at along itself, and a pad seen against a low sun
+ * became one white disc with its number gone. A deck that is landed on is scoured and dusty: it
+ * keeps a sheen, about a tenth of that. Without the field in three's shading nothing is changed.
+ */
+function dusty(m: MeshStandardMaterial): void {
+  if (!/\sspecularF90;/.test(ShaderChunk.lights_physical_pars_fragment)) return;
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_physical_fragment>',
+      `#include <lights_physical_fragment>\nmaterial.specularF90 = min( material.specularF90, ${DUSTY_SHEEN} );`,
+    );
+  };
+  m.customProgramCacheKey = () => 'dusty';
+}
+
 const REVEAL_FRAG = /* glsl */ `
 #include <clipping_planes_fragment>
 if (uReveal < 0.999 && fract((atan(vRevealXZ.y, vRevealXZ.x) * 0.15915494 + 0.5) * 4.0) > uReveal) discard;`;
@@ -382,6 +402,8 @@ export class Structures {
           if (src.name.startsWith('rock')) {
             dustLit(own);
             rocks.push(own);
+          } else if (!isEmissive(src)) {
+            dusty(own);
           }
         }
         mesh.material = own;

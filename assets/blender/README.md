@@ -62,7 +62,7 @@ stations around it. `finish()` reports the distance from every hardpoint to the 
 
 ## Structures and props
 
-Generators live in `structures/` (station_ring, station_outpost, gate, beacon) and `props/`
+Generators live in `structures/` (station_ring, station_outpost, gate, beacon, base_ground) and `props/`
 (asteroid_0..3, debris_0..3, cargo_pod, missile, cockpit_generic); `structures/skit.py` holds
 their shared helpers, `props/rockkit.py` the asteroid builder and `props/debriskit.py` the
 debris finish. All are registered in `build_all.py`:
@@ -79,6 +79,19 @@ debris finish. All are registered in `build_all.py`:
   material `portal`) and `scaffold` (construction cage), meant to be shown or hidden by the game.
   `light_0..3` are the lamps of the four anchor blocks, `light_4..11` those of the other blocks.
   Radiator panels, anchor modules and masts stand up to 15 m out of the torus collider.
+- `base_ground.glb` stands on the ground: glTF y = 0 is the ground, north is -Z, and the origin is
+  the middle of the compound. What lies flat is in three child meshes, bottom to top `ground`
+  (the apron), `pads` (the four lift platforms with their edge lights and pipes) and `marks`
+  (paint); they are a few centimetres apart and the game draws them with a depth offset, layer
+  over layer. Empties `pad_1..pad_4` mark the pad centres, which are also the `pads` of the
+  structure in `structures.ts` (170 m out, radius 40, numbered clockwise from north; a number's
+  top points at the compound). Every lamp has an empty `light_N` with the custom properties
+  `p2_light` (`flood`, `edge`, `beacon`, `work`, `door`) and `p2_pad` (1..4, or 0 for the
+  compound). The game drives `emissive_light_flood` (dark by day); `emissive_light_pad1..4` are
+  the edge lights of one pad each, so a pad can be lit or flashed on its own later. Everything
+  made of regolith is `rock_regolith` or `rock_apron`; the game tints both to the ground the
+  base stands on. Nothing stands on a pad: its edge lights, the service pit and the pipes from
+  the compound are outside the 40 m disc, and none of them has a collider.
 - Asteroids are normalised to a bounding radius of exactly 1 m. They have one material (`rock`)
   and one primitive. Four characters: contact binary, rubble pile, shard, layered slab.
   `rockkit.build_rock` evaluates a union of chipped ellipsoid lobes on a dense icosphere,
