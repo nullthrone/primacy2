@@ -925,6 +925,8 @@ async function landing(browser, problems, steps, findings) {
     page.on('pageerror', (e) => problems.push(`pageerror (${who}): ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') problems.push(`console (${who}): ${m.text()}`); });
     await page.addInitScript(() => {
+      // The pilots play in German: every English word on the screen is then a missed translation.
+      try { localStorage.setItem('primacy2.settings', JSON.stringify({ lang: 'de' })); } catch { /* no storage: English */ }
       window.__events = [];
       const watch = () => {
         const ev = window.primacy2?.game?.view?.events;
@@ -951,6 +953,14 @@ async function landing(browser, problems, steps, findings) {
     };
     P.check = (ok, fact, problem) => { if (ok) P.log(`ok: ${fact}`); else problems.push(`landing (${who}): ${problem ?? `NOT ${fact}`}`); };
     P.status = () => page.evaluate(() => window.__L.status());
+    /** The ground instruments of the HUD as the pilot reads them: label and number of each cell, plus all HUD text for the language check. */
+    P.hud = () => page.evaluate(() => ({
+      cells: [...document.querySelectorAll('.ground-cell')].map((c) => ({ label: c.querySelector('.label')?.textContent ?? '', num: c.querySelector('.num')?.textContent ?? '' })),
+      mode: document.querySelector('.hud-centre .mode')?.innerText.replace(/\s+/g, ' ').trim() ?? '',
+      text: [...document.querySelectorAll('.hud-block, .notices, .prompt')].map((n) => n.innerText).join(' | '),
+    })).catch(() => null);
+    /** English words of the interface that must not show while the language is German. */
+    P.english = (text) => (text.match(/HEIGHT ABOVE GROUND|SINK RATE|GROUND SPEED|Cruise ended|Press [A-Z] to|LANDED|SHIELD|HULL|FUEL|ENERGY/g) ?? []);
     /** Polls the controller's numbers every 100 ms until `done` says so; logs progress now and then. */
     P.until = async (what, done, timeoutMs, every = 15_000) => {
       const t0 = Date.now();
@@ -1074,9 +1084,9 @@ async function landing(browser, problems, steps, findings) {
     await throttleKeys(page, held, null);
     // What the pilot saw at the drop: the notice only stays on the screen for a few seconds. Then hold the ship still.
     P.dropNotice = '';
-    for (let i = 0; i < 20 && !/cruise ended/i.test(P.dropNotice); i++) {
+    for (let i = 0; i < 20 && !/reiseflug beendet|cruise ended/i.test(P.dropNotice); i++) {
       P.dropNotice = await page.$eval('.notices', (n) => n.innerText).catch(() => '');
-      if (!/cruise ended/i.test(P.dropNotice)) await page.waitForTimeout(50);
+      if (!/reiseflug beendet|cruise ended/i.test(P.dropNotice)) await page.waitForTimeout(50);
     }
     P.drop = await P.status();
     // The throttle setpoint of cruise carries over into normal flight, where flight assist flies the ship
@@ -1107,7 +1117,13 @@ async function landing(browser, problems, steps, findings) {
     const notice = A.dropNotice;
     A.log(`dropped at the ceiling: height ${drop.height.toFixed(0)} m, vertical ${drop.vs.toFixed(1)} m/s, ground ${drop.gs.toFixed(1)} m/s, notice ${JSON.stringify(notice.replace(/\s+/g, ' ').trim())}`);
     A.check(drop.mode === MODE.normal && !drop.landed, 'cruise ended in normal flight over the ground', `after the drop the mode should be normal flight, got ${drop.mode}`);
-    A.check(/cruise ended/i.test(notice), 'the HUD says the cruise ended at the ceiling', `no cruise-ended notice after the drop, notices: ${JSON.stringify(notice)}`);
+    A.check(/reiseflug beendet/i.test(notice), 'the HUD says in German that the cruise ended at the ceiling', `no German cruise-ended notice after the drop, notices: ${JSON.stringify(notice)}`);
+    {
+      const hud = await A.hud();
+      const height = hud?.cells.find((c) => /HÖHE ÜBER GRUND/.test(c.label));
+      A.check(!!height && /\d/.test(height.num), `the HUD shows the height above ground after the drop (${JSON.stringify(height)}; HUD cells ${JSON.stringify(hud?.cells.map((c) => c.label))})`, `no HÖHE ÜBER GRUND cell with a number after the drop: ${JSON.stringify(hud)}`);
+      A.check(A.english(hud?.text ?? '').length === 0, 'no English HUD words after the drop', `English words on a German HUD after the drop: ${JSON.stringify(A.english(hud?.text ?? ''))}`);
+    }
     A.check(drop.height > 500, `the drop is high above the ground (${drop.height.toFixed(0)} m)`, `the drop should be well above the ground, height ${drop.height}`);
     await A.shot('41-landing-after-drop');
     await B.shot('41b-landing-after-drop-crasher');
@@ -1118,11 +1134,20 @@ async function landing(browser, problems, steps, findings) {
     await A.page.evaluate(() => window.__L.fpsStart());
     await A.page.evaluate((id) => window.__L.setServo({ site: id, off: 350, land: true }), base.id);
     let shotMid = false;
+    let shot300 = false, shot300Pending = null, hud300 = null;
     const landedState = await A.until('descending', (s) => {
       if (!shotMid && s.height < 1500) { shotMid = true; A.shot('42-landing-descent').catch(() => {}); }
+      if (!shot300 && s.height < 320 && s.height > 5) { shot300 = true; shot300Pending = A.shot('42b-landing-300m').then(() => A.hud()).then((h) => { hud300 = h; }).catch(() => {}); }
       return s.mode === MODE_LANDED;
     }, 8 * 60_000);
     const frames = await A.page.evaluate(() => window.__L.fpsStop());
+    await shot300Pending;
+    A.check(shot300, 'the descent passed 300 m and was photographed there', 'the descent never showed a height under 320 m');
+    {
+      const cell = hud300?.cells.find((c) => /HÖHE ÜBER GRUND/.test(c.label));
+      A.check(!!cell && /\d/.test(cell.num) && hud300.cells.some((c) => /SINKRATE/.test(c.label)) && hud300.cells.some((c) => /FAHRT ÜBER GRUND/.test(c.label)), `at 300 m the HUD shows height, sink rate and ground speed (${JSON.stringify(hud300?.cells)})`, `the HUD at 300 m lacks height, sink rate or ground speed: ${JSON.stringify(hud300)}`);
+      A.check(A.english(hud300?.text ?? '').length === 0, 'no English HUD words at 300 m', `English words on a German HUD at 300 m: ${JSON.stringify(A.english(hud300?.text ?? ''))}`);
+    }
     rates = frameRates(frames);
     if (landedState.mode === MODE.destroyed) await A.fail('the lander was destroyed');
     await A.page.evaluate(() => window.__L.setServo({ liftoff: false }));
@@ -1139,6 +1164,11 @@ async function landing(browser, problems, steps, findings) {
     const pad = await A.page.evaluate((id) => window.primacy2.game.view.sites.find((s) => s.def.id === id).def.ground.pos, base.id);
     const distPad = (p) => Math.hypot(p[0] - pad[0], p[1] - pad[1], p[2] - pad[2]);
     A.check(distPad(landedNow.pos) < 700, `it stands ${distPad(landedNow.pos).toFixed(0)} m from the pad centre`, `the ship should stand within 700 m of the pad, got ${distPad(landedNow.pos)} m`);
+    {
+      const hud = await A.hud();
+      A.check(/GELANDET/i.test(hud?.mode ?? ''), `the HUD says landed in German (${JSON.stringify(hud?.mode)})`, `the HUD mode line should say GELANDET, got ${JSON.stringify(hud?.mode)}`);
+      A.check(A.english(hud?.text ?? '').length === 0, 'no English HUD words while landed', `English words on a German HUD while landed: ${JSON.stringify(A.english(hud?.text ?? ''))}`);
+    }
     await A.shot('43-landed-cockpit');
     await A.page.keyboard.press('KeyV');
     await A.page.waitForTimeout(900);
@@ -1522,6 +1552,7 @@ try {
   await browser?.close().catch(() => {});
   stopServers(servers);
 }
+for (const f of findings) console.log(`finding: ${f}`);
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
