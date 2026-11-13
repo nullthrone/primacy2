@@ -712,7 +712,8 @@ class GameImpl implements Game {
       field: site && rocks && left ? { site, rel: v3.neg(camSys), rocks, left } : null,
       zone: inZone ? v3.neg(camSys) : null,
       zoneRot: inZone ? (frame.rot ?? [0, 0, 0, 1]) : null,
-      surface: placed ? surfaceView(sys, t, frame, camLocal, bodyStates, flying ? { state: st, stats } : null) : null,
+      // The ship's ground data is taken at the position it is drawn at, between two ticks.
+      surface: placed ? surfaceView(sys, t, frame, camLocal, bodyStates, flying ? { state: { ...st, pos: shipPos }, stats } : null) : null,
       events,
       fx: {
         // Never zero in cruise: close above a landable body the speed falls below the bottom of the scale.
