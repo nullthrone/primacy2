@@ -23,7 +23,7 @@ import type { Part } from '../part.ts';
 import { disposeFarMaps, enableFarMaps, farMap } from './farmap.ts';
 import { groundUniforms } from './material.ts';
 import { terrainPool } from './pool.ts';
-import { handoverAltitude, reliefAt } from './relief.ts';
+import { groundShown, handoverAltitude, reliefAt } from './relief.ts';
 import { groundKind } from './shade.ts';
 import { Ground, type GroundStats } from './tiles.ts';
 
@@ -103,6 +103,7 @@ export function createTerrain(): Part {
           ground.group.visible = false;
           if (view.clock - leftAt > LINGER) drop();
         }
+        groundShown.body = -1;
         terrainDebug.shown = false;
         terrainDebug.updateMs = performance.now() - t0;
         return;
@@ -153,6 +154,9 @@ export function createTerrain(): Part {
       if (renderer) renderer.getDrawingBufferSize(buffer);
       ground.group.visible = show;
       ground.update(s.cam, right, up, forward, Math.tan((view.camera.fov * Math.PI) / 360), buffer.x / buffer.y, view.clock, show);
+      groundShown.system = view.system;
+      groundShown.body = show ? s.body : -1;
+      groundShown.relief = relief;
       terrainDebug.relief = relief;
       terrainDebug.shown = show;
       terrainDebug.updateMs = performance.now() - t0;
@@ -160,6 +164,8 @@ export function createTerrain(): Part {
 
     dispose(): void {
       renderer?.domElement.removeEventListener('webglcontextrestored', restored);
+      groundShown.system = null;
+      groundShown.body = -1;
       drop();
       disposeFarMaps();
     },

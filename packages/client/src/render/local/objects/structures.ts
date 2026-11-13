@@ -24,6 +24,7 @@ import {
   OneMinusSrcAlphaFactor,
   PointLight,
   Quaternion,
+  ShaderChunk,
   ShaderMaterial,
   SpotLight,
   Vector3,
@@ -192,6 +193,27 @@ void main() {
   gl_FragColor = vec4(col * uOn, alpha * uOn);
 }`;
 
+/**
+ * Makes a material of loose regolith answer light as the terrain around it does (`groundLit` in
+ * `terrain/shade.ts`): dust throws light back toward its source, so it is brighter than a matte
+ * surface under a low sun and when looked at along the ground. Without this a berm or the rim of
+ * an apron is darker than the ground it lies on, though it has the same colour. The change is one
+ * line of three's own shading; should a later version word that line differently, nothing is
+ * replaced and the material is matte as before.
+ */
+function dustLit(m: MeshStandardMaterial): void {
+  m.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_physical_pars_fragment>',
+      ShaderChunk.lights_physical_pars_fragment.replace(
+        'vec3 irradiance = dotNL * directLight.color;',
+        'vec3 irradiance = mix( dotNL, min( 2.0 * dotNL / ( dotNL + saturate( dot( geometryNormal, geometryViewDir ) ) + 0.02 ), 1.5 ), 0.3 ) * directLight.color;',
+      ),
+    );
+  };
+  m.customProgramCacheKey = () => 'regolith';
+}
+
 const REVEAL_FRAG = /* glsl */ `
 #include <clipping_planes_fragment>
 if (uReveal < 0.999 && fract((atan(vRevealXZ.y, vRevealXZ.x) * 0.15915494 + 0.5) * 4.0) > uReveal) discard;`;
@@ -343,7 +365,10 @@ export class Structures {
           own.polygonOffsetFactor = -1;
           own.polygonOffsetUnits = units;
           copies.set(src, own);
-          if (src.name.startsWith('rock')) rocks.push(own);
+          if (src.name.startsWith('rock')) {
+            dustLit(own);
+            rocks.push(own);
+          }
         }
         mesh.material = own;
         // Flat on the ground: nothing for it to shade, and its own shadow would only flicker.
@@ -370,6 +395,7 @@ export class Structures {
           ground.floodMats.push(copy);
           ground.floodFull.push(src.emissiveIntensity);
         } else {
+          dustLit(copy);
           rocks.push(copy);
         }
       }

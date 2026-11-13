@@ -20,8 +20,13 @@
  * terrain while they fly: a grain lands when its arc returns to the plane it was launched from.
  * Everything is kept in the axes of the zone's frame, as the other effects are (see `core.ts`);
  * dust exists only while that frame is the surface frame of the body below.
+ *
+ * A ground base keeps its landing pads swept: nothing rises from a pad's plate, and little from
+ * the sintered apron around the base.
  */
-import { EntityFlag, EntityKind, FlightMode, G, HULLS, SURFACE_ID_BASE, bodySurface, terrainSample } from '@primacy2/shared';
+import {
+  EntityFlag, EntityKind, FlightMode, G, HULLS, SURFACE_ID_BASE, bodySurface, groundSiteRotation, quat, siteStructure, terrainSample,
+} from '@primacy2/shared';
 import type { BodySurface, GameEvent, Vec3 } from '@primacy2/shared';
 import type { Lighting } from '../../../contracts.ts';
 import { TAU, clamp, clamp01, damp, groundAlbedo } from '../util.ts';
@@ -107,12 +112,12 @@ type HitEvent = Extract<GameEvent, { e: 'hit' }>;
 type ShotEvent = Extract<GameEvent, { e: 'shot' }>;
 type DestroyedEvent = Extract<GameEvent, { e: 'destroyed' }>;
 
-const MAX_GRAINS = 2600;
+const MAX_GRAINS = 4200;
 /** Exhaust reaches the ground and moves dust from this far away, metres. */
 const REACH = 40;
 /** Grains per second under a ship blowing at full force right above the ground: the pilot's own, any other. */
-const RATE_OWN = 260;
-const RATE_OTHER = 90;
+const RATE_OWN = 520;
+const RATE_OTHER = 160;
 /** Thrust in newtons at which the dust is at its thickest; a Wisp hovering in a sixteenth of a g pushes a third of it. */
 const FULL_FORCE = 70_000;
 /** Other ships raise dust only this near the camera, metres. */
@@ -120,9 +125,11 @@ const OTHER_RANGE = 900;
 /** A grain that is still flying after this many seconds has thinned out of sight. */
 const MAX_FLIGHT = 9;
 /** The streak a clump is drawn as covers this many seconds of its flight. */
-const SHUTTER = 0.16;
+const SHUTTER = 0.24;
 /** How much of the light falling on it a fresh clump sends on; several overlap near the ship. */
-const DENSITY = 0.2;
+const DENSITY = 0.26;
+/** Share of the dust that loose ground gives which the sintered apron of a base gives. */
+const APRON_DUST = 0.3;
 /** The landing light of the pilot's ship, as `objects/landing.ts` has it: on below this height, lighting its pool this brightly. */
 const LAMP_HEIGHT = 500;
 const LAMP_POOL = 0.5;
@@ -157,6 +164,9 @@ export class Regolith {
   private ax = 0;
   private ay = 0;
   private az = 0;
+  /** Pads and aprons of the bases on the body below: per pad or apron its centre (zone axes), its radius and 1 for a pad, 0 for an apron. */
+  private swept: Float64Array = new Float64Array(0);
+  private sweptFor: BodySurface | null = null;
   /** Colour of the ground under the pilot's ship, linear reflectance. */
   private readonly albedo = [0.2, 0.2, 0.2];
 
@@ -173,6 +183,38 @@ export class Regolith {
     const self = view.self;
     if (!s || !self || self.state.anchor !== SURFACE_ID_BASE + s.body) return null;
     return bodySurface(view.system, s.body);
+  }
+
+  /**
+   * How much dust the ground gives at an anchor-relative point: 1 for loose regolith, less on the
+   * apron of a base, 0 on the plate of a landing pad.
+   */
+  private loose(ground: BodySurface, x: number, y: number, z: number): number {
+    if (this.sweptFor !== ground) {
+      // Built once per body: where the pads and aprons of its bases lie.
+      const list: number[] = [];
+      for (const site of ground.sites) {
+        const def = siteStructure(site);
+        if (!site.ground || !def) continue;
+        const rot = groundSiteRotation(site);
+        list.push(site.ground.pos[0], site.ground.pos[1], site.ground.pos[2], def.bound, 0);
+        for (const pad of def.pads ?? []) {
+          const at = quat.rotate(rot, pad.pos);
+          list.push(site.ground.pos[0] + at[0], site.ground.pos[1] + at[1], site.ground.pos[2] + at[2], pad.r, 1);
+        }
+      }
+      this.swept = Float64Array.from(list);
+      this.sweptFor = ground;
+    }
+    const s = this.swept;
+    let share = 1;
+    for (let i = 0; i < s.length; i += 5) {
+      const dx = x - s[i]!, dy = y - s[i + 1]!, dz = z - s[i + 2]!;
+      if (dx * dx + dy * dy + dz * dz > s[i + 3]! * s[i + 3]!) continue;
+      if (s[i + 4]! > 0) return 0;
+      share = APRON_DUST;
+    }
+    return share;
   }
 
   /** Height of an anchor-relative point above the ground beneath it; also leaves the unit vector up in `N`. */
@@ -229,8 +271,8 @@ export class Regolith {
       p.gx = -upx * g; p.gy = -upy * g; p.gz = -upz * g;
       p.age = 0;
       p.life = Math.min(MAX_FLIGHT, Math.max(0.25, (2 * up) / (g * lean)));
-      p.w0 = size * rand(0.25, 0.6);
-      p.w1 = p.w0 + size * rand(1.4, 4.2);
+      p.w0 = size * rand(0.2, 0.45);
+      p.w1 = p.w0 + size * rand(0.8, 2.4);
       p.dense = dense * rand(0.5, 1);
     }
   }
@@ -243,9 +285,10 @@ export class Regolith {
     // Onto the ground beneath the point, straight up as the normal: an impact does not ask for more.
     const h = this.heightAt(ground, x, y, z);
     const gx = x - N[0] * h, gy = y - N[1] * h, gz = z - N[2] * h;
-    const k = clamp(strength, 0.5, 40);
-    this.launch(Math.round(clamp(k * 11, 10, 340)), gx, gy, gz, N[0], N[1], N[2], this.gravity(ground),
-      0.1, 1.15, 3 + k * 1.7, 0, 0, 0, 0.4 + k * 0.12, 0.8 + k * 0.045, DENSITY * 1.15);
+    const k = clamp(strength, 0.5, 40) * this.loose(ground, gx, gy, gz);
+    if (k <= 0) return;
+    this.launch(Math.round(clamp(k * 14, 6, 420)), gx, gy, gz, N[0], N[1], N[2], this.gravity(ground),
+      0.1, 1.15, 3 + k * 1.7, 0, 0, 0, 0.4 + k * 0.12, 1.4 + k * 0.08, DENSITY * 1.15);
   }
 
   /** A hit that lands on the ground: a ship striking it, a missile going off there, fire that hit a ship standing on it. */
@@ -275,7 +318,8 @@ export class Regolith {
    * `level` 0..1, over ground through the point (gx, gy, gz) with the unit normal n.
    */
   private wash(
-    slot: number, rate: number, level: number, clear: number, ox: number, oy: number, oz: number, ex: number, ey: number, ez: number,
+    ground: BodySurface, slot: number, rate: number, level: number, clear: number,
+    ox: number, oy: number, oz: number, ex: number, ey: number, ez: number,
     gx: number, gy: number, gz: number, nx: number, ny: number, nz: number, g: number,
   ): void {
     if (level < 0.02) return;
@@ -286,13 +330,14 @@ export class Regolith {
     // `clear` is how far from the origin the nozzles are: the hull's own size does not count.
     const near = 1 - clamp01((along - clear) / REACH);
     if (near <= 0) return;
-    const strength = level * near * near * Math.min(1, into * 2.5);
-    this.owed[slot] = this.owed[slot]! + strength * rate * this.frame.dt;
+    // Where the gas meets the ground.
+    const hx = ox + ex * along, hy = oy + ey * along, hz = oz + ez * along;
+    const strength = level * Math.pow(near, 1.3) * Math.min(1, into * 2.5);
+    this.owed[slot] = this.owed[slot]! + strength * rate * this.frame.dt * this.loose(ground, hx, hy, hz);
     const count = Math.floor(this.owed[slot]!);
     if (count <= 0) return;
     this.owed[slot] = this.owed[slot]! - count;
-    // Where the gas meets the ground, and which way it is deflected along it.
-    const hx = ox + ex * along, hy = oy + ey * along, hz = oz + ez * along;
+    // Which way it is deflected along the ground.
     const sx = ex + nx * into, sy = ey + ny * into, sz = ez + nz * into;
     this.launch(count, hx, hy, hz, nx, ny, nz, g, 0.03, 0.3, 9 + 34 * strength, sx * 1.3, sy * 1.3, sz * 1.3,
       0.5 + 0.2 * Math.max(0, along - clear), 1, DENSITY);
@@ -345,14 +390,14 @@ export class Regolith {
         const push = Math.hypot(px, py, pz);
         const level = Math.pow(Math.min(1, (push * self.stats.mass) / FULL_FORCE), 0.7);
         if (push > 1e-3) {
-          this.wash(0, RATE_OWN, level, self.stats.belly, own.x, own.y, own.z, -px / push, -py / push, -pz / push, gx, gy, gz, nx, ny, nz, g);
+          this.wash(ground, 0, RATE_OWN, level, self.stats.belly, own.x, own.y, own.z, -px / push, -py / push, -pz / push, gx, gy, gz, nx, ny, nz, g);
         }
         // The main engines at full burn with the ship held back (at its speed limit, say) still
         // blow out of the stern, though nothing accelerates.
         const burn = clamp01(Math.max(self.input.thrust[2], self.input.throttle));
         if (burn > 0.5) {
           rotate(own, 0, 0, 1, B);
-          this.wash(1, RATE_OWN, 0.5 * burn, self.stats.radius * 0.8, own.x, own.y, own.z, B[0], B[1], B[2], gx, gy, gz, nx, ny, nz, g);
+          this.wash(ground, 1, RATE_OWN, 0.5 * burn, self.stats.radius * 0.8, own.x, own.y, own.z, B[0], B[1], B[2], gx, gy, gz, nx, ny, nz, g);
         }
       }
 
@@ -389,7 +434,7 @@ export class Regolith {
         // Its weight, and more while it is seen burning its thrusters.
         const force = (hull?.mass ?? 60_000) * g * (e.flags & (EntityFlag.Thrust | EntityFlag.Boost) ? 2 : 1);
         const level = Math.pow(Math.min(1, force / FULL_FORCE), 0.7);
-        this.wash(2, RATE_OTHER, level, belly, t.x, t.y, t.z, -ux, -uy, -uz, t.x - ux * below, t.y - uy * below, t.z - uz * below, ux, uy, uz, g);
+        this.wash(ground, 2, RATE_OTHER, level, belly, t.x, t.y, t.z, -ux, -uy, -uz, t.x - ux * below, t.y - uy * below, t.z - uz * below, ux, uy, uz, g);
       }
     } else {
       this.wasHeight = Infinity;

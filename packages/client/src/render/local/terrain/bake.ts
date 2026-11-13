@@ -80,35 +80,68 @@ export function skirtAnchor(k: number, cells: number): number {
   return (cells - i) * row;
 }
 
+/** Indices of one drawing order of a tile mesh: the skirt and the surface. */
+export const tileIndexCount = (cells: number): number => cells * cells * 6 + 4 * cells * 6;
+
 /**
- * Triangles of a tile mesh, the same for every tile. A cell is cut along the diagonal from its
- * (i+1, j) corner to its (i, j+1) corner, which `bakeTile` relies on. Counter-clockwise seen from
- * outside the body; the skirt faces away from the tile.
+ * Triangles of a tile mesh, the same for every tile, in eight drawing orders one after the other
+ * (each `tileIndexCount` long, see `tileOrder`). Far from the camera the depth buffer can no
+ * longer tell a ridge from the valley behind it, so there a tile is drawn back to front: the
+ * cells row by row away from the far side, whichever side of the tile that is. Every order
+ * starts with the skirt, which is behind everything else of the tile.
+ *
+ * A cell is cut along the diagonal from its (i+1, j) corner to its (i, j+1) corner, which
+ * `bakeTile` relies on. Counter-clockwise seen from outside the body; the skirt faces away from
+ * the tile.
  */
 export function tileIndices(cells: number): Uint16Array {
   const row = cells + 1;
-  const out = new Uint16Array(cells * cells * 6 + 4 * cells * 6);
+  const per = tileIndexCount(cells);
+  const out = new Uint16Array(per * 8);
   let n = 0;
-  for (let j = 0; j < cells; j++) {
-    for (let i = 0; i < cells; i++) {
-      const a = j * row + i;
-      const b = a + 1;
-      const c = a + row;
-      out[n++] = a; out[n++] = c; out[n++] = b;
-      out[n++] = b; out[n++] = c; out[n++] = c + 1;
+  for (let order = 0; order < 8; order++) {
+    const first = row * row;
+    for (let side = 0; side < 4; side++) {
+      for (let i = 0; i < cells; i++) {
+        const k = side * row + i;
+        const b0 = skirtAnchor(k, cells);
+        const b1 = skirtAnchor(k + 1, cells);
+        out[n++] = b0; out[n++] = b1; out[n++] = first + k;
+        out[n++] = b1; out[n++] = first + k + 1; out[n++] = first + k;
+      }
     }
-  }
-  const first = row * row;
-  for (let side = 0; side < 4; side++) {
-    for (let i = 0; i < cells; i++) {
-      const k = side * row + i;
-      const b0 = skirtAnchor(k, cells);
-      const b1 = skirtAnchor(k + 1, cells);
-      out[n++] = b0; out[n++] = b1; out[n++] = first + k;
-      out[n++] = b1; out[n++] = first + k + 1; out[n++] = first + k;
+    // Bit 0: the outer loop runs over i instead of j. Bit 1: the outer loop counts down. Bit 2: the inner one does.
+    const outerI = (order & 1) === 1;
+    const outerDown = (order & 2) === 2;
+    const innerDown = (order & 4) === 4;
+    for (let a = 0; a < cells; a++) {
+      for (let b = 0; b < cells; b++) {
+        const outer = outerDown ? cells - 1 - a : a;
+        const inner = innerDown ? cells - 1 - b : b;
+        const i = outerI ? outer : inner;
+        const j = outerI ? inner : outer;
+        const v0 = j * row + i;
+        const v1 = v0 + 1;
+        const v2 = v0 + row;
+        out[n++] = v0; out[n++] = v2; out[n++] = v1;
+        out[n++] = v1; out[n++] = v2; out[n++] = v2 + 1;
+      }
     }
   }
   return out;
+}
+
+/**
+ * Which of the drawing orders of `tileIndices` draws a tile back to front (or, with `nearFirst`,
+ * front to back) for a camera at `x`, `z` in the tile's own frame: along the axis the camera is
+ * farther out on, starting at the side away from it.
+ */
+export function tileOrder(x: number, z: number, nearFirst: boolean): number {
+  // Vertex columns run along +X of the tile frame and rows along +Z.
+  const outerI = Math.abs(x) > Math.abs(z);
+  const iDown = x < 0 !== nearFirst;
+  const jDown = z < 0 !== nearFirst;
+  return (outerI ? 1 : 0) | ((outerI ? iDown : jDown) ? 2 : 0) | ((outerI ? jDown : iDown) ? 4 : 0);
 }
 
 /** Per vertex its place in the tile, 0..1 along u and v; the same for every tile. */

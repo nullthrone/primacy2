@@ -186,21 +186,20 @@ void main() {
   if (uDetail > 0.0 && px < 2.2) {
     vec3 slope = vec3(0.0);
     float speck = 0.0;
-    // Cells of 5.3 m, 1.6 m, 0.5 m and 0.16 m: none a whole multiple of the next.
-    vec4 cells = vec4(${DETAIL_PERIOD}.0 / 768.0, ${DETAIL_PERIOD}.0 / 2560.0, ${DETAIL_PERIOD}.0 / 8192.0, ${DETAIL_PERIOD}.0 / 25600.0);
-    vec4 counts = vec4(768.0, 2560.0, 8192.0, 25600.0);
-    for (int i = 0; i < 4; i++) {
-      float cell = cells[i];
+    // Cells of 5.3 m, 1.6 m, 0.5 m, 0.16 m and 5 cm: none a whole multiple of the next.
+    for (int i = 0; i < 5; i++) {
+      float count = i == 0 ? 768.0 : i == 1 ? 2560.0 : i == 2 ? 8192.0 : i == 3 ? 25600.0 : 81920.0;
+      float cell = ${DETAIL_PERIOD}.0 / count;
       float show = 1.0 - smoothstep(cell * 0.14, cell * 0.42, px);
       if (show > 0.0) {
-        vec4 nz = detailNoise(vDetail / cell + vec3(0.37, 0.11, 0.73) * float(i), counts[i]);
+        vec4 nz = detailNoise(vDetail / cell + vec3(0.37, 0.11, 0.73) * float(i), count);
         slope += nz.xyz * show;
         speck += nz.w * show;
       }
     }
-    vec3 sl = (slope * uToBody) * (0.085 * uDetail);
+    vec3 sl = (slope * uToBody) * (0.11 * uDetail);
     nl = normalize(nl - (sl - nl * dot(sl, nl)));
-    tone += speck * 0.02 * uDetail;
+    tone += speck * 0.045 * uDetail;
   }
 
   vec3 n = normalize(normalMatrix * nl);

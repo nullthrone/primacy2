@@ -16,7 +16,7 @@
 import { BufferAttribute, BufferGeometry, Group, Matrix3, Matrix4, Mesh, Vector2, Vector3 } from 'three';
 import type { DataTexture, ShaderMaterial } from 'three';
 import { terrainMax, terrainMin, type TerrainParams } from '@primacy2/shared';
-import { gridDetail, tileIndices, tileUvs, type TileBake } from './bake.ts';
+import { gridDetail, tileIndexCount, tileIndices, tileOrder, tileUvs, type TileBake } from './bake.ts';
 import { FACES, deepestLevel, directionToFace, faceDirection, tileFrame, tileSize, tileSpan } from './cube.ts';
 import { DETAIL_PERIOD, mapTexture, tileMaterial, type GroundUniforms } from './material.ts';
 import type { Job, TerrainPool } from './pool.ts';
@@ -40,8 +40,14 @@ const MORPH_START = 0.91;
 const OUTSIDE = 2.5;
 /** Seconds a new tile takes to settle from its parent's surface onto its own. */
 const FADE_IN = 0.5;
-/** Tiles beyond this distance (m) are drawn far to near: the depth buffer cannot tell them apart. */
-const FAR_ORDER = 20_000;
+/**
+ * Tiles beyond this distance (m) are drawn far to near, each back to front: out there a step of
+ * the depth buffer is tens of metres and more, and past the far plane of the local scene all
+ * ground has one depth. Nearer tiles are drawn nearest first, so they hide what is behind them
+ * before it is shaded.
+ */
+const FAR_ORDER = 2000;
+const INDICES = tileIndexCount(CELLS);
 /** Baked tiles handed to the GPU per frame at most. */
 const UPLOADS = 4;
 /** Seconds after which tiles nobody asked for are dropped. */
@@ -75,6 +81,8 @@ class Tile {
   born = -1;
   split = false;
   dist = 0;
+  /** Drawing order of the tile this frame (`tileOrder`), by where the camera is in its frame. */
+  order = 0;
   /** Position in the list of all tiles. */
   slot = -1;
 
@@ -371,6 +379,8 @@ export class Ground {
     t.leaf = this.clock;
     if (reach >= 0) {
       t.dist = dist;
+      // `reach` left the camera's place in the tile frame in F3.
+      t.order = tileOrder(F3[0]!, F3[2]!, dist < FAR_ORDER);
       t.drawn = this.clock;
       this.draw.push(t);
     }
@@ -425,8 +435,6 @@ export class Ground {
       else this.want(root, 0);
     }
 
-    // Near tiles are drawn nearest first, so that they hide what is behind them before it is
-    // shaded; far ones farthest first, because there the depth buffer no longer orders them.
     draw.sort(byDistance);
     let level = 0;
     const n = show ? draw.length : 0;
@@ -438,6 +446,7 @@ export class Ground {
       mesh.visible = true;
       mesh.position.set(f[0]! - cam[0]!, f[1]! - cam[1]!, f[2]! - cam[2]!);
       mesh.renderOrder = t.dist < FAR_ORDER ? 10 + i : 10 + n + (n - i);
+      mesh.geometry.setDrawRange(t.order * INDICES, INDICES);
       (mesh.material.uniforms.uMorph!.value as Vector3).z = Math.max(0, 1 - (clock - t.born) / FADE_IN);
       if (t.level > level) level = t.level;
     }
