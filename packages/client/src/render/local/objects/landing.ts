@@ -27,6 +27,9 @@ import { LAMP_DROP, LAMP_FORE, LAMP_FORWARD, LAMP_HALF_ANGLE, LAMP_PENUMBRA, dam
 
 export { LAMP_DROP, LAMP_FORE, LANDING_LIGHT_HEIGHT, landingLampLevel } from '../util.ts';
 
+/** Nothing farther from the lamp than this is lit by it, metres. */
+const LAMP_RANGE = 1200;
+
 /** Height above the ground of points given relative to the camera, by the shared terrain. */
 export class GroundProbe {
   private surface: BodySurface | null = null;
@@ -76,7 +79,7 @@ export class GroundProbe {
 
 /** The landing light of the pilot's own ship. */
 export class LandingLight {
-  readonly light = new SpotLight(0xfff3df, 0, 0, LAMP_HALF_ANGLE, LAMP_PENUMBRA, 2);
+  readonly light = new SpotLight(0xfff3df, 0, LAMP_RANGE, LAMP_HALF_ANGLE, LAMP_PENUMBRA, 1);
   /** 0..1: how far the lamp is switched on, for the point of light on the hull. */
   level = 0;
 

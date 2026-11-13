@@ -477,12 +477,13 @@ export class Regolith {
       const thin = (p.w0 / w) * (1 - u) * (1 - u) * Math.min(1, t * 12) * p.dense * 3;
       let er = sr, eg = sg, eb = sb;
       if (lamp > 0) {
-        // Inside the cone of the lamp, by the square of the distance from it.
+        // Inside the cone of the lamp, by the distance from it, as the lamp itself falls off.
         const dx = hx - lampX, dy = hy - lampY, dz = hz - lampZ;
         const dd = dx * dx + dy * dy + dz * dz;
         const along = dx * beamX + dy * beamY + dz * beamZ;
         if (along > 0 && along * along > LAMP_EDGE * LAMP_EDGE * dd) {
-          const fall = (lamp * smooth(LAMP_EDGE, LAMP_CORE, along / Math.sqrt(dd))) / Math.max(dd, 1);
+          const d = Math.sqrt(dd);
+          const fall = (lamp * smooth(LAMP_EDGE, LAMP_CORE, along / d)) / Math.max(d, 1);
           er += fall; eg += fall * 0.9; eb += fall * 0.74;
         }
       }
