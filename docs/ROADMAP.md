@@ -21,7 +21,16 @@ in motion (only stills), not at night, not on ice or desert bodies, not on large
 Built and covered by server tests, never played in the browser: mining, salvaging a wreck,
 missions, NPC behaviour, warp gates.
 
-Tests: 710 pass, 2 are marked as expected failures on purpose (see section 4).
+Built on 2026-11-14 and played in the browser with a simulated controller by
+`scripts/pad-check.mjs` (114 checks): controller support for flight, menus, station screens, maps
+and a binding screen. No real controller has been used yet.
+
+Built on 2026-11-14 beside the game and not yet in it: the sound library (64 sounds rendered by
+scripts, 50 downloaded files with a licence list) and the audition page on which the owner listens
+and rates. The game itself still plays the old procedural sound.
+
+Tests: 779 pass, 2 are marked as expected failures on purpose (see section 4). The audio tools have
+tests of their own in Python (listening tools 22, synthesis 38, downloads 27).
 
 ## 2. What the owner has decided and is not built yet
 
@@ -88,6 +97,53 @@ The decisions were made in interviews; the wording here is the specification.
   AGPL repository: sounds rendered by scripts in the repository, CC0 packs, public-domain NASA
   recordings, voices from open local speech models, the owner's own phone recordings. An audition
   page lets the owner listen and rate; the game's audio is changed only after that.
+- Added by the owner on 2026-11-14 after his first listening: the high-energy events (a hit on the
+  shield, the fold jump and its exit) must sound energetic, hissing and rushing, not dull; and the
+  sound must have width and places (stereo, spatial), not sit in the middle. The direction for
+  every sound, the rules it is checked against and the owner's words from each listening round
+  are in `tools/audio/SOUND_DESIGN.md`.
+
+### Sound library and controller support (built on 2026-11-14)
+
+The sound library, all of it outside the game's runtime:
+
+- `tools/audio/listen`: tools with which an agent that cannot hear measures a sound (levels,
+  loudness, spectrum, envelope, loop seam, two channels, a spectrogram picture), compares it with
+  descriptions (CLAP), transcribes speech (Whisper) and has it described (Qwen2-Audio).
+- `tools/audio/synth` and `tools/audio/build.py`: the synthesis library and one script per
+  category; `tools/audio/sounds.json` is the list of the 64 sounds and what each is meant to be.
+  The build renders them, checks every rule and writes the manifest. Rendered files are not in
+  git; the build is deterministic and makes them again.
+- `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
+  from kenney.nl and 52 files from NASA hosts (329 MB, not in git, fetched again by the script
+  with checksums), every file with its licence and where it was read. 50 of them are picked for
+  listening (`assets/audio/selection.json`).
+- The audition page (`packages/client/dev/audition.html`, a page of the dev server only): every
+  sound alone, the engine levels on one thrust slider, a stage (mono, stereo, headphones, a room
+  slider), four scenes (docking approach, combat, moon landing, fold jump), ratings that are
+  saved to `assets/audio/ratings.json`, and a mark on sounds that changed since their rating.
+
+Listening rounds: round 1 on 2026-11-14 (20 of 114 rated) approved the engine idle, the cruise
+chain, the fold charge and tunnel, the cabin and the missile warning, and rejected the shield
+hits, the fold jump and exit and the shields-down alarm; 20 sounds were reworked for it. Round 2
+is on the page and waits for him. `assets/audio/rounds/` keeps what he heard in each round.
+
+Open for the owner to decide: 15 of the NASA files carry the voices of astronauts and flight
+controllers who can be identified; they are marked as test material that must not ship. Whether
+the game's radio uses real NASA traffic, his own voice or synthetic voices is his decision. He
+offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
+
+Not built: the game's runtime audio on the library (the next step, see section 3), voices and
+music (the models are downloaded and have never been run).
+
+Controller support: gamepads and joysticks through the Gamepad API feed the same input values as
+keyboard and mouse (`packages/client/src/input/gamepad.ts`, pure logic with tests); binding codes
+live beside the key codes in the settings; defaults for Xbox and PlayStation pads with Y as the
+modifier for chords; a binding screen in the settings (assign by pressing or moving, dead zone,
+curve and invert per axis, a throttle lever); menus, station screens and maps are driven by the
+D-pad and A, B, LB, RB (`packages/client/src/ui/padnav.ts`); hints name the control of the device
+last used; English and German. `docs/CLIENT.md`, section Controls, has the layout. A review found
+21 defects, a second pass confirmed 19, and all 19 are fixed with tests.
 
 ### The owner's first play session (2026-11-14)
 
@@ -245,9 +301,12 @@ in the foreground and went on in the background after ten minutes.
 
 Each step is one work session with its own workflow runs.
 
-1. **Sound library and controller support.** Both are side work for the cheaper model and do not
-   touch each other. Sound: the listening tools, the synthesis library and first sound set, the
-   downloads with a licence list, the audition page.
+1. **Sound library and controller support.** Built on 2026-11-14 (see section 2). What is left of
+   the sound: the owner's listening rounds until he approves the set, then the game's runtime
+   audio is rebuilt on the library (files instead of oscillators, the stage with places, two
+   channels and the cabin's impulse response, levels as rendered), then voices and music. The
+   runtime audio is core work for the strongest model; `docs/NEXT.md` is its brief. What is left
+   of the controller: the owner's own test with a real pad.
 2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
    touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
@@ -308,6 +367,15 @@ Defects seen and left in:
   leaves the view loses its rays at once, because a point is clipped as a whole.
 - On `dev/space.html` every scene counts as a cockpit view, so the scratches of the canopy glass
   show there although no cockpit is drawn.
+- Controller: with no pointer lock, a key pressed while a stick is held switches the device to
+  keys and the stick's thrust drops to zero until the stick has been at rest once. The help block
+  for controllers names the default layout, not the pilot's own bindings (it says so). Two pads
+  of the same model share one device key.
+- Sound library: the radio filter fails its rule on speech clips shorter than about 3 s (the
+  speech model mishears them even unfiltered; lines of 20 s pass with 0 to 9 % word errors). The
+  rattles in the heavy hull hit sit at even distances. Downloaded loops are raw files whose seams
+  nobody checked. On the audition page a point source is about 3 dB quieter in Stereo than in
+  Mono. The intent texts on the page are English only.
 
 Open findings with a test marked as an expected failure:
 
@@ -336,6 +404,11 @@ Never verified:
   star, how fast the exposure follows, whether the canopy scratches distract. Seen only in still
   pictures of the dev pages. The frame keeps its depth as a texture next to a multisampled colour
   target and the final pass reads it in its vertex shader: tried in Chromium only.
+- Any sound by ear, except what the owner rated (20 of 114 in round 1). Every other judgement of
+  the sound library comes from measurements, spectrogram pictures and two models.
+- A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
+  joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
+  the audition page.
 - `buildView` in `packages/client/src/game/Game.ts` and the HUD wiring have no test in the suite;
   `tools/dev/live-landing/live2.mts` checks them against a real server (about 90 s) and
   `live_guards.py` runs it with single rules switched off.
@@ -384,6 +457,22 @@ Other notes:
   (describes audio), `parler-tts/parler-tts-mini-multilingual-v1.1` (voices by description),
   `ACE-Step/ACE-Step-v1-3.5B` (music). `stabilityai/stable-audio-open-1.0` is gated and needs the
   owner's own login. The owner's condition for downloads: at least 10 % of the disk stays free
-  (on 2026-11-13: 271 GB free of 2,047 GB, so about 65 GB of room). None of the large models has
-  been run yet, and the licence of each model and each downloaded sound is to be read and recorded
-  before first use.
+  (on 2026-11-14: 259 GB free of 2,047 GB, so about 54 GB of room). Run so far: CLAP, Whisper and
+  Qwen2-Audio (the last in 4-bit through bitsandbytes, about 6.4 GB of graphics memory); their
+  licences (Apache-2.0) are in `tools/audio/MODELS.md`. The speech and music models have not been
+  run. The licence of each model and each downloaded sound is to be read and recorded before
+  first use.
+- The sound library: `tools/audio/README.md` (the listening tools), `tools/audio/synth/README.md`
+  (how a sound is written), `tools/audio/SOUND_DESIGN.md` (the direction and the rules).
+  Render everything: `.venv-audio/Scripts/python.exe tools/audio/build.py` (add `--describe` for
+  the describing model, `--only id,id` for single sounds). Fetch the downloads again:
+  `.venv-audio/Scripts/python.exe -I tools/audio/fetch.py` (`--check` verifies, `--credits`
+  rewrites the licence list).
+- The audition page: `npm run dev:client`, then `/dev/audition.html` on the port it prints. Its
+  browser check, `node tools/dev/audition-check.mjs`, needs a dev server and the variable
+  `AUDITION_RATINGS_FILE` pointing at a scratch file on both, so that the owner's ratings are
+  never touched (see `docs/reports/2026-11-14/audition-space-report.json`).
+- The controller in a browser: `node scripts/pad-check.mjs` plays the game with a simulated pad
+  (same ports and switches as `scripts/e2e.mjs`).
+- The checkpoint loop ends after eight hours. Start it again when it has ended: on 2026-11-14 an
+  agent's work lay uncommitted for hours because the loop had run out.

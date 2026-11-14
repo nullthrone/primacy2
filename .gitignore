@@ -30,3 +30,5 @@ assets/audio/cache/
 # git keeps the scripts, the sound list, the manifest of downloads and the licence list.
 assets/audio/render/
 assets/audio/downloads/
+# Raw phone recordings of the owner stay local; what ships is cut, processed and committed apart.
+assets/audio/recordings/
