@@ -108,30 +108,40 @@ export const DEFAULT_BINDINGS: Bindings = addPadDefaults(KEY_BINDINGS, []);
 /**
  * Adds the default pad codes to every action whose list has none, except where the user cleared
  * the pad binding on purpose. Settings saved before controller support gain the pad defaults here.
+ * A default whose button the pilot has given to another action is left out: a button never does
+ * two things.
  */
 export function addPadDefaults(b: Bindings, cleared: readonly BindAction[]): Bindings {
   const out = { ...b };
+  const taken = new Set(Object.values(b).flat().filter(isPadCode));
   for (const [action, codes] of Object.entries(DEFAULT_PAD_BINDINGS) as [BindAction, string[]][]) {
     const have = out[action] ?? [];
     if (have.some(isPadCode) || cleared.includes(action)) continue;
-    out[action] = [...have, ...codes];
+    out[action] = [...have, ...codes.filter((c) => !taken.has(c))];
   }
   return out;
 }
 
 /**
- * Settings saved before an action existed do not list it. Where such a new action has a default
- * pad code that the save still gives to an older action (a default that has moved), the older
- * action hands the code over, so that one button never does two things after an update.
+ * Default pad buttons that went from one action to a newer one: the newer action, the one that
+ * had the button before, and the code. D-pad left and right stepped through ships until places
+ * got actions of their own.
+ */
+const MOVED_PAD_DEFAULTS: readonly [BindAction, BindAction, string][] = [
+  ['navNext', 'targetNext', 'Pad:std:b15'],
+  ['navPrev', 'targetPrev', 'Pad:std:b14'],
+];
+
+/**
+ * Settings saved before an action existed do not list it. Where the save still gives the older
+ * action the button that is now the newer action's default, the older action hands it over, so
+ * that an update brings the new layout and no button does two things.
  */
 export function handOver(saved: Partial<Bindings>): Partial<Bindings> {
   const out = { ...saved };
-  for (const [action, codes] of Object.entries(DEFAULT_PAD_BINDINGS) as [BindAction, string[]][]) {
-    if (saved[action] !== undefined) continue;
-    for (const other of Object.keys(out) as BindAction[]) {
-      const list = out[other];
-      if (list?.some((c) => codes.includes(c))) out[other] = list.filter((c) => !codes.includes(c));
-    }
+  for (const [fresh, old, code] of MOVED_PAD_DEFAULTS) {
+    const list = out[old];
+    if (saved[fresh] === undefined && list?.includes(code)) out[old] = list.filter((c) => c !== code);
   }
   return out;
 }

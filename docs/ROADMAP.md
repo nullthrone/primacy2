@@ -122,8 +122,10 @@ light effects "fairly well". To do, in his order of weight:
   bright star. The bloom has two wider levels than before (eight), a longer faint tail, and takes
   3 % of the light below its threshold as a veil; it is still added on top of the picture, at
   about the old total. The exposure follows the light in view with the delay of an eye, within
-  0.62 to 1.25 (`post/Exposure.ts`). Measured at 3840x2160 on the RTX 5080: about 0.3 ms per frame with a sun
-  shining through the canopy, nothing measurable otherwise.
+  0.62 to 1.25 (`post/Exposure.ts`). Measured at 3840x2160 on the RTX 5080, old against new, with
+  about 0.05 ms of noise between runs: the canopy scratches cost about 0.17 ms per frame while a
+  sun shines into the cockpit; the glare itself, the exposure and the wider bloom cost nothing that
+  can be measured (the whole bloom chain is about 0.07 ms, before and after).
 - **The sky box** he liked least: the far stars were low in resolution and looked static. Built on
   2026-11-14: every star is a point of light of its own (`packages/client/src/render/space/Sky.ts`),
   48,000 of them at the highest quality level, with a real spread of brightness and colour, sharp

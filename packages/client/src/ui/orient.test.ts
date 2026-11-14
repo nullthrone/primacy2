@@ -135,7 +135,8 @@ describe('arrows keeping clear of the HUD', () => {
   });
 
   it('moves an arrow inward along its own direction until it is clear, and keeps its angle', () => {
-    const m = edgeMark([10, 4.4, -1], W, H);
+    // Up and to the right, where the ellipse runs under the panel.
+    const m = edgeMark([10, 2.2, -1], W, H);
     expect(boxesOverlap(around(m), panel)).toBe(true);
     const c = pullClear(m, W, H, around, [panel]);
     expect(boxesOverlap(around(c), panel)).toBe(false);

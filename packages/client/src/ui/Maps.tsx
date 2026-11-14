@@ -8,6 +8,7 @@ import {
 } from '@primacy2/shared';
 import type { GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
+import { listPlaces } from '../state/places.ts';
 import { store } from '../state/store.ts';
 import { STAR_COLORS, bindKey, fmtDistance } from './format.ts';
 import { TIER_COLOR, isTier, jumpForecast, tierLabel } from './trade.ts';
@@ -368,8 +369,8 @@ export function NavPanel({ api }: { api: GameApi }) {
   const view = api.view;
   const nav = store.navAnchor.value;
   if (!view) return null;
-  const sites = [...view.sites].sort((a, b) => a.dist - b.dist);
-  const bodies = [...view.bodies].sort((a, b) => a.dist - b.dist);
+  // The order the stepping on the HUD follows: places to dock first, then gates, other sites and bodies.
+  const places = listPlaces(view);
   const choose = (id: number): void => {
     api.setNav(id);
     store.panel.value = null;
@@ -381,18 +382,11 @@ export function NavPanel({ api }: { api: GameApi }) {
       <p class="dim">{t('map.navHelp', { key: bindKey('cruise') })}</p>
       <div class="scroll list" data-padstart>
         {nav !== null && <button onClick={() => api.setNav(null)}>{t('map.clearNav')}</button>}
-        {sites.map((s) => (
-          <button key={s.def.id} class={s.def.id === nav ? 'on' : ''} onClick={() => choose(s.def.id)}>
-            <span>{s.def.name}</span>
-            <span class="dim">{t(`kind.${s.def.kind}` as StringKey)}</span>
-            <span class="num">{fmtDistance(s.dist)}</span>
-          </button>
-        ))}
-        {bodies.map((b) => (
-          <button key={`b${b.def.id}`} class={b.def.id === nav ? 'on' : ''} onClick={() => choose(b.def.id)}>
-            <span>{b.def.name}</span>
-            <span class="dim">{t(`kind.${b.def.kind}` as StringKey)} · {b.def.cls}</span>
-            <span class="num">{fmtDistance(b.dist)}</span>
+        {places.map((p) => (
+          <button key={p.id} class={p.id === nav ? 'on' : ''} onClick={() => choose(p.id)}>
+            <span>{p.name}</span>
+            <span class="dim">{t(`kind.${p.kind}` as StringKey)}{p.group === 'body' ? ` · ${view.bodies[p.id]?.def.cls ?? ''}` : ''}</span>
+            <span class="num">{fmtDistance(p.dist)}</span>
           </button>
         ))}
       </div>

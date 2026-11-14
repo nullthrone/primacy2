@@ -1,6 +1,6 @@
 import { FlightMode } from '@primacy2/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, addPadDefaults, loadSettings, store, type BindAction } from '../state/store.ts';
+import { DEFAULT_SETTINGS, addPadDefaults, handOver, loadSettings, store, type BindAction } from '../state/store.ts';
 import { assignPad, clearPad, presetJoystick, resetPad } from './binds.ts';
 import { Input } from './Input.ts';
 import type { PadSnapshot } from './gamepad.ts';
@@ -181,6 +181,41 @@ describe('settings with pad codes', () => {
     store0({ bindings: { dock: ['KeyF', 'Pad:std:b5'] } });
     loadSettings();
     expect(store.settings.value.bindings.dock).toEqual(['KeyF', 'Pad:std:b5']);
+  });
+  it('moves a pad button whose default went to a new action over to it', () => {
+    // Saved while D-pad left and right still stepped through ships, before places had actions.
+    store0({ bindings: { targetNext: ['KeyT', 'Pad:std:b15'], targetPrev: ['KeyG', 'Pad:std:b14'], dock: ['KeyF', 'Pad:std:b3+b0'] } });
+    loadSettings();
+    const b = store.settings.value.bindings;
+    expect(b.navNext).toEqual(['KeyO', 'Mouse4', 'Pad:std:b15']);
+    expect(b.navPrev).toEqual(['KeyL', 'Pad:std:b14']);
+    expect(b.targetNext).toEqual(['KeyT']);
+    expect(b.targetPrev).toEqual(['KeyG']);
+    expect(b.dock).toEqual(['KeyF', 'Pad:std:b3+b0']);
+    // No pad button does two things.
+    const pad = Object.values(b).flat().filter((c) => c.startsWith('Pad:'));
+    expect(new Set(pad).size).toBe(pad.length);
+  });
+  it('leaves the buttons alone once the save knows the new actions', () => {
+    // The pilot put ship stepping back on the D-pad and places elsewhere.
+    store0({ bindings: { targetNext: ['KeyT', 'Pad:std:b15'], navNext: ['KeyO', 'Pad:std:b5'], navPrev: ['KeyL'] }, padCleared: ['navPrev'] });
+    loadSettings();
+    const b = store.settings.value.bindings;
+    expect(b.targetNext).toEqual(['KeyT', 'Pad:std:b15']);
+    expect(b.navNext).toEqual(['KeyO', 'Pad:std:b5']);
+    expect(b.navPrev).toEqual(['KeyL']);
+  });
+  it('hands over only the button that moved, from the action that had it', () => {
+    expect(handOver({ dock: ['KeyF'] })).toEqual({ dock: ['KeyF'] });
+    expect(handOver({ targetNext: ['Pad:std:b15'], camera: ['KeyV', 'Pad:std:b14'] })).toEqual({ targetNext: [], camera: ['KeyV', 'Pad:std:b14'] });
+  });
+  it('does not add a default whose button the pilot gave to another action', () => {
+    store0({ bindings: { camera: ['KeyV', 'Pad:std:b14'] } });
+    loadSettings();
+    const b = store.settings.value.bindings;
+    expect(b.camera).toEqual(['KeyV', 'Pad:std:b14']);
+    expect(b.navPrev).toEqual(['KeyL']);
+    expect(b.navNext).toContain('Pad:std:b15');
   });
   it('loads settings without any pad fields', () => {
     store0({ volume: 0.2 });

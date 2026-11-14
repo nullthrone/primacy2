@@ -288,7 +288,9 @@ describe('the default table', () => {
   const std = readPads([pad()], B, noPad, null);
   void std;
   it('reaches every action on a standard pad', () => {
-    const covered = new Set<string>([...AXIS_ONLY_ACTIONS, 'chat', 'freeLook']);
+    // Stepping through ships has no button of its own on a standard pad: the D-pad steps through
+    // places, and "target ahead" steps on to the next ship when nothing new lies ahead.
+    const covered = new Set<string>([...AXIS_ONLY_ACTIONS, 'chat', 'freeLook', 'targetNext', 'targetPrev']);
     for (const a of Object.keys(DEFAULT_BINDINGS) as BindAction[]) {
       const has = (DEFAULT_BINDINGS[a] ?? []).some((c) => c.startsWith('Pad:'));
       expect(has || covered.has(a), a).toBe(true);
@@ -306,6 +308,17 @@ describe('the default table', () => {
         expect(r.held.has(a), code).toBe(true);
       }
     }
+  });
+  it('gives the D-pad to targets: places left and right, ahead up, clear down', () => {
+    expect(DEFAULT_PAD_BINDINGS.navPrev).toEqual(['Pad:std:b14']);
+    expect(DEFAULT_PAD_BINDINGS.navNext).toEqual(['Pad:std:b15']);
+    expect(DEFAULT_PAD_BINDINGS.targetAhead).toEqual(['Pad:std:b12']);
+    expect(DEFAULT_PAD_BINDINGS.targetClear).toEqual(['Pad:std:b13']);
+    expect(DEFAULT_BINDINGS.navNext).toEqual(['KeyO', 'Mouse4', 'Pad:std:b15']);
+    expect(DEFAULT_BINDINGS.navPrev).toEqual(['KeyL', 'Pad:std:b14']);
+    // Ships keep their keys on the keyboard.
+    expect(DEFAULT_BINDINGS.targetNext).toEqual(['KeyT']);
+    expect(DEFAULT_BINDINGS.targetPrev).toEqual(['KeyG']);
   });
   it('binds no pad code twice', () => {
     const seen = new Set<string>();
