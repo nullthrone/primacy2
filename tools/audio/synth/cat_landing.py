@@ -206,9 +206,9 @@ def dust_patter_loop(ctx):
     n = ctx.n
     s = lambda name: seeded("dust_patter/" + name)
     rng = s("grains")
-    count = 1500
+    count = 2400
     dens = s("density")
-    times = _wrapped_times(rng, count, n, slow_wander(n, dens, 0.3, 2.5), 2.8)
+    times = _wrapped_times(rng, count, n, slow_wander(n, dens, 0.3, 2.5), 3.5)
     amps = np.minimum(np.exp(rng.normal(-1.0, 0.6, count)), 1.2)
     freqs = rng.uniform(150, 440, count)
     t60s = rng.uniform(0.008, 0.028, count)

@@ -1,19 +1,23 @@
 import { NoBlending, ShaderMaterial, Vector2 } from 'three';
-import type { PerspectiveCamera, Texture, WebGLRenderer } from 'three';
+import type { IUniform, PerspectiveCamera, Texture, WebGLRenderer } from 'three';
 import type { FrameFx } from '../../contracts.ts';
 import type { LensLight } from '../space/types.ts';
 import type { FullscreenPass } from './fullscreen.ts';
-import { LENS_FRAG, LENS_VERT, aimLens, lensUniforms } from './lens.ts';
+import { CANOPY, COCKPIT_DEPTH, LENS_FRAG, LENS_VERT, aimLens, lensUniforms } from './lens.ts';
 
 // Final pass: screen-space flight effects, bloom, filmic tone mapping, sRGB encoding and dither.
 // Everything here lies over the finished frame, the cockpit included. What belongs behind the
 // cockpit and behind other objects (the streaks of cruise flight) is drawn earlier, see Cruise.ts.
 const VERT = /* glsl */ `
+uniform sampler2D tExposure;
 varying vec2 vUv;
+varying float vExposure;
 ${LENS_VERT}
 void main() {
   vUv = uv;
   lensVertex();
+  float e = texture2D(tExposure, vec2(0.5)).r;
+  vExposure = e > 0.01 ? e : 1.0;
   gl_Position = vec4(position.xy, 0.0, 1.0);
 }
 `;
@@ -21,7 +25,9 @@ void main() {
 const FRAG = /* glsl */ `
 uniform sampler2D tScene;
 uniform sampler2D tBloom;
+uniform sampler2D tDepth;
 uniform vec2 uRes;
+varying float vExposure;
 uniform float uTime;
 uniform float uBloom;
 uniform float uCharge;
@@ -116,7 +122,10 @@ void main() {
     col.b = mix(col.b, sceneAt(uv - c * 0.02 * uHit).b, 0.8);
   }
   col += texture2D(tBloom, uv).rgb * uBloom;
-  col += lensGlare(gl_FragCoord.xy);
+  // Behind canopy glass is every pixel of a cockpit view that the cockpit itself does not cover.
+  float canopy = uLensCanopy > 0.0 ? step(${COCKPIT_DEPTH.toFixed(3)}, texture2D(tDepth, vUv).r) : 0.0;
+  col += lensGlare(gl_FragCoord.xy, canopy);
+  col *= vExposure;
 
   if (uCharge > 0.002) {
     float pulse = 0.85 + 0.15 * sin(uTime * (6.0 + 10.0 * uCharge));
@@ -171,6 +180,7 @@ export class Composite {
       tScene: { value: null },
       tBloom: { value: null },
       tDepth: { value: null },
+      tExposure: { value: null },
       uRes: { value: new Vector2(1, 1) },
       uTime: { value: 0 },
       uBloom: { value: 0 },
@@ -186,21 +196,36 @@ export class Composite {
     blending: NoBlending,
   });
 
+  /** The uniforms that describe the light in the lens (see `lens.ts`), for passes that share them. */
+  get lens(): Record<string, IUniform> {
+    return this.material.uniforms;
+  }
+
   /**
+   * Sets up the light in the lens for this frame; to be called before anything reads `lens`.
    * @param depth the depth of the local scene and the cockpit, 1 where neither drew
    * @param lights the sources that dazzle, and `cam` the camera of the celestial pass that places them
+   * @param canopy whether the view is through the canopy glass of a cockpit
    */
-  render(
-    renderer: WebGLRenderer, pass: FullscreenPass, scene: Texture, depth: Texture | null, bloom: Texture | null,
-    lights: readonly LensLight[], cam: PerspectiveCamera, fx: FrameFx, clock: number, width: number, height: number,
-  ): void {
+  prepare(depth: Texture | null, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number, canopy: boolean): void {
     const u = this.material.uniforms;
     aimLens(u, lights, cam, width, height);
-    u.tScene!.value = scene;
     u.tDepth!.value = depth;
-    u.tBloom!.value = bloom ?? scene;
-    u.uBloom!.value = bloom ? 0.22 : 0;
     (u.uRes!.value as Vector2).set(width, height);
+    u.uLensCanopy!.value = canopy ? CANOPY : 0;
+  }
+
+  /** @param exposure the exposure of the picture as a 1x1 texture (see `Exposure`) */
+  render(
+    renderer: WebGLRenderer, pass: FullscreenPass, scene: Texture, bloom: Texture | null, exposure: Texture,
+    fx: FrameFx, clock: number,
+  ): void {
+    const u = this.material.uniforms;
+    u.tScene!.value = scene;
+    u.tBloom!.value = bloom ?? scene;
+    // The bloom texture is a weighted sum that holds all the light it took; this much of it is added.
+    u.uBloom!.value = bloom ? 0.8 : 0;
+    u.tExposure!.value = exposure;
     u.uTime!.value = clock % 3600;
     u.uCharge!.value = Math.min(1, Math.max(0, fx.charge));
     u.uChargeKind!.value = fx.chargeKind;

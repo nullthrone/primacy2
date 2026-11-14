@@ -3,7 +3,7 @@ import type { JSX } from 'preact';
 import { engine, soundUrl, type GroupVoice, type Voice } from './engine.ts';
 import { hooks } from './sceneRunner.ts';
 import { isRated, rate, ratings } from './ratings.ts';
-import { loc, t } from './strings.ts';
+import { dictionaryKeys, loc, t, type Key } from './strings.ts';
 import type { Manifest, ManifestSound } from './types.ts';
 
 export const onlyUnrated = signal(false);
@@ -56,6 +56,18 @@ async function trigger(sound: ManifestSound, viaRadio: boolean): Promise<void> {
     else setLoopActive(sound.id, false);
     return;
   }
+  if (sound.source === 'download') {
+    // Downloaded clips run for seconds: pressing again stops them instead of stacking a second copy.
+    const running = voices.get(sound.id);
+    if (running && engine.playing.value.has(sound.id)) {
+      running.stop();
+      voices.delete(sound.id);
+      return;
+    }
+    const v = await engine.play(sound, { viaRadio });
+    if (v) voices.set(sound.id, v);
+    return;
+  }
   await engine.play(sound, { viaRadio });
 }
 
@@ -67,7 +79,14 @@ function kindLabel(k: ManifestSound['kind']): string {
   return { loop: t('loop'), oneshot: t('oneshot'), ir: t('ir') }[k];
 }
 
+// Downloaded radio material is meant to be heard through the radio filter, so its switch starts on.
 const radioRows = signal<ReadonlySet<string>>(new Set());
+let radioRowsSeeded = false;
+function seedRadioRows(sounds: ManifestSound[]): void {
+  if (radioRowsSeeded) return;
+  radioRowsSeeded = true;
+  radioRows.value = new Set(sounds.filter((s) => s.category === 'radio' && s.source === 'download').map((s) => s.id));
+}
 
 function toggleRadioRow(sound: ManifestSound): void {
   const next = new Set(radioRows.value);
@@ -84,20 +103,34 @@ function toggleRadioRow(sound: ManifestSound): void {
   }
 }
 
+function hintText(h: string): string {
+  const key = `hint_${h.replace(/-/g, '_')}` as Key;
+  return key in dictionaryKeys ? t(key) : h;
+}
+
 function Checks({ sound }: { sound: ManifestSound }): JSX.Element | null {
   const c = sound.checks;
-  if (!c) return null;
+  // Downloaded files are not measured by the build; there is nothing to show.
+  if (!c || sound.source === 'download') return null;
   const pct = (v: number | undefined): string => (v === undefined ? '-' : `${(v * 100).toFixed(1)} %`);
+  const hints = c.hints ?? [];
   return (
     <details class="checks">
       <summary class={c.pass ? 'ok' : 'bad'}>
         {t('checks')}: {c.pass ? t('checksPass') : `${t('checksFail')} (${c.failed.length})`}
+        {hints.length > 0 && <span class="hint">{` · ${t('hintsLabel')}: ${hints.map(hintText).join(', ')}`}</span>}
       </summary>
       <dl class="mono">
         {c.failed.length > 0 && (
           <>
             <dt class="bad">{t('checksFail')}</dt>
             <dd class="bad">{c.failed.join('; ')}</dd>
+          </>
+        )}
+        {hints.length > 0 && (
+          <>
+            <dt class="hint">{t('hintsLabel')}</dt>
+            <dd class="hint">{hints.map(hintText).join('; ')}</dd>
           </>
         )}
         <dt>{t('peakDb')}</dt>
@@ -114,12 +147,6 @@ function Checks({ sound }: { sound: ManifestSound }): JSX.Element | null {
             <dd>
               {c.clap.margin.toFixed(3)} ({c.clap.best})
             </dd>
-          </>
-        )}
-        {c.described && (
-          <>
-            <dt>{t('described')}</dt>
-            <dd>{c.described}</dd>
           </>
         )}
       </dl>
@@ -190,16 +217,23 @@ function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
   const viaRadio = radioRows.value.has(sound.id);
   const label = loc(sound);
   const canRadio = sound.path !== 'radio';
+  const isDownload = sound.source === 'download';
+  const length = engine.lengthOf(sound);
+  const stoppable = loopOn || (isDownload && isPlaying);
   return (
-    <div class={`sound ${isPlaying ? 'playing' : ''} ${isRated(sound.id) ? 'rated' : ''}`} id={`s-${sound.id}`} onKeyDown={(e) => onRowKey(e, sound)}>
+    <div
+      class={`sound ${sound.source === 'download' ? 'download' : ''} ${isPlaying ? 'playing' : ''} ${isRated(sound.id) ? 'rated' : ''}`}
+      id={`s-${sound.id}`}
+      onKeyDown={(e) => onRowKey(e, sound)}
+    >
       <button
         type="button"
-        class={`play ${loopOn ? 'on' : 'primary'}`}
+        class={`play ${stoppable ? 'on' : 'primary'}`}
         data-sound={sound.id}
-        aria-label={`${loopOn ? t('stop') : t('play')}: ${label}`}
+        aria-label={`${stoppable ? t('stop') : t('play')}: ${label}`}
         onClick={() => void trigger(sound, viaRadio)}
       >
-        {loopOn ? '■' : '▶'}
+        {stoppable ? '■' : '▶'}
       </button>
       <div>
         <div class="title">
@@ -211,11 +245,10 @@ function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
           <span class={`badge ${sound.path}`}>{pathLabel(sound.path)}</span>
           <span class="badge">{kindLabel(sound.kind)}</span>
           <span class="badge">{sound.dry ? t('dry') : t('baked')}</span>
-          <span class="badge mono">
-            {sound.duration} {t('seconds')}
-          </span>
+          <span class="badge mono">{length > 0 ? `${Number(length.toFixed(2))} ${t('seconds')}` : t('secondsUnknown')}</span>
           {sound.channels === 2 && <span class="badge">stereo</span>}
-          {sound.source !== 'synth' && <span class="badge">{sound.licence}</span>}
+          {isDownload && <span class="badge dl">{t('downloadBadge')}</span>}
+          {sound.source !== 'synth' && <span class="badge licence">{sound.licence}</span>}
           {canRadio && (
             <label class="switch small">
               <input type="checkbox" checked={viaRadio} onChange={() => toggleRadioRow(sound)} />
@@ -223,6 +256,11 @@ function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
             </label>
           )}
         </div>
+        {sound.checks?.described && sound.source !== 'download' && (
+          <p class="described">
+            <span class="dim">{t('described')}:</span> {sound.checks.described}
+          </p>
+        )}
         <div class="media">
           {sound.spectrogram && <img class="spec" loading="lazy" alt="" src={soundUrl(sound.spectrogram)} width={320} height={80} />}
           <Checks sound={sound} />
@@ -307,6 +345,7 @@ function EngineGroup({ levels }: { levels: ManifestSound[] }): JSX.Element {
 export function Library({ manifest }: { manifest: Manifest }): JSX.Element {
   const unrated = onlyUnrated.value;
   const sounds = manifest.sounds;
+  seedRadioRows(sounds);
   const total = sounds.length;
   const done = sounds.filter((s) => isRated(s.id)).length;
   return (
@@ -339,9 +378,24 @@ export function Library({ manifest }: { manifest: Manifest }): JSX.Element {
               </span>
             </h2>
             {group && <EngineGroup levels={group} />}
-            {shown.map((s) => (
-              <SoundRow key={s.id} sound={s} />
-            ))}
+            {[
+              { key: 'rendered', title: t('rendered'), list: shown.filter((s) => s.source !== 'download') },
+              { key: 'downloaded', title: t('downloaded'), list: shown.filter((s) => s.source === 'download') },
+            ].map(
+              (part) =>
+                part.list.length > 0 && (
+                  <div class={`part ${part.key}`} key={part.key} data-part={part.key}>
+                    <h3 class="part-title">
+                      {part.title}
+                      <span class="dim"> {part.list.length}</span>
+                      {part.key === 'downloaded' && <span class="dim small"> {t('downloadedNote')}</span>}
+                    </h3>
+                    {part.list.map((s) => (
+                      <SoundRow key={s.id} sound={s} />
+                    ))}
+                  </div>
+                ),
+            )}
           </section>
         );
       })}

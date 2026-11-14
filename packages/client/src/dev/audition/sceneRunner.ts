@@ -1,6 +1,7 @@
 import { signal, type Signal } from '@preact/signals';
 import { engine, type GroupVoice, type Voice } from './engine.ts';
 import {
+  CHAIN_OVERLAP,
   effectiveThrust,
   initialState,
   sampleTrack,
@@ -10,6 +11,7 @@ import {
   type Param,
   type SceneDef,
   type SceneState,
+  type Shot,
 } from './scenes.ts';
 
 const TICK_MS = 50;
@@ -49,6 +51,8 @@ export class SceneRunner {
   readonly scripted = signal(false);
   readonly simTime = signal(0);
   readonly missing = signal<string[]>([]);
+  /** Only the engine group sounds, outside a running scene, so that the thrust range can be heard alone. */
+  readonly engineSolo = signal(false);
 
   private group: GroupVoice | null = null;
   private loops = new Map<string, LoopVoice>();
@@ -75,14 +79,43 @@ export class SceneRunner {
 
   patch(p: Partial<SceneState>): void {
     this.state.value = { ...this.state.value, ...p };
+    // The ticker only runs while the scene is live; the solo engine follows the sliders directly.
+    if (this.engineSolo.value) this.group?.setThrust(effectiveThrust(this.state.value));
   }
 
   setParam(name: Param, v: number): void {
     this.patch({ [name]: v });
+    // Moving the thrust slider in a silent scene starts the engine alone, so that it can be heard through its range.
+    if (name === 'thrust' && !this.live.value && !this.engineSolo.value) void this.startEngineSolo();
+  }
+
+  async startEngineSolo(): Promise<void> {
+    if (this.live.value || this.engineSolo.value || this.starting) return;
+    this.engineSolo.value = true;
+    this.refreshMissing();
+    const members = this.familyMembers();
+    if (!members.length) {
+      this.engineSolo.value = false;
+      return;
+    }
+    const g = await engine.playGroup(members, effectiveThrust(this.state.value), 1);
+    // Stopped, or the scene went live, while the files were loading.
+    if (!this.engineSolo.value || this.live.value) {
+      g?.stop();
+      return;
+    }
+    this.group = g;
+  }
+
+  stopEngineSolo(): void {
+    this.engineSolo.value = false;
+    this.group?.stop();
+    this.group = null;
   }
 
   async startLive(): Promise<void> {
     if (this.live.value || this.starting) return;
+    this.stopEngineSolo();
     this.starting = true;
     this.refreshMissing();
     const members = this.familyMembers();
@@ -98,6 +131,7 @@ export class SceneRunner {
     window.clearInterval(this.timer);
     this.live.value = false;
     this.scripted.value = false;
+    this.engineSolo.value = false;
     this.group?.stop();
     this.group = null;
     for (const l of this.loops.values()) l.voice?.stop();
@@ -185,10 +219,33 @@ export class SceneRunner {
     }
   }
 
+  private pickId(id: string | string[]): string {
+    return Array.isArray(id) ? id[Math.floor(Math.random() * id.length)] : id;
+  }
+
+  /** A single repeater shot, right now. */
   private shot(id: string | string[], gain: number): void {
-    const pick = Array.isArray(id) ? id[Math.floor(Math.random() * id.length)] : id;
-    const sound = engine.get(pick);
+    const sound = engine.get(this.pickId(id));
     if (sound) void engine.play(sound, { gain });
+  }
+
+  /**
+   * The shots of one event on the audio clock: `at` is seconds after the press (shortened with the test speed),
+   * a chained shot starts CHAIN_OVERLAP before the previous one ends, so that no gap opens at the fades.
+   */
+  private async playShots(shots: Shot[], state: SceneState): Promise<void> {
+    const speed = this.scripted.value ? Math.max(0.1, hooks().speed) : 1;
+    const picks = shots.map((sh) => engine.get(this.pickId(sh.id)));
+    await engine.preload(picks.filter((p): p is NonNullable<typeof p> => !!p).map((p) => p.id));
+    const base = engine.now() + 0.03;
+    let prevEnd = 0;
+    shots.forEach((sh, i) => {
+      const sound = picks[i];
+      if (!sound) return;
+      const at = sh.chain ? Math.max(0, prevEnd - CHAIN_OVERLAP) : (sh.at ?? 0) / speed;
+      prevEnd = at + engine.lengthOf(sound);
+      void engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at });
+    });
   }
 
   /** A button press or a step of the written sequence. `on` forces a toggle instead of flipping it. */
@@ -201,12 +258,7 @@ export class SceneRunner {
       if (!this.live.value) void this.startLive();
       return;
     }
-    const s = this.state.value;
-    for (const sh of ev.shots ?? []) {
-      const gain = sh.gain?.(s) ?? 1;
-      if (sh.at) window.setTimeout(() => this.shot(sh.id, gain), (sh.at * 1000) / (this.scripted.value ? Math.max(0.1, hooks().speed) : 1));
-      else this.shot(sh.id, gain);
-    }
+    if (ev.shots?.length) void this.playShots(ev.shots, this.state.value);
   }
 
   /** Makes sure the first press of an event button has its sound ready, without starting the loops. */

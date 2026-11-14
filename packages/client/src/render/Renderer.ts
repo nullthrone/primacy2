@@ -11,7 +11,9 @@ import type { FrameView, GameRenderer, GraphicsSettings, LocalLayer } from '../c
 import { Bloom } from './post/Bloom.ts';
 import { Composite } from './post/Composite.ts';
 import { CRUISE_MIN, Cruise } from './post/Cruise.ts';
+import { Exposure } from './post/Exposure.ts';
 import { FullscreenPass } from './post/fullscreen.ts';
+import { COCKPIT_DEPTH } from './post/lens.ts';
 import { Bodies } from './space/Bodies.ts';
 import { Sky } from './space/Sky.ts';
 import { idleFrame } from './space/idle.ts';
@@ -21,13 +23,6 @@ import type { SpaceFrame, ViewParams } from './space/types.ts';
 export function createRenderer(canvas: HTMLCanvasElement): GameRenderer {
   return new SpaceRenderer(canvas);
 }
-
-/**
- * The cockpit is drawn into the front part of the depth buffer and the local scene into the rest.
- * So the cockpit always covers the scene, and when the frame is done the buffer still says where
- * either of them is: the final pass reads it to tell whether a light source is covered.
- */
-const COCKPIT_DEPTH = 0.1;
 
 /** Squeezes what `cam` draws into the window-depth range `from`..`to` (the whole buffer is 0..1). */
 function sliceDepth(cam: PerspectiveCamera, from: number, to: number): void {
@@ -44,6 +39,7 @@ class SpaceRenderer implements GameRenderer {
   private readonly bloom = new Bloom();
   private readonly cruise = new Cruise();
   private readonly composite = new Composite();
+  private readonly exposure = new Exposure(this.composite.lens);
   private readonly sky = new Sky();
   private readonly bodies = new Bodies(() => this.sky.cube);
   private readonly spaceScene = new Scene();
@@ -187,11 +183,11 @@ class SpaceRenderer implements GameRenderer {
       r.render(local.cockpit, this.cockpitCam);
     }
 
-    const bloom = frame.graphics.bloom ? this.bloom.render(r, this.pass, target.texture, this.width, this.height) : null;
-    this.composite.render(
-      r, this.pass, target.texture, target.depthTexture, bloom, this.bodies.lights, this.spaceCam,
-      frame.fx, frame.clock, this.width, this.height,
-    );
+    const bloom = this.bloom.render(r, this.pass, target.texture, this.width, this.height, frame.graphics.bloom);
+    const canopy = view !== null && view.camera.mode === 'cockpit' && view.self !== null;
+    this.composite.prepare(target.depthTexture, this.bodies.lights, this.spaceCam, this.width, this.height, canopy);
+    this.exposure.update(r, this.pass, this.bloom.meter, frame.dt);
+    this.composite.render(r, this.pass, target.texture, bloom, this.exposure.texture, frame.fx, frame.clock);
   }
 
   dispose(): void {
@@ -200,6 +196,7 @@ class SpaceRenderer implements GameRenderer {
     this.sky.dispose();
     this.bloom.dispose();
     this.cruise.dispose();
+    this.exposure.dispose();
     this.composite.dispose();
     this.pass.dispose();
     this.target?.dispose();

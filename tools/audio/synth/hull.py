@@ -101,7 +101,7 @@ def rattles(n: int, activity: float, rng=None, per_second: float = 3.0, periodic
             kn = bandpass(rng.standard_normal(dur + 64), fc / rng.uniform(1.15, 1.5),
                           min(fc * rng.uniform(1.15, 1.5), 4000.0), 2)[64:]
             kn = kn * np.exp(-6.9078 * np.arange(dur) / (0.6 * dur))
-            kn[: max(1, int(0.0005 * SR))] *= rise(max(1, int(0.0005 * SR)))
+            kn[: max(1, int(0.0012 * SR))] *= rise(max(1, int(0.0012 * SR)))   # a soft edge: no click splatter
             a = rng.uniform(0.25, 1.0) * 0.93 ** k
             s0 = int(t_at * SR)
             if s0 + dur >= wave.size:
@@ -109,6 +109,7 @@ def rattles(n: int, activity: float, rng=None, per_second: float = 3.0, periodic
             wave[s0:s0 + dur] += a * kn / max(rms(kn), 1e-9)
             t_at += gap
             gap *= rng.uniform(0.72, 1.12)       # loosely bouncing: gaps tend to shrink, never even
+        wave = lowpass(wave, 3800.0, 4)             # nothing above 4 kHz
         runs.append((int(pos[i]), amp[i] * wave, thr[i]))
 
     def place(gains):

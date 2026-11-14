@@ -26,6 +26,10 @@ export interface Shot {
   /** Seconds after the button press. */
   at?: number;
   gain?: (s: SceneState) => number;
+  /** Starts this many seconds before the end of the shot before it (the files end with about 18 ms of fade and silence). */
+  chain?: boolean;
+  /** Plays through the radio filter, with squelch and hiss (downloaded speech is raw and needs it). */
+  viaRadio?: boolean;
 }
 
 export interface EventSpec {
@@ -99,6 +103,12 @@ export function sampleTrack(keys: [number, number][], t: number): number {
 
 const PULSES = ['thruster_pulse_a', 'thruster_pulse_b', 'thruster_pulse_c'];
 const engineAlways = (): number => 1;
+// The files were rendered to a common level table, so loops are mixed by adding them at gain 1.
+const full = (): number => 1;
+/** Overlap of chained one-shots: the fade and silence at the end of a file are about 18 ms long. */
+export const CHAIN_OVERLAP = 0.02;
+// Downloaded NASA speech is raw (peaks near full scale), so it comes down before the radio filter.
+const RAW_SPEECH_GAIN = 0.5;
 const enginesUnlessOff = (s: SceneState): number => (s.on.engines_off ? 0 : 1);
 const relayClicks = ['relay_click_a', 'relay_click_b'];
 
@@ -112,15 +122,19 @@ export const DOCKING: SceneDef = {
   distance: { label: { en: 'Distance to the pad', de: 'Abstand zur Plattform' }, unit: 'm', min: 0, max: 5000, step: 10, initial: 5000 },
   thrustFamily: 'engine_main',
   engineGain: engineAlways,
-  loops: [{ id: 'cabin_ambience_loop', gain: () => 0.6 }],
+  loops: [{ id: 'cabin_ambience_loop', gain: full }],
   repeaters: [
     // 1.6 s between ticks at 600 m, down to 0.12 s at the pad.
-    { id: 'sensor_proximity_tick', every: (s) => (s.distance < 600 ? 0.12 + 1.48 * (s.distance / 600) : null), gain: () => 0.7 },
+    { id: 'sensor_proximity_tick', every: (s) => (s.distance < 600 ? 0.12 + 1.48 * (s.distance / 600) : null) },
   ],
   events: [
     { key: 'power_up', label: { en: 'Power up', de: 'Hochfahren' }, shots: [{ id: 'systems_power_up' }] },
     { key: 'pulse', label: { en: 'Thruster pulse', de: 'Düsenstoß' }, shots: [{ id: PULSES }] },
-    { key: 'radio', label: { en: 'Radio call', de: 'Funkspruch' }, shots: [{ id: 'radio_tone' }] },
+    // Real NASA speech through the radio filter; the three clips are 1.5 to 2.5 s long.
+    { key: 'radio_check', label: { en: 'Radio: how do you read', de: 'Funk: Wie hören Sie mich' }, shots: [{ id: 'n_sts_how_do_you_read', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
+    { key: 'radio_go', label: { en: 'Radio: go for deploy', de: 'Funk: Freigabe zum Ausfahren' }, shots: [{ id: 'n_sts_go_for_deploy', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
+    { key: 'radio_roger', label: { en: 'Radio: roger', de: 'Funk: Verstanden' }, shots: [{ id: 'n_sts_roger_roll', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
+    { key: 'tone', label: { en: 'Radio tone', de: 'Funkton' }, shots: [{ id: 'radio_tone' }] },
     { key: 'ping', label: { en: 'Contact ping', de: 'Kontaktton' }, shots: [{ id: 'sensor_contact_ping' }] },
     { key: 'relay', label: { en: 'Relay', de: 'Relais' }, shots: [{ id: relayClicks }] },
     { key: 'gear', label: { en: 'Gear out', de: 'Fahrwerk aus' }, shots: [{ id: 'gear_deploy' }] },
@@ -134,18 +148,18 @@ export const DOCKING: SceneDef = {
   },
   script: [
     { t: 0.5, event: 'power_up' },
-    { t: 3, event: 'radio' },
+    { t: 3, event: 'radio_check' },
     { t: 7, event: 'pulse' },
-    { t: 11, event: 'radio' },
+    { t: 11, event: 'radio_roger' },
     { t: 14, event: 'pulse' },
     { t: 18, event: 'pulse' },
     { t: 19, event: 'ping' },
-    { t: 21, event: 'radio' },
+    { t: 21, event: 'radio_go' },
     { t: 25, event: 'pulse' },
     { t: 27, event: 'gear' },
     { t: 31, event: 'pulse' },
     { t: 33, event: 'touchdown' },
-    { t: 35, event: 'radio' },
+    { t: 35, event: 'radio_roger' },
     { t: 36.5, event: 'power_down' },
   ],
   duration: 40,
@@ -162,10 +176,10 @@ export const COMBAT: SceneDef = {
   thrustFamily: 'engine_main',
   engineGain: engineAlways,
   loops: [
-    { id: 'cabin_ambience_loop', gain: () => 0.4 },
-    { id: 'alarm_heat', gain: (s) => (s.heat > 0.9 ? 0.8 : 0) },
-    { id: 'alarm_missile', gain: (s) => (s.on.missile ? 0.8 : 0) },
-    { id: 'alarm_hull_critical', gain: (s) => (s.on.hull_critical ? 0.8 : 0) },
+    { id: 'cabin_ambience_loop', gain: full },
+    { id: 'alarm_heat', gain: (s) => (s.heat > 0.9 ? 1 : 0) },
+    { id: 'alarm_missile', gain: (s) => (s.on.missile ? 1 : 0) },
+    { id: 'alarm_hull_critical', gain: (s) => (s.on.hull_critical ? 1 : 0) },
     { id: 'weapon_beam_loop', gain: (s) => (s.on.beam ? 1 : 0) },
   ],
   repeaters: [],
@@ -239,14 +253,20 @@ export const LANDING: SceneDef = {
   thrustFamily: 'engine_main',
   engineGain: enginesUnlessOff,
   loops: [
-    { id: 'cabin_ambience_loop', gain: (s) => 0.35 + 0.4 * (1 - effectiveThrust(s) / BOOST_THRUST) },
+    { id: 'cabin_ambience_loop', gain: full },
     // Fades out between 1,500 and 1,000 m while the disengage sound plays.
-    { id: 'cruise_loop', gain: (s) => 0.8 * clamp((s.distance - 1000) / 500, 0, 1) },
+    { id: 'cruise_loop', gain: (s) => clamp((s.distance - 1000) / 500, 0, 1) },
     { id: 'dust_patter_loop', gain: (s) => (s.distance < 60 ? (1 - s.distance / 60) * (0.3 + 0.7 * clamp(effectiveThrust(s), 0, 1)) : 0) },
     { id: 'ground_scrape_loop', gain: (s) => (s.on.scrape ? 0.8 : 0) },
   ],
   repeaters: [],
   events: [
+    // The charge runs into the engage click without a gap: each one starts 20 ms before the one before it ends.
+    {
+      key: 'cruise_start',
+      label: { en: 'Cruise charge and engage', de: 'Reiseantrieb laden und einrasten' },
+      shots: [{ id: 'cruise_charge' }, { id: 'cruise_engage', chain: true }],
+    },
     { key: 'disengage', label: { en: 'Cruise disengage', de: 'Reiseantrieb aus' }, shots: [{ id: 'cruise_disengage' }] },
     { key: 'pulse', label: { en: 'Thruster pulse', de: 'Düsenstoß' }, shots: [{ id: PULSES }] },
     { key: 'gear', label: { en: 'Gear out', de: 'Fahrwerk aus' }, shots: [{ id: 'gear_deploy' }] },

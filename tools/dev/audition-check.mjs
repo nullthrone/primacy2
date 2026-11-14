@@ -154,6 +154,42 @@ try {
     assert((await peakMax(page)) > 0.001, 'no signal');
   });
 
+  await check('rendered and downloaded rows are split, with licence and a measured length', async () => {
+    const downloads = manifest.sounds.filter((x) => x.source === 'download');
+    assert(downloads.length > 0, 'the manifest has no downloaded sound to check');
+    assert((await page.locator('.sound.download').count()) === downloads.length, 'downloaded rows are not all marked');
+    assert((await page.locator('.part.downloaded').count()) >= 5, 'categories lack their downloaded block');
+    assert((await page.locator('.part.rendered').count()) >= 5, 'categories lack their rendered block');
+    const nasa = downloads.find((x) => x.licence === 'Public domain (NASA)');
+    const cc0 = downloads.find((x) => x.licence === 'CC0 1.0');
+    assert((await page.locator(`#s-${nasa.id} .badge.licence`).innerText()) === 'Public domain (NASA)', 'NASA licence not shown');
+    assert((await page.locator(`#s-${cc0.id} .badge.licence`).innerText()) === 'CC0 1.0', 'CC0 licence not shown');
+    // The build leaves the length of downloads at 0; the page measures it by decoding every file.
+    await page.waitForFunction(
+      (ids) => ids.every((id) => /\d s$/.test(document.querySelector(`#s-${id} .badge.mono`).textContent.trim())),
+      downloads.map((x) => x.id),
+      { timeout: 30000 },
+    );
+    await page.locator('#cat-radio').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
+  });
+
+  await check('downloaded mp3, ogg and wav files decode and play, and a second press stops them', async () => {
+    for (const id of ['n_sts_how_do_you_read', 'k_toggle_1', 'n_quindar_1']) {
+      await page.evaluate(() => window.__audition.resetPeak());
+      const btn = page.locator(`button[data-sound="${id}"]`);
+      await btn.scrollIntoViewIfNeeded();
+      await btn.click();
+      await sleep(900);
+      assert((await peakMax(page)) > 0.001, `no signal from ${id}`);
+    }
+    const btn = page.locator('button[data-sound="n_quindar_1"]');
+    assert(/^Stop/.test(await btn.getAttribute('aria-label')), 'a long clip does not offer Stop');
+    await btn.click();
+    await sleep(400);
+    assert(!/^Stop/.test(await btn.getAttribute('aria-label')), 'the clip did not stop');
+  });
+
   await check('thrust slider crossfades the engine group with equal power', async () => {
     await page.locator('#group-engine').scrollIntoViewIfNeeded();
     await page.click('#group-toggle');
@@ -197,6 +233,61 @@ try {
       await sleep(400);
     });
   }
+
+  await check('chained one-shots start 20 ms before the end of the previous one', async () => {
+    await page.click('[data-tab="landing"]');
+    await page.click('#scene-landing [data-event="cruise_start"]');
+    await page.waitForFunction(() => (window.__audition.plays ?? []).some((p) => p.id === 'cruise_engage'), null, { timeout: 5000 });
+    const plays = await page.evaluate(() => window.__audition.plays);
+    const charge = plays.filter((p) => p.id === 'cruise_charge').pop();
+    const engage = plays.filter((p) => p.id === 'cruise_engage').pop();
+    const gap = engage.start - (charge.end - 0.02);
+    assert(Math.abs(gap) < 0.001, `engage starts ${(gap * 1000).toFixed(2)} ms off the planned overlap`);
+  });
+
+  await check('the thrust slider sounds the engine alone while no scene runs', async () => {
+    await page.click('[data-tab="combat"]');
+    await page.evaluate(() => window.__audition.resetPeak());
+    await page.evaluate(() => {
+      const el = document.getElementById('combat-thrust');
+      el.value = '0.6';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await sleep(1200);
+    assert((await peakMax(page)) > 0.001, 'moving the slider made no sound');
+    const label = await page.locator('#scene-combat [data-act="engine-solo"]').innerText();
+    assert(/■/.test(label), `solo button says ${label}`);
+    await page.evaluate(() => {
+      const el = document.getElementById('combat-thrust');
+      el.value = '1';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await sleep(300);
+    await page.screenshot({ path: path.join(SHOTS, 'scene-combat-engine-solo.png') });
+    await page.click('#scene-combat [data-act="engine-solo"]');
+    await sleep(300);
+    assert(/▶/.test(await page.locator('#scene-combat [data-act="engine-solo"]').innerText()), 'the engine did not stop');
+  });
+
+  await check('written sequences at real speed with the limiter off never reach clipping', async () => {
+    await page.evaluate(() => (window.__audition.speed = 1));
+    await page.uncheck('#sw-limiter');
+    for (const id of ['docking', 'combat', 'landing']) {
+      await page.click(`[data-tab="${id}"]`);
+      const before = await page.evaluate((sid) => window.__audition.sceneRuns[sid]?.ended ?? 0, id);
+      await page.evaluate(() => window.__audition.resetPeak());
+      await page.click(`#scene-${id} [data-act="play-scene"]`);
+      await sleep(14000);
+      await page.screenshot({ path: path.join(SHOTS, `scene-${id}-running.png`) });
+      await page.waitForFunction((a) => window.__audition.sceneRuns[a.sid].ended > a.before, { sid: id, before }, { timeout: 60000 });
+      const p = await peakMax(page);
+      console.log(`      ${id}: peak ${p.toFixed(3)} (${(20 * Math.log10(p)).toFixed(1)} dBFS)`);
+      assert(p < 0.999, `${id} reaches clipping: ${p}`);
+      await sleep(500);
+    }
+    await page.check('#sw-limiter');
+    await page.evaluate((s) => (window.__audition.speed = s), SPEED);
+  });
 
   await check('scene sliders and boost move the state', async () => {
     await page.click('[data-tab="combat"]');
@@ -251,11 +342,19 @@ try {
           const m = await res.json();
           m.sounds = m.sounds.filter((s) => s.id !== 'sensor_proximity_tick');
           const first = m.sounds[0];
+          m.sounds[1].checks = { ...m.sounds[1].checks, hints: ['clap-margin'], described: 'a test description' };
           first.checks = { ...first.checks, pass: false, failed: ['at least 85 % of the energy below 500 Hz', 'true peak above -1 dBFS'], peakDb: -0.4 };
           await r.fulfill({ response: res, json: m });
         }),
     });
     const sound = page2.locator('.sound').first();
+    const hinted = page2.locator('.sound').nth(1);
+    await hinted.locator('details.checks summary').click();
+    const hintColor = await hinted.locator('summary .hint').evaluate((el) => getComputedStyle(el).color);
+    assert(/255, 179, 71/.test(hintColor), `hint colour is ${hintColor}`);
+    assert((await hinted.locator('summary').getAttribute('class')) === 'ok', 'a hint must not turn the rule line red');
+    assert(/CLAP unsure/.test(await hinted.locator('summary').innerText()), 'hint text missing');
+    assert(/a test description/.test(await hinted.locator('.described').innerText()), 'described line missing');
     await sound.locator('details.checks summary').click();
     await sound.scrollIntoViewIfNeeded();
     await page2.screenshot({ path: path.join(SHOTS, 'library-failed-checks.png') });

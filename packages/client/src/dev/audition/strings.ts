@@ -51,6 +51,16 @@ const en = {
   baked: 'cabin baked in',
   viaRadio: 'Via radio',
   seconds: 's',
+  secondsUnknown: 'length unknown',
+  rendered: 'Rendered by us',
+  downloaded: 'Downloaded raw material',
+  downloadBadge: 'download',
+  downloadedNote: 'Raw files, not yet shaped for the game: they play at their own level.',
+  hintsLabel: 'Hint',
+  hint_clap_margin: 'CLAP unsure',
+  engineSolo: 'Listen to the engine alone',
+  engineSoloStop: 'Stop the engine',
+  engineSoloHint: 'Move the thrust slider to hear the engine through its range, no scene needed.',
   checks: 'Checks',
   checksPass: 'all rules passed',
   checksFail: 'failed',
@@ -95,6 +105,8 @@ const en = {
 } as const;
 
 export type Key = keyof typeof en;
+/** Lets a caller ask whether a key exists (hint texts are looked up by name from the manifest). */
+export const dictionaryKeys: Record<string, unknown> = en;
 
 const de: Record<Key, string> = {
   title: 'Klang-Vorspiel',
@@ -143,6 +155,16 @@ const de: Record<Key, string> = {
   baked: 'Kabine eingebaut',
   viaRadio: 'Über Funk',
   seconds: 's',
+  secondsUnknown: 'Länge unbekannt',
+  rendered: 'Von uns erzeugt',
+  downloaded: 'Heruntergeladenes Rohmaterial',
+  downloadBadge: 'Download',
+  downloadedNote: 'Rohdateien, noch nicht fürs Spiel aufbereitet: sie spielen in ihrer eigenen Lautstärke.',
+  hintsLabel: 'Hinweis',
+  hint_clap_margin: 'CLAP unsicher',
+  engineSolo: 'Triebwerk einzeln anhören',
+  engineSoloStop: 'Triebwerk stoppen',
+  engineSoloHint: 'Den Schubregler bewegen, um das Triebwerk über seinen ganzen Bereich zu hören, ohne Szene.',
   checks: 'Prüfungen',
   checksPass: 'alle Regeln bestanden',
   checksFail: 'durchgefallen',

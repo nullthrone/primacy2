@@ -80,10 +80,39 @@ class Engine {
   private opts = { volume: 0.7, cabin: true, limiter: true, radio: true };
   private ready: Promise<void> = Promise.resolve();
 
+  /** Real length in seconds of files whose manifest entry says 0 (downloads are not measured by the build). */
+  readonly measured = signal<Readonly<Record<string, number>>>({});
+
   setSounds(sounds: ManifestSound[]): void {
     this.soundsById = new Map(sounds.map((s) => [s.id, s]));
     this.buffers.clear();
     this.irLoaded.value = false;
+    void this.measureUnknown(sounds.filter((s) => !(s.duration > 0)));
+  }
+
+  /** Decodes in an offline context, which needs no click, only to learn the length; one file at a time to stay light. */
+  private async measureUnknown(list: ManifestSound[]): Promise<void> {
+    const off = new OfflineAudioContext(1, 1, 48000);
+    for (const s of list) {
+      try {
+        const r = await fetch(soundUrl(s.file));
+        if (!r.ok) continue;
+        const b = await off.decodeAudioData(await r.arrayBuffer());
+        this.measured.value = { ...this.measured.value, [s.id]: b.duration };
+      } catch {
+        // The length stays unknown; playing the file reports the real problem.
+      }
+    }
+  }
+
+  /** Length of a sound: from the manifest, else measured, else 0. */
+  lengthOf(s: ManifestSound): number {
+    return s.duration > 0 ? s.duration : (this.measured.value[s.id] ?? 0);
+  }
+
+  /** Audio clock, for scheduling several sounds against each other without timer jitter. */
+  now(): number {
+    return this.ensure().currentTime;
   }
 
   all(): ManifestSound[] {
@@ -250,7 +279,7 @@ class Engine {
   }
 
   /** Plays a sound. A loop runs until stop() is called; a one-shot ends by itself. */
-  async play(sound: ManifestSound, opts: { gain?: number; viaRadio?: boolean } = {}): Promise<Voice | null> {
+  async play(sound: ManifestSound, opts: { gain?: number; viaRadio?: boolean; when?: number } = {}): Promise<Voice | null> {
     const ctx = this.ensure();
     let buf: AudioBuffer;
     try {
@@ -267,9 +296,17 @@ class Engine {
     const squelchOpen = radio ? this.soundsById.get(SQUELCH_OPEN) : undefined;
     const squelchClose = radio ? this.soundsById.get(SQUELCH_CLOSE) : undefined;
 
-    const t0 = ctx.currentTime + 0.02;
+    // An explicit `when` (audio clock) is kept exactly, so that chained one-shots overlap by the planned amount.
+    const t0 = Math.max(opts.when ?? 0, ctx.currentTime + 0.005);
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
+    // Test hook: when each sound was scheduled to start and to end on the audio clock.
+    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number }[] } };
+    if (w.__audition) {
+      const plays = (w.__audition.plays ??= []);
+      plays.push({ id: sound.id, start, end: loop ? Infinity : start + buf.duration });
+      if (plays.length > 500) plays.shift();
+    }
 
     const src = ctx.createBufferSource();
     src.buffer = buf;

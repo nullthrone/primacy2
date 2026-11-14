@@ -167,3 +167,15 @@ details.checks dd { margin: 0; }
   .sound .rate { grid-column: 1 / -1; }
   .scene { grid-template-columns: 1fr; }
 }
+
+/* Rendered by us versus downloaded raw material: two blocks per category, the second one set apart. */
+.part { margin-bottom: 0.8rem; }
+.part-title { font-size: 0.85rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); margin: 0.9rem 0 0.5rem; padding-left: 0.6rem; border-left: 3px solid var(--cyan); }
+.part.downloaded { margin-top: 1rem; padding-left: 0.8rem; border-left: 2px dashed rgba(217, 168, 255, 0.55); }
+.part.downloaded .part-title { color: #d9a8ff; border-left-color: #d9a8ff; }
+.part-title .small { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.sound.download { background: rgba(40, 20, 60, 0.4); border-color: rgba(217, 168, 255, 0.25); }
+.badge.dl { color: #d9a8ff; border-color: rgba(217, 168, 255, 0.6); }
+.badge.licence { text-transform: none; letter-spacing: 0; }
+.hint { color: var(--amber); }
+.described { margin: 0.3rem 0 0; font-size: 0.92rem; font-style: italic; }

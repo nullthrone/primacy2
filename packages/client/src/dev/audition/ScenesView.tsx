@@ -29,6 +29,7 @@ export function SceneView({ runner }: { runner: SceneRunner }): JSX.Element {
   const def = runner.def;
   const s = runner.state.value;
   const live = runner.live.value;
+  const solo = runner.engineSolo.value;
   const scripted = runner.scripted.value;
   const progress = Math.min(1, runner.simTime.value / def.duration);
   const note = sceneNotes.value[def.id]?.note ?? '';
@@ -76,7 +77,18 @@ export function SceneView({ runner }: { runner: SceneRunner }): JSX.Element {
             <button type="button" class={s.boost ? 'on' : ''} aria-pressed={s.boost} data-act="boost" onClick={() => runner.patch({ boost: !s.boost })}>
               {t('boost')} ({BOOST_THRUST})
             </button>
+            {!live && (
+              <button
+                type="button"
+                class={solo ? 'on' : ''}
+                data-act="engine-solo"
+                onClick={() => (solo ? runner.stopEngineSolo() : void runner.startEngineSolo())}
+              >
+                {solo ? `■ ${t('engineSoloStop')}` : `▶ ${t('engineSolo')}`}
+              </button>
+            )}
           </div>
+          {!live && <p class="dim small">{t('engineSoloHint')}</p>}
           {missing.length > 0 && (
             <div class="missing" data-role="missing">
               {t('missing')}: <code>{missing.join(', ')}</code>
