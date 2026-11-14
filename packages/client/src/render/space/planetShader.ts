@@ -529,8 +529,8 @@ Surf surface(vec3 nb, vec3 sunB) {
   float b2 = sin(v * 1.37 + uSeed * 2.0);
   float b3 = sin(v * 5.2 + 1.0 + uSeed);
   // Close up there is fine structure in the deck: laid out along the bands and bent by two slow
-  // swirls into filaments and curls. Its relief shows where the sun stands low over it, and the
-  // turbulence between the bands stands out more than a planet seen whole could show.
+  // swirls into filaments and curls. The turbulence between the bands also stands out more than
+  // a planet seen whole could show.
   float fine = 0.0;
   vec2 curl = vec2(0.0);
   float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * FINE);
@@ -545,9 +545,13 @@ Surf surface(vec3 nb, vec3 sunB) {
   if (qfoot * FINE < 0.36) {
     vec4 f = fineNoise(q, FINE, qfoot, 0.6);
     fine = 0.8 * f.x + 0.15 * f.y;
-    if (gNear > 0.0 && dot(nb, sunB) > -0.1) {
+    // The relief of the deck shows where the sun stands low over it; one more sample tells
+    // which way the tops slope.
+    float geo = dot(nb, sunB);
+    float low = gNear * (1.0 - smoothstep(0.30, 0.55, geo));
+    if (low > 0.0 && geo > -0.1) {
       vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.6);
-      s.shade = clamp(1.0 - 0.14 * gNear * (0.8 * fSun.x + 0.15 * fSun.y - fine), 0.85, 1.1);
+      s.shade = clamp(1.0 - 0.16 * low * (0.8 * fSun.x + 0.15 * fSun.y - fine), 0.85, 1.1);
     }
   }
   float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.075 * (0.4 + 0.6 * contrast) * fine;

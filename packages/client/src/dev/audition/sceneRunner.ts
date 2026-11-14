@@ -68,6 +68,9 @@ export class SceneRunner {
   private repeatAcc = new Map<string, number>();
   private starting = false;
   private sideIndex = 0;
+  /** Voices and switch timers of the events fired from a button or the sequence, so that Stop can end a long chain. */
+  private shotVoices = new Set<Promise<Voice | null>>();
+  private shotTimers = new Set<number>();
 
   constructor(readonly def: SceneDef) {
     this.state = signal(initialState(def));
@@ -135,7 +138,17 @@ export class SceneRunner {
     this.timer = window.setInterval(() => this.tick(), TICK_MS);
   }
 
-  stopLive(): void {
+  /** Ends the shots still running or scheduled (a fold chain is half a minute long) and cancels their switch changes. */
+  private stopShots(): void {
+    for (const id of this.shotTimers) window.clearTimeout(id);
+    this.shotTimers.clear();
+    for (const p of this.shotVoices) void p.then((v) => v?.stop());
+    this.shotVoices.clear();
+  }
+
+  /** `hard` is false at the natural end of the written sequence, so that the last sounds ring out. */
+  stopLive(hard = true): void {
+    if (hard) this.stopShots();
     window.clearInterval(this.timer);
     this.live.value = false;
     this.scripted.value = false;
@@ -182,7 +195,7 @@ export class SceneRunner {
     }
     if (t >= def.duration) {
       hooks().sceneRuns[def.id].ended++;
-      this.stopLive();
+      this.stopLive(false);
     }
   }
 
@@ -261,11 +274,21 @@ export class SceneRunner {
       prevAt = at;
       prevLen = len;
       prevCue = engine.cueOf(sound);
-      void engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at, direction: this.directionOf(sh), once: sh.once });
+      const voice = engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at, direction: this.directionOf(sh), once: sh.once });
+      this.shotVoices.add(voice);
+      // Forgotten again once it has ended on its own, so that the set does not grow over a long session.
+      void voice.then((v) => {
+        if (!v) this.shotVoices.delete(voice);
+        else window.setTimeout(() => this.shotVoices.delete(voice), (base + at - engine.now() + len + 2) * 1000);
+      });
       if (sh.set) {
         const set = sh.set;
         // The switch follows the audio clock, so that a loop leaves with the sound that ends it.
-        window.setTimeout(() => this.patch({ on: { ...this.state.value.on, ...set } }), Math.max(0, base + at - engine.now()) * 1000);
+        const id = window.setTimeout(() => {
+          this.shotTimers.delete(id);
+          this.patch({ on: { ...this.state.value.on, ...set } });
+        }, Math.max(0, base + at - engine.now()) * 1000);
+        this.shotTimers.add(id);
       }
     });
   }

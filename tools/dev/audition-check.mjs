@@ -468,7 +468,7 @@ try {
     assert(en.join('|') === 'Mono|Stereo (loudspeakers)|Headphones', `English labels ${en.join('|')}`);
     await pageS.click('[data-lang="de"]');
     await pageS.evaluate(() => window.scrollTo(0, 0));
-    await pageS.screenshot({ path: path.join(SHOTS, 'stage-header-de.png'), clip: { x: 0, y: 0, width: 1280, height: 190 } });
+    await pageS.screenshot({ path: path.join(SHOTS, 'stage-header-de.png'), clip: { x: 0, y: 0, width: 1280, height: 156 } });
   });
 
   await check('Stereo: a sound with place 90 is louder on the right; a place ahead is even', async () => {
@@ -590,6 +590,17 @@ try {
     await pageS.waitForFunction(() => document.querySelector('#scene-fold [data-event="cruise"]').getAttribute('aria-pressed') === 'false', null, { timeout: 5000 });
   });
 
+  await check('Stop all ends a running fold chain, with the sounds that were still to come', async () => {
+    await press(pageS, '#scene-fold [data-event="chain2"]');
+    await sleep(500);
+    await pageS.click('#stop-all');
+    await sleep(900);
+    await pageS.evaluate(() => window.__audition.resetPeak());
+    await sleep(600);
+    const left = await peakMax(pageS);
+    assert(left < 0.002, `the chain still sounds after Stop all: peak ${left}`);
+  });
+
   await check('fold scene: the written sequence runs to its end and takes the cruise away', async () => {
     await pageS.evaluate(() => window.scrollTo(0, 0));
     await pageS.evaluate(() => window.__audition.resetPeak());
@@ -600,6 +611,61 @@ try {
     await pageS.waitForFunction(() => window.__audition.sceneRuns.fold?.ended >= 1, null, { timeout: 20000 });
     assert((await peakMax(pageS)) > 0.001, 'the scene made no sound');
     await pageS.click('#stop-all');
+  });
+
+  await check('hits in the combat scene come from changing sides', async () => {
+    await pageS.click('[data-tab="combat"]');
+    await pageS.evaluate(() => (window.__audition.plays = []));
+    for (let i = 0; i < 3; i++) {
+      await press(pageS, '#scene-combat [data-event="hull_light"]');
+      await sleep(250);
+    }
+    await pageS.waitForFunction(() => window.__audition.plays.filter((p) => p.id === 'impact_hull_light').length >= 3, null, { timeout: 5000 });
+    const az = await pageS.evaluate(() => window.__audition.plays.filter((p) => p.id === 'impact_hull_light').map((p) => p.azimuth));
+    assert(az.every((x) => typeof x === 'number'), `a hit file with two channels cannot be placed: ${az.join(', ')}`);
+    assert(Math.sign(az[0]) !== Math.sign(az[1]) && Math.sign(az[1]) !== Math.sign(az[2]), `the hits do not change sides: ${az.join(', ')}`);
+  });
+
+  await check('the stage can be switched while a loop runs, and the loop keeps sounding', async () => {
+    await pageS.click('[data-tab="library"]');
+    const btn = pageS.locator('button[data-sound="thruster_burn_loop"]');
+    await press(pageS, 'button[data-sound="thruster_burn_loop"]');
+    await sleep(500);
+    for (const mode of ['headphones', 'mono', 'stereo']) {
+      await pageS.click(`[data-stage="${mode}"]`);
+      await pageS.evaluate(() => window.__audition.resetPeak());
+      await sleep(400);
+      assert((await peakMax(pageS)) > 0.001, `the loop fell silent after switching to ${mode}`);
+    }
+    assert((await btn.getAttribute('aria-label')).startsWith('Stop'), 'the loop button lost its state');
+    await press(pageS, 'button[data-sound="thruster_burn_loop"]');
+    await sleep(300);
+  });
+
+  await check('stage geometry: mirror panning behind, duller behind, circle of 1.5 m', async () => {
+    const r = await pageS.evaluate(async () => {
+      const m = await import('/src/dev/audition/engine.ts');
+      return {
+        right: m.stagePan(90),
+        left: m.stagePan(-90),
+        ahead: m.stagePan(0),
+        behindRight: m.stagePan(150),
+        mirror: m.stagePan(30),
+        behindLeft: m.stagePan(-180 + 30),
+        openAhead: m.behindCutoff(0),
+        openSide: m.behindCutoff(90),
+        dull: m.behindCutoff(135),
+        dullest: m.behindCutoff(180),
+        side: m.headphonePosition(90),
+        front: m.headphonePosition(0),
+        back: m.headphonePosition(180),
+      };
+    });
+    const near = (a, b) => Math.abs(a - b) < 1e-6;
+    assert(near(r.right, 1) && near(r.left, -1) && near(r.ahead, 0), `pan ${JSON.stringify(r)}`);
+    assert(near(r.behindRight, r.mirror) && near(r.behindLeft, -r.mirror), 'a source behind must pan like its mirror image ahead');
+    assert(r.openAhead === 20000 && r.openSide === 20000 && r.dull < 20000 && Math.abs(r.dullest - 3500) < 1, `cutoffs ${r.openAhead}, ${r.dull}, ${r.dullest}`);
+    assert(near(r.side.x, 1.5) && Math.abs(r.side.z) < 1e-9 && near(r.front.z, -1.5) && near(r.back.z, 1.5), 'the headphone circle is not 1.5 m around the listener');
   });
 
   await ctxS.close();

@@ -9,8 +9,9 @@
  *
  * The pattern is a function of the position in the model's own axes, so it stays on the model
  * while that moves and turns. Everything is filtered against the size of a pixel on the surface:
- * a joint thinner than a pixel is drawn as the share of the pixel it covers, a plate or a grain
- * smaller than about two pixels dissolves into the mean, so nothing flickers far away or in motion.
+ * a joint thinner than a pixel is drawn as the share of the pixel it covers, a plate fades out
+ * between eight and three pixels of width, and grain is read from a texture with mipmaps, which
+ * dissolves it into its mean below about two pixels. Nothing is left to flicker far away.
  *
  * A material is given its surface by `assignSurface`, which notes it in `userData.surface`. A
  * clone of the material carries that note along (three copies `userData`, not the shader hook),
@@ -426,19 +427,19 @@ vec3 surfGrad = vec3(0.0);
 }`;
 
 const ROCK_PARS = /* glsl */ `
-// Pits: a grid in space, and in less than half of its cells a ball that stays inside its cell.
+// Pits: a grid in space, and in most of its cells a ball that stays inside its cell.
 // Where a ball cuts the surface there is a bowl, its outline bent by "warp". Returns the gradient
 // of the bowl (xyz) and how deep inside it the point lies (w).
 vec4 surfPit(vec3 p, float cell, float pix, float warp) {
   vec3 c = p / cell;
   vec3 ic = floor(c);
   uint h = surfMix(uint(int(ic.x)) * 0x9e3779b1u ^ surfMix(uint(int(ic.y)) * 0x85ebca6bu ^ surfMix(uint(int(ic.z)))));
-  if ((h >> 28) > 8u) return vec4(0.0);
+  if ((h >> 28) > 12u) return vec4(0.0);
   vec3 mid = 0.32 + 0.36 * vec3(float(h & 511u), float((h >> 9) & 511u), float((h >> 18) & 511u)) / 511.0;
   float size = float((h >> 27) & 1u) * 0.5 + float(h & 127u) / 254.0;
-  float rad = 0.08 + 0.2 * size * size;
+  float rad = 0.11 + 0.18 * size * size;
   vec3 d = c - ic - mid;
-  float dd = dot(d, d) / (rad * rad) * (1.0 + warp);
+  float dd = dot(d, d) / (rad * rad) * (1.0 + clamp(warp, -0.6, 0.8));
   float fade = smoothstep(2.0, 5.0, rad * cell / pix);
   if (dd >= 1.0 || fade <= 0.0) return vec4(0.0);
   // A shallow bowl with a soft rim: the slope is steepest half way out.
