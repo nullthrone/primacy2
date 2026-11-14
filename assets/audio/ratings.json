@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-14T13:44:50.754Z",
+  "savedAt": "2026-11-14T13:50:02.792Z",
   "manifest": {
     "placeholder": false,
     "count": 114
@@ -87,10 +87,46 @@
     "fold_jump": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "Sollte ",
-      "at": "2026-11-14T13:44:50.252Z"
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:12.174Z"
+    },
+    "fold_tunnel_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:15.999Z"
+    },
+    "fold_exit": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:29.522Z"
+    },
+    "cabin_ambience_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:36.873Z"
+    },
+    "silent_running_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:42.319Z"
+    },
+    "k_computer_noise_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:45:58.472Z"
+    },
+    "n_dinks_donks": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:46:09.237Z"
     }
   },
   "scenes": {},
-  "general": ""
+  "general": "Die Töne klingen alle sehr mono, haben wir die Chance"
 }

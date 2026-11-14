@@ -1503,6 +1503,46 @@ try {
     await page.waitForTimeout(600);
     await shot('05-wingman-in-sight');
 
+    // The wingman is locked and in the middle of the view: a ship in the cone ahead. With a place
+    // chosen that lies elsewhere, "target ahead" must leave that place alone however often it is
+    // pressed, also when another place (the station both pilots left) lies in the same cone.
+    {
+      const before = await page.evaluate(() => {
+        const g = window.primacy2.game;
+        const v = g.view;
+        const self = v.self;
+        const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+        const from = (rel) => unit([rel[0] - self.rel[0], rel[1] - self.rel[1], rel[2] - self.rel[2]]);
+        const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        const [x, y, z, w] = self.rot;
+        const nose = [-2 * (x * z + w * y), -2 * (y * z - w * x), -(1 - 2 * (x * x + y * y))];
+        // The chosen place: the place to dock farthest from where the nose points.
+        let far = null;
+        for (const s of v.sites) {
+          if (!['station', 'outpost', 'base'].includes(s.def.kind)) continue;
+          const c = dot(from(s.rel), nose);
+          if (!far || c < far.c) far = { id: s.def.id, name: s.def.name, c };
+        }
+        g.setNav(far.id);
+        return {
+          wingman: v.targetId, chosen: far,
+          places: [...v.sites, ...v.bodies].filter((p) => p.def.id !== far.id && dot(from(p.rel), nose) > 0.9).map((p) => p.def.name),
+          ships: v.ents.filter((e) => dot(from(e.rel), nose) > 0.9).length,
+        };
+      });
+      for (let i = 0; i < 2; i++) {
+        await page.keyboard.press('KeyY');
+        await page.waitForTimeout(250);
+      }
+      const after = await page.evaluate(() => ({ nav: window.primacy2.game.view.navAnchor, target: window.primacy2.game.view.targetId }));
+      if (before.ships < 1) console.log('places: the wingman was not in the cone ahead; keeping the chosen place with a ship in the cone was not played');
+      else if (after.nav !== before.chosen.id) problems.push(`places: "target ahead" replaced the chosen place ${before.chosen.name} although a ship was in the cone: ${JSON.stringify(after)}`);
+      else console.log(`places: ok, with ${before.ships} ship(s) and ${before.places.length} other place(s) in the cone (${before.places.join(', ') || 'none'}), two presses of "target ahead" kept ${before.chosen.name} chosen`);
+      // Back to what the next steps expect: the wingman locked and no place chosen.
+      await page.evaluate((id) => { const g = window.primacy2.game; g.setNav(null); g.setTarget(id); }, before.wingman);
+      await page.waitForTimeout(250);
+    }
+
     // The first pilot turns away from the station, flies out of its mass lock, where weapons are
     // free, and stops there.
     if (!(await aimAwayFromStation(page))) throw new Error('could not turn away from the station');
