@@ -26,3 +26,7 @@ assets/blender/previews/_spike.glb
 # Local Python environment and caches of the audio tools (see tools/audio)
 .venv-audio/
 assets/audio/cache/
+# Rendered sounds and downloaded packs are rebuilt by tools/audio (render and fetch scripts);
+# git keeps the scripts, the sound list, the manifest of downloads and the licence list.
+assets/audio/render/
+assets/audio/downloads/
