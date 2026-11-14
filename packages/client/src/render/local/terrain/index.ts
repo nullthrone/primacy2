@@ -121,7 +121,7 @@ export function createTerrain(): Part {
         uniforms.uBase.value.set(colour.r, colour.g, colour.b);
         uniforms.uKind.value = groundKind(def.cls);
         uniforms.uRadius.value = def.radius;
-        uniforms.uDetail.value = quality === 0 ? 0 : 1;
+        uniforms.uDetail.value = quality === 0 ? 0.5 : 1;
         terrainDebug.ground = ground;
         terrainDebug.stats = ground.stats;
       }
@@ -144,6 +144,9 @@ export function createTerrain(): Part {
       const show = below && ground.covered && (relief >= 1 || (far !== null && far.texture !== null));
       uniforms.uRelief.value = relief;
       uniforms.uFar.value = far ? far.texture : null;
+      // Detail the view from high up never had comes in between 2 km and 1 km above the ground.
+      const low = Math.min(1, Math.max(0, (2000 - s.camHeight) / 1000));
+      uniforms.uLow.value = low * low * (3 - 2 * low);
 
       // The same light the objects part gives three's lights, for a scene that has none of its own.
       rotate(cq, light.sunDir[0], light.sunDir[1], light.sunDir[2], true, tmp);

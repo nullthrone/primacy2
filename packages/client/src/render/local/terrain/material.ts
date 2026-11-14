@@ -109,6 +109,8 @@ uniform float uRelief;
 uniform vec3 uBase;
 uniform int uKind;
 uniform float uDetail;
+uniform float uLow;
+uniform float uRadius;
 uniform mat3 uToBody;
 uniform vec3 uSunView;
 uniform vec3 uSunColor;
@@ -122,50 +124,159 @@ varying vec3 vUp;
 varying vec2 vShadowBox;
 ${GROUND_GLSL}
 
-// A vector with components in -1..1 for a lattice point.
-vec3 latticeGradient(vec3 p) {
-  uvec3 q = uvec3(ivec3(p)) * uvec3(1597334673u, 3812015801u, 2798796415u);
-  uint n = (q.x ^ q.y ^ q.z) * 1597334673u;
+// ---------------------------------------------------------------------------------------------
+// Small ground detail. All of it lives on square lattices in the plane of the cube face the
+// place belongs to (two of the three body-fixed coordinates), so a lattice point is four numbers
+// to look up instead of eight; every lattice repeats after DETAIL_PERIOD metres.
+// ---------------------------------------------------------------------------------------------
+
+const float PERIOD = ${DETAIL_PERIOD}.0;
+
+// How an offset in the plane of the lattice (metres) becomes an offset along the ground: the
+// plane leans against the ground by up to 55 degrees, and what is round on the ground must be
+// measured there. Set in main for the place being shaded.
+vec2 gLean;
+float gStretch;
+vec2 alongGround(vec2 d) { return d + gLean * (dot(gLean, d) * gStretch); }
+
+// Random bits for a lattice cell of one layer.
+uint cellHash(vec2 cell, uint seed) {
+  uvec2 q = uvec2(ivec2(cell)) * uvec2(1597334673u, 3812015801u);
+  uint n = (q.x ^ q.y ^ (seed * 2798796415u)) * 1597334673u;
   n ^= n >> 15;
   n *= 2246822519u;
   n ^= n >> 13;
-  return vec3(float(n & 1023u), float((n >> 10) & 1023u), float((n >> 20) & 1023u)) * (2.0 / 1023.0) - 1.0;
+  n *= 3266489917u;
+  n ^= n >> 16;
+  return n;
+}
+// More bits from the same cell.
+uint hashAgain(uint n) {
+  n = (n ^ 2654435769u) * 2246822519u;
+  n ^= n >> 15;
+  n *= 3266489917u;
+  n ^= n >> 13;
+  return n;
+}
+// Four numbers 0..1.
+vec4 hashBytes(uint n) {
+  return vec4(float(n & 255u), float((n >> 8) & 255u), float((n >> 16) & 255u), float(n >> 24)) * (1.0 / 255.0);
 }
 
-// Gradient noise with its derivative (xyz) and value (w). The lattice starts over after 'wrap'
-// cells along each axis, so the noise is continuous where its coordinates do.
-vec4 detailNoise(vec3 x, float wrap) {
-  vec3 p = floor(x);
-  vec3 w = x - p;
-  vec3 p0 = mod(p, wrap);
-  vec3 p1 = mod(p + 1.0, wrap);
-  vec3 u = w * w * w * (w * (w * 6.0 - 15.0) + 10.0);
-  vec3 du = 30.0 * w * w * (w * (w - 2.0) + 1.0);
-  vec3 ga = latticeGradient(p0);
-  vec3 gb = latticeGradient(vec3(p1.x, p0.y, p0.z));
-  vec3 gc = latticeGradient(vec3(p0.x, p1.y, p0.z));
-  vec3 gd = latticeGradient(vec3(p1.x, p1.y, p0.z));
-  vec3 ge = latticeGradient(vec3(p0.x, p0.y, p1.z));
-  vec3 gf = latticeGradient(vec3(p1.x, p0.y, p1.z));
-  vec3 gg = latticeGradient(vec3(p0.x, p1.y, p1.z));
-  vec3 gh = latticeGradient(p1);
+// Gradient noise in the plane with its derivative (xy) and value (z). The lattice starts over
+// after 'wrap' cells along each axis, so the noise is continuous where its coordinates are.
+vec3 planeNoise(vec2 x, float wrap, uint seed) {
+  vec2 p = floor(x);
+  vec2 w = x - p;
+  vec2 p0 = mod(p, wrap);
+  vec2 p1 = mod(p + 1.0, wrap);
+  vec2 u = w * w * w * (w * (w * 6.0 - 15.0) + 10.0);
+  vec2 du = 30.0 * w * w * (w * (w - 2.0) + 1.0);
+  vec2 ga = hashBytes(cellHash(p0, seed)).xy * 2.0 - 1.0;
+  vec2 gb = hashBytes(cellHash(vec2(p1.x, p0.y), seed)).xy * 2.0 - 1.0;
+  vec2 gc = hashBytes(cellHash(vec2(p0.x, p1.y), seed)).xy * 2.0 - 1.0;
+  vec2 gd = hashBytes(cellHash(p1, seed)).xy * 2.0 - 1.0;
   float va = dot(ga, w);
-  float vb = dot(gb, w - vec3(1.0, 0.0, 0.0));
-  float vc = dot(gc, w - vec3(0.0, 1.0, 0.0));
-  float vd = dot(gd, w - vec3(1.0, 1.0, 0.0));
-  float ve = dot(ge, w - vec3(0.0, 0.0, 1.0));
-  float vf = dot(gf, w - vec3(1.0, 0.0, 1.0));
-  float vg = dot(gg, w - vec3(0.0, 1.0, 1.0));
-  float vh = dot(gh, w - vec3(1.0, 1.0, 1.0));
-  float kxy = va - vb - vc + vd, kyz = va - vc - ve + vg, kzx = va - vb - ve + vf;
-  float kxyz = -va + vb + vc - vd + ve - vf - vg + vh;
-  float v = va + u.x * (vb - va) + u.y * (vc - va) + u.z * (ve - va)
-    + u.x * u.y * kxy + u.y * u.z * kyz + u.z * u.x * kzx + u.x * u.y * u.z * kxyz;
-  vec3 g = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.z * (ge - ga)
-    + u.x * u.y * (ga - gb - gc + gd) + u.y * u.z * (ga - gc - ge + gg) + u.z * u.x * (ga - gb - ge + gf)
-    + u.x * u.y * u.z * (-ga + gb + gc - gd + ge - gf - gg + gh)
-    + du * (vec3(vb, vc, ve) - va + u.yzx * vec3(kxy, kyz, kzx) + u.zxy * vec3(kzx, kxy, kyz) + u.yzx * u.zxy * kxyz);
-  return vec4(g, v);
+  float vb = dot(gb, w - vec2(1.0, 0.0));
+  float vc = dot(gc, w - vec2(0.0, 1.0));
+  float vd = dot(gd, w - vec2(1.0, 1.0));
+  float k = va - vb - vc + vd;
+  float v = va + u.x * (vb - va) + u.y * (vc - va) + u.x * u.y * k;
+  vec2 g = ga + u.x * (gb - ga) + u.y * (gc - ga) + u.x * u.y * (ga - gb - gc + gd)
+    + du * (vec2(vb, vc) - va + u.yx * k);
+  return vec3(g, v);
+}
+
+// Stones of one size class: one to a lattice cell (in 'share' of the cells), anywhere in it,
+// 0.05 to 0.2 cells in radius, most of them small. A stone is a block with a flat top and steep
+// sides, a shade off the ground it lies on, with a dark line where it meets the ground and, with
+// 'sun' (xy: along the ground toward the star, z: cotangent of the star's height), the shadow it
+// casts. 'q' is the place on the lattice plane (m), 'px' the size of a pixel on the ground (m).
+// Adds to the slope of the ground and multiplies its reflectance and the star's light.
+void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec2 sunPlane, float px, float strength, bool shadows,
+    inout vec2 slope, inout float tint, inout float light) {
+  float cell = PERIOD / count;
+  if (strength <= 0.0 || 0.2 * cell < 0.8 * px) return;
+  vec2 p = q / cell;
+  // A shadow reaches 0.6 cells from its stone, so the four cells looked at lie toward the star.
+  vec2 first = floor(p - 0.5 + (shadows ? sunPlane * 0.3 : vec2(0.0)));
+  for (int j = 0; j < 4; j++) {
+    vec2 c = first + vec2(float(j & 1), float(j >> 1));
+    uint n = cellHash(mod(c, count), seed);
+    vec4 a = hashBytes(n);
+    if (a.z >= share) continue;
+    float r = (0.05 + 0.15 * a.w * a.w * a.w) * cell;
+    float w = smoothstep(0.8, 2.5, r / px) * strength;
+    if (w <= 0.0) continue;
+    vec2 d = alongGround((p - c - a.xy) * cell);
+    float reach = shadows ? 0.6 * cell + r : 1.6 * r;
+    if (dot(d, d) > reach * reach) continue;
+    vec4 b = hashBytes(hashAgain(n));
+    // The stone's own axes; it is up to 1.6 times as long as wide.
+    vec2 ax = normalize(b.xy - 0.5 + 0.001);
+    vec2 ay = vec2(-ax.y, ax.x);
+    float narrow = 1.0 + 0.6 * b.z;
+    vec2 e = vec2(dot(d, ax), dot(d, ay) * narrow) / r;
+    vec2 e2 = e * e;
+    float m4 = dot(e2, e2);
+    // 1 on the outline of the stone, a rounded rectangle.
+    float m = sqrt(sqrt(m4));
+    float tall = 0.55 + 0.6 * b.w;
+    if (m < 1.6) {
+      float top = 0.3 + 0.35 * b.w;
+      float t = clamp((m - top) / (1.0 - top), 0.0, 1.0);
+      // Outward on the outline, per metre along the ground.
+      vec2 out2 = e2 * e / max(m4 / max(m, 1e-4), 1e-6);
+      vec2 outward = ax * out2.x + ay * (out2.y * narrow);
+      slope -= outward * (6.0 * t * (1.0 - t) * tall / (1.0 - top) * w);
+      // The top is not level.
+      slope += (b.zw - 0.5) * (0.35 * w * (1.0 - t));
+      float cover = 1.0 - smoothstep(1.0 - clamp(1.5 * px / r, 0.06, 0.5), 1.0, m);
+      tint *= mix(1.0, mix(shade.x, shade.y, a.z / share), w * cover);
+      // Where stone and ground meet, little light gets in.
+      tint *= 1.0 - 0.38 * w * smoothstep(0.7, 1.0, m) * (1.0 - smoothstep(1.0, 1.6, m));
+    }
+    if (shadows) {
+      float len = min(r * tall * sun.z, 0.6 * cell);
+      float along = clamp(-dot(d, sun.xy), 0.0, len);
+      float wide = r / narrow * mix(0.95, 0.45, along / max(len, 1e-4));
+      float soft = max(0.75 * px, 0.06 * r);
+      float dark = (1.0 - smoothstep(wide - soft, wide + soft, length(d + sun.xy * along))) * smoothstep(0.85, 1.1, m);
+      light *= 1.0 - dark * w * smoothstep(0.0, 0.3 * r, len);
+    }
+  }
+}
+
+// Small craters of one size class: one to a lattice cell (in 'share' of the cells), rim radius
+// 0.09 to 0.3 cells, most of them small; a soft bowl with a low rounded rim, old ones shallow.
+// Only the slope and the tone of the ground change: where the ground is does not.
+void craterLayer(vec2 q, float count, uint seed, float share, float deep, float px, float strength, inout vec2 slope, inout float tint) {
+  float cell = PERIOD / count;
+  if (strength <= 0.0 || 0.3 * cell < px) return;
+  vec2 p = q / cell;
+  vec2 first = floor(p - 0.5);
+  for (int j = 0; j < 4; j++) {
+    vec2 c = first + vec2(float(j & 1), float(j >> 1));
+    uint n = cellHash(mod(c, count), seed);
+    vec4 a = hashBytes(n);
+    if (a.z >= share) continue;
+    float r = (0.09 + 0.21 * a.w * a.w) * cell;
+    float w = smoothstep(1.0, 3.0, r / px) * strength;
+    if (w <= 0.0) continue;
+    vec2 d = alongGround((p - c - a.xy) * cell);
+    float rho = length(d) / r;
+    if (rho >= 1.6) continue;
+    vec4 b = hashBytes(hashAgain(n));
+    // The steepest slope of the wall: a fresh bowl a fifth as deep as wide, most far shallower.
+    float wall = (0.22 + 0.63 * b.x * b.x) * deep;
+    float inside = max(1.0 - rho * rho, 0.0);
+    float t = clamp((rho - 1.0) / 0.6, 0.0, 1.0);
+    float rise = rho < 1.0 ? rho * inside * 2.6 : -1.2 * t * (1.0 - t) * (1.0 - t);
+    slope += d * (rise * wall * w / max(rho * r, 1e-5));
+    // A fresh crater has thrown out brighter ground; dust darkens the floor of any.
+    float fresh = smoothstep(0.55, 1.0, b.y) * b.x;
+    tint *= 1.0 + w * (0.16 * fresh * smoothstep(0.4, 1.0, rho) * (1.0 - t) - 0.10 * inside * inside * (0.4 + wall));
+  }
 }
 
 void main() {
@@ -184,32 +295,87 @@ void main() {
     tone = mix(far.w, tone, uRelief);
   }
 
-  // Small relief, by the size of a pixel on the ground: an octave is shown while its bumps are
-  // a few pixels wide and is gone before they could flicker.
-  float px = max(length(dFdx(vDetail)), length(dFdy(vDetail)));
-  if (uDetail > 0.0 && px < 2.2) {
-    vec3 slope = vec3(0.0);
-    float speck = 0.0;
-    // Cells of 5.3 m, 1.6 m, 0.5 m, 0.16 m and 5 cm: none a whole multiple of the next.
-    for (int i = 0; i < 5; i++) {
-      float count = i == 0 ? 768.0 : i == 1 ? 2560.0 : i == 2 ? 8192.0 : i == 3 ? 25600.0 : 81920.0;
-      float cell = ${DETAIL_PERIOD}.0 / count;
-      float show = 1.0 - smoothstep(cell * 0.14, cell * 0.42, px);
+  // What the terrain function does not have, by the size of a pixel on the ground (its longer
+  // side: slanted ground is squeezed on screen): every size of thing is shown while it is a few
+  // pixels and is gone before it could flicker.
+  float px = max(length(dFdx(vView)), length(dFdy(vView)));
+  float tint = 1.0;
+  float starlight = 1.0;
+  if (uDetail > 0.0 && px < 21.0) {
+    bool full = uDetail > 0.75;
+    // The lattice plane of the cube face, the ground's lean against it, and the star along the ground.
+    vec3 ab = abs(dirB);
+    vec3 sunB = uToBody * (uSunView * normalMatrix);
+    vec3 sunFlat = sunB - dirB * dot(sunB, dirB);
+    vec2 q;
+    vec2 lean;
+    vec2 sunPlane;
+    float edge;
+    uint face;
+    if (ab.x >= ab.y && ab.x >= ab.z) {
+      q = vDetail.yz; lean = dirB.yz / dirB.x; sunPlane = sunFlat.yz; edge = ab.x - max(ab.y, ab.z); face = 0u;
+    } else if (ab.y >= ab.z) {
+      q = vDetail.zx; lean = dirB.zx / dirB.y; sunPlane = sunFlat.zx; edge = ab.y - max(ab.z, ab.x); face = 1u;
+    } else {
+      q = vDetail.xy; lean = dirB.xy / dirB.z; sunPlane = sunFlat.xy; edge = ab.z - max(ab.x, ab.y); face = 2u;
+    }
+    // Metres to where the next face's lattice takes over: everything fades out toward that line.
+    edge *= 0.7071 * uRadius;
+    float lean2 = dot(lean, lean);
+    float stretch = sqrt(1.0 + lean2);
+    gLean = lean;
+    gStretch = (stretch - 1.0) / max(lean2, 1e-8);
+    vec2 sunGround = alongGround(sunPlane);
+    float sunLength = max(length(sunGround), 1e-5);
+    vec3 sun3 = vec3(sunGround / sunLength, sunLength / max(dot(sunB, dirB), 0.05));
+    sunPlane /= sunLength;
+
+    vec2 slope = vec2(0.0);
+    float mottle = 0.0;
+    // Rolling ground and patches of tone: cells of 5 cm, 16 cm, 0.5 m, 1.6 m, 5.3 m, 16 m and
+    // 51 m, none a whole multiple of the next. The fine ones are rough, the coarse ones no rougher
+    // than the terrain itself, and the two coarsest change the tone alone.
+    for (int i = full ? 0 : 1; i < 7; i++) {
+      float count = i == 0 ? 81920.0 : i == 1 ? 25600.0 : i == 2 ? 8192.0 : i == 3 ? 2560.0 : i == 4 ? 768.0 : i == 5 ? 256.0 : 80.0;
+      float cell = PERIOD / count;
+      float show = (1.0 - smoothstep(cell * 0.14, cell * 0.42, px)) * clamp(edge / cell, 0.0, 1.0);
+      if (i > 4) show *= uLow;
       if (show > 0.0) {
-        vec4 nz = detailNoise(vDetail / cell + vec3(0.37, 0.11, 0.73) * float(i), count);
-        slope += nz.xyz * show;
-        speck += nz.w * show;
+        vec3 nz = planeNoise(q / cell + vec2(0.37, 0.73) * float(i), count, face + 16u * uint(i + 1));
+        float rough = i == 0 ? 0.17 : i == 1 ? 0.13 : i == 2 ? 0.085 : i == 3 ? 0.05 : i == 4 ? 0.028 : 0.0;
+        float patchy = i == 0 ? 0.11 : i == 1 ? 0.07 : i == 2 ? 0.05 : i == 3 ? 0.045 : 0.04;
+        slope += nz.xy * (rough * show);
+        mottle += nz.z * (patchy * show);
       }
     }
-    vec3 sl = (slope * uToBody) * (0.11 * uDetail);
+
+    // How much there is of what, by the kind of ground: ice has few blocks, brighter than the
+    // dusty plain, and few pits; a desert is gravel with hardly a crater.
+    float stones = uKind == 1 ? 0.3 : uKind == 2 ? 0.75 : 0.55;
+    float craters = uKind == 1 ? 0.3 : uKind == 2 ? 0.22 : 0.62;
+    vec2 shade = uKind == 1 ? vec2(0.95, 1.45) : uKind == 2 ? vec2(0.72, 1.25) : vec2(0.68, 1.42);
+    float e16 = clamp(edge / 16.0, 0.0, 1.0);
+    float e5 = clamp(edge / 5.12, 0.0, 1.0);
+    float e1 = clamp(edge / 1.6, 0.0, 1.0);
+    craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * e16, slope, tint);
+    craterLayer(q, 800.0, face + 272u, craters, 0.85, px, e5, slope, tint);
+    craterLayer(q, 2560.0, face + 288u, craters, 1.0, px, e1, slope, tint);
+    stoneLayer(q, 4000.0, face + 304u, stones, shade, sun3, sunPlane, px, e1, full, slope, tint, starlight);
+    stoneLayer(q, 12800.0, face + 320u, stones, shade, sun3, sunPlane, px, e1, full, slope, tint, starlight);
+    if (full) stoneLayer(q, 40000.0, face + 336u, stones, shade, sun3, sunPlane, px, e1, true, slope, tint, starlight);
+
+    tint *= 1.0 + mottle * (uKind == 1 ? 0.7 : 1.0);
+    // The slope along the ground, back in the lattice plane, then in body-fixed axes.
+    vec2 sp = slope + lean * (dot(lean, slope) * (1.0 / stretch - 1.0) / max(lean2, 1e-8));
+    vec3 s3 = vec3(sp, -dot(lean, sp));
+    vec3 sl = (face == 0u ? s3.zxy : face == 1u ? s3.yzx : s3) * uToBody;
     nl = normalize(nl - (sl - nl * dot(sl, nl)));
-    tone += speck * 0.045 * uDetail;
   }
 
   vec3 n = normalize(normalMatrix * nl);
   vec3 up = normalize(vUp);
   vec3 v = normalize(-vView);
-  vec3 sun = uSunColor;
+  vec3 sun = uSunColor * starlight;
   #if defined(USE_SHADOWMAP) && NUM_DIR_LIGHT_SHADOWS > 0
     if (receiveShadow) {
       vec4 sc = vDirectionalShadowCoord[0];
@@ -223,7 +389,7 @@ void main() {
       sun *= mix(1.0, lit, k * k);
     }
   #endif
-  vec3 albedo = groundAlbedo(clamp(tone, 0.0, 1.0), uBase, uKind);
+  vec3 albedo = groundAlbedo(clamp(tone, 0.0, 1.0), uBase, uKind) * tint;
   vec3 col = groundLit(albedo, n, up, uSunView, v, sun, uAmbient, uKind);
 
   // Lamps: plain diffuse light, wherever they stand.
@@ -260,7 +426,10 @@ export interface GroundUniforms {
   uFar: IUniform<CubeTexture | null>;
   uBase: IUniform<Vector3>;
   uKind: IUniform<number>;
+  /** How much small detail the ground shows: 0 none, 0.5 the cheaper half of it, 1 all. */
   uDetail: IUniform<number>;
+  /** 1 while the camera is low over the ground, 0 from 2 km up: for detail the view from high up does not have. */
+  uLow: IUniform<number>;
   /** Unit vector toward the star in view axes, and the star's and the ambient light's strength. */
   uSunView: IUniform<Vector3>;
   uSunColor: IUniform<Vector3>;
@@ -270,7 +439,7 @@ export interface GroundUniforms {
 export function groundUniforms(): GroundUniforms {
   return {
     uRadius: { value: 1 }, uRelief: { value: 1 }, uFar: { value: null }, uBase: { value: new Vector3(0.2, 0.2, 0.2) },
-    uKind: { value: 0 }, uDetail: { value: 1 },
+    uKind: { value: 0 }, uDetail: { value: 1 }, uLow: { value: 1 },
     uSunView: { value: new Vector3(0, 1, 0) }, uSunColor: { value: new Vector3() }, uAmbient: { value: new Vector3() },
   };
 }
