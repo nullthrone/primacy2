@@ -1,9 +1,10 @@
-import { signal } from '@preact/signals';
+import { signal, type Signal } from '@preact/signals';
 import { engine, type GroupVoice, type Voice } from './engine.ts';
 import {
   effectiveThrust,
   initialState,
   sampleTrack,
+  SCENES,
   sceneSoundIds,
   type EventSpec,
   type Param,
@@ -23,6 +24,12 @@ interface LoopVoice {
 export interface AuditionHooks {
   speed: number;
   sceneRuns: Record<string, { started: number; ended: number }>;
+  /** Output peak of the last frame and the highest since resetPeak(), linear. */
+  peak: number;
+  peakMax: number;
+  resetPeak(): void;
+  /** Target gains of the engine group, for checking the crossfade without listening. */
+  groupLevels(): { id: string; thrust: number; gain: number }[];
 }
 
 export function hooks(): AuditionHooks {
@@ -30,12 +37,14 @@ export function hooks(): AuditionHooks {
   w.__audition ??= {};
   w.__audition.speed ??= 1;
   w.__audition.sceneRuns ??= {};
+  const speed = Number(new URLSearchParams(location.search).get('speed'));
+  if (speed > 0 && w.__audition.speed === 1) w.__audition.speed = speed;
   return w.__audition as unknown as AuditionHooks;
 }
 
 /** Runs one scene: follows the sliders live, and can play the written sequence by moving them itself. */
 export class SceneRunner {
-  readonly state = signal<SceneState>(initialState(this.def));
+  readonly state: Signal<SceneState>;
   readonly live = signal(false);
   readonly scripted = signal(false);
   readonly simTime = signal(0);
@@ -49,7 +58,9 @@ export class SceneRunner {
   private repeatAcc = new Map<string, number>();
   private starting = false;
 
-  constructor(readonly def: SceneDef) {}
+  constructor(readonly def: SceneDef) {
+    this.state = signal(initialState(def));
+  }
 
   /** Called when the manifest is known. */
   refreshMissing(): void {
@@ -203,3 +214,5 @@ export class SceneRunner {
     void engine.preload(sceneSoundIds(this.def));
   }
 }
+
+export const runners: SceneRunner[] = SCENES.map((d) => new SceneRunner(d));

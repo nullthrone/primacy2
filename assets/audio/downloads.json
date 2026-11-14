@@ -1,0 +1,751 @@
+{
+  "version": 1,
+  "note": "Sources approved by the owner: CC0 packs from kenney.nl and public-domain recordings hosted by NASA. Read by tools/audio/fetch.py.",
+  "nasaGuidelines": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+  "entries": [
+    {
+      "id": "kenney-sci-fi-sounds",
+      "title": "Kenney: Sci-fi Sounds",
+      "url": "https://kenney.nl/download-link/6173736574732f7363692d66692d736f756e6473",
+      "pageUrl": "https://kenney.nl/assets/sci-fi-sounds",
+      "sha256": "119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04",
+      "bytes": 5875104,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Pack page https://kenney.nl/assets/sci-fi-sounds lists \"License: Creative Commons CC0\"; the archive contains License.txt saying \"License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/\".",
+      "credit": "Kenney (www.kenney.nl)",
+      "archive": true
+    },
+    {
+      "id": "kenney-impact-sounds",
+      "title": "Kenney: Impact Sounds",
+      "url": "https://kenney.nl/download-link/6173736574732f696d706163742d736f756e6473",
+      "pageUrl": "https://kenney.nl/assets/impact-sounds",
+      "sha256": "029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8",
+      "bytes": 800850,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Pack page https://kenney.nl/assets/impact-sounds lists \"License: Creative Commons CC0\"; the archive contains License.txt saying \"License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/\".",
+      "credit": "Kenney (www.kenney.nl)",
+      "archive": true
+    },
+    {
+      "id": "kenney-interface-sounds",
+      "title": "Kenney: Interface Sounds",
+      "url": "https://kenney.nl/download-link/6173736574732f696e746572666163652d736f756e6473",
+      "pageUrl": "https://kenney.nl/assets/interface-sounds",
+      "sha256": "f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232",
+      "bytes": 834536,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Pack page https://kenney.nl/assets/interface-sounds lists \"License: Creative Commons CC0\"; the archive contains License.txt saying \"License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/\".",
+      "credit": "Kenney (www.kenney.nl)",
+      "archive": true
+    },
+    {
+      "id": "kenney-ui-audio",
+      "title": "Kenney: UI Audio",
+      "url": "https://kenney.nl/download-link/6173736574732f75692d617564696f",
+      "pageUrl": "https://kenney.nl/assets/ui-audio",
+      "sha256": "946fc23a63d535d693eb31b2eabb80c8c28d6351e2186b344ceb71b2cb1d5eb6",
+      "bytes": 411949,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Pack page https://kenney.nl/assets/ui-audio lists \"License: Creative Commons CC0\"; the archive contains License.txt saying \"License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/\".",
+      "credit": "Kenney (www.kenney.nl)",
+      "archive": true
+    },
+    {
+      "id": "kenney-digital-audio",
+      "title": "Kenney: Digital Audio",
+      "url": "https://kenney.nl/download-link/6173736574732f6469676974616c2d617564696f",
+      "pageUrl": "https://kenney.nl/assets/digital-audio",
+      "sha256": "24e6ce28b76a6d8c89cff4d331e0965ff5c3de8a73c612028e9d363cc64e4f06",
+      "bytes": 990367,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Pack page https://kenney.nl/assets/digital-audio lists \"License: Creative Commons CC0\"; the archive contains License.txt saying \"License: (Creative Commons Zero, CC0) http://creativecommons.org/publicdomain/zero/1.0/\".",
+      "credit": "Kenney (www.kenney.nl)",
+      "archive": true
+    },
+    {
+      "id": "nasa-apollo11-eagle-landed",
+      "title": "Apollo 11: The Eagle has landed",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/569462main_eagle_has_landed.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "c2cf9c2754ec3c2f7315acd4fcdd7d892fb2027919c1a80adf90a49f63c0316c",
+      "bytes": 26388,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-apollo13-houston-problem",
+      "title": "Apollo 13: Houston, we have had a problem",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/574928main_houston_problem.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "d71d23e3a166277d13e414cb45d495da4eba793d975430f34471003e16f0afb1",
+      "bytes": 412815,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury6-zero-g",
+      "title": "Mercury 6: Zero G",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582367main_Mercury-6_Zero-G.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "3bc40254af3ed1b2b674cf9a0356344014159125f44169374460d1b146d7d969",
+      "bytes": 172032,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury6-god-speed",
+      "title": "Mercury 6: God speed",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582368main_Mercury-6_God-Speed.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "ddcf633bb7aef6d222be2098b4cefed909452d1c935f0fee67208c6588c0e8c0",
+      "bytes": 100352,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury4-clock-started",
+      "title": "Mercury 4: Clock started",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582369main_Mercury-4_Clock-Started.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "8cc9cb2cccc08ee3d213df133d9b2d7fa06decccf54cb0e38dffafa70c0aa0a4",
+      "bytes": 196608,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury7-liftoff",
+      "title": "Mercury 7: Liftoff",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582371main_Aurora-7_Liftoff.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "400b09d26a25d73f972f8de6e9d80744ab0ce9652d8669666d1db11d5547278d",
+      "bytes": 178176,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury7-fireflies",
+      "title": "Mercury 7: Fireflies",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582374main_Aurora-7_Fireflies.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "3864be6d763220a6768090b777c3680531d9ec49a40a5222530c779f40b21db2",
+      "bytes": 110592,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury7-guaymas",
+      "title": "Mercury 7: Guaymas greeting",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582382main_Aurora-7_Guyamas-Greeting.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "3eb3751b22d12cac858ff69ef0a718bdf6a6b381ad54e79f0522165fe2be598a",
+      "bytes": 235520,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mercury9-cooper-orbit",
+      "title": "Mercury 9: Astronaut Cooper comments",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582370main_mercury_Cooper_Orbit-Comments.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "1a4d3f8fe32bcc780f6f49cef6f5ceb72e378a894e02c9701a1e04cccadbfd72",
+      "bytes": 202752,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-houston-discovery",
+      "title": "Discovery: Houston, Discovery",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639898main_Houston_Discovery.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "5ee991caee6420226cec7f0b3ae8a38c46d54ce2536716ec19b3fa92e6588031",
+      "bytes": 34944,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-houston-discovery-2",
+      "title": "Discovery: Houston, Discovery (2)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639896main_Houston_Discovery_2.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "fd213e57c52113f781f70c298ffccac27ff67b4723a7239496358f39a7d316d0",
+      "bytes": 43136,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-how-do-you-read",
+      "title": "Discovery: How do you read",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639900main_How_do_you_Read.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "23e677a14f38b3d8068151d78b87d62f8ad92407f2ab5422e79a5b1b807e54b9",
+      "bytes": 41088,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-roger-roll",
+      "title": "Discovery: Roger roll",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640170main_Roger20Roll.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "076ff99af3600613e1aa1f78963a74b82516a9d655070a4ff13b99b916c07180",
+      "bytes": 36992,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-go-for-deploy",
+      "title": "Discovery: Go for deploy",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640164main_Go20for20Deploy.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "aa5c797bed0741c7d4b49e52c37cf5701facea4cd9cd431dab23b24dbd16453e",
+      "bytes": 61568,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-vector-transfer",
+      "title": "Discovery: Vector transfer",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640173main_Vector20Transfer.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "c2c82283a289354f53489d4ee9f80fb0683fef0bcf61aa5f717924bf7ebdf8f5",
+      "bytes": 90240,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-wheelstop",
+      "title": "Discovery: Wheelstop",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640174main_Wheel20Stop.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "c2b799aad829536502606ebbb15006900463a462aa431b1e4d1af389d750770c",
+      "bytes": 141440,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-computers-in-control",
+      "title": "Discovery: Computers are in control",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640149main_Computers20are20in20Control.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "80b6f29711189fa33fe9e3692690b34248aa11d7d82ad5429c6edfad89d11a70",
+      "bytes": 100480,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts-apu-shutdown",
+      "title": "Discovery: APU shutdown",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640148main_APU20Shutdown.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "fc537e314ec517ed8677b71659b47e9f3682d881848176c5e4581a6a621023a2",
+      "bytes": 75904,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sts1-dust-it-off",
+      "title": "STS-1: We are going to dust it off first",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/581097main_STS-1_Dust-it-Off.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "4c817648fcc4b864d279dbd3159818e4235653b86de18c055894e3dce69e4b7b",
+      "bytes": 241664,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-quindar-1",
+      "title": "Quindar tone, sound 1",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578628main_hskquindar.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "cb82d970ee7ed0c1ddb2355eb9c428820aa3b72b743a5219c87fa010250a45d4",
+      "bytes": 588368,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-quindar-2",
+      "title": "Quindar tone, sound 2",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578629main_hawquindar.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "886ca14f1391168c222dace4086d9a210aa53e238f4c8cbbefbb6828006b1d7f",
+      "bytes": 583980,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-sls-test-fire",
+      "title": "SLS test fire",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/663784main_SLS_Audio_D.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "0b13815e4d2ccf4a1ae430c9bc169dcfc46182abab8c6cb0618fce89b5ccbe3e",
+      "bytes": 191094,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-voyager-jupiter-lightning",
+      "title": "Voyager: lightning on Jupiter (plasma waves)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/603921main_voyager_jupiter_lightning.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "3f1ed785bf18d5ba5ee75a89a9f132254bc9f454e617d498e5921e9ea9a4e8a1",
+      "bytes": 128730,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-cassini-saturn-radio-1",
+      "title": "Cassini: Saturn radio emissions #1",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/584791main_spookysaturn.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "c6ef6696ed3e635e9f4d036befe10afb49e82de8bde7a4189978b11464eb86e2",
+      "bytes": 313520,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-cassini-saturn-radio-2",
+      "title": "Cassini: Saturn radio emissions #2",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/584795main_saturn_radio_waves.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "862689d86d3c9131c01d7ac994aaed7cfb0055d2ac67874ace1b0c1ccb44ca8c",
+      "bytes": 213120,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-cassini-enceladus",
+      "title": "Cassini: Enceladus sound",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/584796main_enceladus.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "c861a9ff5767dd078df255ad31d2ef55abf39bf8008427a6ff5b568e224dc893",
+      "bytes": 172616,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-emfisis-chorus",
+      "title": "Chorus radio waves within Earth's atmosphere (EMFISIS)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/693857main_emfisis_chorus_1.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "f36f8d3b1427f1c10db827c546100379b9c369df5b9ec64fcac54ab879cf6454",
+      "bytes": 722414,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA. Courtesy of the Electric and Magnetic Field Instrument Suite and Integrated Science (EMFISIS) team at the University of Iowa",
+      "archive": false
+    },
+    {
+      "id": "nasa-kepler-kic12268220c",
+      "title": "Kepler: star KIC12268220C light curve to sound",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578358main_kepler_star_KIC12268220C.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "7ebe1a8a440fa75acf2aecde28276cb534c1ca782daa2fa342c528237f9458fa",
+      "bytes": 72441,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-stardust-tempel1",
+      "title": "Stardust: passing comet Tempel 1",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/598980main_stardust_tempel1.mp3",
+      "pageUrl": "https://www.nasa.gov/historical-sounds/",
+      "sha256": "be278788556300edba1ae2da3ec8caeb9a586b80d491d1908698d0e2480245f8",
+      "bytes": 146688,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-apollo11-day03-highlights",
+      "title": "Apollo 11 audio highlights, flight day 3",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-03-Highlights.mp3",
+      "pageUrl": "https://www.nasa.gov/history/apollo-11-audio-highlights/",
+      "sha256": "6ca82f4e4026e5f9557a78d55437949561b331de2894528b929263bb91128e98",
+      "bytes": 83606107,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/history/apollo-11-audio-highlights/ offers the MP3 files for download; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-apollo11-day05-highlights",
+      "title": "Apollo 11 audio highlights, flight day 5",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-05-Highlights.mp3",
+      "pageUrl": "https://www.nasa.gov/history/apollo-11-audio-highlights/",
+      "sha256": "28673f7f3ecaece96221fb04e2291f9b94692bc580f4026adaca990bbcf9119d",
+      "bytes": 58491861,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/history/apollo-11-audio-highlights/ offers the MP3 files for download; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-orion-comm-check",
+      "title": "Artemis II launch: Orion communications check",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-orion-communications-check.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "3031acc4253501e9b131cd62ebe4a39d7f761d0001a8cfe6be2173eea924a9fa",
+      "bytes": 1737155,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-integrity-voice-check",
+      "title": "Artemis II launch: Integrity voice checks",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-integrity-voice-check.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "f226db5def9f034b493b5633af1df51934a07841bd83fa7d237c0d0c08185616",
+      "bytes": 1176045,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-loud-and-clear",
+      "title": "Artemis II: Houston, we have you loud and clear",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-houston-we-have-you-loud-and-clear-1.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "ebfd898826f3684a3fc8af062280e66d3d4a6e4bbd14cfe0d98e60fa6d104d73",
+      "bytes": 555995,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-go-for-tli",
+      "title": "Artemis II: Go for translunar injection",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-go-for-translunar-injection.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "5a5a3a3db276f6573ff5bc6b919662c7c5981f13c92f39ede9f2691289cb128f",
+      "bytes": 740538,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-good-burn",
+      "title": "Artemis II in flight: good burn",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-good-burn.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "36f930fdbaab3e2a91d5d9a45fde0a7e329628e22407946b80da70a81a75927c",
+      "bytes": 234148,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-go-no-go-poll",
+      "title": "Artemis II launch: go/no-go poll",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-go-no-go-poll.mp3",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "9dde45c293ef1a8c7f7395227fe9c95b164077ca18deb41742c35db11b7dfe96",
+      "bytes": 4111746,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-artemis2-closest-point",
+      "title": "Artemis II lunar flyby: closest to the Moon",
+      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-closest-point-to-moon.wav",
+      "pageUrl": "https://www.nasa.gov/artemisaudio/",
+      "sha256": "e91b7bdd8c81d27749f843474b18a3201f34ca5990fefb2ce25d14f666684ec1",
+      "bytes": 8631042,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-mars-supercam-lasers",
+      "title": "Perseverance SuperCam: laser shots on Mars",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/scam-mic-sol012-run001.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "8793bf55c4531aba3477c81cbff941b6647ba90b130f9dc2bb86cd3fa705ea25",
+      "bytes": 3300044,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero",
+      "archive": false
+    },
+    {
+      "id": "nasa-mars-supercam-wind",
+      "title": "Perseverance SuperCam: wind on Mars",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/scam-mic-sol004-run001.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "34d36194d0a84150d03ccbb44317ed57b8fdfe6d3cc07b173080bf555f692f7e",
+      "bytes": 11991805,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero",
+      "archive": false
+    },
+    {
+      "id": "nasa-mars-ingenuity-flight",
+      "title": "Ingenuity helicopter in flight, heard by Perseverance",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/jpl-20210506-listen-to-nasas-ingenuity-helicopter-as-it-flies-on-mars.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "7f24782299979668fde91d773eed0646b47a43e9cf41328856e2bb86b5371a37",
+      "bytes": 28837964,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech/LANL/CNES/CNRS/ISAE-Supaero",
+      "archive": false
+    },
+    {
+      "id": "nasa-mars-dust-devil",
+      "title": "Perseverance records a Martian dust devil",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/pia25657.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "0ab0f15fd0d60e00e14068c9d64b77111c5687055e9cdc86af177703834109f8",
+      "bytes": 5191640,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech/LANL/CNES/CNRS/INTA-CSIC/Space Science Institute/ISAE-Supaero",
+      "archive": false
+    },
+    {
+      "id": "nasa-mars-rover-driving",
+      "title": "Perseverance driving, sol 16 (90-second highlights)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/filtered-highlights-sol16roverdrivehighlights.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "7a6642b722a031dbf5e273740dca081dea0ff2727d911c291472f28bb522400c",
+      "bytes": 14994044,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech",
+      "archive": false
+    },
+    {
+      "id": "nasa-insight-arm",
+      "title": "InSight robotic arm sounds",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/20190819-Sol-98-SEIS-Spatialized-reflective.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "7e07e15daf240f225e6637e55fcb0c4b62a734b4f0e8e1ec99b4bccf55389506",
+      "bytes": 32243378,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech",
+      "archive": false
+    },
+    {
+      "id": "nasa-insight-dinks-donks",
+      "title": "InSight seismometer: dinks and donks",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/Cropped-Dinks-and-Donks-sample.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "64fac407af5f5aa5316e24a7c7efb43f1471927c7c8b76bbc46f51f95075e20f",
+      "bytes": 34775626,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech",
+      "archive": false
+    },
+    {
+      "id": "nasa-insight-seis-wind-short",
+      "title": "InSight seismometer, raw sounds (short clip)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/07-Mars_sound1a_20s_x100.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "645da854be18400211ebed8b34ab5562b788090ee64fbf1acd8bcaeab2350821",
+      "bytes": 8048,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech",
+      "archive": false
+    },
+    {
+      "id": "nasa-juno-ganymede",
+      "title": "Juno: radio emissions at the Ganymede flyby",
+      "url": "https://www.nasa.gov/wp-content/uploads/2024/05/e2-wave-ganymede-flyby-compressed.wav",
+      "pageUrl": "https://www.nasa.gov/sounds-from-beyond/",
+      "sha256": "8cb5393b9faa6cde859a6164a635bcbecb4cf8b6cfe70acc20e6ad3da7711919",
+      "bytes": 9427236,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/sounds-from-beyond/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/JPL-Caltech/SwRI/Univ of Iowa",
+      "archive": false
+    },
+    {
+      "id": "nasa-plasma-chorus",
+      "title": "Chorus plasma waves (Van Allen Probes)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2017/07/chorus.mp3",
+      "pageUrl": "https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/",
+      "sha256": "3f03a60fac2e42f56ef87146fd9277c173b10a860bf00bed7f0db7754bbbbab2",
+      "bytes": 192449,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/ offers the file as a download with the credit \"NASA/University of Iowa\" and states no restriction beyond NASA's media usage guidelines. NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/University of Iowa",
+      "archive": false
+    },
+    {
+      "id": "nasa-plasma-hiss",
+      "title": "Plasmaspheric hiss (Polar)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2017/07/hiss.wav",
+      "pageUrl": "https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/",
+      "sha256": "a21ca163571bdbb2f402b3f0b59681afc195938874725620f535d3addb0fa949",
+      "bytes": 387498,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/ offers the file as a download with the credit \"NASA/University of Iowa\" and states no restriction beyond NASA's media usage guidelines. NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/University of Iowa",
+      "archive": false
+    },
+    {
+      "id": "nasa-plasma-whistler",
+      "title": "Whistler waves",
+      "url": "https://www.nasa.gov/wp-content/uploads/2017/07/whistler.mp3",
+      "pageUrl": "https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/",
+      "sha256": "119eddc794c78a924e467a336251118df1dff27dbc880c89d5ed9fb8d8edfaba",
+      "bytes": 864250,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Page https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/ offers the file as a download with the credit \"NASA/University of Iowa\" and states no restriction beyond NASA's media usage guidelines. NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video, and media files used in the rendition of 3-dimensional models ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA/University of Iowa",
+      "archive": false
+    },
+    {
+      "id": "nasa-iss-safe-haven-start",
+      "title": "ISS: capcom calls Expedition 74 to begin safe haven procedures",
+      "url": "https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-safe-haven/06-05-26_MCC-H-calls-ISS-to-safe-haven~128k.mp3",
+      "pageUrl": "https://images.nasa.gov/details/06-05-26_MCC-H-calls-ISS-to-safe-haven",
+      "sha256": "f751bafdc2a698af0f155ec4e4f238c3d726544da8c4f8cd047d9dd9019bf2e2",
+      "bytes": 736444,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Item 06-05-26_MCC-H-calls-ISS-to-safe-haven of the NASA Image and Video Library (images-api.nasa.gov/search?nasa_id=06-05-26_MCC-H-calls-ISS-to-safe-haven) is hosted on images-assets.nasa.gov, credited to NASA with no rights restriction in its metadata; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    },
+    {
+      "id": "nasa-iss-safe-haven-end",
+      "title": "ISS: capcom calls Expedition 74 to exit safe haven configuration",
+      "url": "https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-end-safe-haven/06-05-26_MCC-H-calls-ISS-to-end-safe-haven~128k.mp3",
+      "pageUrl": "https://images.nasa.gov/details/06-05-26_MCC-H-calls-ISS-to-end-safe-haven",
+      "sha256": "882907cf3dad04deb79686ef1dabab8482cd971b3b6a5777f7ef68d9c8398786",
+      "bytes": 2948284,
+      "licence": "Public domain (NASA)",
+      "licenceEvidence": "Item 06-05-26_MCC-H-calls-ISS-to-end-safe-haven of the NASA Image and Video Library (images-api.nasa.gov/search?nasa_id=06-05-26_MCC-H-calls-ISS-to-end-safe-haven) is hosted on images-assets.nasa.gov, credited to NASA with no rights restriction in its metadata; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/): \"NASA content - images, audio, video ... generally are not subject to copyright in the United States.\" and \"NASA should be acknowledged as the source of the material.\"",
+      "credit": "NASA",
+      "archive": false
+    }
+  ],
+  "sources": [
+    {
+      "name": "Kenney (kenney.nl), CC0 1.0",
+      "terms": "Five audio packs by Kenney: Sci-fi Sounds, Impact Sounds, Interface Sounds, UI Audio and Digital Audio. Each pack page lists the licence as \"Creative Commons CC0\" and each archive contains a License.txt that names CC0 1.0 (http://creativecommons.org/publicdomain/zero/1.0/) and says the content may be used in personal, educational and commercial projects. Credit is welcome but not required; it is given here anyway. The pack pages carry a robots meta tag with \"noai\" and a \"tdm-reservation\" marker. The files are used here as ordinary game sound material and for listening tests, not as training data for any model; if that ever changes, ask Kenney first. The .url shortcut files in the archives are not unpacked."
+    },
+    {
+      "name": "NASA, public domain in general",
+      "terms": "Recordings hosted on nasa.gov and its subdomains (www.nasa.gov, images-assets.nasa.gov). NASA's media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/) say that NASA content, audio included, \"generally\" is not subject to copyright in the United States, may be used without explicit permission when used factually and without implying endorsement, and that NASA should be acknowledged as the source. What matters for this game: (1) the game must not suggest that NASA endorses it or any product; (2) the NASA insignia, logos and emblems are not part of these files and must not be used without clearance; (3) a recording with an identifiable person, and that includes the voice of an astronaut or flight controller, is covered by the privacy and publicity rights of that person when used commercially, and current NASA astronauts and employees may not appear in commercial or promotional products at all; the speech files are therefore test material for the radio filter and for listening, and are not to be shipped in the game without a separate decision; (4) third-party material that NASA shows on its pages keeps its own rights; nothing of that kind was taken. Where a NASA page names someone besides NASA in the credit, the credit is recorded exactly: \"NASA/University of Iowa\" for the plasma wave recordings (the page states no restriction beyond NASA's guidelines), \"Courtesy of the EMFISIS team at the University of Iowa\" for the chorus recording, \"NASA/JPL-Caltech/SwRI/Univ of Iowa\" for Juno, and the long Mars credits for Perseverance SuperCam. Pages read: https://www.nasa.gov/historical-sounds/, https://www.nasa.gov/sounds-from-beyond/, https://www.nasa.gov/artemisaudio/ (\"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\"), https://www.nasa.gov/history/apollo-11-audio-highlights/, https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/ and the NASA Image and Video Library."
+    }
+  ],
+  "notTaken": [
+    {
+      "what": "Voyager interstellar plasma sounds (www.nasa.gov/externalflash/interstellar.mp3)",
+      "why": "the link on the Historical Sounds page returns 404, the file no longer exists there"
+    },
+    {
+      "what": "Voyager and Juno audio clips of the University of Iowa plasma wave group (space.physics.uiowa.edu and related hosts)",
+      "why": "not hosted on a NASA host, which the owner did not approve"
+    },
+    {
+      "what": "Sputnik beep (Historical Sounds page)",
+      "why": "a recording of a Soviet satellite; the page says nothing about the rights of the original, so it was left out"
+    },
+    {
+      "what": "JFK speeches on the Historical Sounds page",
+      "why": "not needed for the library, and a political speech by an identifiable person"
+    },
+    {
+      "what": "NASA Data Sonifications (www3.nasa.gov/specials/sounds, Carina Nebula, Southern Ring Nebula, WASP-39b)",
+      "why": "musical sonifications of images; they would sound like music, not like a ship"
+    },
+    {
+      "what": "Apollo Flight Journal and Apollo 12 Scrivener tape clips (history.nasa.gov/afj)",
+      "why": "the clip pages credit individuals (for example John Stoll) and their licence statement was not read in this run, so nothing was taken"
+    },
+    {
+      "what": "Explore Apollo archive (University of Texas at Dallas), NASA SoundCloud, archive.org copies of the NASA audio collection, Chris Hadfield station recordings on SoundCloud",
+      "why": "not hosted on a NASA host, or on a platform with its own terms"
+    },
+    {
+      "what": "Interior ambience of a space station or spacecraft",
+      "why": "no recording of this kind was found on a NASA host; the closest material is the sound of Mars rover and lander hardware (rover driving, InSight arm, seismometer ticks) and the Artemis II lunar flyby recording, which are in the library. This remains a gap"
+    },
+    {
+      "what": "Podcast episodes in the NASA Image and Video Library (Houston We Have a Podcast, hours of interviews)",
+      "why": "talk episodes, not radio traffic, and very large"
+    },
+    {
+      "what": "Raw 16-minute Perseverance driving recording, 162 MB gaseous dust removal recordings, long Apollo 11 highlight days 1, 4, 6 to 9, Artemis audio of interviews",
+      "why": "too large for what they add, or interviews; the 90-second driving highlights and two Apollo 11 days are in the library"
+    },
+    {
+      "what": "Kenney: Voiceover Pack, RPG Audio, Music Jingles and other audio packs",
+      "why": "outside the sound concept (voices, fantasy, music); only the five packs that suit a hard science fiction cockpit were taken"
+    },
+    {
+      "what": "Kenney arcade-like material (laser, forceField, powerUp, zap, phaser sounds) inside the downloaded packs",
+      "why": "downloaded as part of the archives but not selected: the sound concept excludes anything that sounds like an arcade"
+    }
+  ]
+}

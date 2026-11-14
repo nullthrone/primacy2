@@ -10,7 +10,7 @@ import {
 import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { store, type Notice } from '../state/store.ts';
-import { bindKey, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed } from './format.ts';
+import { bindKey, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed, keyParams } from './format.ts';
 import { baseDropHere, landingCues, landingNear, liftBalance, noticeKey, type LandingCue } from './landing.ts';
 import { holdInFlight } from './trade.ts';
 
@@ -412,8 +412,8 @@ function flightHud(view: FrameView, api: GameApi) {
           </div>
         )}
         {landed && <div class="prompt">{t('hud.liftoffPrompt', { key: bindKey('thrustUp') })}</div>}
-        {canDock && <div class="prompt">{t('hud.dockPrompt')}</div>}
-        {canDrop && <div class="prompt">{t('hud.dropPrompt')}</div>}
+        {canDock && <div class="prompt">{t('hud.dockPrompt', { key: bindKey('dock') })}</div>}
+        {canDrop && <div class="prompt">{t('hud.dropPrompt', { key: bindKey('cruise') })}</div>}
       </div>
 
       <div class="hud-block hud-right">
@@ -442,10 +442,10 @@ function flightHud(view: FrameView, api: GameApi) {
       </div>
 
       {warnings.length > 0 && <div class="warnings">{warnings.map((x) => <div key={x}>{x}</div>)}</div>}
-      {!store.pointerLocked.value && store.panel.value === null && (
+      {!store.pointerLocked.value && store.device.value !== 'pad' && store.panel.value === null && (
         <button class="capture" onClick={() => api.capturePointer()}>{t('hud.capture')}</button>
       )}
-      <div class="keys">{t(keys)}</div>
+      <div class="keys">{t(keys, keyParams())}</div>
     </>
   );
 }

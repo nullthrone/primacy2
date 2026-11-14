@@ -1,9 +1,14 @@
 /**
- * Keyboard and mouse input. Held keys become the per-tick `ShipInput`; single presses become
- * actions the game handles. Controls follow shooter conventions (see `DEFAULT_BINDINGS`).
+ * Keyboard, mouse and controller input. Held keys and buttons become the per-tick `ShipInput`;
+ * single presses become actions the game handles. Controls follow shooter conventions (see
+ * `DEFAULT_BINDINGS`). Controllers come through the Gamepad API, polled once per animation frame
+ * (also where no simulation tick runs); `input/gamepad.ts` holds the logic.
  */
 import { Button, DEFAULT_PIPS, FlightMode, addPip, type ShipInput } from '@primacy2/shared';
-import { store, type BindAction } from '../state/store.ts';
+import { store, type BindAction, type PadInfo } from '../state/store.ts';
+import {
+  DEFAULT_PAD_SETTINGS, devOf, emptyPadState, padName, padStyle, readPads, snapshotPads, type PadAxisAction, type PadSnapshot, type PadState,
+} from './gamepad.ts';
 
 /** Actions that are levels (held) rather than single presses. */
 const HELD = new Set<BindAction>([
@@ -14,6 +19,15 @@ const HELD = new Set<BindAction>([
 /** The server accepts at most this much mouse turn per tick and axis, radians. */
 const AIM_PER_TICK = 0.5;
 const THROTTLE_STEP = 0.1;
+/** Throttle setpoint change per second at full deflection of the keys or the forward axis in cruise. */
+const THROTTLE_RATE = 0.7;
+/** Used until the game has passed the hull's turn rates, radians per second. */
+const FALLBACK_TURN = 0.8;
+/** The lever takes over the throttle setpoint when it moves by more than this. */
+const LEVER_TAKEOVER = 0.02;
+/** While a panel is open a pad press only reaches the game when it toggles a panel. */
+const PANEL_ACTIONS = new Set<BindAction>(['menu', 'galaxyMap', 'systemMap', 'contacts', 'chat']);
+const ZERO_AXES: Readonly<Record<PadAxisAction, number>> = { yaw: 0, pitch: 0, roll: 0, thrustX: 0, thrustY: 0, thrustZ: 0, throttle: 0 };
 /** The subsystem each power key feeds. */
 const POWER_KEYS = { powerShields: 'sys', powerEngines: 'eng', powerWeapons: 'wep' } as const;
 
@@ -30,6 +44,11 @@ export class Input {
   silent = false;
   /** Free-look angles (yaw, pitch) in radians while the free-look key is held. */
   look: [number, number] = [0, 0];
+  /**
+   * The hull's turn rates `[yaw, pitch]` in rad/s for the current flight mode, set by the game
+   * before each tick. Full stick deflection asks for this much turn per second.
+   */
+  turnRates: [number, number] = [FALLBACK_TURN, FALLBACK_TURN];
 
   private readonly held = new Set<BindAction>();
   private readonly codes = new Map<string, BindAction[]>();
@@ -38,6 +57,13 @@ export class Input {
   private bindingsOf: unknown = null;
   /** Flight mode as of the latest tick or mode change. */
   private mode: FlightMode = FlightMode.Docked;
+  private padHeld = new Set<BindAction>();
+  private padState: PadState = emptyPadState();
+  private padAxes: Readonly<Record<PadAxisAction, number>> = ZERO_AXES;
+  private lastLever: number | null = null;
+  private padSeq = 0;
+  private padListKey = '';
+  private padWasActive = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -45,6 +71,7 @@ export class Input {
     window.addEventListener('mousedown', (e) => this.onButton(e, true));
     window.addEventListener('mouseup', (e) => this.onButton(e, false));
     window.addEventListener('mousemove', (e) => {
+      if (e.movementX !== 0 || e.movementY !== 0) store.device.value = 'keys';
       if (document.pointerLockElement === this.canvas) this.addMouse(e.movementX, e.movementY);
     });
     window.addEventListener('wheel', (e) => {
@@ -66,13 +93,17 @@ export class Input {
       if (document.fullscreenElement) void kb?.lock?.().catch(() => {});
       else kb?.unlock?.();
     });
+    this.startPadLoop();
   }
 
-  /** True while flight controls are live: playing, no panel open, mouse captured, not typing. */
+  /**
+   * True while flight controls are live: playing, no panel open, mouse captured (or a pad was the
+   * last device used, which needs no pointer lock), not typing.
+   */
   active(): boolean {
     return (
       store.phase.value === 'playing' && store.panel.value === null &&
-      (store.pointerLocked.value || this.testMode) && !isTyping(document.activeElement)
+      (store.pointerLocked.value || this.testMode || store.device.value === 'pad') && !isTyping(document.activeElement)
     );
   }
 
@@ -92,7 +123,7 @@ export class Input {
     const s = store.settings.value;
     const yaw = dx * s.mouseSensitivity;
     const pitch = -dy * s.mouseSensitivity * (s.invertY ? -1 : 1);
-    if (this.held.has('freeLook')) {
+    if (this.isHeld('freeLook')) {
       this.look[0] = clamp(this.look[0] - yaw, -2.6, 2.6);
       this.look[1] = clamp(this.look[1] + pitch, -1.3, 1.3);
     } else if (this.active()) {
@@ -105,19 +136,30 @@ export class Input {
   sample(mode: FlightMode, dt: number): Omit<ShipInput, 'seq'> {
     this.mode = mode;
     const live = this.active();
-    const h = (a: BindAction): number => (live && this.held.has(a) ? 1 : 0);
-    let fwd = h('thrustForward') - h('thrustBack');
+    const h = (a: BindAction): number => (live && this.isHeld(a) ? 1 : 0);
+    const pa = live ? this.padAxes : ZERO_AXES;
+    let fwd = clamp(h('thrustForward') - h('thrustBack') + pa.thrustZ, -1, 1);
     if (mode === FlightMode.Cruise) {
-      // In cruise the forward and back keys move the throttle setpoint instead of thrusting.
-      this.throttle = clamp(this.throttle + fwd * 0.7 * dt, 0, 1);
+      // In cruise the forward and back keys, and the forward axis, move the throttle setpoint instead of thrusting.
+      this.throttle = clamp(this.throttle + fwd * THROTTLE_RATE * dt, 0, 1);
       fwd = 0;
     }
+    // A throttle axis that is not a lever moves the setpoint like the forward key, scaled by deflection.
+    if (pa.throttle !== 0) {
+      this.throttle = clamp(this.throttle + pa.throttle * THROTTLE_RATE * dt, mode === FlightMode.Cruise ? 0 : -1, 1);
+    }
+    // A stick asks for a turn rate, not an angle: deflection * rate * dt per tick. The simulation
+    // works pending aim off at that rate with a lag of about a fourteenth of a second, and when the
+    // stick is let go nothing more is added, so the ship stops within its own angular acceleration.
+    const k = clamp(store.settings.value.pad?.turnRate ?? 1, 0.1, 1) * dt;
+    const px = pa.yaw * this.turnRates[0] * k;
+    const py = pa.pitch * this.turnRates[1] * k;
     const ax = clamp(this.aimX, -AIM_PER_TICK, AIM_PER_TICK);
     const ay = clamp(this.aimY, -AIM_PER_TICK, AIM_PER_TICK);
     // Whatever exceeds the per-tick cap is carried into the next tick, so fast flicks are not lost.
     this.aimX = live ? this.aimX - ax : 0;
     this.aimY = live ? this.aimY - ay : 0;
-    if (!this.held.has('freeLook')) {
+    if (!this.isHeld('freeLook')) {
       this.look[0] *= Math.exp(-10 * dt);
       this.look[1] *= Math.exp(-10 * dt);
     }
@@ -131,9 +173,13 @@ export class Input {
     // Like flight assist, these are settings and stay as they are while a panel is open.
     if (this.silent) buttons |= Button.Silent;
     return {
-      thrust: [h('thrustRight') - h('thrustLeft'), h('thrustUp') - h('thrustDown'), fwd],
-      aim: live ? [ax, ay] : [0, 0],
-      roll: h('rollRight') - h('rollLeft'),
+      thrust: [
+        clamp(h('thrustRight') - h('thrustLeft') + pa.thrustX, -1, 1),
+        clamp(h('thrustUp') - h('thrustDown') + pa.thrustY, -1, 1),
+        fwd,
+      ],
+      aim: live ? [ax + px, ay + py] : [0, 0],
+      roll: clamp(h('rollRight') - h('rollLeft') + pa.roll, -1, 1),
       throttle: this.throttle,
       buttons,
       pips: this.pips,
@@ -151,6 +197,91 @@ export class Input {
     if (mode === FlightMode.Docked || mode === FlightMode.Dead) this.silent = false;
     if (mode === FlightMode.Cruise) this.throttle = clamp(this.throttle, 0, 1);
     else if (mode !== FlightMode.Normal) this.throttle = 0;
+  }
+
+  /** The raw state of every connected pad, for the binding screen's meters and assignment. */
+  snapshot(): PadSnapshot[] {
+    return this.readPadSnapshots() ?? [];
+  }
+
+  /**
+   * Reads the pads once and acts on the result. Runs every animation frame; public so that tests
+   * can drive it without waiting for a frame.
+   */
+  pollPads(): void {
+    const pads = this.readPadSnapshots();
+    if (!pads) return;
+    this.publishPadList(pads);
+    const s = store.settings.value;
+    const r = readPads(pads, s.bindings, s.pad ?? DEFAULT_PAD_SETTINGS, this.padState);
+    this.padState = r.state;
+    this.padHeld = r.held;
+    this.padAxes = r.axes;
+
+    for (const e of r.edges) store.padButton.value = { seq: ++this.padSeq, n: e.button, standard: e.standard };
+    // Only a fresh press or a stick that starts to move takes the device over from the mouse.
+    if (r.active && (!this.padWasActive || r.edges.length > 0)) {
+      store.device.value = 'pad';
+      const p = pads.find((x) => x.index === r.activeIndex);
+      if (p) store.padStyle.value = padStyle(p.id);
+    }
+    this.padWasActive = r.active;
+
+    for (const a of r.pressed) {
+      // The binding screen is waiting for a button: its presses must not run their actions.
+      if (HELD.has(a) || store.phase.value !== 'playing' || store.padCapturing.value) continue;
+      if (store.panel.value !== null && !PANEL_ACTIONS.has(a)) continue;
+      this.fire(a);
+    }
+    // The lever takes over the setpoint once it moves; the wheel keeps working in between.
+    if (r.lever === null) {
+      this.lastLever = null;
+    } else if (this.lastLever === null) {
+      this.lastLever = r.lever;
+    } else if (Math.abs(r.lever - this.lastLever) > LEVER_TAKEOVER) {
+      this.lastLever = r.lever;
+      if (this.active()) this.throttle = clamp(r.lever, this.mode === FlightMode.Cruise ? 0 : -1, 1);
+    }
+  }
+
+  private startPadLoop(): void {
+    if (typeof requestAnimationFrame !== 'function' || typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return;
+    const loop = (): void => {
+      this.pollPads();
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  /** Plain snapshots of the connected pads, or null on a page without the Gamepad API. */
+  private readPadSnapshots(): PadSnapshot[] | null {
+    if (typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return null;
+    try {
+      return snapshotPads(navigator.getGamepads());
+    } catch {
+      // Blocked by a permissions policy or an insecure context: no pads, everything else works.
+      return null;
+    }
+  }
+
+  private publishPadList(pads: PadSnapshot[]): void {
+    const key = pads.map((p) => `${p.index}:${p.id}:${p.mapping}:${p.axes.length}:${p.buttons.length}`).join('|');
+    if (key === this.padListKey) return;
+    this.padListKey = key;
+    store.pads.value = pads.map((p): PadInfo => ({
+      index: p.index,
+      id: p.id,
+      name: padName(p.id),
+      dev: devOf(p),
+      standard: p.mapping === 'standard',
+      style: padStyle(p.id),
+      axes: p.axes.length,
+      buttons: p.buttons.length,
+    }));
+  }
+
+  private isHeld(a: BindAction): boolean {
+    return this.held.has(a) || this.padHeld.has(a);
   }
 
   /** True while ship systems can be switched: controls live and the ship neither docked nor lost. */
@@ -181,27 +312,33 @@ export class Input {
         if (down) this.held.add(a);
         else this.held.delete(a);
       } else if (down) {
-        if (a === 'throttleUp' || a === 'throttleDown') {
-          if (this.active()) this.throttle = clamp(this.throttle + (a === 'throttleUp' ? THROTTLE_STEP : -THROTTLE_STEP), -1, 1);
-        } else if (a === 'throttleZero') {
-          this.throttle = 0;
-        } else if (a === 'flightAssist') {
-          if (this.active()) this.faOff = !this.faOff;
-        } else if (a === 'powerShields' || a === 'powerEngines' || a === 'powerWeapons') {
-          if (this.inSpace()) this.pips = addPip(this.pips, POWER_KEYS[a]);
-        } else if (a === 'powerReset') {
-          if (this.inSpace()) this.pips = DEFAULT_PIPS;
-        } else if (a === 'silentRunning') {
-          if (this.inSpace()) this.silent = !this.silent;
-        } else {
-          this.onAction(a);
-        }
+        this.fire(a);
       }
     }
     return true;
   }
 
+  /** A single press, from a key, a mouse button or a pad: one code path for all of them. */
+  private fire(a: BindAction): void {
+    if (a === 'throttleUp' || a === 'throttleDown') {
+      if (this.active()) this.throttle = clamp(this.throttle + (a === 'throttleUp' ? THROTTLE_STEP : -THROTTLE_STEP), -1, 1);
+    } else if (a === 'throttleZero') {
+      this.throttle = 0;
+    } else if (a === 'flightAssist') {
+      if (this.active()) this.faOff = !this.faOff;
+    } else if (a === 'powerShields' || a === 'powerEngines' || a === 'powerWeapons') {
+      if (this.inSpace()) this.pips = addPip(this.pips, POWER_KEYS[a]);
+    } else if (a === 'powerReset') {
+      if (this.inSpace()) this.pips = DEFAULT_PIPS;
+    } else if (a === 'silentRunning') {
+      if (this.inSpace()) this.silent = !this.silent;
+    } else {
+      this.onAction(a);
+    }
+  }
+
   private onKey(e: KeyboardEvent, down: boolean): void {
+    if (down) store.device.value = 'keys';
     if (store.phase.value !== 'playing') return;
     if (isTyping(e.target)) {
       // Escape still leaves a text field, everything else belongs to it.

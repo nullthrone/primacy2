@@ -31,14 +31,10 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
     let size = 0;
     req.on('data', (c: Buffer) => {
       size += c.length;
-      if (size > MAX_BODY) {
-        reject(new Error('too large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(c);
+      // Past the limit the rest is read and dropped, so that the 413 can still be answered on this connection.
+      if (size <= MAX_BODY) chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('end', () => (size > MAX_BODY ? reject(new Error('too large')) : resolve(Buffer.concat(chunks))));
     req.on('error', reject);
   });
 }

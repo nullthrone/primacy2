@@ -1,10 +1,15 @@
 /** Unit formatting for the interface. */
 import { AU, C } from '@primacy2/shared';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
+import { isPadCode, padButtonName, padCodeLabel } from '../input/gamepad.ts';
 import { store, type BindAction } from '../state/store.ts';
 
 const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
-const KEY_NAMES: Record<string, StringKey> = { Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight', Space: 'key.space' };
+const KEY_NAMES: Record<string, StringKey> = {
+  Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight', Space: 'key.space',
+  ControlLeft: 'key.ctrl', ControlRight: 'key.ctrl', ShiftLeft: 'key.shift', ShiftRight: 'key.shift',
+  AltLeft: 'key.alt', AltRight: 'key.alt', Escape: 'key.esc',
+};
 
 /** A short label for a binding code: `KeyR` is R, `ArrowUp` is ↑, `Mouse1` is the middle mouse button. */
 export function keyName(code: string): string {
@@ -14,11 +19,37 @@ export function keyName(code: string): string {
   return KEY_GLYPHS[code] ?? (named ? t(named) : code);
 }
 
-/** The key to name in a hint for an action: its first keyboard binding, or else its first binding. */
+/**
+ * The control to name in a hint for an action. With a pad as the device last used it is the pad's
+ * label (A on an Xbox pad, Cross on a PlayStation pad, "Y + A" for a chord); otherwise the first
+ * keyboard binding, or else the first binding.
+ */
 export function bindKey(action: BindAction): string {
   const codes = store.settings.value.bindings[action] ?? [];
-  const code = codes.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? codes[0];
-  return code ? keyName(code) : '–';
+  const pad = codes.find(isPadCode);
+  if (store.device.value === 'pad' && pad) return padCodeLabel(pad, store.padStyle.value);
+  const keys = codes.filter((c) => !isPadCode(c));
+  const code = keys.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? keys[0];
+  if (code) return keyName(code);
+  return pad ? padCodeLabel(pad, store.padStyle.value) : '–';
+}
+
+/** The names of the controls that the HUD key line mentions, for the device in use. */
+export function keyParams(): Record<string, string> {
+  return {
+    cruise: bindKey('cruise'), fold: bindKey('fold'), map: bindKey('galaxyMap'), nav: bindKey('systemMap'),
+    dock: bindKey('dock'), camera: bindKey('camera'), assist: bindKey('flightAssist'),
+    shields: bindKey('powerShields'), engines: bindKey('powerEngines'), weapons: bindKey('powerWeapons'),
+    reset: bindKey('powerReset'), silent: bindKey('silentRunning'), menu: bindKey('menu'),
+    up: bindKey('thrustUp'), down: bindKey('thrustDown'), key: bindKey('thrustUp'),
+  };
+}
+
+/** Button names for the pad help lines, by the style of the pad in use. */
+export function padHelpParams(): Record<string, string> {
+  const s = store.padStyle.value;
+  const n = (i: number): string => padButtonName(i, s);
+  return { A: n(0), B: n(1), X: n(2), Y: n(3), LB: n(4), RB: n(5), LT: n(6), RT: n(7), VIEW: n(8), MENU: n(9), L3: n(10), R3: n(11), key: n(0) };
 }
 
 /** Metres as m, km, Mm, light seconds or AU, whichever reads best. */

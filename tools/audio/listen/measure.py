@@ -325,9 +325,9 @@ def write_png(path: Path, name: str, data: np.ndarray, sr: int, res: dict) -> No
         if step > 1:
             m = (ch.size // step) * step
             blocks = ch[:m].reshape(-1, step)
-            a0.fill_between(tt[:m:step], blocks.min(axis=1), blocks.max(axis=1), lw=0, alpha=0.6)
+            a0.fill_between(tt[:m:step], blocks.min(axis=1), blocks.max(axis=1), lw=0.5, color="#1b4f8a", alpha=0.9)
         else:
-            a0.plot(tt, ch, lw=0.6, alpha=0.8)
+            a0.plot(tt, ch, lw=0.6, color="#1b4f8a", alpha=0.9)
     a0.set_ylim(-1, 1)
     a0.set_ylabel("amplitude")
     a0.grid(alpha=0.3)

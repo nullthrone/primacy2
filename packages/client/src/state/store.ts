@@ -6,6 +6,7 @@
 import { signal } from '@preact/signals';
 import type { ChatMessage, EntityInfo, GalaxyView, NoticeLevel, PilotView, StationView, SystemDef } from '@primacy2/shared';
 import type { CameraMode, GraphicsSettings } from '../contracts.ts';
+import { DEFAULT_PAD_BINDINGS, DEFAULT_PAD_SETTINGS, isPadCode, type PadSettings, type PadStyle } from '../input/gamepad.ts';
 
 export type Phase =
   /** Start screen: choose a name and a server. */
@@ -39,7 +40,10 @@ export interface Contact {
   flags: number;
 }
 
-/** A key binding: `KeyboardEvent.code` values, or `Mouse0`..`Mouse4`, `WheelUp`, `WheelDown`. */
+/**
+ * A key binding: `KeyboardEvent.code` values, `Mouse0`..`Mouse4`, `WheelUp`, `WheelDown`, and
+ * controller codes `Pad:<dev>:...` (see `input/gamepad.ts`).
+ */
 export type Bindings = Record<BindAction, string[]>;
 
 export type BindAction =
@@ -53,7 +57,7 @@ export type BindAction =
   | 'camera' | 'galaxyMap' | 'systemMap' | 'contacts' | 'chat' | 'menu' | 'freeLook';
 
 /** Shooter-style defaults: WASD to move, Q/E to roll, Space up, Ctrl down, Shift to boost. */
-export const DEFAULT_BINDINGS: Bindings = {
+const KEY_BINDINGS: Bindings = {
   thrustForward: ['KeyW'],
   thrustBack: ['KeyS'],
   thrustLeft: ['KeyA'],
@@ -94,6 +98,23 @@ export const DEFAULT_BINDINGS: Bindings = {
   freeLook: ['AltLeft'],
 };
 
+/** The keyboard and mouse defaults with the standard-pad defaults added to each action's list. */
+export const DEFAULT_BINDINGS: Bindings = addPadDefaults(KEY_BINDINGS, []);
+
+/**
+ * Adds the default pad codes to every action whose list has none, except where the user cleared
+ * the pad binding on purpose. Settings saved before controller support gain the pad defaults here.
+ */
+export function addPadDefaults(b: Bindings, cleared: readonly BindAction[]): Bindings {
+  const out = { ...b };
+  for (const [action, codes] of Object.entries(DEFAULT_PAD_BINDINGS) as [BindAction, string[]][]) {
+    const have = out[action] ?? [];
+    if (have.some(isPadCode) || cleared.includes(action)) continue;
+    out[action] = [...have, ...codes];
+  }
+  return out;
+}
+
 export interface Settings {
   lang: 'en' | 'de';
   /** Radians of turn per pixel of mouse movement. */
@@ -106,6 +127,10 @@ export interface Settings {
   /** 0..1 */
   volume: number;
   bindings: Bindings;
+  /** Actions whose pad binding the user cleared, so that the defaults are not added back. */
+  padCleared: BindAction[];
+  /** Analog axes and turn rate for gamepads and joysticks. */
+  pad: PadSettings;
   pilotName: string;
   /** Base URL of the server last played on. */
   lastServer: string;
@@ -120,6 +145,8 @@ export const DEFAULT_SETTINGS: Settings = {
   graphics: { quality: 2, bloom: true, resolution: 1 },
   volume: 0.7,
   bindings: DEFAULT_BINDINGS,
+  padCleared: [],
+  pad: DEFAULT_PAD_SETTINGS,
   pilotName: '',
   lastServer: '',
 };
@@ -156,7 +183,33 @@ export const store = {
   /** Increments once per rendered frame. */
   frame: signal(0),
   settings: signal<Settings>(DEFAULT_SETTINGS),
+  /** Which kind of device the pilot used last: a pad, or keyboard and mouse. */
+  device: signal<'keys' | 'pad'>('keys'),
+  /** Button labels for hints: the style of the pad used last. */
+  padStyle: signal<PadStyle>('xbox'),
+  /** Connected controllers, for the binding screen. `dev` is the device part of binding codes. */
+  pads: signal<PadInfo[]>([]),
+  /**
+   * The latest button that went down on any pad, bound or not (`n` is the button index of the
+   * standard mapping on a standard pad). `seq` increases with every press, so equal buttons in a
+   * row still change the signal. Menus read this to navigate.
+   */
+  /** True while the binding screen waits for a button; flight actions from the pad stay silent. */
+  padCapturing: signal(false),
+  padButton: signal<{ seq: number; n: number; standard: boolean } | null>(null),
 };
+
+export interface PadInfo {
+  index: number;
+  id: string;
+  name: string;
+  /** Device part of binding codes: `std` for standard-mapping pads, else the device key. */
+  dev: string;
+  standard: boolean;
+  style: PadStyle;
+  axes: number;
+  buttons: number;
+}
 
 export type Store = typeof store;
 
@@ -171,7 +224,9 @@ export function loadSettings(): void {
       ...DEFAULT_SETTINGS,
       ...saved,
       graphics: { ...DEFAULT_SETTINGS.graphics, ...(saved.graphics ?? {}) },
-      bindings: { ...DEFAULT_BINDINGS, ...(saved.bindings ?? {}) },
+      pad: { ...DEFAULT_PAD_SETTINGS, ...(saved.pad ?? {}), axes: { ...DEFAULT_PAD_SETTINGS.axes, ...(saved.pad?.axes ?? {}) } },
+      padCleared: saved.padCleared ?? [],
+      bindings: addPadDefaults({ ...KEY_BINDINGS, ...(saved.bindings ?? {}) }, saved.padCleared ?? []),
     };
   } catch {
     // Corrupt settings fall back to the defaults.

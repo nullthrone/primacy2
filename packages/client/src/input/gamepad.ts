@@ -46,6 +46,32 @@ export interface PadSnapshot {
 // ---------------------------------------------------------------------------------------------
 // Devices
 
+interface GamepadLike {
+  id: string;
+  index: number;
+  mapping: string;
+  connected?: boolean;
+  axes: ArrayLike<number>;
+  buttons: ArrayLike<{ pressed: boolean; value: number }>;
+}
+
+/**
+ * Plain snapshots from what `navigator.getGamepads()` returned: null slots and disconnected pads
+ * are skipped. It reads fields only, so a test double that is a plain object works as well.
+ */
+export function snapshotPads(list: ArrayLike<GamepadLike | null> | null | undefined): PadSnapshot[] {
+  const out: PadSnapshot[] = [];
+  for (const g of Array.from(list ?? [])) {
+    if (!g || g.connected === false) continue;
+    out.push({
+      id: String(g.id), index: g.index, mapping: String(g.mapping ?? ''),
+      axes: Array.from(g.axes, (v) => Number(v) || 0),
+      buttons: Array.from(g.buttons, (b) => ({ pressed: !!b.pressed, value: Number(b.value) || 0 })),
+    });
+  }
+  return out;
+}
+
 /**
  * A short stable key for a device: vendor and product numbers when the id carries them (Chrome
  * writes "Vendor: 044f Product: b10a", Firefox "044f-b10a-Name"), else a slug of the name.
@@ -62,8 +88,8 @@ export function deviceKey(id: string): string {
 
 export function padStyle(id: string): PadStyle {
   const s = id.toLowerCase();
-  if (/dualshock|dualsense|playstation|sony|054c|wireless controller/.test(s)) return 'playstation';
   if (/xbox|xinput|microsoft|045e/.test(s)) return 'xbox';
+  if (/dualshock|dualsense|playstation|sony|054c|wireless controller/.test(s)) return 'playstation';
   return 'generic';
 }
 

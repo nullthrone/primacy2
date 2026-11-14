@@ -9,6 +9,7 @@ import {
   DT,
   EntityKind,
   FOLD_TUNNEL_TIME,
+  CRUISE_TURN_FACTOR,
   FlightMode,
   SITE_ID_BASE,
   allBodyStates,
@@ -525,6 +526,9 @@ class GameImpl implements Game {
     const stats = this.stats;
     const conn = this.conn;
     if (!st || !sys || !stats || !conn || !isFlying(st.mode)) return;
+    // Stick deflection is a share of the hull's turn rate, which cruise reduces.
+    const turn = st.mode === FlightMode.Cruise ? CRUISE_TURN_FACTOR : 1;
+    this.input.turnRates = [stats.turnYaw * turn, stats.turnPitch * turn];
     const input: ShipInput = { seq: ++this.seq, ...this.input.sample(st.mode, DT) };
     conn.send({ t: 'in', i: input });
     this.lastInput = input;

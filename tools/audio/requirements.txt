@@ -1,0 +1,17 @@
+# Packages imported by tools/audio/listen (installed versions, .venv-audio, Python 3.13, 2026-11-14).
+# Installed from PyPI for the listening tools: pyloudnorm, accelerate, bitsandbytes.
+# optimum-quanto, sentencepiece and protobuf were not needed and are not installed.
+numpy==2.5.4
+scipy==1.18.1
+soundfile==0.14.0
+matplotlib==3.11.2
+pyloudnorm==0.2.0
+psutil==7.2.2            # dependency of accelerate; the GPU lock uses it to detect a dead lock owner
+torch==2.14.1+cu130
+torchaudio==2.11.0+cu130
+transformers==5.22.2
+huggingface_hub==2.4.0
+safetensors==0.8.0
+accelerate==1.15.0
+bitsandbytes==0.50.2     # 4-bit loading of Qwen2-Audio (describe.py)
+librosa==1.0.1           # installed for the synthesis side, not imported by the listening tools
