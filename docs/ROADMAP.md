@@ -89,6 +89,26 @@ The decisions were made in interviews; the wording here is the specification.
   recordings, voices from open local speech models, the owner's own phone recordings. An audition
   page lets the owner listen and rate; the game's audio is changed only after that.
 
+### The owner's first play session (2026-11-14)
+
+He played the game himself for the first time and reported. Good: the controls, the shadows, the
+light effects "fairly well". To do, in his order of weight:
+
+- **Sound effects** are his largest complaint (the procedural ones in `packages/client/src/audio`).
+  Step 1 below replaces them.
+- **Finding things.** He misses a target system and a direction indicator: after flying past a
+  station it is hard to find again. State of the code on that day: stations, outposts, bases and
+  gates are marked only while they are on screen; an arrow at the screen edge exists only for the
+  navigation target (which is set in the navigation panel, key N) and for a locked ship.
+- **What is in the system** (bodies, stations, other ships in range) must be visible somewhere.
+  The navigation panel (N) and the contacts panel (Tab) hold that, but nothing on the HUD shows it
+  or says that they exist.
+- **Station menus** change their window size from tab to tab; all tabs get one size.
+- **Cruise star streaks** are drawn over the whole screen (they are made in the final pass) and
+  must be hidden by the cockpit and by other objects.
+- **Light effects**: he asks for more magic; the rays of distant stars look plain.
+- **Textures** are mostly not pretty, the sky box least of all.
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -96,17 +116,23 @@ Each step is one work session with its own workflow runs.
 1. **Sound library and controller support.** Both are side work for the cheaper model and do not
    touch each other. Sound: the listening tools, the synthesis library and first sound set, the
    downloads with a licence list, the audition page.
-2. **Docking.** Starts with two graphics repairs that landing on a pad by eye depends on: the
+2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
+   sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
+   touches only `packages/client/src/render` and can run beside step 1. Orientation: a target that
+   is chosen without opening a panel, an indicator that always leads back to it, the system's
+   contents on the HUD, one window size for the station menus; this touches the HUD and the
+   interface and follows the controller work, which changes the same files.
+3. **Docking.** Starts with two graphics repairs that landing on a pad by eye depends on: the
    ground near the ship is soft and smeared (see section 4), and the dust burst of a hard landing
    draws streaks across the sky. Then the core (clearance, pads, lift, autopilot, the turning ring
    station as a co-rotating frame, gate ids), the ring station model with an interior, police,
    customs, fines and debt, NPC docking.
-3. **The world lives.** NPC behaviour, freighters and events, interdiction, faction reputation.
+4. **The world lives.** NPC behaviour, freighters and events, interdiction, faction reputation.
    Before the missions, because smuggling needs customs, escort needs freighters and pay needs
    reputation.
-4. **Earning.** Mining, the new missions with the five-hour pacing, exploration.
-5. **Ship.** Module damage, scooping, tactical modules.
-6. **Playing together and onboarding.** Wings, pilot trade, and last the guided chain, because it
+5. **Earning.** Mining, the new missions with the five-hour pacing, exploration.
+6. **Ship.** Module damage, scooping, tactical modules.
+7. **Playing together and onboarding.** Wings, pilot trade, and last the guided chain, because it
    teaches all the other systems.
 
 Model split, set by the owner: the core (shared simulation, architecture), everything graphical

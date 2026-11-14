@@ -60,7 +60,9 @@ By path:
 - cabin (switches, relays): shorter than the list's duration, spectral centre between 800 Hz and
   5 kHz, and audibly in a small room (the cabin reverb is applied in the render).
 - alarms: fundamental between 400 Hz and 1.6 kHz, no energy peak above 5 kHz, each alarm's
-  envelope pattern different from the others (the measuring tool prints the envelope).
+  envelope pattern different from the others (the measuring tool prints the envelope). Rendered
+  dry, as the loudspeaker gives them out.
+- sensor: rendered dry; soft attack (no click), nothing above 6 kHz, level well below the alarms.
 - radio: nothing below 250 Hz or above 3.8 kHz after the filter; a spoken line must still be
   transcribed correctly by Whisper after the filter (word error rate at most 15 % against the
   unfiltered transcript).
@@ -122,6 +124,12 @@ same files with `.venv-audio/Scripts/python.exe tools/audio/build.py`.
   }]
 }
 ```
+
+Every sound entry also carries `"dry": true` or `false`. Structure sounds and the cabin's own
+sounds (switches, relays, ambience) are rendered as they are heard in the seat, with the cabin
+baked in: `dry` is false. Loudspeaker sounds (alarms, sensor signals, radio) and downloaded files
+are dry: the audition page, and later the game, puts them into the cabin with `cabin_ir`. The
+optional top-level field `"placeholder": true` marks a manifest of stand-in sounds.
 
 `kind` is `loop`, `oneshot` or `ir` (an impulse response for the cabin reverb). `source` is
 `synth` or `download`; downloaded files chosen for listening appear in the same list with their
