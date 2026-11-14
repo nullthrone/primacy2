@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "savedAt": "2026-11-14T13:39:55.592Z",
+  "manifest": {
+    "placeholder": false,
+    "count": 114
+  },
+  "ratings": {
+    "engine_main_t000": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:39:55.090Z"
+    }
+  },
+  "scenes": {},
+  "general": ""
+}
