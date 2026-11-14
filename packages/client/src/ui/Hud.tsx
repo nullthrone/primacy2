@@ -13,7 +13,10 @@ import { findPlace, isLandmark } from '../state/places.ts';
 import { store, type BindAction, type Notice } from '../state/store.ts';
 import { bindKey, bindKeyShort, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed } from './format.ts';
 import { baseDropHere, landingCues, landingNear, liftBalance, noticeKey, type LandingCue } from './landing.ts';
-import { Compass, EdgeArrows, PlaceList, PlacePanel, RateLines, SystemLines, type CompassMark, type EdgeItem } from './Orient.tsx';
+import {
+  Compass, EdgeArrows, PlaceList, PlacePanel, Radar, RateLines, SystemLines,
+  type CompassMark, type EdgeItem, type RadarContact, type RadarPlace,
+} from './Orient.tsx';
 import { closingSpeed, compassDot } from './orient.ts';
 import { holdInFlight } from './trade.ts';
 
@@ -271,8 +274,12 @@ function flightHud(view: FrameView, api: GameApi) {
       <Marker key={`b${b.def.id}`} x={p.x} y={p.y} cls={`body ${isNav ? 'nav' : ''}`} label={b.def.name} sub={fmtDistance(toSurface)} />,
     );
   }
+  // Where something lies as seen from the ship's own axes (x right, y up, nose along -z): what the
+  // compass and the radar show. The markers and arrows above use the camera's axes instead.
+  const shipAxes = (rel: Readonly<Vec3>): Vec3 => quat.unrotate(self.rot, v3.sub(rel, self.rel));
   let target = null;
   let targetCls = 'npc';
+  const blips: RadarContact[] = [];
   for (const e of view.ents) {
     const isTarget = e.id === view.targetId;
     const kind = e.info.kind;
@@ -280,6 +287,7 @@ function flightHud(view: FrameView, api: GameApi) {
     const p = api.project(e.rel);
     const hostile = (e.flags & EntityFlag.Wanted) !== 0 || e.info.npc === 'pirate';
     const cls = kind === EntityKind.Loot ? 'loot' : kind === EntityKind.Wreck ? 'wreck' : hostile ? 'hostile' : e.info.player ? 'pilot' : 'npc';
+    blips.push({ key: `e${e.id}`, c: shipAxes(e.rel), cls, locked: isTarget });
     if (isTarget) {
       target = e;
       targetCls = cls;
@@ -303,10 +311,15 @@ function flightHud(view: FrameView, api: GameApi) {
   const targetDist = target ? v3.dist(target.rel, self.rel) : 0;
   const placeClosing = place ? closingSpeed(v3.sub(place.rel, self.rel), self.vel) : 0;
   const targetClosing = target ? closingSpeed(v3.sub(target.rel, self.rel), self.vel, target.vel) : 0;
-  const shipAxes = (rel: Readonly<Vec3>): Vec3 => quat.unrotate(self.rot, v3.sub(rel, self.rel));
   const compass: CompassMark[] = [];
   if (place) compass.push({ key: 'place', cls: 'nav', ...compassDot(shipAxes(place.rel)) });
   if (target) compass.push({ key: 'ship', cls: targetCls, ...compassDot(shipAxes(target.rel)) });
+  // The rim of the radar: every place to dock and every gate, and the chosen place, whatever it is.
+  const rim: RadarPlace[] = [];
+  for (const s of view.sites) {
+    if (s.def.id !== nav && isLandmark(s.def.kind)) rim.push({ key: `s${s.def.id}`, c: shipAxes(s.rel), gate: s.def.kind === 'gate', chosen: false });
+  }
+  if (place) rim.push({ key: `p${place.id}`, c: shipAxes(place.rel), gate: place.group === 'gate', chosen: true });
 
   const navSite = nav !== null ? view.sites.find((s) => s.def.id === nav) : undefined;
   const here = view.sites.find((s) => s.def.id === st.anchor);
@@ -444,6 +457,8 @@ function flightHud(view: FrameView, api: GameApi) {
         {landed && <div class="prompt">{t('hud.liftoffPrompt', { key: bindKey('thrustUp') })}</div>}
         {canDock && <div class="prompt">{t('hud.dockPrompt', { key: bindKey('dock') })}</div>}
         {canDrop && <div class="prompt">{t('hud.dropPrompt', { key: bindKey('cruise') })}</div>}
+        {/* The radar stands to the right of this block and moves with it when it grows wider. */}
+        <Radar contacts={blips} places={rim} />
       </div>
 
       <div class="hud-block hud-right">

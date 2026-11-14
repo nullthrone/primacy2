@@ -120,6 +120,7 @@ export const de: Partial<Record<StringKey, string>> = {
   'hud.lock': 'erfassen',
   'hud.list': 'Liste',
   'hud.more': '{n} weitere',
+  'hud.radarRings': 'Ringe {km} km',
   'keys.cruise': 'Reiseflug',
   'keys.fold': 'Faltsprung',
   'keys.map': 'Galaxiekarte',

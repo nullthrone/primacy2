@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { EDGE_RX, EDGE_RY, arrival, boxesOverlap, closingSpeed, compassDot, declutter, edgeMark, pullClear, type Box, type EdgeMark } from './orient.ts';
+import {
+  EDGE_RX, EDGE_RY, RADAR_INNER, RADAR_LIFT, RADAR_REACH, RADAR_RIM_STALK, RADAR_RINGS, RADAR_SQUASH,
+  arrival, boxesOverlap, closingSpeed, compassDot, declutter, edgeMark, pullClear, radarBlip, radarRadius, radarRim, type Box, type EdgeMark,
+} from './orient.ts';
 
 const W = 1280;
 const H = 720;
@@ -84,6 +87,111 @@ describe('the compass', () => {
   it('tells ahead from behind by the forward half', () => {
     expect(compassDot([4, 0, -1]).front).toBe(true);
     expect(compassDot([4, 0, 1]).front).toBe(false);
+  });
+});
+
+describe('the radar', () => {
+  it('puts each ring ten times farther out than the one inside it, at even steps', () => {
+    const at = RADAR_RINGS.map((d) => radarRadius(d));
+    expect(at[0]).toBeCloseTo(RADAR_INNER, 12);
+    expect(at[at.length - 1]).toBeCloseTo(1, 12);
+    const step = (1 - RADAR_INNER) / (RADAR_RINGS.length - 1);
+    for (let i = 1; i < at.length; i++) expect(at[i]! - at[i - 1]!).toBeCloseTo(step, 12);
+    // Between two rings the scale is logarithmic: 3.16 km is halfway from 1 km to 10 km.
+    expect(radarRadius(Math.sqrt(1e7))).toBeCloseTo((at[1]! + at[2]!) / 2, 9);
+  });
+
+  it('holds what is nearer than the innermost ring on it and what is farther than the rim on the rim', () => {
+    expect(radarRadius(3)).toBe(RADAR_INNER);
+    expect(radarRadius(0)).toBe(RADAR_INNER);
+    expect(radarRadius(Number.NaN)).toBe(RADAR_INNER);
+    expect(radarRadius(4e9)).toBe(1);
+    expect(radarRadius(Infinity)).toBe(1);
+    // Farther is never nearer to the middle.
+    let last = 0;
+    for (let d = 1; d < 1e7; d *= 1.7) {
+      const r = radarRadius(d);
+      expect(r).toBeGreaterThanOrEqual(last);
+      last = r;
+    }
+  });
+
+  it('puts a contact ahead and to the left up and left of the middle, on the plane', () => {
+    const b = radarBlip([-600, 0, -800]);
+    expect(b.x).toBeLessThan(0);
+    expect(b.y).toBeLessThan(0);
+    expect(b.y).toBe(b.foot);
+    // Its bearing is kept: three to the left for four ahead, the way ahead squashed.
+    expect(b.x / (b.foot / RADAR_SQUASH)).toBeCloseTo(600 / 800, 12);
+    expect(Math.hypot(b.x, b.foot / RADAR_SQUASH)).toBeCloseTo(radarRadius(1000), 12);
+    // Behind and to the right: down and right.
+    const aft = radarBlip([300, 0, 900]);
+    expect(aft.x).toBeGreaterThan(0);
+    expect(aft.y).toBeGreaterThan(0);
+  });
+
+  it('raises a contact above the plane on its stalk and hangs one below it', () => {
+    const above = radarBlip([0, 400, -400]);
+    expect(above.y).toBeLessThan(above.foot);
+    const below = radarBlip([0, -400, -400]);
+    expect(below.y).toBeGreaterThan(below.foot);
+    expect(below.foot).toBeCloseTo(above.foot, 12);
+    expect(below.y - below.foot).toBeCloseTo(above.foot - above.y, 12);
+    // Straight above: the foot is the middle and the stalk has the full length for that distance.
+    const top = radarBlip([0, 1000, 0]);
+    expect([top.x, Math.abs(top.foot)]).toEqual([0, 0]);
+    expect(top.y).toBeCloseTo(-radarRadius(1000) * RADAR_LIFT, 12);
+  });
+
+  it('keeps every contact inside the circle around the disc, at any distance', () => {
+    for (const c of [[3, 4, -5], [-3e3, 4e3, 5e3], [1e12, -1e12, 1e11], [0.1, 0, 0.1], [0, -9e9, 0], [7e4, 7e4, 7e4]] as const) {
+      const b = radarBlip(c);
+      expect(Math.hypot(b.x, b.y)).toBeLessThanOrEqual(1 + 1e-12);
+      expect(Math.hypot(b.x, b.foot / RADAR_SQUASH)).toBeLessThanOrEqual(1 + 1e-12);
+    }
+    expect(radarBlip([0, 0, -2e5]).beyond).toBe(true);
+    expect(radarBlip([0, 0, -2e4]).beyond).toBe(false);
+    expect(radarBlip([0, 0, 0])).toEqual({ x: 0, y: 0, foot: 0, beyond: false });
+  });
+
+  it('puts a place on the rim at its bearing, whatever its distance', () => {
+    const ahead = radarRim([0, 0, -4e9]);
+    expect([ahead.x, ahead.foot, ahead.y]).toEqual([0, -RADAR_SQUASH, -RADAR_SQUASH]);
+    const right = radarRim([7, 0, 0]);
+    expect(right.x).toBeCloseTo(1, 12);
+    expect(right.foot).toBeCloseTo(0, 12);
+    const astern = radarRim([0, 0, 5]);
+    expect(astern.x).toBeCloseTo(0, 12);
+    expect(astern.foot).toBeCloseTo(RADAR_SQUASH, 12);
+    // Behind and to the left, 45 degrees: on the ellipse of the rim.
+    const m = radarRim([-3, 0, 3]);
+    expect(m.bearing).toBeCloseTo(-Math.PI * 0.75, 12);
+    expect(Math.hypot(m.x, m.foot / RADAR_SQUASH)).toBeCloseTo(1, 12);
+    expect(m.x).toBeLessThan(0);
+    expect(m.foot).toBeGreaterThan(0);
+  });
+
+  it('tells a place above the plane from one below it by the stalk, and keeps the foot on the rim', () => {
+    const up = radarRim([4, 3, 0]);
+    expect(up.x).toBeCloseTo(1, 12);
+    expect(up.foot - up.y).toBeCloseTo(0.6 * RADAR_RIM_STALK, 12);
+    const down = radarRim([4, -3, 0]);
+    expect(down.y - down.foot).toBeCloseTo(0.6 * RADAR_RIM_STALK, 12);
+    for (const c of [[1, 9, 0], [-1, -9, 0], [0, 5, -1], [0, -5, 1], [3, 3, 3]] as const) {
+      const m = radarRim(c);
+      expect(Math.hypot(m.x, m.y)).toBeLessThanOrEqual(RADAR_REACH + 1e-12);
+    }
+  });
+
+  it('keeps its bearing straight above and below the ship, where there is none', () => {
+    const held = radarRim([0, 100, 0], 2.2);
+    expect(held.bearing).toBe(2.2);
+    expect(held.foot - held.y).toBeCloseTo(RADAR_RIM_STALK, 12);
+    // Without a history the mark stands ahead; a hair off the axis counts as on it.
+    expect(radarRim([0, -100, 0]).bearing).toBe(0);
+    expect(radarRim([1e-5, 100, 0], -1).bearing).toBe(-1);
+    const zero = radarRim([0, 0, 0]);
+    expect(Number.isFinite(zero.x) && Number.isFinite(zero.y)).toBe(true);
   });
 });
 

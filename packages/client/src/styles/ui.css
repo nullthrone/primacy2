@@ -329,6 +329,34 @@
 .compass-dot.nav { color: var(--amber); }
 .compass-dot.pilot { color: var(--green); }
 .compass-dot.hostile { color: var(--red); }
+/* The radar stands to the right of the speed readout, tied to the centre block so that it moves
+   when that block grows wider over the ground. The ship's plane is a disc seen from behind and
+   above; contacts are points on stalks, places are marks on the rim. Lines keep their width in
+   pixels whatever the size of the drawing. */
+.radar { position: absolute; left: calc(100% + 1.2em); bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 0.1em; }
+.radar-plate { display: block; width: 10em; height: 10em; }
+.radar-plate * { vector-effect: non-scaling-stroke; stroke-width: 1px; fill: none; }
+.radar-sphere { fill: rgba(6, 14, 28, 0.6); stroke: rgba(127, 233, 255, 0.2); }
+.radar-disc { fill: rgba(127, 233, 255, 0.05); stroke: rgba(127, 233, 255, 0.6); }
+.radar-ring, .radar-axis { stroke: rgba(127, 233, 255, 0.2); }
+.radar-axis.ahead { stroke: rgba(127, 233, 255, 0.5); }
+.radar-own { fill: var(--ink); }
+.radar-blip, .radar-mark { color: var(--ink); }
+.radar-stalk, .radar-foot { stroke: currentColor; opacity: 0.8; }
+.radar-blip.below .radar-stalk { opacity: 0.5; }
+.radar-blip .radar-head { fill: currentColor; }
+.radar-blip.hostile { color: var(--red); }
+.radar-blip.pilot { color: var(--green); }
+.radar-blip.loot, .radar-blip.wreck { color: var(--amber); }
+/* A wreck is a hollow square, and so is whatever is farther off than the rim reaches. */
+.radar-blip.wreck .radar-head, .radar-blip.beyond .radar-head { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
+.radar-lock { stroke: #fff; stroke-width: 1.4px; }
+.radar-mark { color: var(--cyan); }
+.radar-mark .radar-head { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
+.radar-mark .radar-foot { fill: currentColor; stroke: none; }
+.radar-mark.chosen { color: var(--amber); }
+.radar-mark.chosen .radar-head { fill: currentColor; }
+.radar-scale { font-size: 0.78em; line-height: 1.2; color: var(--dim); white-space: nowrap; }
 /* The chosen place stands under the locked ship, in the colour of its marker. */
 .panel-mini.place { border-left-color: var(--amber); }
 .panel-mini.place .big { color: var(--amber); }

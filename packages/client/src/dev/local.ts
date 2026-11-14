@@ -56,6 +56,8 @@
  *   sys=<n>              which system of the sector (default 0); site=<n> which of its places to dock
  *   yaw, pitch=<deg>     how far the nose is turned away from that place (default 150 and -8)
  *   dist=<m>             distance to it (default 4200); speed=<m/s> the ship flies on along its nose
+ *   more=1               more for the radar: another pilot, a wreck, a ship far below, one beyond
+ *                        its scale, and a gate in place of a site that is no place to dock
  *
  * Any scene
  *   hud=1                the game's real HUD over the scene, fed with the scene's frame views; its
@@ -385,9 +387,22 @@ function fight(): SceneFn {
  * the side: what the HUD has to lead the pilot back from.
  */
 function orient(): SceneFn {
-  const sys = systems[Math.min(systems.length - 1, Math.max(0, Math.round(num('sys', 0))))]!;
-  const docks = sys.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost');
-  const site = docks[Math.min(docks.length - 1, Math.max(0, Math.round(num('site', 0))))] ?? sys.sites[0]!;
+  const picked = systems[Math.min(systems.length - 1, Math.max(0, Math.round(num('sys', 0))))]!;
+  const docks = picked.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost');
+  const site = docks[Math.min(docks.length - 1, Math.max(0, Math.round(num('site', 0))))] ?? picked.sites[0]!;
+  // `more=1` adds what the scene lacks for the radar: another pilot, a wreck, a ship far below, one
+  // beyond the scale, and a gate (the demo sector has none: a site that is no place to dock becomes one).
+  const more = params.get('more') === '1';
+  const spare = picked.sites.find((s) => s.id !== site.id && !docks.includes(s) && s.ground === undefined);
+  const sys: SystemDef = more && spare
+    ? {
+      ...picked,
+      sites: picked.sites.map((s): SiteDef => (s.id !== spare.id ? s : {
+        ...s, kind: 'gate', model: 'gate', name: 'Dev Gate',
+        gate: { linkId: 'dev-link', peer: 'peerpeerpeerpeer', remoteSystem: 'remote-system', state: 'active', progress: 1, remoteProgress: 1 },
+      })),
+    }
+    : picked;
   const toward = rig({ sys, site }, 4200);
   const turn = quat.mul(quat.fromAxisAngle([0, 1, 0], rad(num('yaw', 150))), quat.fromAxisAngle([1, 0, 0], rad(num('pitch', -8))));
   const rot = quat.mul(toward.rot, turn);
@@ -409,6 +424,17 @@ function orient(): SceneFn {
           id: 60, info: { id: 60, kind: EntityKind.Loot, name: 'alloys', model: 'cargo_pod', radius: 2, c: 'alloys', n: 4 },
           rel: ahead(r, 90, -30, 260), vel: [0, 0, 0], rot: r.rot, flags: 0, hull: 1, shield: 0,
         },
+        ...(more ? [
+          shipEnt(13, 'wisp', ahead(r, 2600, 1500, 5200), r.rot, {
+            info: { id: 13, kind: EntityKind.Ship, name: 'Mara Voss', model: 'wisp', radius: HULLS.wisp?.radius ?? 10, player: 'dev-pilot' },
+          }),
+          shipEnt(14, 'drover', ahead(r, 9000, -21000, 14000), r.rot),
+          shipEnt(15, 'drover', ahead(r, -260_000, 40_000, -310_000), r.rot),
+          {
+            id: 80, info: { id: 80, kind: EntityKind.Wreck, name: 'Wreck of Lancet 9', model: 'lancet', radius: HULLS.lancet?.radius ?? 10 },
+            rel: ahead(r, 420, 60, -150), vel: [0, 0, 0] as Vec3, rot: r.rot, flags: 0, hull: 0.6, shield: 0,
+          },
+        ] : []),
       ],
     });
   };

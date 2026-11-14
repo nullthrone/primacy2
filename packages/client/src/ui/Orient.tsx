@@ -1,15 +1,18 @@
 /**
  * The parts of the HUD that lead the pilot to places and ships: arrows for what is off screen,
- * the compass, the panel of the chosen place, the lines that say what the system holds, and the
- * list of places that opens while the pilot steps through them.
+ * the compass, the radar, the panel of the chosen place, the lines that say what the system
+ * holds, and the list of places that opens while the pilot steps through them.
  */
 import { EntityKind, type Vec3 } from '@primacy2/shared';
 import type { FrameView } from '../contracts.ts';
-import { t, type StringKey } from '../i18n/index.ts';
+import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { PLACE_LIST_MS, findPlace, listPlaces, listWindow, type PlaceEntry } from '../state/places.ts';
 import { store, type BindAction } from '../state/store.ts';
 import { bindKeyShort, fmtDistance, fmtDuration, fmtSpeed, hasBinding } from './format.ts';
-import { arrival, declutter, edgeMark, pullClear, type Box, type CompassDot, type EdgeMark } from './orient.ts';
+import {
+  RADAR_REACH, RADAR_RINGS, RADAR_SQUASH, arrival, declutter, edgeMark, pullClear, radarBlip, radarRadius, radarRim,
+  type Box, type CompassDot, type EdgeMark,
+} from './orient.ts';
 
 /** Rows of the list of places that are shown at once, by the height of the view: a low view has room for fewer. */
 const listRows = (h: number): number => (h >= 640 ? 8 : h >= 480 ? 5 : 3);
@@ -36,7 +39,7 @@ const heldAngle = new Map<string, number>();
 const emPx = (w: number): number => Math.min(17, Math.max(11, w * 0.0085)) * 1.15;
 
 /** The blocks of the HUD that an arrow must not lie over. */
-const HUD_BLOCKS = '.hud-left, .hud-power, .hud-centre, .compass, .hud-right > .panel-mini, .hud-topleft > *, .keys, .chat-line, .notice, .warnings';
+const HUD_BLOCKS = '.hud-left, .hud-power, .hud-centre, .compass, .radar, .hud-right > .panel-mini, .hud-topleft > *, .keys, .chat-line, .notice, .warnings';
 /** Room an arrow keeps to a block, pixels. */
 const BLOCK_MARGIN = 6;
 
@@ -113,6 +116,104 @@ export function Compass({ marks }: { marks: CompassMark[] }) {
       {marks.map((d) => (
         <i key={d.key} class={`compass-dot ${d.cls} ${d.front ? 'front' : ''}`} style={{ left: `${50 + d.x * 40}%`, top: `${50 + d.y * 40}%` }} />
       ))}
+    </div>
+  );
+}
+
+/** Something in sensor range that the radar shows as a point on a stalk. */
+export interface RadarContact {
+  key: string;
+  /** Where it is in the ship's own axes (x right, y up, nose along -z), metres. */
+  c: Vec3;
+  /** Colour and shape class: `npc`, `hostile`, `pilot`, `wreck`, `loot`. */
+  cls: string;
+  /** The locked ship: drawn larger, with a ring, over the others. */
+  locked: boolean;
+}
+
+/** A place that has a mark on the rim of the radar. */
+export interface RadarPlace {
+  key: string;
+  /** Where it is in the ship's own axes, metres. */
+  c: Vec3;
+  /** A gate has a square mark, a place to dock a diamond, as in the list of places. */
+  gate: boolean;
+  /** The chosen place: amber, larger, over the others. */
+  chosen: boolean;
+}
+
+/** Units of the radar's drawing per radius of its disc. */
+const RADAR_UNIT = 100;
+/** Half the side of the drawing: what a mark can reach, and room for the mark itself. */
+const RADAR_HALF = Math.ceil(RADAR_REACH * RADAR_UNIT) + 10;
+/** The bearing each mark on the rim had last, kept for the moment its place is straight above or below. */
+const heldBearing = new Map<string, number>();
+
+/** The ring distances as the scale under the radar names them: "0.1 · 1 · 10 · 100 km". */
+const RADAR_SCALE = RADAR_RINGS.map((m) => m / 1000);
+
+/**
+ * The radar beside the speed readout, in the ship's own axes: its plane as a disc seen from
+ * behind and above, ahead being up. Ships, wrecks and cargo pods in sensor range are points on
+ * stalks that stand on the plane, the distance on a logarithmic scale; every place to dock, every
+ * gate and the chosen place are marks on the rim, at their bearing. It only shows.
+ */
+export function Radar({ contacts, places }: { contacts: RadarContact[]; places: RadarPlace[] }) {
+  const u = RADAR_UNIT;
+  // Drawn back to front, so that what is nearer to the eye lies on top; the chosen ones last.
+  const blips = contacts.map((it) => ({ it, p: radarBlip(it.c) })).sort((a, b) => Number(a.it.locked) - Number(b.it.locked) || a.p.foot - b.p.foot);
+  const live = new Set<string>();
+  const marks = places.map((it) => {
+    live.add(it.key);
+    const p = radarRim(it.c, heldBearing.get(it.key));
+    heldBearing.set(it.key, p.bearing);
+    return { it, p };
+  }).sort((a, b) => Number(a.it.chosen) - Number(b.it.chosen) || a.p.foot - b.p.foot);
+  for (const key of heldBearing.keys()) if (!live.has(key)) heldBearing.delete(key);
+
+  return (
+    <div class="radar">
+      <svg class="radar-plate" viewBox={`${-RADAR_HALF} ${-RADAR_HALF} ${RADAR_HALF * 2} ${RADAR_HALF * 2}`}>
+        <circle class="radar-sphere" r={RADAR_HALF - 1} />
+        <ellipse class="radar-disc" rx={u} ry={u * RADAR_SQUASH} />
+        {RADAR_RINGS.slice(0, -1).map((m) => {
+          const r = radarRadius(m) * u;
+          return <ellipse key={m} class="radar-ring" rx={r} ry={r * RADAR_SQUASH} />;
+        })}
+        <line class="radar-axis" x1={-u} y1={0} x2={u} y2={0} />
+        <line class="radar-axis" x1={0} y1={0} x2={0} y2={u * RADAR_SQUASH} />
+        <line class="radar-axis ahead" x1={0} y1={0} x2={0} y2={-u * RADAR_SQUASH} />
+        <path class="radar-own" d="M0 -7 L5 4 L0 1.5 L-5 4 Z" />
+        {marks.map(({ it, p }) => {
+          const x = p.x * u;
+          const y = p.y * u;
+          const half = it.chosen ? 6.5 : 4.5;
+          return (
+            <g key={it.key} class={`radar-mark ${it.chosen ? 'chosen' : ''} ${it.gate ? 'gate' : ''}`}>
+              <line class="radar-stalk" x1={x} y1={p.foot * u} x2={x} y2={y} />
+              <circle class="radar-foot" cx={x} cy={p.foot * u} r={2} />
+              <rect class="radar-head" x={x - half} y={y - half} width={half * 2} height={half * 2} transform={it.gate ? undefined : `rotate(45 ${x} ${y})`} />
+            </g>
+          );
+        })}
+        {blips.map(({ it, p }) => {
+          const x = p.x * u;
+          const y = p.y * u;
+          const foot = p.foot * u;
+          const half = it.locked ? 6 : 4.5;
+          return (
+            <g key={it.key} class={`radar-blip ${it.cls} ${it.locked ? 'locked' : ''} ${p.beyond ? 'beyond' : ''} ${y > foot ? 'below' : ''}`}>
+              <line class="radar-stalk" x1={x} y1={foot} x2={x} y2={y} />
+              <line class="radar-foot" x1={x - 3.5} y1={foot} x2={x + 3.5} y2={foot} />
+              {it.cls === 'loot'
+                ? <circle class="radar-head" cx={x} cy={y} r={3.2} />
+                : <rect class="radar-head" x={x - half} y={y - half} width={half * 2} height={half * 2} />}
+              {it.locked && <circle class="radar-lock" cx={x} cy={y} r={12.5} />}
+            </g>
+          );
+        })}
+      </svg>
+      <div class="radar-scale">{t('hud.radarRings', { km: RADAR_SCALE.map((n) => fmt(n, n < 1 ? 1 : 0)).join(' · ') })}</div>
     </div>
   );
 }

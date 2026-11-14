@@ -118,6 +118,7 @@ export const en = {
   'hud.lock': 'lock',
   'hud.list': 'list',
   'hud.more': '{n} more',
+  'hud.radarRings': 'Rings {km} km',
   'keys.cruise': 'cruise',
   'keys.fold': 'fold jump',
   'keys.map': 'galaxy map',

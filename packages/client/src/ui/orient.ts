@@ -1,7 +1,8 @@
 /**
  * Geometry of the HUD's direction indicators, as pure functions: where the arrow for something
- * off screen stands and which way it points, where a dot sits on the compass, how fast the ship
- * closes on a target, and which labels have to give way to others.
+ * off screen stands and which way it points, where a dot sits on the compass, where contacts and
+ * places stand on the radar, how fast the ship closes on a target, and which labels have to give
+ * way to others.
  *
  * Camera space here is what `quat.unrotate(camera.rot, rel)` gives: x to the right, y up, and the
  * view along -z, so a point with positive z lies behind the viewer.
@@ -58,6 +59,84 @@ export function compassDot(c: Readonly<Vec3>): CompassDot {
   const len = Math.hypot(c[0], c[1], c[2]);
   if (!(len > 0)) return { x: 0, y: 0, front: true };
   return { x: c[0] / len, y: -c[1] / len, front: c[2] <= 0 };
+}
+
+/**
+ * The radar shows the space around the ship as seen from behind and above it: the ship's own
+ * plane is a disc drawn as an ellipse, ahead is up the screen, and whatever lies above or below
+ * the plane stands on a stalk. Positions are in units of the disc's radius from its middle, x to
+ * the right and y down the screen.
+ */
+/** What a length along the nose keeps of itself in that view: the sine of the angle the plane is seen at. */
+export const RADAR_SQUASH = 0.5;
+/** What a length straight up from the plane keeps of itself. */
+export const RADAR_LIFT = Math.sqrt(1 - RADAR_SQUASH * RADAR_SQUASH);
+/** The distances of the radar's rings in metres, innermost first; the last is its rim. Each ring is ten times the one inside it. */
+export const RADAR_RINGS = [100, 1_000, 10_000, 100_000] as const;
+/** Radius of the innermost ring. Whatever is nearer stands on it, clear of the ship's own mark in the middle. */
+export const RADAR_INNER = 0.16;
+/** The longest stalk of a mark on the rim: a place straight above or below the ship. */
+export const RADAR_RIM_STALK = 0.42;
+/** How far from the middle anything on the radar can reach: a mark at the side of the rim on its longest stalk. */
+export const RADAR_REACH = Math.hypot(1, RADAR_RIM_STALK);
+
+const RADAR_NEAR = RADAR_RINGS[0];
+const RADAR_FAR = RADAR_RINGS[RADAR_RINGS.length - 1]!;
+
+/**
+ * How far from the middle of the radar something `dist` metres away stands: a logarithmic scale
+ * from the innermost ring to the rim, so that a pod 200 m off and a ship 50 km off both have a
+ * place. Nearer than the innermost ring stands on it, farther than the rim on the rim.
+ */
+export function radarRadius(dist: number): number {
+  if (!(dist > RADAR_NEAR)) return RADAR_INNER;
+  if (dist >= RADAR_FAR) return 1;
+  return RADAR_INNER + ((1 - RADAR_INNER) * Math.log(dist / RADAR_NEAR)) / Math.log(RADAR_FAR / RADAR_NEAR);
+}
+
+export interface RadarPoint {
+  /** Where the head stands. */
+  x: number;
+  y: number;
+  /** Where its stalk meets the ship's plane: at the same x, at this y. The head is above the plane when `y < foot`. */
+  foot: number;
+}
+
+export interface RadarBlip extends RadarPoint {
+  /** Farther away than the rim reaches: it stands on the rim in its direction. */
+  beyond: boolean;
+}
+
+/**
+ * A contact on the radar. `c` is where it is in the ship's own axes (x right, y up, nose along
+ * -z), in metres. Its direction is kept and its distance goes through `radarRadius`, so the head
+ * never leaves the circle around the disc.
+ */
+export function radarBlip(c: Readonly<Vec3>): RadarBlip {
+  const dist = Math.hypot(c[0], c[1], c[2]);
+  if (!(dist > 0)) return { x: 0, y: 0, foot: 0, beyond: false };
+  const k = radarRadius(dist) / dist;
+  const foot = c[2] * k * RADAR_SQUASH;
+  return { x: c[0] * k, y: foot - c[1] * k * RADAR_LIFT, foot, beyond: dist > RADAR_FAR };
+}
+
+export interface RadarRimMark extends RadarPoint {
+  /** The bearing in the ship's plane, radians: 0 is ahead, a quarter turn is to the right. */
+  bearing: number;
+}
+
+/**
+ * A place on the rim of the radar: far beyond its scale, so only the direction is shown. The foot
+ * stands on the rim at the bearing in the ship's plane, and the stalk says how far above or below
+ * the plane the place lies (its full length is straight up or down). Straight above or below
+ * there is no bearing: the mark then keeps `held`, the bearing it had before, or stands ahead.
+ */
+export function radarRim(c: Readonly<Vec3>, held?: number): RadarRimMark {
+  const len = Math.hypot(c[0], c[1], c[2]);
+  const side = Math.hypot(c[0], c[2]);
+  const bearing = len > 0 && side > len * SIDE_MIN ? Math.atan2(c[0], -c[2]) : held ?? 0;
+  const foot = -Math.cos(bearing) * RADAR_SQUASH;
+  return { x: Math.sin(bearing), y: foot - (len > 0 ? c[1] / len : 0) * RADAR_RIM_STALK, foot, bearing };
 }
 
 /**

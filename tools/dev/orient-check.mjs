@@ -1,7 +1,7 @@
 // Checks the direction indicators of the HUD and the size of the station screen in a browser, on
 // the development page (no game server): the real interface over made-up frame views.
 //
-//   node tools/dev/orient-check.mjs [--size=1280x720] [--keep]
+//   node tools/dev/orient-check.mjs [--size=1280x720] [--keep] [--only=radar]
 //
 // It starts its own Vite server for packages/client on a free port, plays the page in headless
 // Chromium and writes screenshots to screenshots/orient/. What it asserts:
@@ -11,11 +11,16 @@
 //     hollow dot on the compass
 //   - U lets go of the ship first and of the place second
 //   - with a controller as the device the hints name its buttons
+//   - the radar: every ship, wreck and pod in range is a point where the ship's own axes put it
+//     (left of the middle for one to the left, up the disc for one ahead, the stalk upward for one
+//     above the plane), in the colour of its kind, the locked one ringed; every place to dock and
+//     every gate has a mark on the rim at its bearing, the chosen place in amber; with the camera
+//     turned away from the nose it still shows the ship's axes
 //   - no block of the HUD lies over another one and no arrow lies over a block (German and
 //     English, a small and a crowded system)
 //   - the station screen has the same rectangle on every tab, with and without an error line
-// The game core (keys, pad buttons, the real `cycleNav`) is not part of this page: scripts/e2e.mjs
-// and scripts/pad-check.mjs play that.
+// `--only=radar` plays the radar part alone. The game core (keys, pad buttons, the real `cycleNav`)
+// is not part of this page: scripts/e2e.mjs and scripts/pad-check.mjs play that.
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
@@ -38,8 +43,11 @@ await server.listen();
 const base = server.resolvedUrls.local[0].replace(/\/$/, '');
 const browser = await chromium.launch({ args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] });
 
-async function open(query, size = [W, H]) {
-  const page = await browser.newPage({ viewport: { width: size[0], height: size[1] } });
+/** Whether a part of the check runs: all of them, or the ones `--only` names. */
+const want = (part) => !opt.only || opt.only.split(',').includes(part);
+
+async function open(query, size = [W, H], scale = 1) {
+  const page = await browser.newPage({ viewport: { width: size[0], height: size[1] }, deviceScaleFactor: scale });
   page.on('pageerror', (e) => problems.push(`pageerror (${query}): ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') problems.push(`console (${query}): ${m.text()}`); });
   await page.goto(`${base}/dev/local.html?hud=1&cam=cockpit&universe=16&${query}`, { waitUntil: 'load' });
@@ -60,7 +68,7 @@ async function overlaps(page) {
     const named = (sel, name) => [...document.querySelectorAll(sel)].map((n, i) => ({ name: `${name}${i ? i + 1 : ''}`, ...rect(n) })).filter((r) => r.x1 > r.x0 && r.y1 > r.y0);
     // The blocks as the pilot reads them. The top left block is taken row by row, since its rows differ much in width.
     const blocks = [
-      ...named('.hud-left', 'bars'), ...named('.hud-power', 'power'), ...named('.hud-centre', 'centre'), ...named('.compass', 'compass'),
+      ...named('.hud-left', 'bars'), ...named('.hud-power', 'power'), ...named('.hud-centre', 'centre'), ...named('.compass', 'compass'), ...named('.radar', 'radar'),
       ...named('.hud-right .panel-mini', 'panel'), ...named('.hud-topleft > *', 'topleft'), ...named('.keys', 'keys'), ...named('.chat-line', 'chat'),
     ];
     const arrows = [...named('.edge-glyph', 'arrow'), ...named('.edge-text', 'label')];
@@ -72,6 +80,65 @@ async function overlaps(page) {
     return out;
   });
 }
+
+/**
+ * The radar as it is drawn: the middle and the half axes of its disc in pixels, and for every
+ * contact and every mark on the rim its classes and the middle of its head and of its foot.
+ */
+const radar = (page) => page.evaluate(() => {
+  const mid = (n) => { const r = n.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }; };
+  const disc = document.querySelector('.radar-disc').getBoundingClientRect();
+  const part = (g) => ({ key: g.dataset.key, cls: g.getAttribute('class').split(/\s+/).filter(Boolean), head: mid(g.querySelector('.radar-head')), foot: mid(g.querySelector('.radar-foot')), ring: g.querySelector('.radar-lock') !== null });
+  const plate = document.querySelector('.radar-plate').getBoundingClientRect();
+  const inside = (n) => { const r = n.getBoundingClientRect(); return r.left >= plate.left - 0.5 && r.right <= plate.right + 0.5 && r.top >= plate.top - 0.5 && r.bottom <= plate.bottom + 0.5; };
+  return {
+    cx: (disc.left + disc.right) / 2, cy: (disc.top + disc.bottom) / 2, rx: disc.width / 2, ry: disc.height / 2,
+    width: plate.width,
+    blips: [...document.querySelectorAll('.radar-blip')].map(part),
+    marks: [...document.querySelectorAll('.radar-mark')].map(part),
+    outside: [...document.querySelectorAll('.radar-plate *')].filter((n) => !inside(n)).length,
+    scale: document.querySelector('.radar-scale')?.innerText ?? '',
+  };
+});
+
+/**
+ * Where everything lies in the ship's own axes (x right, y up, nose along -z) and in the camera's,
+ * worked out here from the frame view, apart from the interface: per entity and per site.
+ */
+const axes = (page) => page.evaluate(() => {
+  const v = window.__view;
+  // v' = q^-1 v q
+  const un = (q, [x, y, z]) => {
+    const [qx, qy, qz, qw] = [-q[0], -q[1], -q[2], q[3]];
+    const tx = 2 * (qy * z - qz * y), ty = 2 * (qz * x - qx * z), tz = 2 * (qx * y - qy * x);
+    return [x + qw * tx + (qy * tz - qz * ty), y + qw * ty + (qz * tx - qx * tz), z + qw * tz + (qx * ty - qy * tx)];
+  };
+  const from = (p) => [p[0] - v.self.rel[0], p[1] - v.self.rel[1], p[2] - v.self.rel[2]];
+  const both = (p) => ({ ship: un(v.self.rot, from(p)), cam: un(v.camera.rot, from(p)) });
+  return {
+    ents: Object.fromEntries(v.ents.map((e) => [`e${e.id}`, { ...both(e.rel), name: e.info.name }])),
+    sites: Object.fromEntries(v.sites.map((s) => [s.def.id, { ...both(s.rel), kind: s.def.kind, name: s.def.name }])),
+    bodies: Object.fromEntries(v.bodies.map((b) => [b.def.id, { ...both(b.rel), name: b.def.name }])),
+    turned: Math.abs(v.self.rot[0] * v.camera.rot[0] + v.self.rot[1] * v.camera.rot[1] + v.self.rot[2] * v.camera.rot[2] + v.self.rot[3] * v.camera.rot[3]),
+  };
+});
+
+/** Where the radar has to draw a contact at `c` (ship axes, metres): head and foot in pixels. The scale as `ui/orient.ts` defines it. */
+function blipAt(r, c) {
+  const dist = Math.hypot(c[0], c[1], c[2]);
+  const f = dist <= 100 ? 0.16 : dist >= 1e5 ? 1 : 0.16 + (0.84 * Math.log10(dist / 100)) / 3;
+  const k = f / dist;
+  const foot = { x: r.cx + c[0] * k * r.rx, y: r.cy + c[2] * k * r.ry };
+  return { foot, head: { x: foot.x, y: foot.y - c[1] * k * r.rx * Math.sqrt(0.75) } };
+}
+/** Where the radar has to draw the mark of a place in the direction `c`: its foot on the rim at the bearing, the head on the stalk. */
+function rimAt(r, c) {
+  const bearing = Math.atan2(c[0], -c[2]);
+  const foot = { x: r.cx + Math.sin(bearing) * r.rx, y: r.cy - Math.cos(bearing) * r.ry };
+  return { foot, head: { x: foot.x, y: foot.y - (c[1] / Math.hypot(c[0], c[1], c[2])) * 0.42 * r.rx } };
+}
+const near = (a, b, tol = 1.5) => Math.hypot(a.x - b.x, a.y - b.y) <= tol;
+const xy = (p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
 
 try {
   // ---------------------------------------------------------------------------------------------
