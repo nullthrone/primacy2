@@ -31,13 +31,13 @@ from . import (LEVELS, SR, burst_env, exp_decay, fade_edges, lowpass, machine_to
 # the file, which prints them from the renderers).
 DRIVE_LEVELS = {
     "cruise_loop": ("lufs", -24.0),        # brief
-    "cruise_charge": ("peak", -12.8),      # calibrated: drone at the end equals the loop
-    "cruise_engage": ("peak", -6.0),       # calibrated, see calibrate()
-    "cruise_disengage": ("peak", -9.0),    # calibrated, see calibrate()
+    "cruise_charge": ("peak", -10.3),      # calibrated: drone at the end equals the loop
+    "cruise_engage": ("peak", -2.9),       # calibrated, see calibrate()
+    "cruise_disengage": ("peak", -11.4),    # calibrated, see calibrate()
     "fold_charge": ("peak", -8.0),         # chosen: heavier than the cruise charge, below the jump
     "fold_jump": ("peak", -1.5),           # brief
     "fold_tunnel_loop": ("lufs", -34.0),   # brief
-    "fold_exit": ("peak", -8.0),           # calibrated, see calibrate()
+    "fold_exit": ("peak", -7.9),           # calibrated, see calibrate()
 }
 LEVELS.update(DRIVE_LEVELS)
 
@@ -167,8 +167,8 @@ def cruise_engage(ctx):
     whump = whump + 0.7 * rms(whump[: int(0.2 * SR)]) / max(rms(ring[: int(0.2 * SR)]), 1e-9) * ring
     whump = structure_lowpass(whump)
     rat = 0.03 * rattles(n, 0.5, seeded("cruise/engage-rattle"), per_second=5.0, periodic=False) * burst_env(n, 4.0, 0.3)
-    y = y + 4.5 * rms(body) * whump / max(np.max(np.abs(whump)), 1e-9) + rms(body) * rat
-    return _close(y - y.mean(), 0.0)
+    y = y + 6.0 * rms(body) * whump / max(np.max(np.abs(whump)), 1e-9) + rms(body) * rat
+    return _close(y - y.mean(), 3.0)
 
 
 @register("cruise_disengage")
@@ -200,7 +200,7 @@ def cruise_disengage(ctx):
     thud[k:] = structure_lowpass(th)
     y = y + 2.6 * rms(body) * thud / max(np.max(np.abs(thud)), 1e-9)
     y = y * np.clip((n / SR - 0.05 - t) / 0.3, 0.0, 1.0) ** 0.5   # the hull settles to silence
-    return _close(y - y.mean(), 0.0)
+    return _close(y - y.mean(), 3.0)
 
 
 # ============================================================================= fold
@@ -309,7 +309,7 @@ def fold_jump(ctx):
     body = thump(n, 62.0, 29.0, 5.0, 1.0, 0.25)
     ring = _blow_ring(n, "fold_jump/pulse", 1.5)
     scale = rms(body[: int(0.2 * SR)]) / max(rms(ring[: int(0.2 * SR)]), 1e-9)
-    y = structure_lowpass(body + 0.9 * scale * ring)
+    y = structure_lowpass(body + 0.6 * scale * ring)
     # the whole cabin shakes for an instant; nothing else is left after it
     rat = rattles(n, 1.0, seeded("fold_jump/rattle"), per_second=9.0, periodic=False) * burst_env(n, 3.0, 0.35)
     y = y + 0.05 * rms(y[: int(0.3 * SR)]) * 6 * rat
@@ -332,13 +332,13 @@ def fold_exit(ctx):
     ticks = np.zeros(n)
     trng = seeded("fold_exit/ticks")
     upper = np.array([0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=float)
-    for at, lv in ((0.38, 0.5), (0.71, 0.35), (1.02, 0.4), (1.45, 0.22), (1.93, 0.15)):
-        _place(ticks, lv * _blow_ring(int(0.35 * SR), "fold_exit/tick%d" % int(at * 100), 0.35, 900.0, upper) *
+    for at, lv in ((0.37, 0.4), (0.58, 0.22), (1.12, 0.26), (1.31, 0.15), (1.97, 0.1)):
+        _place(ticks, lv * _blow_ring(int(0.35 * SR), "fold_exit/tick%d" % int(at * 100), 0.12, 600.0, upper) *
                trng.uniform(0.8, 1.2), int(at * SR), wrap=False)
     ticks = structure_lowpass(ticks)
     d_rms = rms(_seg(body, 0.0, SR))
-    y = drone + 9.0 * d_rms * thud / max(np.max(np.abs(thud)), 1e-9) + 6.0 * d_rms * ticks / max(np.max(np.abs(ticks)), 1e-9)
-    return _close(y - y.mean(), 0.0)
+    y = drone + 9.0 * d_rms * thud / max(np.max(np.abs(thud)), 1e-9) + 5.0 * d_rms * ticks / max(np.max(np.abs(ticks)), 1e-9)
+    return _close(y - y.mean(), 3.0)
 
 
 # ----------------------------------------------------------------------------- calibration
@@ -358,7 +358,7 @@ def calibrate(print_it: bool = True) -> dict:
         lp = raw(loop_id)
         gain_db = LEVELS[loop_id][1] - lufs(lp)
         for i in ids:
-            out[i] = round(true_peak_db(raw(i)) + gain_db, 1)
+            out[i] = round(float(true_peak_db(raw(i)) + gain_db), 1)
     if print_it:
         print(out)
     return out
@@ -369,15 +369,18 @@ def calibrate(print_it: bool = True) -> dict:
 def weapon_pulse_fire(ctx):
     n = ctx.n
     t = np.arange(n) / SR
-    # the discharge: a short blow through the mount (a higher, quicker thump than the cannon's)
+    # the discharge: a short blow through the mount (a higher, quicker thump than the cannon's);
+    # the hull answers it without its deepest modes, which a small quick blow does not wake
     snap = thump(n, 165.0, 72.0, 2.5, 0.07, 0.02)
-    ring = _blow_ring(n, "pulse/pulse", 0.4, 600.0)
-    scale = rms(snap[: int(0.05 * SR)]) / max(rms(ring[: int(0.05 * SR)]), 1e-9)
-    # the transformer buzz while the capacitor empties: mains harmonics with a growl, 100 ms
-    buzz = transformer_tone(n, 120.0, 0.9, seeded("pulse/buzz"))
-    env = np.minimum(1.0, t / 0.006) * np.clip((0.12 - t) / 0.07, 0, 1)
-    buzz = through_hull(buzz * env, sharp=0.15, dry=1.0)
-    y = structure_lowpass(snap + 0.8 * scale * ring + 0.9 * rms(snap[: int(0.05 * SR)]) / max(rms(buzz[: int(0.12 * SR)]), 1e-9) * 0.5 * buzz)
+    ref = rms(snap[: int(0.05 * SR)])
+    upper = np.array([0.0, 0.0, 0.4, 0.6, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    ring = _blow_ring(n, "pulse/pulse", 0.35, 700.0, upper)
+    # the transformer buzz while the capacitor empties: mains harmonics with a growl, 120 ms
+    buzz = transformer_tone(n, 120.0, 1.0, seeded("pulse/buzz"))
+    env = np.minimum(1.0, t / 0.006) * np.clip((0.12 - t) / 0.06, 0, 1)
+    buzz = through_hull(buzz * env, sharp=0.15, dry=1.5)
+    y = snap + 0.8 * ref * ring / max(rms(ring[: int(0.05 * SR)]), 1e-9)         + 1.1 * ref * buzz / max(rms(buzz[: int(0.12 * SR)]), 1e-9)
+    y = structure_lowpass(y, fc=800.0)
     rat = rattles(n, 0.6, seeded("pulse/rattle"), per_second=14.0, periodic=False) * burst_env(n, 2.0, 0.08)
     y = y + 0.03 * rms(y[: int(0.1 * SR)]) * 6 * rat
     return _close(y - y.mean(), 0.0)
@@ -402,12 +405,13 @@ def weapon_cannon_fire(ctx):
 def weapon_beam_loop(ctx):
     n = ctx.n
     s = lambda name: seeded("beam/" + name)
-    hum = transformer_tone(n, 100.0, 0.85, s("hum"))
+    hum = transformer_tone(n, 100.0, 0.7, s("hum"))
     pump = machine_tone(n, 59.0, (1, 2, 3), (1.0, 0.6, 0.35), beat_hz=0.67, flutter_hz=3.0, flutter=0.004,
                         beat_depth=0.4, rng=s("pump"))
     whir = machine_tone(n, 187.0, (1, 2), (1.0, 0.4), beat_hz=1.0, flutter_hz=7.0, flutter=0.01,
                         beat_depth=0.4, rng=s("whir"))
-    y = normalize_rms(hum) + 0.6 * normalize_rms(pump) + 0.35 * normalize_rms(whir)
+    flow = periodic_noise(n, "pink", s("flow"), lo=40, hi=500)   # the coolant flow: not only pure lines
+    y = 1.4 * normalize_rms(hum) + 0.4 * normalize_rms(pump) + 0.5 * normalize_rms(whir) + 0.5 * flow
     y = through_hull(y, periodic=True, sharp=0.3, dry=0.7)
     y = structure_lowpass(y, periodic=True)
     y = y + 0.03 * rms(y) * rattles(n, 0.5, s("rattle"), per_second=1.5)
@@ -444,7 +448,7 @@ def missile_launch(ctx):
     renv = np.minimum(1.0, np.maximum(t - 0.07, 0) / 0.12) * np.exp(-np.maximum(t - 0.3, 0) / 0.32)
     rumble = through_hull(rumble * renv, sharp=0.3, dry=0.8)
     knock = thump(n, 95.0, 50.0, 3.0, 0.12, 0.04)
-    y = structure_lowpass(knock * 1.0 + 0.9 * rms(knock[: int(0.1 * SR)]) / max(clack_r, 1e-9) * 0.55 * clack
+    y = structure_lowpass(knock * 1.0 + 0.9 * rms(knock[: int(0.1 * SR)]) / max(clack_r, 1e-9) * 0.95 * clack
                           + 0.8 * rumble * rms(knock[: int(0.1 * SR)]) / max(rms(rumble[int(0.15 * SR): int(0.45 * SR)]), 1e-9) * 0.45)
     rat = rattles(n, 0.5, seeded("missile/rattle"), per_second=10.0, periodic=False) * burst_env(n, 2.0, 0.1)
     y = y + 0.03 * rms(y[: int(0.2 * SR)]) * 6 * rat

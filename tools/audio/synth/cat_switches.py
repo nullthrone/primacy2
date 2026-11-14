@@ -63,29 +63,40 @@ def thunk(n, t0, f0, f1, t60, amp):
     return out
 
 
+def _finish(y, tail_ms, guard_ms=12.0):
+    """Taper the last tail_ms to zero, reaching exactly zero guard_ms before the end (the rule looks at the last 10 ms)."""
+    n = y.size
+    g = int(guard_ms / 1000 * SR)
+    k = int(tail_ms / 1000 * SR)
+    w = np.ones(n)
+    w[n - g - k:n - g] = rise(k)[::-1]
+    w[n - g:] = 0.0
+    return y * w
+
+
 def in_cabin(dry, tail_ms):
     """The cabin reverb, mono out, and a rounded end so that the file finishes in silence."""
-    return fade_edges(apply_cabin(dry)[:, 0], 0.0, tail_ms)
+    return _finish(apply_cabin(dry)[:, 0], tail_ms)
 
 
 def relay(n, rng, f_ring, thunk_f, body, bounce_ms):
     """One relay closing: contact tick, a second small tick when the contact bounces, ring, thunk."""
-    y = tick(n, 0.0, 1800, 5500, 0.003, 1.0, rng)
+    y = tick(n, 0.0, 1800, 5500, 0.003, 0.35, rng)
     y += tick(n, bounce_ms / 1000, 2200, 6000, 0.002, 0.45, rng)
-    y += ring(n, 0.0, f_ring, 0.018, 0.55, ((1.0, 1.0), (1.93, 0.4)))
+    y += ring(n, 0.0, f_ring, 0.026, 1.2, ((1.0, 1.0), (1.93, 0.4)))
     y += thunk(n, 0.001, thunk_f, thunk_f * 0.5, 0.035, body)
     return y
 
 
 @register("relay_click_a")
 def relay_click_a(ctx):
-    return in_cabin(relay(ctx.n, ctx.rng("a"), 2600.0, 150.0, 0.45, 5.5), 70)
+    return in_cabin(relay(ctx.n, ctx.rng("a"), 2600.0, 150.0, 0.25, 5.5), 70)
 
 
 @register("relay_click_b")
 def relay_click_b(ctx):
     """The larger relay: a lower ring, a heavier thunk, a slower bounce."""
-    return in_cabin(relay(ctx.n, ctx.rng("b"), 1500.0, 95.0, 0.9, 9.0), 70)
+    return in_cabin(relay(ctx.n, ctx.rng("b"), 1500.0, 95.0, 0.28, 9.0), 70)
 
 
 @register("switch_toggle")
@@ -106,9 +117,9 @@ def switch_rotary(ctx):
     n, rng = ctx.n, ctx.rng("r")
     y = np.zeros(n)
     for k in range(3):
-        t0 = 0.012 + 0.125 * k
-        y += tick(n, t0, 1600 + 150 * k, 5000, 0.004, 0.9, rng)
-        y += ring(n, t0, 1900.0 + 120 * k, 0.025, 0.4)
+        t0 = 0.125 * k
+        y += tick(n, t0, 1600 + 150 * k, 5000, 0.004, 0.35, rng)
+        y += ring(n, t0, 1900.0 + 120 * k, 0.03, 0.7)
         y += thunk(n, t0, 140.0, 80.0, 0.03, 0.4)
     return in_cabin(y, 90)
 
@@ -117,9 +128,9 @@ def switch_rotary(ctx):
 def breaker_thunk(ctx):
     """A heavy breaker thrown: a firm clack with a low, short thunk and a faint latch settling after it."""
     n, rng = ctx.n, ctx.rng("b")
-    y = tick(n, 0.0, 800, 3800, 0.012, 1.0, rng, rise_ms=0.9)
+    y = tick(n, 0.0, 900, 4200, 0.012, 1.4, rng, rise_ms=0.9)
     y += ring(n, 0.0, 1100.0, 0.05, 0.45, ((1.0, 1.0), (2.4, 0.4)))
-    y += thunk(n, 0.001, 105.0, 55.0, 0.09, 1.1)
+    y += thunk(n, 0.001, 105.0, 55.0, 0.07, 0.4)
     y += tick(n, 0.032, 1200, 4200, 0.006, 0.3, rng)
     y += ring(n, 0.032, 2300.0, 0.03, 0.12)
     return in_cabin(y, 110)
@@ -129,8 +140,8 @@ def breaker_thunk(ctx):
 def button_press(ctx):
     """A soft, quiet tick of a key with short travel: almost no thunk, a little warmth at 700 Hz."""
     n, rng = ctx.n, ctx.rng("k")
-    y = tick(n, 0.0, 1300, 4200, 0.0035, 1.0, rng, rise_ms=0.8)
-    y += ring(n, 0.0, 2000.0, 0.012, 0.3)
+    y = tick(n, 0.0, 1300, 4200, 0.0035, 0.35, rng, rise_ms=0.8)
+    y += ring(n, 0.0, 2000.0, 0.016, 0.9)
     y += thunk(n, 0.0, 700.0, 450.0, 0.015, 0.25)
     return in_cabin(y, 40)
 
@@ -168,7 +179,7 @@ def systems_power_up(ctx):
     """Eight relays, quickening; the fan spins up from 0.3 s to 2.1 s, the hum rises and holds; fades to silence."""
     n = ctx.n
     rng = ctx.rng("relays")
-    relays = _cascade(n, [0.10, 0.34, 0.55, 0.72, 0.86, 0.97, 1.06, 1.14], rng)
+    relays = _cascade(n, [0.0, 0.26, 0.50, 0.68, 0.83, 0.95, 1.05, 1.13], rng)
     fan = _fan_and_hum(n, lambda t: np.clip((t - 0.3) / 1.8, 0, 1) ** 1.6, 146.0)
     fan = fan / max(np.max(np.abs(fan)), 1e-9)
     dry = relays / max(np.max(np.abs(relays)), 1e-9) + 0.22 * fan

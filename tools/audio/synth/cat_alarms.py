@@ -71,8 +71,8 @@ def alarm_heat(n):
 def alarm_missile(n):
     """Five fast urgent pulses a second on one high-ish note, the most pressing sound."""
     y = np.zeros(n)
-    f = np.full(n, 1100.0)
-    tone = voice(f, (1.0, 0.5, 0.2))
+    f = np.full(n, 1000.0)
+    tone = voice(f, (1.0, 0.75, 0.55, 0.3))
     for k in range(5):
         y += tone * gate(n, 0.055 + k * 0.19, 0.10, 4, 12)
     return speaker(y)
@@ -100,9 +100,9 @@ def alarm_hull_critical(n):
     f = np.full(n, 440.0)
     buzz = voice(f, (1.0, 0.8, 0.65, 0.5, 0.35, 0.22, 0.1))
     t = np.arange(n) / SR
-    buzz = buzz * (0.72 + 0.28 * np.sin(2 * np.pi * 55.0 * t))
+    buzz = np.tanh(1.5 * buzz) * (0.6 + 0.4 * np.sin(2 * np.pi * 70.0 * t))
     env = gate(n, 0.08, 0.46, 12, 25) + 0.9 * gate(n, 0.70, 0.30, 12, 25)
-    return speaker(buzz * env)
+    return speaker(buzz * env, hi=3600.0)
 
 
 def alarm_master_caution(n):
