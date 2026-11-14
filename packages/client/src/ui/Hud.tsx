@@ -5,13 +5,16 @@
 import { useRef, useState } from 'preact/hooks';
 import {
   Button, COMMODITIES, ChargeKind, DOCK_RANGE, EntityFlag, EntityKind, FlightMode, HULLS, PIP_MAX,
-  anchorBody, bodySurface, cargoTonnes, detectionRange, isSurfaceAnchor, nearestGroundSite, unpackPips, v3, type ChatChannel,
+  anchorBody, bodySurface, cargoTonnes, detectionRange, isSurfaceAnchor, nearestGroundSite, quat, unpackPips, v3, type ChatChannel, type Vec3,
 } from '@primacy2/shared';
 import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
+import { findPlace, isLandmark } from '../state/places.ts';
 import { store, type Notice } from '../state/store.ts';
 import { bindKey, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed, keyParams } from './format.ts';
 import { baseDropHere, landingCues, landingNear, liftBalance, noticeKey, type LandingCue } from './landing.ts';
+import { Compass, EdgeArrows, PlaceList, PlacePanel, RateLines, SystemLines, type CompassMark, type EdgeItem } from './Orient.tsx';
+import { compassDot, trackRate, type RangeRate } from './orient.ts';
 import { holdInFlight } from './trade.ts';
 
 /** Shortest and longest time a notice stays on screen. */
@@ -119,8 +122,11 @@ function heatRate(clock: number, heat: number): number {
   return heatTrend.rate;
 }
 
+/** How fast the distance to the chosen place and to the locked ship changes; kept from frame to frame. */
+const rates: { place: RangeRate | null; ship: RangeRate | null } = { place: null, ship: null };
+
 /** The selected target: a ship with shield and hull, a wreck with its salvage, or a cargo pod with its content. */
-function TargetPanel({ target, dist }: { target: EntityView; dist: number }) {
+function TargetPanel({ target, dist, rate }: { target: EntityView; dist: number; rate: RangeRate | null }) {
   const info = target.info;
   const wreck = info.kind === EntityKind.Wreck;
   const pod = info.kind === EntityKind.Loot;
@@ -131,7 +137,8 @@ function TargetPanel({ target, dist }: { target: EntityView; dist: number }) {
       {wreck && <div><span class="tag">{t('hud.wreck')}</span> <span class="dim">{HULLS[info.model]?.name ?? info.model}</span></div>}
       {pod && <div><span class="tag">{t('hud.pod')}</span></div>}
       {!wreck && !pod && <div class="dim">{HULLS[info.model]?.name ?? info.model}{info.npc ? ` · ${info.npc}` : ''}</div>}
-      <div>{fmtDistance(dist)}</div>
+      <div class="num">{fmtDistance(dist)}</div>
+      <RateLines dist={dist} rate={rate} eta={false} />
       {wreck && <Bar label={t('hud.salvage')} value={target.hull} cls="salvage" />}
       {wreck && <div class="dim hint">{t('hud.salvageHint', { key: bindKey('fireTool') })}</div>}
       {pod && info.c && <div>{COMMODITIES[info.c]?.name ?? info.c} · {fmt(info.n ?? 0)} t</div>}
@@ -166,17 +173,6 @@ function Destroyed({ api }: { api: GameApi }) {
       <button onClick={() => void api.cmd({ k: 'respawn' })}>{t(home?.kind === 'base' ? 'hud.respawnBase' : 'hud.respawn')}</button>
     </div>
   );
-}
-
-/** Keeps an off-screen or behind-camera point on a margin inside the view. */
-function clampToEdge(p: { x: number; y: number }, w: number, h: number): { x: number; y: number } {
-  const m = 40;
-  const cx = w / 2;
-  const cy = h / 2;
-  const dx = p.x - cx;
-  const dy = p.y - cy;
-  const k = Math.min((cx - m) / Math.max(1e-6, Math.abs(dx)), (cy - m) / Math.max(1e-6, Math.abs(dy)), 1);
-  return { x: cx + dx * k, y: cy + dy * k };
 }
 
 function Chat({ api }: { api: GameApi }) {
@@ -239,20 +235,26 @@ function flightHud(view: FrameView, api: GameApi) {
     if (!p.behind) vel = p;
   }
 
+  // What is on screen gets a marker where it is; what is off screen and matters gets an arrow
+  // that leads to it: the chosen place, the locked ship, and every place to dock and every gate.
+  const camOf = (rel: Readonly<Vec3>): Vec3 => quat.unrotate(view.camera.rot, rel as Vec3);
   const markers = [];
+  const edges: EdgeItem[] = [];
   const nav = view.navAnchor;
   for (const s of view.sites) {
     const isNav = s.def.id === nav;
     // Places to dock and gates are marked from anywhere in the system, everything else from nearby.
-    const always = s.def.kind === 'station' || s.def.kind === 'outpost' || s.def.kind === 'base' || s.def.kind === 'gate';
+    const always = isLandmark(s.def.kind);
     if (!isNav && !always && s.dist > 5e9) continue;
     const p = api.project(s.rel);
-    if (!p.visible && !isNav) continue;
-    const pos = p.visible ? p : clampToEdge(p, w, h);
-    const near = Math.hypot(pos.x - w / 2, pos.y - h / 2) < 90;
+    if (!p.visible) {
+      if (isNav || always) edges.push({ key: `s${s.def.id}`, c: camOf(s.rel), cls: isNav ? 'nav' : 'place', name: s.def.name, dist: s.dist, big: isNav });
+      continue;
+    }
+    const near = Math.hypot(p.x - w / 2, p.y - h / 2) < 90;
     markers.push(
       <Marker
-        key={`s${s.def.id}`} x={pos.x} y={pos.y} cls={`site k-${s.def.kind} ${isNav ? 'nav' : ''}`}
+        key={`s${s.def.id}`} x={p.x} y={p.y} cls={`site k-${s.def.kind} ${isNav ? 'nav' : ''}`}
         label={isNav || near ? s.def.name : undefined} sub={isNav || near ? fmtDistance(s.dist) : undefined}
       />,
     );
@@ -261,36 +263,54 @@ function flightHud(view: FrameView, api: GameApi) {
     const isNav = b.def.id === nav;
     if (!isNav && !cruise) continue;
     const p = api.project(b.rel);
-    if (!p.visible && !isNav) continue;
-    const pos = p.visible ? p : clampToEdge(p, w, h);
-    const near = Math.hypot(pos.x - w / 2, pos.y - h / 2) < 70;
+    const toSurface = Math.max(0, b.dist - b.def.radius);
+    if (!p.visible) {
+      if (isNav) edges.push({ key: `b${b.def.id}`, c: camOf(b.rel), cls: 'nav', name: b.def.name, dist: toSurface, big: true });
+      continue;
+    }
+    const near = Math.hypot(p.x - w / 2, p.y - h / 2) < 70;
     if (!isNav && !near) continue;
     markers.push(
-      <Marker key={`b${b.def.id}`} x={pos.x} y={pos.y} cls={`body ${isNav ? 'nav' : ''}`} label={b.def.name} sub={fmtDistance(Math.max(0, b.dist - b.def.radius))} />,
+      <Marker key={`b${b.def.id}`} x={p.x} y={p.y} cls={`body ${isNav ? 'nav' : ''}`} label={b.def.name} sub={fmtDistance(toSurface)} />,
     );
   }
   let target = null;
+  let targetCls = 'npc';
   for (const e of view.ents) {
     const isTarget = e.id === view.targetId;
     const kind = e.info.kind;
     if (kind !== EntityKind.Ship && kind !== EntityKind.Loot && kind !== EntityKind.Wreck && !isTarget) continue;
     const p = api.project(e.rel);
-    if (isTarget) target = e;
-    if (!p.visible && !isTarget) continue;
-    const pos = p.visible ? p : clampToEdge(p, w, h);
     const hostile = (e.flags & EntityFlag.Wanted) !== 0 || e.info.npc === 'pirate';
+    const cls = kind === EntityKind.Loot ? 'loot' : kind === EntityKind.Wreck ? 'wreck' : hostile ? 'hostile' : e.info.player ? 'pilot' : 'npc';
+    if (isTarget) {
+      target = e;
+      targetCls = cls;
+    }
+    if (!p.visible) {
+      if (isTarget) edges.push({ key: `e${e.id}`, c: camOf(e.rel), cls, name: e.info.name, dist: v3.dist(e.rel, self.rel), big: true });
+      continue;
+    }
     markers.push(
       <Marker
-        key={`e${e.id}`} x={pos.x} y={pos.y}
-        cls={`ent ${kind === EntityKind.Loot ? 'loot' : kind === EntityKind.Wreck ? 'wreck' : hostile ? 'hostile' : e.info.player ? 'pilot' : 'npc'} ${isTarget ? 'target' : ''}`}
+        key={`e${e.id}`} x={p.x} y={p.y} cls={`ent ${cls} ${isTarget ? 'target' : ''}`}
         label={isTarget ? e.info.name : undefined} sub={isTarget ? fmtDistance(v3.dist(e.rel, self.rel)) : undefined}
       />,
     );
   }
 
+  // The chosen place and the locked ship: how fast the distance closes, and where each lies as
+  // seen from the ship's own axes, for the compass.
+  const place = findPlace(view, nav);
+  const targetDist = target ? v3.dist(target.rel, self.rel) : 0;
+  rates.place = place ? trackRate(rates.place, `p${place.id}`, view.time, place.dist) : null;
+  rates.ship = target ? trackRate(rates.ship, `e${target.id}`, view.time, targetDist) : null;
+  const shipAxes = (rel: Readonly<Vec3>): Vec3 => quat.unrotate(self.rot, v3.sub(rel, self.rel));
+  const compass: CompassMark[] = [];
+  if (place) compass.push({ key: 'place', cls: 'nav', ...compassDot(shipAxes(place.rel)) });
+  if (target) compass.push({ key: 'ship', cls: targetCls, ...compassDot(shipAxes(target.rel)) });
+
   const navSite = nav !== null ? view.sites.find((s) => s.def.id === nav) : undefined;
-  const navBody = nav !== null && !navSite ? view.bodies.find((b) => b.def.id === nav) : undefined;
-  const navDist = navSite ? navSite.dist : navBody ? Math.max(0, navBody.dist - navBody.def.radius) : null;
   const here = view.sites.find((s) => s.def.id === st.anchor);
   // Near the ground the ship is in the surface frame of the body, flying or landed, and the base
   // it can dock at is the nearest one on that body.
@@ -347,6 +367,7 @@ function flightHud(view: FrameView, api: GameApi) {
       <div class="reticle" />
       {vel && <div class="velocity" style={{ transform: `translate(${vel.x}px, ${vel.y}px)` }} />}
       {markers}
+      <EdgeArrows items={edges} w={w} h={h} />
 
       <div class="hud-block hud-left">
         <Bar label={t('hud.shield')} value={stats.shieldMax > 0 ? st.shield / stats.shieldMax : 0} cls={silent ? 'shield offline' : 'shield'} />
@@ -393,6 +414,7 @@ function flightHud(view: FrameView, api: GameApi) {
           </div>
         )}
         <div class="speed-row">
+          <Compass marks={compass} />
           {cues ? cueCell(t('hud.slope'), cues.slope, '°', '') : <span />}
           <div class="speed">{fmtSpeed(speed)}</div>
           {cues ? cueCell(t('hud.tilt'), cues.tilt, '°', '') : <span />}
@@ -417,15 +439,8 @@ function flightHud(view: FrameView, api: GameApi) {
       </div>
 
       <div class="hud-block hud-right">
-        {target ? <TargetPanel target={target} dist={v3.dist(target.rel, self.rel)} /> : null}
-        {navDist !== null && (
-          <div class="panel-mini">
-            <h4>{t('hud.nav')}</h4>
-            <div class="big">{navSite?.def.name ?? navBody?.def.name}</div>
-            <div>{fmtDistance(navDist)}</div>
-            {speed > 1 && <div class="dim">{t('hud.eta', { time: fmtDuration(navDist / speed) })}</div>}
-          </div>
-        )}
+        {target ? <TargetPanel target={target} dist={targetDist} rate={rates.ship} /> : null}
+        {place && <PlacePanel place={place} behind={camOf(place.rel)[2] > 0} rate={rates.place} />}
       </div>
 
       <div class="hud-block hud-topleft">
@@ -439,6 +454,8 @@ function flightHud(view: FrameView, api: GameApi) {
             {pilot?.shipBound && <span>{t('hud.shipBound')}</span>}
           </div>
         )}
+        <SystemLines view={view} />
+        <PlaceList view={view} now={performance.now()} />
       </div>
 
       {warnings.length > 0 && <div class="warnings">{warnings.map((x) => <div key={x}>{x}</div>)}</div>}

@@ -6,7 +6,7 @@ import { store, type BindAction } from '../state/store.ts';
 
 const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
 const KEY_NAMES: Record<string, StringKey> = {
-  Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight', Space: 'key.space',
+  Mouse0: 'key.mouseLeft', Mouse1: 'key.mouseMiddle', Mouse2: 'key.mouseRight', Mouse3: 'key.mouseBack', Mouse4: 'key.mouseForward', Space: 'key.space',
   ControlLeft: 'key.ctrl', ControlRight: 'key.ctrl', ShiftLeft: 'key.shift', ShiftRight: 'key.shift',
   AltLeft: 'key.alt', AltRight: 'key.alt', Escape: 'key.esc',
 };
@@ -32,6 +32,13 @@ export function bindKey(action: BindAction): string {
   const code = keys.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? keys[0];
   if (code) return keyName(code);
   return pad ? padCodeLabel(pad, store.padStyle.value) : '–';
+}
+
+/** Whether an action has a control on the device in use: a pad code for a pad, anything else otherwise. */
+export function hasBinding(action: BindAction): boolean {
+  const codes = store.settings.value.bindings[action] ?? [];
+  const pad = store.device.value === 'pad';
+  return codes.some((c) => isPadCode(c) === pad);
 }
 
 /** The names of the controls that the HUD key line mentions, for the device in use. */

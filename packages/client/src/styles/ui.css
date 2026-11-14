@@ -291,3 +291,65 @@
 .sys-pick { display: flex; flex-direction: column; gap: 0.3em; }
 .sys-pick h4 { font-size: 0.8em; color: var(--dim); }
 #ui .sys-list { max-height: 14em; }
+
+/* Direction indicators. Whatever matters and is off screen has an arrow on an ellipse around the
+   middle of the view, clear of the HUD blocks in the corners: small ones for every place to dock
+   and every gate, a large one for the chosen place (amber) and for the locked ship. */
+.edge { position: absolute; left: 0; top: 0; white-space: nowrap; color: var(--cyan); }
+.edge-glyph { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2.2; opacity: 0.85; }
+.edge-glyph .tail { stroke-width: 1.6; opacity: 0.7; }
+.edge.big .edge-glyph { left: -14px; top: -14px; width: 28px; height: 28px; opacity: 1; }
+.edge-text { position: absolute; top: -1.2em; font-size: 0.85em; line-height: 1.2; color: var(--ink); opacity: 0.85; }
+.edge-text em { display: block; font-style: normal; color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 0.9em; }
+.edge.right .edge-text { left: 14px; }
+.edge.left .edge-text { right: 14px; text-align: right; }
+.edge.big .edge-text { font-size: 0.95em; color: inherit; opacity: 1; }
+.edge.big.right .edge-text { left: 20px; }
+.edge.big.left .edge-text { right: 20px; }
+.edge.nav { color: var(--amber); }
+.edge.npc, .edge.wreck, .edge.loot { color: var(--ink); }
+.edge.pilot { color: var(--green); }
+.edge.hostile { color: var(--red); }
+/* The compass stands to the left of the speed readout: one dot per chosen target, filled when it
+   lies ahead and hollow when it lies behind, the middle being dead ahead (or dead astern). */
+.speed-row { position: relative; }
+.compass { position: absolute; right: calc(100% + 1em); top: 50%; width: 3.4em; height: 3.4em; margin-top: -1.7em; border: 1px solid rgba(127, 233, 255, 0.55); border-radius: 50%; background: rgba(6, 14, 28, 0.55); }
+.compass::before, .compass::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(127, 233, 255, 0.55); }
+.compass::before { width: 0.5em; height: 1px; margin-left: -0.25em; }
+.compass::after { width: 1px; height: 0.5em; margin-top: -0.25em; }
+.compass-dot { position: absolute; box-sizing: border-box; width: 0.66em; height: 0.66em; margin: -0.33em; border: 1.5px solid currentColor; border-radius: 50%; color: var(--ink); z-index: 1; }
+.compass-dot.front { background: currentColor; }
+.compass-dot.nav { color: var(--amber); }
+.compass-dot.pilot { color: var(--green); }
+.compass-dot.hostile { color: var(--red); }
+/* The chosen place stands under the locked ship, in the colour of its marker. */
+.panel-mini.place { border-left-color: var(--amber); }
+.panel-mini.place .big { color: var(--amber); }
+.panel-mini .pair { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8em; }
+/* What the system holds: two lines under the system name, each with the controls that choose. */
+.sys-lines { display: grid; grid-template-columns: auto auto auto; justify-content: start; column-gap: 0.8em; row-gap: 0.15em; margin-top: 0.25em; font-size: 0.9em; align-items: baseline; white-space: nowrap; }
+.sys-line { display: contents; }
+.sys-label { color: var(--dim); letter-spacing: 0.08em; }
+.sys-keys { color: var(--dim); }
+.keycap { display: inline-block; min-width: 1.25em; padding: 0 0.3em; margin-right: 0.25em; border: 1px solid var(--line); background: rgba(6, 14, 28, 0.55); color: var(--cyan); font-family: 'Share Tech Mono', ui-monospace, monospace; font-size: 0.92em; line-height: 1.3; text-align: center; }
+/* The list of places is open while the pilot steps through it. */
+.place-list { align-self: flex-start; display: flex; flex-direction: column; gap: 0.05em; min-width: 21em; margin-top: 0.35em; padding: 0.4em 0.7em; background: rgba(6, 14, 28, 0.62); border-left: 2px solid var(--amber); font-size: 0.95em; white-space: nowrap; }
+.place-row { display: grid; grid-template-columns: 1em 1fr auto; column-gap: 0.5em; align-items: baseline; margin: 0 -0.3em; padding: 0 0.3em; }
+.place-row .num { color: var(--dim); font-size: 0.9em; padding-left: 1em; }
+.place-kind { color: var(--dim); }
+.place-row.on { background: rgba(255, 179, 71, 0.16); outline: 1px solid rgba(255, 179, 71, 0.55); color: var(--amber); }
+.place-row.on .num, .place-row.on .place-kind { color: var(--amber); }
+.place-glyph { align-self: center; justify-self: center; width: 0.55em; height: 0.55em; border: 1px solid var(--cyan); rotate: 45deg; }
+.place-row.on .place-glyph { border-color: var(--amber); }
+.g-gate .place-glyph { rotate: none; }
+.g-site .place-glyph { width: 0.4em; height: 0.4em; opacity: 0.7; }
+.g-body .place-glyph { border-radius: 50%; rotate: none; opacity: 0.7; }
+.place-more { color: var(--dim); font-size: 0.88em; }
+
+/* The station screen keeps one size on every tab: the window is as tall as the view allows, and
+   what a tab holds scrolls inside it. `#ui .scroll` caps other lists by the height of the view; here
+   the window itself is the cap. */
+.panel.station { height: min(52em, 90vh); }
+.panel.station > .scroll, .panel.station > .stack { flex: 1 1 0; min-height: 0; overflow: auto; }
+#ui .panel.station > .scroll { max-height: none; }
+.panel.station > .customs { flex: 0 1 auto; min-height: 0; max-height: 38%; overflow: auto; }

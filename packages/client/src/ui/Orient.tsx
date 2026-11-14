@@ -99,8 +99,8 @@ export function Compass({ marks }: { marks: CompassMark[] }) {
   );
 }
 
-/** The two lines of a target panel that say how the distance changes: closing speed and time of arrival. */
-export function RateLines({ dist, rate }: { dist: number; rate: RangeRate | null }) {
+/** The lines of a target panel that say how the distance changes: closing speed and, for a place, the time of arrival. */
+export function RateLines({ dist, rate, eta: withEta = true }: { dist: number; rate: RangeRate | null; eta?: boolean }) {
   const closing = rate?.ready ? rate.closing : 0;
   const eta = arrival(dist, rate);
   return (
@@ -109,10 +109,12 @@ export function RateLines({ dist, rate }: { dist: number; rate: RangeRate | null
         <span class="dim">{t(closing > -RATE_SHOWN ? 'hud.closing' : 'hud.receding')}</span>
         <span class="num">{fmtSpeed(Math.abs(closing) < RATE_SHOWN ? 0 : Math.abs(closing))}</span>
       </div>
-      <div class="pair">
-        <span class="dim">{t('hud.arrival')}</span>
-        <span class="num">{eta === null ? '--' : fmtDuration(eta)}</span>
-      </div>
+      {withEta && (
+        <div class="pair">
+          <span class="dim">{t('hud.arrival')}</span>
+          <span class="num">{eta === null ? '--' : fmtDuration(eta)}</span>
+        </div>
+      )}
     </>
   );
 }
@@ -121,9 +123,8 @@ export function RateLines({ dist, rate }: { dist: number; rate: RangeRate | null
 export function PlacePanel({ place, behind, rate }: { place: PlaceEntry; behind: boolean; rate: RangeRate | null }) {
   return (
     <div class="panel-mini place">
-      <h4>{t('hud.nav')}</h4>
+      <h4>{t('hud.nav')} · {t(`kind.${place.kind}` as StringKey)}</h4>
       <div class="big">{place.name}</div>
-      <div class="dim">{t(`kind.${place.kind}` as StringKey)}</div>
       <div class="pair">
         <span class="num">{fmtDistance(place.dist)}</span>
         {behind && <span class="dim">{t('hud.behind')}</span>}

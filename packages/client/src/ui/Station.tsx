@@ -212,7 +212,7 @@ export function Station({ api }: { api: GameApi }) {
   const anyBound = bound !== null && (bound.hull || boundModules > 0);
 
   return (
-    <div class="panel wide">
+    <div class="panel wide station">
       <header>
         <div>
           <h2>{station.name}</h2>
