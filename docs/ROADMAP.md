@@ -145,7 +145,8 @@ light effects "fairly well". To do, in his order of weight:
 The owner was shown three sketches and chose:
 
 - Indicator: arrows and a compass now, and a radar sphere as the step directly after them (ships
-  in range as points with a stalk, places as marks on its rim). **The radar sphere is not built.**
+  in range as points with a stalk, places as marks on its rim). The radar sphere followed on the
+  same day, see "The radar sphere" below.
 - What the system holds: one line always, and a list that opens while stepping.
 - With nothing chosen: every place to dock and every gate has its own small arrow, always.
 - Choosing: keys of their own for places, T and G stay for ships, "target ahead" also takes
@@ -187,6 +188,46 @@ the steering steps settling within seconds at 61 frames per second. The two fail
 started as detached background jobs of an agent session, the two passing ones in the foreground;
 whether that is the cause was not established. `scripts/pad-check.mjs` passed both times it ran.
 
+### The radar sphere (built on 2026-11-14)
+
+The last part of what the owner chose for orientation. What it shows and how it is drawn:
+`docs/CLIENT.md`, "Targets and direction indicators". It only displays; no control was added.
+
+Decided by the engineer, for the owner to overrule:
+
+- It stands to the right of the speed readout. To the left, between the power display and the
+  centre block, there are 146 px at 1280 x 720 and only 70 px over the ground; to the right there
+  is room for an instrument 152 px wide in both cases, and the key caps in the corner did not have
+  to move.
+- The compass stays, to the left of the speed readout. The radar shows the chosen place and the
+  locked ship too, so the two overlap in what they say; the compass is the finer aid for turning
+  the nose onto one target (dead ahead is its middle), the radar the picture of everything around.
+  The owner chose both and has flown with neither. Taking the compass out is a small change.
+- The distance is logarithmic with fixed rings (100 m, 1 km, 10 km, rim at 100 km), not a range
+  that switches: nothing on the instrument jumps, and a pod 200 m off and a ship 50 km off both
+  have a place. The price is that the scale has to be read: the rings are named under it. A ship
+  in cruise is detected across the whole system; whatever is farther than 100 km stands at the
+  rim's distance in its direction, drawn hollow.
+- Places are marks on the rim at their bearing in the ship's plane, with a short stalk for above
+  or below. The stalk of a place is compressed (at most 0.4 of the radius) so that the mark stays
+  near the rim; the stalk of a contact is to scale.
+- Below a view width of 900 px the radar is left out: the bottom row of the HUD has no layout for
+  a phone yet and overlaps there already.
+
+Checked by `node tools/dev/orient-check.mjs` at 1280 x 720 on the development page: every contact
+and every mark stands where a calculation apart from the interface puts it, to 1.5 px (a ship
+ahead, left and above; one behind, right and below; one 21 km below; one 407 km off); red for a
+hostile ship, green for another pilot, a hollow amber square for a wreck, amber for a pod, the
+ring on the locked ship; a mark per place to dock and per gate, the chosen place in amber, a
+celestial body as the chosen place; with the camera turned 55 degrees away from the nose the
+radar still shows the ship's axes; nothing lies over anything else in German and English, in the
+system with 19 places, over the ground (also with controller hints). The geometry has unit tests
+(`ui/orient.test.ts`). Not checked: the radar in the game with a server behind it (the browser
+tests of the game do not look at it; they pass with it on the HUD); the look in motion and in a
+fight with many contacts; a real gate (the development page turns a beacon into one); cruise; a
+view wider than 1920 px (the instrument grows with the interface's unit of size, as every HUD
+block does).
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -200,9 +241,8 @@ Each step is one work session with its own workflow runs.
    light and the sky are built (2026-11-14) and wait for the owner's next test; the textures are
    not started. Orientation (a target that is chosen without opening a panel, an indicator that
    always leads back to it, the system's contents on the HUD, one window size for the station
-   menus) is built (2026-11-14) and waits for the owner's next test. Of what he chose for it the
-   radar sphere is open; it is a step of its own on the strongest model and touches
-   `packages/client/src/ui` and `src/styles` only.
+   menus) is built (2026-11-14) and waits for the owner's next test. The radar sphere, the last
+   part of what he chose for it, is built as well (2026-11-14) and waits for the same test.
 3. **Docking.** Starts with two graphics repairs that landing on a pad by eye depends on: the
    ground near the ship is soft and smeared (see section 4), and the dust burst of a hard landing
    draws streaks across the sky. Then the core (clearance, pads, lift, autopilot, the turning ring

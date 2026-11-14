@@ -123,19 +123,25 @@ const axes = (page) => page.evaluate(() => {
   };
 });
 
-/** Where the radar has to draw a contact at `c` (ship axes, metres): head and foot in pixels. The scale as `ui/orient.ts` defines it. */
+/**
+ * Where the radar has to draw a contact at `c` (ship axes, metres): head and foot in pixels. The
+ * scale is the one `ui/orient.ts` defines; how flat the disc is drawn is measured, and a length
+ * straight up keeps what that view leaves of it.
+ */
 function blipAt(r, c) {
   const dist = Math.hypot(c[0], c[1], c[2]);
   const f = dist <= 100 ? 0.16 : dist >= 1e5 ? 1 : 0.16 + (0.84 * Math.log10(dist / 100)) / 3;
   const k = f / dist;
   const foot = { x: r.cx + c[0] * k * r.rx, y: r.cy + c[2] * k * r.ry };
-  return { foot, head: { x: foot.x, y: foot.y - c[1] * k * r.rx * Math.sqrt(0.75) } };
+  return { foot, head: { x: foot.x, y: foot.y - c[1] * k * r.rx * Math.sqrt(1 - (r.ry / r.rx) ** 2) } };
 }
+/** The longest stalk of a mark on the rim in units of the disc's radius, as in `ui/orient.ts`. */
+const RIM_STALK = 0.4;
 /** Where the radar has to draw the mark of a place in the direction `c`: its foot on the rim at the bearing, the head on the stalk. */
 function rimAt(r, c) {
   const bearing = Math.atan2(c[0], -c[2]);
   const foot = { x: r.cx + Math.sin(bearing) * r.rx, y: r.cy - Math.cos(bearing) * r.ry };
-  return { foot, head: { x: foot.x, y: foot.y - (c[1] / Math.hypot(c[0], c[1], c[2])) * 0.42 * r.rx } };
+  return { foot, head: { x: foot.x, y: foot.y - (c[1] / Math.hypot(c[0], c[1], c[2])) * RIM_STALK * r.rx } };
 }
 const near = (a, b, tol = 1.5) => Math.hypot(a.x - b.x, a.y - b.y) <= tol;
 const xy = (p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
@@ -143,7 +149,7 @@ const xy = (p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
 try {
   // ---------------------------------------------------------------------------------------------
   // Stepping, the list, the panel, behind, clearing (German, the capital of universe 16).
-  {
+  if (want('step')) {
     const page = await open('scene=orient&lang=de&speed=120');
     check((await nav(page)) === null, 'nothing is chosen at the start');
     const small = await count(page, '.edge.place');
@@ -226,7 +232,7 @@ try {
 
   // ---------------------------------------------------------------------------------------------
   // A place ahead: filled dot, a time of arrival, a marker instead of an arrow.
-  {
+  if (want('ahead')) {
     const page = await open('scene=orient&lang=de&speed=120&yaw=4&pitch=2');
     await page.keyboard.press('KeyO');
     await page.waitForTimeout(200);
@@ -240,7 +246,7 @@ try {
 
   // ---------------------------------------------------------------------------------------------
   // English, the crowded system (10 sites, 9 bodies), list open, everything chosen.
-  for (const lang of ['en', 'de']) {
+  for (const lang of want('crowded') ? ['en', 'de'] : []) {
     const page = await open(`scene=orient&lang=${lang}&sys=1&speed=80&target=12&list=1`);
     await page.keyboard.press('KeyO');
     await page.keyboard.press('KeyO');
@@ -258,20 +264,149 @@ try {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Near the ground the centre block is at its widest: the compass and the arrows keep clear.
-  {
-    const page = await open('scene=surface&lang=de&alt=400&info=0&nav=1000&target=11');
+  // Near the ground the centre block is at its widest: the compass, the radar and the arrows keep
+  // clear, in both languages and with the longer hints of a controller.
+  for (const [name, query] of want('ground') ? [['de', 'lang=de'], ['en', 'lang=en'], ['pad-de', 'lang=de&device=pad']] : []) {
+    const page = await open(`scene=surface&alt=400&info=0&nav=1000&target=11&${query}`);
     await page.waitForTimeout(300);
-    check((await count(page, '.ground')) === 1 && (await count(page, '.compass')) === 1, 'over the ground the instruments and the compass are both shown');
+    check((await count(page, '.ground')) === 1 && (await count(page, '.compass')) === 1 && (await count(page, '.radar')) === 1, `over the ground the instruments, the compass and the radar are all shown (${name})`);
     const o = await overlaps(page);
-    check(o.length === 0, `over the ground: nothing lies over anything else${o.length ? `: ${o.join('; ')}` : ''}`);
-    await shot(page, '05-over-ground-de');
+    check(o.length === 0, `over the ground, ${name}: nothing lies over anything else${o.length ? `: ${o.join('; ')}` : ''}`);
+    await shot(page, `05-over-ground-${name}`);
+    await page.close();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // The radar: contacts where the ship's own axes put them, places on the rim (German).
+  if (want('radar')) {
+    const page = await open('scene=orient&lang=de');
+    const colour = (sel, prop = 'fill') => page.$eval(sel, (n, p) => getComputedStyle(n)[p], prop);
+    let r = await radar(page);
+    let a = await axes(page);
+    const blip = (key) => r.blips.find((b) => b.key === key);
+    check(r.ry / r.rx > 0.4 && r.ry / r.rx < 0.7 && r.width >= 120, `the radar is drawn: a disc of ${Math.round(r.rx * 2)} x ${Math.round(r.ry * 2)} px on a plate of ${Math.round(r.width)} px`);
+    check(/Ringe 0,1 · 1 · 10 · 100 km/.test(r.scale), `its scale is written under it: ${JSON.stringify(r.scale)}`);
+    check(r.blips.length === 4 && ['e10', 'e11', 'e12', 'e60'].every(blip), `every ship and pod in range is a point on the radar (${r.blips.map((b) => b.key).join(' ')})`);
+    // Lancet 10 lies ahead, to the left and above the ship's plane.
+    const s10 = a.ents.e10.ship;
+    const b10 = blip('e10');
+    check(s10[0] < 0 && s10[1] > 0 && s10[2] < 0 && b10.head.x < r.cx - 1 && b10.foot.y < r.cy - 1 && b10.head.y < b10.foot.y - 0.5,
+      `a ship ahead, to the left and above the plane stands left of the middle, up the disc, its stalk upward (head ${xy(b10.head)}, foot ${xy(b10.foot)}, middle ${xy({ x: r.cx, y: r.cy })})`);
+    // Drover 11 lies behind, to the right and below it.
+    const s11 = a.ents.e11.ship;
+    const b11 = blip('e11');
+    check(s11[0] > 0 && s11[1] < 0 && s11[2] > 0 && b11.head.x > r.cx + 1 && b11.foot.y > r.cy + 1 && b11.head.y > b11.foot.y + 0.5 && b11.cls.includes('below'),
+      `a ship behind, to the right and below the plane stands right of the middle, down the disc, and hangs under its foot (head ${xy(b11.head)}, foot ${xy(b11.foot)})`);
+    const off = r.blips.filter((b) => { const w = blipAt(r, a.ents[b.key].ship); return !near(b.head, w.head) || !near(b.foot, w.foot); });
+    check(off.length === 0, `every contact stands where the ship's axes and the logarithmic scale put it, to 1.5 px${off.length ? `: off ${off.map((b) => b.key).join(' ')}` : ''}`);
+    check(blip('e12').cls.includes('hostile') && blip('e60').cls.includes('loot') && blip('e10').cls.includes('npc'), 'the pirate is classed hostile, the pod as a pod, a trader as neither');
+    check((await colour('.radar-blip.hostile .radar-head')) === 'rgb(255, 77, 109)' && (await colour('.radar-blip.loot .radar-head')) === 'rgb(255, 179, 71)', 'the hostile ship is red and the pod amber');
+    check(r.blips.every((b) => !b.ring), 'no contact is ringed while no ship is locked');
+    check(r.outside === 0, 'nothing of the radar leaves its plate');
+
+    // Places: one mark per place to dock, at its bearing in the ship's plane.
+    const docks = Object.values(a.sites).filter((s) => ['station', 'outpost', 'base', 'gate'].includes(s.kind)).length;
+    check(r.marks.length === docks && docks === 5 && r.marks.every((m) => !m.cls.includes('chosen')), `every place to dock has a mark on the rim and none is amber with nothing chosen (${r.marks.length})`);
+    const offRim = (rr, aa) => rr.marks.filter((m) => { const w = rimAt(rr, (aa.sites[m.key.slice(1)] ?? aa.bodies[m.key.slice(1)]).ship); return !near(m.foot, w.foot) || !near(m.head, w.head); });
+    const offMarks = offRim(r, a);
+    check(offMarks.length === 0, `every mark has its foot on the rim at the bearing of its place and its stalk toward the side of the plane the place lies on${offMarks.length ? `: off ${offMarks.map((m) => m.key).join(' ')}` : ''}`);
+    await shot(page, '09-radar-nothing-chosen-de');
+
+    // A chosen place and a locked ship.
+    await page.keyboard.press('KeyO');
+    await page.keyboard.press('KeyT');
+    await page.waitForTimeout(200);
+    r = await radar(page);
+    a = await axes(page);
+    const chosenId = await nav(page);
+    const chosen = r.marks.filter((m) => m.cls.includes('chosen'));
+    const c = a.sites[chosenId].ship;
+    check(chosen.length === 1 && chosen[0].key === `p${chosenId}` && r.marks.length === docks, 'the chosen place is the one amber mark, in place of its plain one');
+    check(c[2] > 0 && chosen[0].foot.y > r.cy && near(chosen[0].foot, rimAt(r, c).foot), `the chosen place lies behind the ship and stands on the near half of the rim, at its bearing (${xy(chosen[0].foot)})`);
+    check((await colour('.radar-mark.chosen .radar-head')) === 'rgb(255, 179, 71)', 'its mark is amber');
+    const targetId = await page.evaluate(() => window.__store.targetId.value);
+    const locked = r.blips.filter((b) => b.ring);
+    check(locked.length === 1 && locked[0].key === `e${targetId}` && locked[0].cls.includes('locked'), `the locked ship is the one ringed contact (${locked.map((b) => b.key).join(' ')})`);
+    check(r.marks.at(-1).key === chosen[0].key && r.blips.at(-1).key === locked[0]?.key, 'the chosen place and the locked ship are drawn last, over the others');
+    check(r.outside === 0, 'with both chosen nothing leaves the plate');
+    const o = await overlaps(page);
+    check(o.length === 0, `radar, list and both panels: nothing lies over anything else${o.length ? `: ${o.join('; ')}` : ''}`);
+    await shot(page, '09-radar-chosen-de');
+
+    // A celestial body as the chosen place has a mark as well.
+    const bodyId = await page.evaluate(() => { const b = window.__view.bodies[0]; window.__api.setNav(b.def.id); return b.def.id; });
+    await page.waitForTimeout(150);
+    r = await radar(page);
+    a = await axes(page);
+    const bodyMark = r.marks.find((m) => m.key === `p${bodyId}`);
+    check(r.marks.length === docks + 1 && bodyMark?.cls.includes('chosen') && offRim(r, a).length === 0, `a celestial body chosen as the place (${a.bodies[bodyId].name}) has the amber mark, beside the marks of the places to dock`);
+    await page.close();
+  }
+
+  // The radar with more on it (English): another pilot, a wreck, a ship far below, one beyond the
+  // scale, a gate.
+  if (want('radar')) {
+    const page = await open('scene=orient&lang=en&more=1&nav=1003&target=13');
+    const colour = (sel, prop = 'fill') => page.$eval(sel, (n, p) => getComputedStyle(n)[p], prop);
+    const r = await radar(page);
+    const a = await axes(page);
+    const blip = (key) => r.blips.find((b) => b.key === key);
+    check(/Rings 0\.1 · 1 · 10 · 100 km/.test(r.scale), `the scale in English: ${JSON.stringify(r.scale)}`);
+    check(r.blips.length === 8, `eight contacts are on the radar (${r.blips.map((b) => b.key).join(' ')})`);
+    check(blip('e13').cls.includes('pilot') && blip('e13').ring && (await colour('.radar-blip.pilot .radar-head')) === 'rgb(125, 255, 168)', 'another pilot is green, and ringed while locked');
+    check(blip('e80').cls.includes('wreck') && (await colour('.radar-blip.wreck .radar-head', 'stroke')) === 'rgb(255, 179, 71)' && (await colour('.radar-blip.wreck .radar-head')) !== 'rgb(255, 179, 71)', 'a wreck is a hollow amber square');
+    const far = r.blips.filter((b) => b.cls.includes('beyond')).map((b) => b.key);
+    const f15 = blip('e15');
+    const d15 = a.ents.e15.ship;
+    check(far.join() === 'e15' && Math.abs(Math.hypot((f15.foot.x - r.cx) / r.rx, (f15.foot.y - r.cy) / r.ry) - Math.hypot(d15[0], d15[2]) / Math.hypot(...d15)) < 0.03,
+      `a ship ${Math.round(Math.hypot(...d15) / 1000)} km off, beyond the scale, stands at the rim's distance in its direction and is drawn hollow`);
+    const b14 = blip('e14');
+    check(a.ents.e14.ship[1] < -2e4 && b14.head.y > b14.foot.y + 10, `a ship 21 km below the plane hangs on a long stalk (${(b14.head.y - b14.foot.y).toFixed(1)} px)`);
+    const off = r.blips.filter((b) => { const w = blipAt(r, a.ents[b.key].ship); return !near(b.head, w.head) || !near(b.foot, w.foot); });
+    check(off.length === 0, `all eight stand where the ship's axes and the scale put them${off.length ? `: off ${off.map((b) => b.key).join(' ')}` : ''}`);
+    const gates = Object.entries(a.sites).filter(([, s]) => s.kind === 'gate');
+    const gateMark = r.marks.find((m) => m.key === `s${gates[0]?.[0]}`);
+    check(gates.length === 1 && r.marks.length === 6 && gateMark?.cls.includes('gate') && near(gateMark.foot, rimAt(r, gates[0][1].ship).foot), 'a gate has a mark of its own shape on the rim, at its bearing');
+    check(r.outside === 0, 'nothing leaves the plate');
+    const o = await overlaps(page);
+    check(o.length === 0, `radar with more on it, en: nothing lies over anything else${o.length ? `: ${o.join('; ')}` : ''}`);
+    await shot(page, '09-radar-more-en');
+    await page.close();
+  }
+
+  // The radar shows the ship's axes, not the camera's: over the ground with the pilot's head turned.
+  if (want('radar')) {
+    const page = await open('scene=surface&lang=de&alt=400&info=0&nav=1000&target=11&look=55,12');
+    await page.waitForTimeout(300);
+    const r = await radar(page);
+    const a = await axes(page);
+    check(a.turned < 0.95, `the camera is turned away from the nose (the two orientations agree to ${a.turned.toFixed(3)})`);
+    const b = r.blips.find((x) => x.key === 'e11');
+    const ship = blipAt(r, a.ents.e11.ship);
+    const cam = blipAt(r, a.ents.e11.cam);
+    check(near(b.foot, ship.foot) && near(b.head, ship.head) && !near(b.foot, cam.foot, 5), `with the camera turned the locked ship stays where the ship's axes put it (drawn ${xy(b.foot)}, ship axes ${xy(ship.foot)}, camera axes ${xy(cam.foot)})`);
+    const m = r.marks.find((x) => x.cls.includes('chosen'));
+    const place = a.sites[1000];
+    check(near(m.foot, rimAt(r, place.ship).foot) && !near(m.foot, rimAt(r, place.cam).foot, 5), `and so does the chosen place on the rim (drawn ${xy(m.foot)}, camera axes ${xy(rimAt(r, place.cam).foot)})`);
+    await shot(page, '09-radar-camera-turned-de');
+    await page.close();
+  }
+
+  // Close-ups at three times the resolution, to judge the drawing: the bottom row of the HUD.
+  for (const [name, query] of want('radar') ? [
+    ['10-radar-close-de', 'scene=orient&lang=de&more=1&nav=1003&target=12'],
+    ['10-radar-close-ground-de', 'scene=surface&lang=de&alt=400&info=0&nav=1000&target=11'],
+  ] : []) {
+    const page = await open(query, [W, H], 3);
+    await page.waitForTimeout(300);
+    const clip = await page.$eval('.radar', (n) => { const r = n.getBoundingClientRect(); const x = Math.max(0, r.left - 330); const y = Math.max(0, r.top - 24); return { x, y, width: Math.min(innerWidth, r.right + 24) - x, height: innerHeight - y }; });
+    await page.screenshot({ path: `${OUT}/${name}.png`, clip });
     await page.close();
   }
 
   // ---------------------------------------------------------------------------------------------
   // A controller as the device: the hints name its buttons.
-  {
+  if (want('pad')) {
     const page = await open('scene=orient&lang=de&device=pad&nav=1003');
     const caps = await texts(page, '.sys-lines .keycap');
     check(['D←', 'D→', 'D↑', 'Y+Menu', 'Y+LB'].every((k) => caps.includes(k)), `with a pad the lines name its buttons, in the short form: ${caps.join(' | ')}`);
@@ -289,7 +424,7 @@ try {
   // ---------------------------------------------------------------------------------------------
   // A phone held sideways, played with a controller. The HUD has no layout of its own for that
   // size yet, so what lies over what is reported and not required; panels must fit and scroll.
-  for (const scene of ['scene=orient&nav=1003&target=11&list=1', 'scene=surface&alt=400&info=0&nav=1000']) {
+  for (const scene of want('phone') ? ['scene=orient&nav=1003&target=11&list=1', 'scene=surface&alt=400&info=0&nav=1000'] : []) {
     const page = await open(`${scene}&lang=de&device=pad`, [844, 390]);
     await page.waitForTimeout(300);
     const o = await overlaps(page);
@@ -307,7 +442,7 @@ try {
 
   // ---------------------------------------------------------------------------------------------
   // The station screen: one rectangle on every tab.
-  for (const [lang, size, cmd] of [['de', [W, H], ''], ['en', [W, H], 'fail'], ['de', [1920, 1080], ''], ['de', [1024, 768], 'fail'], ['en', [844, 390], '']]) {
+  for (const [lang, size, cmd] of want('station') ? [['de', [W, H], ''], ['en', [W, H], 'fail'], ['de', [1920, 1080], ''], ['de', [1024, 768], 'fail'], ['en', [844, 390], '']] : []) {
     const page = await open(`scene=station&lang=${lang}&panel=station${cmd ? `&cmd=${cmd}` : ''}`, size);
     await page.waitForSelector('.panel.station');
     const rect = () => page.$eval('.panel.station', (n) => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((x) => Math.round(x * 10) / 10).join(' '); });

@@ -68,7 +68,7 @@ export function compassDot(c: Readonly<Vec3>): CompassDot {
  * the right and y down the screen.
  */
 /** What a length along the nose keeps of itself in that view: the sine of the angle the plane is seen at. */
-export const RADAR_SQUASH = 0.5;
+export const RADAR_SQUASH = 0.56;
 /** What a length straight up from the plane keeps of itself. */
 export const RADAR_LIFT = Math.sqrt(1 - RADAR_SQUASH * RADAR_SQUASH);
 /** The distances of the radar's rings in metres, innermost first; the last is its rim. Each ring is ten times the one inside it. */
@@ -76,9 +76,9 @@ export const RADAR_RINGS = [100, 1_000, 10_000, 100_000] as const;
 /** Radius of the innermost ring. Whatever is nearer stands on it, clear of the ship's own mark in the middle. */
 export const RADAR_INNER = 0.16;
 /** The longest stalk of a mark on the rim: a place straight above or below the ship. */
-export const RADAR_RIM_STALK = 0.42;
-/** How far from the middle anything on the radar can reach: a mark at the side of the rim on its longest stalk. */
-export const RADAR_REACH = Math.hypot(1, RADAR_RIM_STALK);
+export const RADAR_RIM_STALK = 0.4;
+/** How far from the middle anything on the radar can reach: a mark on its longest stalk, at the side of the rim or at its near or far end. */
+export const RADAR_REACH = Math.max(Math.hypot(1, RADAR_RIM_STALK), RADAR_SQUASH + RADAR_RIM_STALK);
 
 const RADAR_NEAR = RADAR_RINGS[0];
 const RADAR_FAR = RADAR_RINGS[RADAR_RINGS.length - 1]!;

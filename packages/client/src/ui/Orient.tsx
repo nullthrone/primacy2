@@ -189,7 +189,7 @@ export function Radar({ contacts, places }: { contacts: RadarContact[]; places: 
           const y = p.y * u;
           const half = it.chosen ? 6.5 : 4.5;
           return (
-            <g key={it.key} class={`radar-mark ${it.chosen ? 'chosen' : ''} ${it.gate ? 'gate' : ''}`}>
+            <g key={it.key} data-key={it.key} class={`radar-mark ${it.chosen ? 'chosen' : ''} ${it.gate ? 'gate' : ''}`}>
               <line class="radar-stalk" x1={x} y1={p.foot * u} x2={x} y2={y} />
               <circle class="radar-foot" cx={x} cy={p.foot * u} r={2} />
               <rect class="radar-head" x={x - half} y={y - half} width={half * 2} height={half * 2} transform={it.gate ? undefined : `rotate(45 ${x} ${y})`} />
@@ -202,13 +202,13 @@ export function Radar({ contacts, places }: { contacts: RadarContact[]; places: 
           const foot = p.foot * u;
           const half = it.locked ? 6 : 4.5;
           return (
-            <g key={it.key} class={`radar-blip ${it.cls} ${it.locked ? 'locked' : ''} ${p.beyond ? 'beyond' : ''} ${y > foot ? 'below' : ''}`}>
+            <g key={it.key} data-key={it.key} class={`radar-blip ${it.cls} ${it.locked ? 'locked' : ''} ${p.beyond ? 'beyond' : ''} ${y > foot ? 'below' : ''}`}>
               <line class="radar-stalk" x1={x} y1={foot} x2={x} y2={y} />
               <line class="radar-foot" x1={x - 3.5} y1={foot} x2={x + 3.5} y2={foot} />
               {it.cls === 'loot'
                 ? <circle class="radar-head" cx={x} cy={y} r={3.2} />
                 : <rect class="radar-head" x={x - half} y={y - half} width={half * 2} height={half * 2} />}
-              {it.locked && <circle class="radar-lock" cx={x} cy={y} r={12.5} />}
+              {it.locked && <circle class="radar-lock" cx={x} cy={y} r={11.5} />}
             </g>
           );
         })}

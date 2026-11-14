@@ -84,7 +84,8 @@ checked and needing real hardware: how the sticks feel, drift and dead zones of 
 joystick preset and other non-standard devices (axis numbering, hat switches, throttle units),
 browser differences in `Gamepad.id` and `mapping`, and phones and tablets. At 844 x 390 the panels
 fit and scroll inside themselves; the flight HUD has no layout of its own for that size, and its
-bottom row (status bars, power, compass, speed) still overlaps.
+bottom row (status bars, power, compass, speed) still overlaps. The radar is left out below a
+width of 900 px until that layout exists.
 
 Stepping through ships (`targetNext`, `targetPrev`) has no button on a standard pad: every button
 and every Y chord is taken. "Target ahead" covers it: with nothing new ahead of the nose it steps
@@ -103,15 +104,31 @@ its panel show. Choosing one never drops the other.
   its list the order is kept in `store.navList`, so rows do not change places during stepping.
 - `ui/orient.ts`: the geometry, without any DOM access: where the arrow for something off screen
   stands (on an ellipse around the middle of the view, 0.42 of its width and 0.27 of its height)
-  and which way it points, the dot on the compass, the closing speed, how an arrow moves inward
-  until it is clear of the HUD blocks, and how labels give way to each other.
+  and which way it points, the dot on the compass, where contacts and places stand on the radar,
+  the closing speed, how an arrow moves inward until it is clear of the HUD blocks, and how labels
+  give way to each other.
 - `ui/Orient.tsx`: the components. A small arrow for every place to dock and every gate that is
   off screen, a large one for the chosen place and for the locked ship, with a second chevron and
   the word "behind" while the target lies behind the camera. The compass beside the speed readout,
   in the ship's own axes: one dot per target, filled ahead and hollow behind. The panel of the
   chosen place with closing speed and time of arrival. Two lines under the system name that count
   the places and the contacts in sensor range and name the controls. The list of places, open for
-  six seconds after a step.
+  six seconds after a step. The radar, see below.
+- The radar (`Radar` in `ui/Orient.tsx`, `radarBlip`, `radarRim` and `radarRadius` in
+  `ui/orient.ts`) stands to the right of the speed readout, as a child of the centre block, so it
+  moves when that block grows wider over the ground. It shows the ship's own axes, never the
+  camera's: the ship's plane is a disc seen from behind and above (ahead is up, drawn 0.56 as high
+  as wide), inside a circle that holds everything a mark can reach. Ships, wrecks and cargo pods
+  from `view.ents` are points on stalks that stand on the plane: a square for a ship (white, red
+  for a hostile one, green for another pilot), a hollow amber square for a wreck, an amber dot for
+  a pod, a white ring around the locked one. The direction is kept and the distance is
+  logarithmic: rings at 100 m, 1 km, 10 km and the rim at 100 km, written under the instrument.
+  What is nearer than 100 m stands on the innermost ring; what is farther than 100 km (a ship in
+  cruise is seen across the system) stands at the rim's distance and is drawn hollow. Every place
+  to dock, every gate (a square) and the chosen place (amber, whatever it is) are marks on the
+  rim: the foot at the bearing in the ship's plane, the stalk up or down by how far the place lies
+  above or below it, at most 0.4 of the radius. Straight above or below, where there is no
+  bearing, a mark keeps the one it had. It only shows; nothing on it can be chosen.
 - "Target ahead" (`targetAhead` in `game/Game.ts`) looks in a cone of about 26 degrees around the
   nose. A ship, wreck or pod in it is locked. A place is taken only while none of those is in the
   cone, so that a press in a fight never replaces the chosen place. With nothing new ahead the
@@ -123,11 +140,15 @@ its panel show. Choosing one never drops the other.
   `bindKey`.
 - The station screen (`.panel.station`) has one size on every tab; what a tab holds scrolls inside.
 - `node tools/dev/orient-check.mjs` plays this on the development page and measures it: stepping,
-  the list, a place behind the ship, clearing, controller hints, that no block of the HUD lies over
-  another at 1280 x 720 (German and English, a system with 19 places, over the ground), and the
-  rectangle of the station screen on every tab at four sizes. It starts its own Vite server and
-  needs no game server. The page is `/dev/local.html?scene=orient&hud=1&cam=cockpit`; `dev/hud.ts`
-  lists the options of the HUD on it (chosen targets, controller hints, a made-up station).
+  the list, a place behind the ship, clearing, controller hints, the radar (every contact and
+  every mark against positions worked out from the frame view, to 1.5 px; colours; the ring of the
+  locked ship; the camera turned away from the nose), that no block of the HUD lies over another
+  at 1280 x 720 (German and English, a system with 19 places, over the ground also with controller
+  hints), and the rectangle of the station screen on every tab at four sizes. `--only=radar` plays
+  one part alone. It starts its own Vite server and needs no game server. The page is
+  `/dev/local.html?scene=orient&hud=1&cam=cockpit`; `dev/hud.ts` lists the options of the HUD on
+  it (chosen targets, controller hints, a made-up station), and `more=1` puts another pilot, a
+  wreck, far contacts and a gate into the scene.
 
 ## Models
 
