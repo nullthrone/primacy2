@@ -21,7 +21,7 @@ in motion (only stills), not at night, not on ice or desert bodies, not on large
 Built and covered by server tests, never played in the browser: mining, salvaging a wreck,
 missions, NPC behaviour, warp gates.
 
-Tests: 606 pass, 2 are marked as expected failures on purpose (see section 4).
+Tests: 710 pass, 2 are marked as expected failures on purpose (see section 4).
 
 ## 2. What the owner has decided and is not built yet
 
@@ -99,11 +99,13 @@ light effects "fairly well". To do, in his order of weight:
 - **Finding things.** He misses a target system and a direction indicator: after flying past a
   station it is hard to find again. State of the code on that day: stations, outposts, bases and
   gates are marked only while they are on screen; an arrow at the screen edge exists only for the
-  navigation target (which is set in the navigation panel, key N) and for a locked ship.
+  navigation target (which is set in the navigation panel, key N) and for a locked ship. Built on
+  2026-11-14, see "Orientation on the HUD" below.
 - **What is in the system** (bodies, stations, other ships in range) must be visible somewhere.
   The navigation panel (N) and the contacts panel (Tab) hold that, but nothing on the HUD shows it
-  or says that they exist.
-- **Station menus** change their window size from tab to tab; all tabs get one size.
+  or says that they exist. Built on 2026-11-14, see below.
+- **Station menus** changed their window size from tab to tab; all tabs get one size. Done on
+  2026-11-14: the station screen is one window on every tab and its content scrolls inside.
 - **Cruise star streaks** were drawn over the whole screen (they were made in the final pass) and
   had to be hidden by the cockpit and by other objects. Done on 2026-11-14: the streaks, the
   radial smear and the blue shift act on the sky alone, before anything else is drawn
@@ -138,6 +140,35 @@ light effects "fairly well". To do, in his order of weight:
 - After his next test he wants to be asked what to improve in light and sky, with proposals of
   what more is possible.
 
+### Orientation on the HUD (decided and built on 2026-11-14)
+
+The owner was shown three sketches and chose:
+
+- Indicator: arrows and a compass now, and a radar sphere as the step directly after them (ships
+  in range as points with a stalk, places as marks on its rim). **The radar sphere is not built.**
+- What the system holds: one line always, and a list that opens while stepping.
+- With nothing chosen: every place to dock and every gate has its own small arrow, always.
+- Choosing: keys of their own for places, T and G stay for ships, "target ahead" also takes
+  places, and the D-pad steps on a controller.
+
+Built: see `docs/CLIENT.md`, "Targets and direction indicators". In short: O and L (D-pad right
+and left) step through the places, places to dock first; Y (D-pad up) takes what is ahead: a ship
+first, then a place, then the next ship; U (D-pad down) lets go of the ship first and of the place
+second. The chosen place and the locked ship are two targets side by side. Edge arrows, compass,
+the panel of the place with closing speed and arrival, two system lines, the list.
+
+Decided by the engineer, for the owner to overrule: D-pad left and right used to step through
+ships; they now step through places, and a standard pad has no button left for stepping through
+ships (see `docs/CLIENT.md`). The key line in the corner of the HUD became key caps in two columns
+and no longer repeats the power keys (they stand beside the pips) or the lists (beside the system
+lines). The navigation panel (N) lists places in the order of the stepping.
+
+Checked in a browser on the development page by `node tools/dev/orient-check.mjs` (1280 x 720,
+German and English) and in the game by `scripts/e2e.mjs` (O, L, U and "target ahead" taking a
+place, with the keyboard) and `scripts/pad-check.mjs` (the D-pad). Not checked: a real controller;
+the look in motion (only stills were judged); arrows and compass in cruise, in a fight and near a
+gate (no universe of the tests has a gate); the forward and back side buttons of a mouse.
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -149,10 +180,11 @@ Each step is one work session with its own workflow runs.
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
    touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
    light and the sky are built (2026-11-14) and wait for the owner's next test; the textures are
-   not started. Orientation: a target that
-   is chosen without opening a panel, an indicator that always leads back to it, the system's
-   contents on the HUD, one window size for the station menus; this touches the HUD and the
-   interface and follows the controller work, which changes the same files.
+   not started. Orientation (a target that is chosen without opening a panel, an indicator that
+   always leads back to it, the system's contents on the HUD, one window size for the station
+   menus) is built (2026-11-14) and waits for the owner's next test. Of what he chose for it the
+   radar sphere is open; it is a step of its own on the strongest model and touches
+   `packages/client/src/ui` and `src/styles` only.
 3. **Docking.** Starts with two graphics repairs that landing on a pad by eye depends on: the
    ground near the ship is soft and smeared (see section 4), and the dust burst of a hard landing
    draws streaks across the sky. Then the core (clearance, pads, lift, autopilot, the turning ring
@@ -189,6 +221,11 @@ Defects seen and left in:
 - Commodity names stay English when German is set (they come from the catalog, not from i18n).
 - Status bars, power display, key line and the top left block of the HUD have no backing and are
   hard to read over sunlit ground.
+- At phone size held sideways (844 x 390, played with a controller) the bottom row of the flight
+  HUD overlaps: status bars, power display, compass and speed readout have no layout of their
+  own for that width. Panels fit and scroll inside themselves.
+- An arrow for a place and the label of another can lie close together when two places are in
+  nearly the same direction; the nearer one keeps its label and the other shows the arrow only.
 - Projectiles and beams end at the ground; salvage and mining beams and the base structure do not
   stop shots. A missile that hits the ground does no area damage.
 - The cockpit is nearly black at quality 1 and 2 and readable at quality 0, where there are no
@@ -261,6 +298,10 @@ Other notes:
   `npm run dev:client`, port given as `5173:` in front of the url). It switches the frame limit
   off and reads a pixel back after every frame, so the interval is what CPU and graphics card need
   together; without the read-back the browser only queues frames and the number says nothing.
+- The HUD's direction indicators and the station screen without a server:
+  `node tools/dev/orient-check.mjs` (own Vite server, screenshots in `screenshots/orient/`), on the
+  page `/dev/local.html?scene=orient&hud=1&cam=cockpit&universe=16`; `sys=1` is a system with 19
+  places, `panel=station` a made-up station with all six tabs (`packages/client/src/dev/hud.ts`).
 - Whether the game ports are in use: `netstat -ano | grep -E ":(8420|8421) "`. Do not grep for
   the word LISTENING: this Windows prints the state in German.
 - The Python environment for the audio tools is `.venv-audio` (ignored by git): PyTorch with CUDA

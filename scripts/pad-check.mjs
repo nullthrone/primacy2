@@ -385,7 +385,7 @@ try {
     await stationByPad(page, 'ps');
     await sleep(1500);
     const keys = await page.evaluate(() => document.querySelector('.keys')?.textContent ?? '');
-    check(/Create cruise/.test(keys) && /Options menu/.test(keys) && /Triangle \+ Cross dock/.test(keys), `a PlayStation pad shows PlayStation names in the hint (${keys.slice(0, 80)})`);
+    check(/Create cruise/.test(keys) && /Options menu/.test(keys) && /Triangle\+Cross dock/.test(keys), `a PlayStation pad shows PlayStation names in the hint (${keys.slice(0, 80)})`);
     await shot(page, 'ps-04-space');
     await context.close();
   }

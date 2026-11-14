@@ -1402,6 +1402,8 @@ try {
       if (!/PLACES/.test(lines) || !/Docks \d/.test(lines) || !/CONTACTS/.test(lines)) fail(`the HUD does not say what the system holds: ${JSON.stringify(lines)}`);
       await page.keyboard.press('KeyO');
       const listed = await page.waitForSelector('.hud .place-list', { timeout: 3000 }).then(() => true, () => false);
+      // The choice shows up in the frame view one frame later.
+      await page.waitForFunction(() => window.primacy2.game.view?.navAnchor != null, null, { timeout: 3000 }).catch(() => {});
       const first = await now();
       if (!listed || !['station', 'outpost', 'base'].includes(first.kind)) fail(`O did not open the list and choose a place to dock: ${JSON.stringify(first)}, list ${listed}`);
       const named = await page.innerText('.hud .panel-mini.place .big').catch(() => '');
