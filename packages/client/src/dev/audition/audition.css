@@ -179,3 +179,23 @@ details.checks dd { margin: 0; }
 .badge.licence { text-transform: none; letter-spacing: 0; }
 .hint { color: var(--amber); }
 .described { margin: 0.3rem 0 0; font-size: 0.92rem; font-style: italic; }
+
+/* The stage: how one-channel sounds are placed, and how much room they get. */
+.stage-bar { gap: 0.9rem; }
+.stage-title { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); font-size: 0.9rem; cursor: help; }
+.segmented { display: inline-flex; }
+.segmented button { margin-left: -1px; padding: 0.2em 0.9em; clip-path: none; }
+.segmented button:first-child { margin-left: 0; }
+.room { display: flex; align-items: center; gap: 0.5rem; width: 13rem; cursor: help; }
+.room input { min-width: 4rem; }
+.room-read { width: 2.6rem; text-align: right; }
+.stage-note { flex: 1 1 14rem; line-height: 1.15; }
+
+/* A rated sound whose file was rendered again: the old rating stays, dimmed, until it is given again. */
+.sound.changed { border-left: 3px solid var(--amber); }
+.changed-mark { display: flex; flex-direction: column; padding: 0.3rem 0.6rem; border: 1px solid var(--amber); background: rgba(255, 179, 71, 0.12); color: var(--amber); font-size: 0.9rem; line-height: 1.2; }
+.changed-mark strong { text-transform: uppercase; letter-spacing: 0.06em; }
+.changed-mark span { color: var(--dim); }
+.rate.stale .stars, .rate.stale .verdicts, .rate.stale textarea { opacity: 0.5; }
+.rate.stale:hover .stars, .rate.stale:hover .verdicts, .rate.stale:hover textarea { opacity: 0.85; }
+.badge.place { text-transform: none; letter-spacing: 0; }

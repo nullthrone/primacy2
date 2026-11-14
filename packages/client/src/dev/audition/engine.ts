@@ -1,13 +1,21 @@
 import { signal } from '@preact/signals';
+import { CHAIN_OVERLAP } from './scenes.ts';
 import type { ManifestSound } from './types.ts';
 
 // Web Audio graph of the audition page.
 //
-//   structure / cabin sounds ------------------------------------> bus
-//   sensor / alarm / radio (dry) -> dryIn -+-> direct gain --------> bus
-//                                          +-> cabin_ir -> wet ----> bus
+//   every voice: source -> gain -> stage (place) -> one of the inputs below
+//   baked sounds (structure, cabin) -> bakedIn -+-> bus
+//                                               +-> small send ---+
+//   dry sounds (sensor, alarm, radio) -> dryIn -+-> direct gain -> bus
+//                                               +-> large send ---+
 //   radio and "via radio" sounds -> radioIn -> filter chain -> dryIn
-//   bus -> volume -> [limiter] -> analyser -> destination
+//   both sends -> cabin_ir (two channels) -> bus
+//   bus -> mono mix (Mono setting only) -> volume -> [limiter] -> analyser -> destination
+//
+// The stage puts a one-channel sound at a direction: equal-power panning (a source behind is panned like its mirror
+// image ahead and is duller) for loudspeakers, an HRTF panner on a circle of 1.5 m for headphones. Files with two
+// channels are never moved: they play as they are, and in Mono as their sum.
 //
 // The limiter is a default DynamicsCompressor like the game's, so that what is heard here is what the game will do.
 
@@ -51,6 +59,46 @@ export function crossfadeWeights(points: number[], t: number): number[] {
   return w;
 }
 
+export type StageMode = 'mono' | 'stereo' | 'headphones';
+
+/** Distance of a source from the listener's head in the headphone setting, in metres. */
+export const HEADPHONE_RADIUS = 1.5;
+/** Share of the room send that a sound with the cabin already baked in gets, compared with a dry sound. */
+export const BAKED_SEND = 0.25;
+/** How much of a dry sound stays direct with the room fully open (the rest is the room). */
+const DRY_DIRECT_FLOOR = 0.3;
+
+/** Degrees folded into -180 .. 180 (0 ahead, 90 right, -90 left, 180 behind). */
+export function wrapDegrees(d: number): number {
+  return ((((d + 180) % 360) + 360) % 360) - 180;
+}
+
+/** Pan position -1 (left) .. 1 (right) of a direction; a source behind pans like its mirror image ahead. */
+export function stagePan(azimuth: number): number {
+  const a = wrapDegrees(azimuth);
+  const front = Math.abs(a) > 90 ? Math.sign(a) * (180 - Math.abs(a)) : a;
+  return Math.sin((front * Math.PI) / 180);
+}
+
+/** Low-pass corner of a source in Hz: open ahead and to the sides, closing to 3.5 kHz straight behind. */
+export function behindCutoff(azimuth: number): number {
+  const a = Math.abs(wrapDegrees(azimuth));
+  if (a <= 90) return 20000;
+  return 20000 * Math.pow(3500 / 20000, (a - 90) / 90);
+}
+
+/** Position on the circle around the listener, who faces -z with +x to the right. */
+export function headphonePosition(azimuth: number): { x: number; z: number } {
+  const r = (wrapDegrees(azimuth) * Math.PI) / 180;
+  return { x: HEADPHONE_RADIUS * Math.sin(r), z: -HEADPHONE_RADIUS * Math.cos(r) };
+}
+
+/** A voice's place in the stage; rebuilt when the stage setting changes while it is running. */
+interface Placement {
+  rebuild(): void;
+  dispose(): void;
+}
+
 export function soundUrl(file: string): string {
   return new URL(file, location.origin + LIB).pathname;
 }
@@ -67,17 +115,28 @@ class Engine {
   private volume!: GainNode;
   private limiter!: DynamicsCompressorNode;
   private analyser!: AnalyserNode;
+  private monoMix!: GainNode;
   private dryIn!: GainNode;
   private dryDirect!: GainNode;
   private dryWet!: GainNode;
+  private bakedIn!: GainNode;
+  private bakedSend!: GainNode;
   private convolver!: ConvolverNode;
+  private analyserL!: AnalyserNode;
+  private analyserR!: AnalyserNode;
+  private placements = new Set<Placement>();
   private radioIn!: GainNode;
   private noiseBuffer!: AudioBuffer;
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private soundsById = new Map<string, ManifestSound>();
   private counts = new Map<string, number>();
   private meterBuf = new Float32Array(2048);
-  private opts = { volume: 0.7, cabin: true, limiter: true, radio: true };
+  private opts = { volume: 0.7, cabin: true, limiter: true, radio: true, room: 1 };
+  /** The stage setting; Stereo is the default because the game's output is two loudspeakers or headphones. */
+  readonly stage = signal<StageMode>('stereo');
+  /** Peaks of the last ~43 ms per output channel, linear, for the tests. */
+  peakL = 0;
+  peakR = 0;
   private ready: Promise<void> = Promise.resolve();
 
   /** Real length in seconds of files whose manifest entry says 0 (downloads are not measured by the build). */
@@ -110,6 +169,12 @@ class Engine {
     return s.duration > 0 ? s.duration : (this.measured.value[s.id] ?? 0);
   }
 
+  /** Seconds after a sound's start at which the next sound of a chain starts: its cue, else 20 ms before its end. */
+  cueOf(s: ManifestSound): number {
+    const len = this.lengthOf(s);
+    return typeof s.cue === 'number' && s.cue > 0 && s.cue < len ? s.cue : Math.max(0, len - CHAIN_OVERLAP);
+  }
+
   /** Audio clock, for scheduling several sounds against each other without timer jitter. */
   now(): number {
     return this.ensure().currentTime;
@@ -136,19 +201,36 @@ class Engine {
     const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
     this.ctx = ctx;
     this.bus = ctx.createGain();
+    this.monoMix = ctx.createGain();
     this.volume = ctx.createGain();
+    // Always two channels out, so that a mono mix reaches both ears equally and the channel meters see both.
+    this.volume.channelCount = 2;
+    this.volume.channelCountMode = 'explicit';
     this.limiter = ctx.createDynamicsCompressor();
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyser.connect(ctx.destination);
-    this.bus.connect(this.volume);
+    const split = ctx.createChannelSplitter(2);
+    this.analyserL = ctx.createAnalyser();
+    this.analyserR = ctx.createAnalyser();
+    this.analyserL.fftSize = 2048;
+    this.analyserR.fftSize = 2048;
+    this.analyser.connect(split);
+    split.connect(this.analyserL, 0);
+    split.connect(this.analyserR, 1);
+    this.bus.connect(this.monoMix).connect(this.volume);
 
     this.dryIn = ctx.createGain();
     this.dryDirect = ctx.createGain();
     this.dryWet = ctx.createGain();
+    this.bakedIn = ctx.createGain();
+    this.bakedSend = ctx.createGain();
     this.convolver = ctx.createConvolver();
     this.dryIn.connect(this.dryDirect).connect(this.bus);
-    this.dryIn.connect(this.convolver).connect(this.dryWet).connect(this.bus);
+    this.dryIn.connect(this.dryWet).connect(this.convolver);
+    this.bakedIn.connect(this.bus);
+    this.bakedIn.connect(this.bakedSend).connect(this.convolver);
+    this.convolver.connect(this.bus);
 
     // The radio loudspeaker: narrow band, a little overdrive, hiss under the signal.
     this.radioIn = ctx.createGain();
@@ -200,9 +282,14 @@ class Engine {
     const now = this.ctx.currentTime;
     this.volume.gain.setTargetAtTime(this.opts.volume, now, 0.02);
     const cabinOn = this.opts.cabin && this.irLoaded.value;
+    const room = this.opts.room;
     // A loudspeaker in the cabin is mostly the room: a little direct sound stays so that it keeps its edge.
-    this.dryDirect.gain.setTargetAtTime(cabinOn ? 0.3 : 1, now, 0.03);
-    this.dryWet.gain.setTargetAtTime(cabinOn ? 1 : 0, now, 0.03);
+    this.dryDirect.gain.setTargetAtTime(cabinOn ? 1 - (1 - DRY_DIRECT_FLOOR) * room : 1, now, 0.03);
+    this.dryWet.gain.setTargetAtTime(cabinOn ? room : 0, now, 0.03);
+    // Sounds with the cabin baked in are heard in the seat already; a small send only gives them width, not a second reverb.
+    this.bakedSend.gain.setTargetAtTime(cabinOn ? BAKED_SEND * room : 0, now, 0.03);
+    this.monoMix.channelCount = this.stage.value === 'mono' ? 1 : 2;
+    this.monoMix.channelCountMode = this.stage.value === 'mono' ? 'explicit' : 'max';
     this.volume.disconnect();
     this.limiter.disconnect();
     if (this.opts.limiter) this.volume.connect(this.limiter).connect(this.analyser);
@@ -212,6 +299,21 @@ class Engine {
   setVolume(v: number): void {
     this.opts.volume = v;
     this.applyOptions();
+  }
+  setRoom(v: number): void {
+    this.opts.room = Math.min(1, Math.max(0, v));
+    this.applyOptions();
+  }
+  setStage(mode: StageMode): void {
+    if (this.stage.value === mode) return;
+    this.stage.value = mode;
+    this.applyOptions();
+    for (const p of this.placements) p.rebuild();
+  }
+  /** Current send levels, so that a test can read the room without listening. */
+  sendLevels(): { dryDirect: number; dryWet: number; bakedSend: number } {
+    if (!this.ctx) return { dryDirect: 0, dryWet: 0, bakedSend: 0 };
+    return { dryDirect: this.dryDirect.gain.value, dryWet: this.dryWet.gain.value, bakedSend: this.bakedSend.gain.value };
   }
   setCabin(on: boolean): void {
     this.opts.cabin = on;
@@ -231,7 +333,16 @@ class Engine {
     this.analyser.getFloatTimeDomainData(this.meterBuf);
     let peak = 0;
     for (let i = 0; i < this.meterBuf.length; i++) peak = Math.max(peak, Math.abs(this.meterBuf[i]));
+    this.peakL = this.channelPeak(this.analyserL);
+    this.peakR = this.channelPeak(this.analyserR);
     this.limiterReduction = this.opts.limiter ? this.limiter.reduction : 0;
+    return peak;
+  }
+
+  private channelPeak(a: AnalyserNode): number {
+    a.getFloatTimeDomainData(this.meterBuf);
+    let peak = 0;
+    for (let i = 0; i < this.meterBuf.length; i++) peak = Math.max(peak, Math.abs(this.meterBuf[i]));
     return peak;
   }
 
@@ -275,11 +386,72 @@ class Engine {
 
   private outputFor(sound: ManifestSound, viaRadio: boolean): AudioNode {
     if (this.isRadioSignal(sound, viaRadio)) return this.radioIn;
-    return sound.dry || sound.path === 'radio' ? this.dryIn : this.bus;
+    return sound.dry || sound.path === 'radio' ? this.dryIn : this.bakedIn;
+  }
+
+  /** Where a one-channel sound sits: the scene's direction, else the sound's own place, else a new random one. */
+  private azimuthFor(sound: ManifestSound, direction?: number): number {
+    if (direction !== undefined) return wrapDegrees(direction);
+    if (typeof sound.place === 'number') return wrapDegrees(sound.place);
+    return Math.random() * 360 - 180;
+  }
+
+  /**
+   * Puts the voice's gain node into the stage. A file with two channels goes through untouched; one with a single
+   * channel is panned for loudspeakers or placed with an HRTF panner for headphones, and left alone in Mono.
+   */
+  private place(g: GainNode, out: AudioNode, multi: boolean, azimuth: number): Placement {
+    const ctx = this.ctx as AudioContext;
+    let nodes: AudioNode[] = [];
+    const rebuild = (): void => {
+      g.disconnect();
+      for (const n of nodes) n.disconnect();
+      nodes = [];
+      const mode = this.stage.value;
+      if (multi || mode === 'mono') {
+        g.connect(out);
+      } else if (mode === 'stereo') {
+        const lp = ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = behindCutoff(azimuth);
+        lp.Q.value = 0.5;
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = stagePan(azimuth);
+        g.connect(lp).connect(pan).connect(out);
+        nodes = [lp, pan];
+      } else {
+        const p = ctx.createPanner();
+        p.panningModel = 'HRTF';
+        p.distanceModel = 'inverse';
+        // Reference distance equal to the radius: no level change from distance, only the direction is heard.
+        p.refDistance = HEADPHONE_RADIUS;
+        const pos = headphonePosition(azimuth);
+        p.positionX.value = pos.x;
+        p.positionY.value = 0;
+        p.positionZ.value = pos.z;
+        g.connect(p).connect(out);
+        nodes = [p];
+      }
+    };
+    rebuild();
+    const placement: Placement = {
+      rebuild,
+      dispose: () => {
+        g.disconnect();
+        for (const n of nodes) n.disconnect();
+        nodes = [];
+        this.placements.delete(placement);
+      },
+    };
+    this.placements.add(placement);
+    return placement;
   }
 
   /** Plays a sound. A loop runs until stop() is called; a one-shot ends by itself. */
-  async play(sound: ManifestSound, opts: { gain?: number; viaRadio?: boolean; when?: number } = {}): Promise<Voice | null> {
+  async play(
+    sound: ManifestSound,
+    opts: { gain?: number; viaRadio?: boolean; when?: number; direction?: number; once?: boolean } = {},
+  ): Promise<Voice | null> {
     const ctx = this.ensure();
     let buf: AudioBuffer;
     try {
@@ -292,7 +464,10 @@ class Engine {
     const level = (opts.gain ?? 1) * (sound.gain ?? 1);
     const viaRadio = opts.viaRadio ?? false;
     const radio = this.isRadioSignal(sound, viaRadio) && !sound.id.startsWith('radio_squelch') && !sound.id.startsWith('radio_static');
-    const loop = sound.kind === 'loop';
+    // `once` plays one pass of a loop file, for a chain that lays the passes end to end.
+    const loop = sound.kind === 'loop' && !opts.once;
+    const multi = buf.numberOfChannels > 1;
+    const azimuth = this.azimuthFor(sound, opts.direction);
     const squelchOpen = radio ? this.soundsById.get(SQUELCH_OPEN) : undefined;
     const squelchClose = radio ? this.soundsById.get(SQUELCH_CLOSE) : undefined;
 
@@ -301,10 +476,10 @@ class Engine {
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
     // Test hook: when each sound was scheduled to start and to end on the audio clock.
-    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number }[] } };
+    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number; azimuth: number | null }[] } };
     if (w.__audition) {
       const plays = (w.__audition.plays ??= []);
-      plays.push({ id: sound.id, start, end: loop ? Infinity : start + buf.duration });
+      plays.push({ id: sound.id, start, end: loop ? Infinity : start + buf.duration, azimuth: multi ? null : azimuth });
       if (plays.length > 500) plays.shift();
     }
 
@@ -314,7 +489,8 @@ class Engine {
     const g = ctx.createGain();
     g.gain.setValueAtTime(loop ? 0 : level, t0);
     if (loop) g.gain.linearRampToValueAtTime(level, start + FADE);
-    src.connect(g).connect(this.outputFor(sound, viaRadio));
+    src.connect(g);
+    const placement = this.place(g, this.outputFor(sound, viaRadio), multi, azimuth);
     src.start(start);
 
     let hiss: AudioBufferSourceNode | null = null;
@@ -337,7 +513,7 @@ class Engine {
       stopped = true;
       this.count(sound.id, -1);
       src.disconnect();
-      g.disconnect();
+      placement.dispose();
       hiss?.stop();
       hiss?.disconnect();
       hissGain?.disconnect();
@@ -402,16 +578,20 @@ class Engine {
     const points = sorted.map((s) => s.params?.thrust ?? 0);
     const when = ctx.currentTime + 0.05;
     let master = gain;
+    // The levels are one engine and crossfade, so they must share one place (ahead unless the list says otherwise).
+    const first = sorted[0]?.place;
+    const azimuth = typeof first === 'number' ? wrapDegrees(first) : 0;
     const nodes = sorted.map((s, i) => {
       const src = ctx.createBufferSource();
       src.buffer = bufs[i];
       src.loop = true;
       const g = ctx.createGain();
       g.gain.value = 0;
-      src.connect(g).connect(this.outputFor(s, false));
+      src.connect(g);
+      const placement = this.place(g, this.outputFor(s, false), bufs[i].numberOfChannels > 1, azimuth);
       src.start(when);
       this.count(s.id, 1);
-      return { src, g, sound: s };
+      return { src, g, sound: s, placement };
     });
     const state: GroupVoice['levels'] = sorted.map((s, i) => ({ id: s.id, thrust: points[i], gain: 0 }));
     let lastThrust = thrust;
@@ -445,7 +625,7 @@ class Engine {
           n.src.stop(now + FADE + 0.01);
           n.src.onended = () => {
             n.src.disconnect();
-            n.g.disconnect();
+            n.placement.dispose();
           };
           this.count(n.sound.id, -1);
         }

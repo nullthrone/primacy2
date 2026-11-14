@@ -255,19 +255,21 @@ def pan_gains(p):
     return np.cos(th), np.sin(th)
 
 
-def crackle_lr(n, rng, rate, amp_decay_s, amp_sigma=1.0, lo=1000.0, hi=8000.0, dur_ms=(0.5, 4.0), first_at=0.0):
+def crackle_lr(n, rng, rate, amp_decay_s, amp_sigma=1.0, lo=1000.0, hi=8000.0, dur_ms=(0.5, 4.0), first_at=0.0,
+               amp_env=None):
     """Electrical arcing: very short bursts of band noise (0.5 to 4 ms), each with its own band
     between lo and hi and its own strength (a few strong, many weak; log-normal), thrown at random
     times by a process whose rate `rate` (an array of events per second over time) falls from
     hundreds a second to single ones. Every burst sits at its own place between left and right;
     the places are chosen so that neither ear gets more of the strong ones than the other.
-    Returns (n, 2). A first burst at `first_at` makes the sound start at once."""
+    Returns (n, 2). A first burst at `first_at` makes the sound start at once (None: no forced first
+    burst). `amp_env`, an array over time, replaces the plain falling strength of the bursts."""
     from scipy.signal import sosfilt
 
     r = np.asarray(rate, dtype=np.float64)
     rmax = float(r.max())
-    times, t = [], first_at
-    times.append(first_at)
+    t = first_at if first_at is not None else 0.0
+    times = [first_at] if first_at is not None else []
     while True:
         t += rng.exponential(1.0 / rmax)
         if t >= n / SR - 0.012:
@@ -277,8 +279,12 @@ def crackle_lr(n, rng, rate, amp_decay_s, amp_sigma=1.0, lo=1000.0, hi=8000.0, d
     times = np.array(times)
     k = times.size
     amps = np.exp(rng.normal(0.0, amp_sigma, k))
-    amps = np.minimum(amps, 5.0) * (0.25 + 0.75 * np.exp(-times / amp_decay_s))
-    amps[0] = max(amps[0], 2.0)
+    if amp_env is None:
+        amps = np.minimum(amps, 5.0) * (0.25 + 0.75 * np.exp(-times / amp_decay_s))
+    else:
+        amps = np.minimum(amps, 5.0) * np.asarray(amp_env)[(times * SR).astype(int)]
+    if first_at is not None:
+        amps[0] = max(amps[0], 2.0)
     durs = np.exp(rng.uniform(np.log(dur_ms[0]), np.log(dur_ms[1]), k)) / 1000.0
     centres = np.exp(rng.uniform(np.log(lo * 1.3), np.log(hi * 0.8), k))
     widths = rng.uniform(0.35, 0.7, k)               # half-width in octaves
@@ -365,7 +371,8 @@ def shield_hit(n, p):
     t = np.arange(n) / SR
     a = int(0.004 * SR)
     # hiss: there within 4 ms, then a double-slope decay (a hard first flare, a longer sizzle)
-    env = np.exp(-6.9078 * t / p["t60"]) * 0.75 + 0.25 * np.exp(-6.9078 * t / (0.4 * p["t60"]))
+    env = (0.60 * np.exp(-6.9078 * t / p["t60"]) + 0.25 * np.exp(-6.9078 * t / (0.4 * p["t60"]))
+           + 0.15 * np.exp(-6.9078 * t / (1.7 * p["t60"])))
     env[:a] *= rise(a)
     fc = 800.0 + 6700.0 * np.exp(-t / p["tau_s"])
     sigma = 0.95 + 1.4 * np.exp(-t / 0.02)

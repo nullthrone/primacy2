@@ -2,11 +2,12 @@ import { signal } from '@preact/signals';
 import type { JSX } from 'preact';
 import { engine, soundUrl, type GroupVoice, type Voice } from './engine.ts';
 import { hooks } from './sceneRunner.ts';
-import { isRated, rate, ratings } from './ratings.ts';
+import { isChanged, isRated, rate, ratings } from './ratings.ts';
 import { dictionaryKeys, loc, t, type Key } from './strings.ts';
 import type { Manifest, ManifestSound } from './types.ts';
 
 export const onlyUnrated = signal(false);
+export const onlyChanged = signal(false);
 
 // Library voices: a loop is toggled, a one-shot may overlap itself.
 const voices = new Map<string, Voice>();
@@ -33,6 +34,14 @@ const unratedAtSwitch = signal<ReadonlySet<string>>(new Set());
 function setOnlyUnrated(on: boolean, sounds: ManifestSound[]): void {
   unratedAtSwitch.value = new Set(on ? sounds.filter((s) => !isRated(s.id)).map((s) => s.id) : []);
   onlyUnrated.value = on;
+}
+
+// Same for "changed since my rating": a row leaves the list only when the filter is switched again, not when it is rated.
+const changedAtSwitch = signal<ReadonlySet<string>>(new Set());
+
+function setOnlyChanged(on: boolean, sounds: ManifestSound[]): void {
+  changedAtSwitch.value = new Set(on ? sounds.filter((s) => isChanged(s.id)).map((s) => s.id) : []);
+  onlyChanged.value = on;
 }
 
 export function stopLibrary(): void {
@@ -84,7 +93,7 @@ async function trigger(sound: ManifestSound, viaRadio: boolean): Promise<void> {
 }
 
 function pathLabel(p: ManifestSound['path']): string {
-  return { structure: t('pathStructure'), cabin: t('pathCabin'), sensor: t('pathSensor'), radio: t('pathRadio') }[p];
+  return { structure: t('pathStructure'), cabin: t('pathCabin'), sensor: t('pathSensor'), radio: t('pathRadio'), energy: t('pathEnergy') }[p];
 }
 
 function kindLabel(k: ManifestSound['kind']): string {
@@ -166,16 +175,28 @@ function Checks({ sound }: { sound: ManifestSound }): JSX.Element | null {
   );
 }
 
+function placeText(sound: ManifestSound): string {
+  if (typeof sound.place === 'number') return `${t('place')} ${sound.place}°`;
+  return sound.place === 'event' ? t('placeEvent') : t('placeNone');
+}
+
 function Rating({ sound }: { sound: ManifestSound }): JSX.Element {
   const r = ratings.value[sound.id];
   const stars = r?.stars ?? 0;
+  const changed = isChanged(sound.id);
   const verdicts: ['fits' | 'close' | 'wrong', string][] = [
     ['fits', t('verdictFits')],
     ['close', t('verdictClose')],
     ['wrong', t('verdictWrong')],
   ];
   return (
-    <div class="rate">
+    <div class={`rate ${changed ? 'stale' : ''}`}>
+      {changed && (
+        <div class="changed-mark" data-role="changed" role="status">
+          <strong>{t('changedMark')}</strong>
+          <span>{t('changedHint')}</span>
+        </div>
+      )}
       <div class="stars" role="group" aria-label={t('stars')}>
         {[1, 2, 3, 4, 5].map((n) => (
           <button
@@ -234,7 +255,7 @@ function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
   const stoppable = loopOn || (isDownload && isPlaying);
   return (
     <div
-      class={`sound ${sound.source === 'download' ? 'download' : ''} ${isPlaying ? 'playing' : ''} ${isRated(sound.id) ? 'rated' : ''}`}
+      class={`sound ${sound.source === 'download' ? 'download' : ''} ${isPlaying ? 'playing' : ''} ${isRated(sound.id) ? 'rated' : ''} ${isChanged(sound.id) ? 'changed' : ''}`}
       id={`s-${sound.id}`}
       onKeyDown={(e) => onRowKey(e, sound)}
     >
@@ -258,7 +279,7 @@ function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
           <span class="badge">{kindLabel(sound.kind)}</span>
           <span class="badge">{sound.dry ? t('dry') : t('baked')}</span>
           <span class="badge mono">{length > 0 ? `${Number(length.toFixed(2))} ${t('seconds')}` : t('secondsUnknown')}</span>
-          {sound.channels === 2 && <span class="badge">stereo</span>}
+          {sound.channels === 2 ? <span class="badge">{t('twoChannels')}</span> : <span class="badge place">{placeText(sound)}</span>}
           {isDownload && <span class="badge dl">{t('downloadBadge')}</span>}
           {sound.source !== 'synth' && <span class="badge licence">{sound.licence}</span>}
           {canRadio && (
@@ -356,28 +377,37 @@ function EngineGroup({ levels }: { levels: ManifestSound[] }): JSX.Element {
 
 export function Library({ manifest }: { manifest: Manifest }): JSX.Element {
   const unrated = onlyUnrated.value;
+  const onlyChg = onlyChanged.value;
   const sounds = manifest.sounds;
   seedRadioRows(sounds);
   const total = sounds.length;
   const done = sounds.filter((s) => isRated(s.id)).length;
+  const changedCount = sounds.filter((s) => isChanged(s.id)).length;
   return (
     <>
       <div class="counter">
         <strong class="mono" id="rated-count">
           {done} / {total} {t('rated')}
         </strong>
+        <span class="mono dim" id="count-detail">
+          {total - done} {t('unratedCount')} · <span class={changedCount > 0 ? 'hint' : ''}>{changedCount} {t('changedCount')}</span>
+        </span>
         <div class="progress" aria-hidden="true">
           <div style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
         </div>
         <label class="switch">
-          <input type="checkbox" checked={unrated} onChange={(e) => setOnlyUnrated((e.currentTarget as HTMLInputElement).checked, sounds)} />
+          <input id="only-unrated" type="checkbox" checked={unrated} onChange={(e) => setOnlyUnrated((e.currentTarget as HTMLInputElement).checked, sounds)} />
           {t('onlyUnrated')}
+        </label>
+        <label class="switch">
+          <input id="only-changed" type="checkbox" checked={onlyChg} onChange={(e) => setOnlyChanged((e.currentTarget as HTMLInputElement).checked, sounds)} />
+          {t('onlyChanged')}
         </label>
         <span class="dim small">1-5 {t('stars')}, F / C / W</span>
       </div>
       {manifest.categories.map((cat) => {
         const inCat = sounds.filter((s) => s.category === cat.id);
-        const shown = unrated ? inCat.filter((s) => unratedAtSwitch.value.has(s.id)) : inCat;
+        const shown = inCat.filter((s) => (!unrated && !onlyChg) || (unrated && unratedAtSwitch.value.has(s.id)) || (onlyChg && changedAtSwitch.value.has(s.id)));
         if (shown.length === 0) return null;
         const families = [...new Set(inCat.map((s) => s.family).filter((f): f is string => !!f))];
         const group = families.map((f) => thrustLevels(inCat, f)).find((l) => l.length >= 2);
@@ -411,7 +441,7 @@ export function Library({ manifest }: { manifest: Manifest }): JSX.Element {
           </section>
         );
       })}
-      {unrated && unratedAtSwitch.value.size === 0 && <p class="empty">{t('noSounds')}</p>}
+      {(unrated || onlyChg) && !(unrated && unratedAtSwitch.value.size > 0) && !(onlyChg && changedAtSwitch.value.size > 0) && <p class="empty">{t('noSounds')}</p>}
     </>
   );
 }

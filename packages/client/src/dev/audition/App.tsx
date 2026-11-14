@@ -1,9 +1,9 @@
 import { signal } from '@preact/signals';
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
-import { engine } from './engine.ts';
+import { engine, type StageMode } from './engine.ts';
 import { Library, stopLibrary } from './Library.tsx';
-import { exportRatings, general, importRatings, loadRatings, saveStatus, setGeneral, setManifestInfo } from './ratings.ts';
+import { exportRatings, general, importRatings, loadRatings, loadRound1, saveStatus, setCurrentHashes, setGeneral, setManifestInfo } from './ratings.ts';
 import { SceneView, sceneRunnerFor } from './ScenesView.tsx';
 import { hooks, runners } from './sceneRunner.ts';
 import { loc, lang, setLang, t, type Lang } from './strings.ts';
@@ -18,6 +18,31 @@ const volume = signal(0.7);
 const cabinOn = signal(true);
 const radioOn = signal(true);
 const limiterOn = signal(true);
+const room = signal(1);
+
+// The stage and the room are conveniences of this browser; the page works without storage.
+const STAGE_KEY = 'audition.stage.v1';
+function loadStage(): void {
+  try {
+    const raw = localStorage.getItem(STAGE_KEY);
+    if (!raw) return;
+    const v = JSON.parse(raw) as { mode?: StageMode; room?: number };
+    if (v.mode === 'mono' || v.mode === 'stereo' || v.mode === 'headphones') engine.setStage(v.mode);
+    if (typeof v.room === 'number') {
+      room.value = Math.min(1, Math.max(0, v.room));
+      engine.setRoom(room.value);
+    }
+  } catch {
+    // Unreadable storage: the defaults (Stereo, room fully open) stay.
+  }
+}
+function saveStage(): void {
+  try {
+    localStorage.setItem(STAGE_KEY, JSON.stringify({ mode: engine.stage.value, room: room.value }));
+  } catch {
+    // Not stored; the choice still holds for this visit.
+  }
+}
 const notice = signal('');
 
 async function loadManifest(): Promise<void> {
@@ -29,6 +54,7 @@ async function loadManifest(): Promise<void> {
     if (!Array.isArray(m.sounds) || !Array.isArray(m.categories)) throw new Error('not a manifest');
     engine.setSounds(m.sounds);
     setManifestInfo(!!m.placeholder, m.sounds.length);
+    setCurrentHashes(m.sounds);
     for (const runner of runners) runner.refreshMissing();
     load.value = { status: 'ready', manifest: m };
   } catch (e) {
@@ -47,14 +73,21 @@ function startMeter(): void {
   const h = hooks();
   h.peak = 0;
   h.peakMax = 0;
+  h.peakLMax = 0;
+  h.peakRMax = 0;
+  h.sendLevels = () => engine.sendLevels();
   h.resetPeak = () => {
     h.peakMax = 0;
+    h.peakLMax = 0;
+    h.peakRMax = 0;
   };
   let holdAt = 0;
   const frame = (): void => {
     const p = engine.readPeak();
     h.peak = p;
     h.peakMax = Math.max(h.peakMax, p);
+    h.peakLMax = Math.max(h.peakLMax, engine.peakL);
+    h.peakRMax = Math.max(h.peakRMax, engine.peakR);
     const now = performance.now();
     const db = p > 0 ? 20 * Math.log10(p) : -Infinity;
     peakDb.value = db;
@@ -240,6 +273,53 @@ function Header(): JSX.Element {
           {notice.value || statusText()}
         </span>
       </div>
+      <div class="bar stage-bar" aria-label={t('stage')}>
+        <span class="stage-title" title={t('stageHint')}>
+          {t('stage')}
+        </span>
+        <div class="segmented" role="group" aria-label={t('stage')} title={t('stageHint')}>
+          {(
+            [
+              ['mono', t('stageMono')],
+              ['stereo', t('stageStereo')],
+              ['headphones', t('stageHeadphones')],
+            ] as [StageMode, string][]
+          ).map(([mode, label]) => (
+            <button
+              type="button"
+              key={mode}
+              data-stage={mode}
+              class={engine.stage.value === mode ? 'on' : ''}
+              aria-pressed={engine.stage.value === mode}
+              onClick={() => {
+                engine.setStage(mode);
+                saveStage();
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <div class="room" title={t('roomHint')}>
+          <label for="room">{t('room')}</label>
+          <input
+            id="room"
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={room.value}
+            disabled={!hasIr}
+            onInput={(e) => {
+              room.value = Number((e.currentTarget as HTMLInputElement).value);
+              engine.setRoom(room.value);
+              saveStage();
+            }}
+          />
+          <span class="mono room-read">{room.value.toFixed(2)}</span>
+        </div>
+        <span class="dim small stage-note">{engine.stage.value === 'headphones' ? t('stageHeadphonesNote') : engine.stage.value === 'mono' ? t('stageMonoNote') : t('stageStereoNote')}</span>
+      </div>
     </header>
   );
 }
@@ -273,6 +353,8 @@ function Banner(): JSX.Element | null {
 export function App(): JSX.Element {
   useEffect(() => {
     startMeter();
+    loadStage();
+    void loadRound1();
     void loadRatings();
     void loadManifest();
   }, []);

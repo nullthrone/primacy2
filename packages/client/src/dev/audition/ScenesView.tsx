@@ -34,6 +34,8 @@ export function SceneView({ runner }: { runner: SceneRunner }): JSX.Element {
   const progress = Math.min(1, runner.simTime.value / def.duration);
   const note = sceneNotes.value[def.id]?.note ?? '';
   const missing = runner.missing.value;
+  const sliders = def.sliders ?? ['thrust', 'heat', 'distance'];
+  const hasEngine = !!def.thrustFamily;
   return (
     <div class="scene" id={`scene-${def.id}`}>
       <div>
@@ -60,35 +62,43 @@ export function SceneView({ runner }: { runner: SceneRunner }): JSX.Element {
           <div class="progress" style={{ flex: 'none', width: '100%' }}>
             <div style={{ width: `${progress * 100}%` }} />
           </div>
-          <h3>{t('sliders')}</h3>
-          <Slider id={`${def.id}-thrust`} label={t('thrust')} min={0} max={1} step={0.01} value={s.thrust} onInput={(v) => runner.setParam('thrust', v)} />
-          <Slider id={`${def.id}-heat`} label={t('heat')} min={0} max={1.2} step={0.01} value={s.heat} onInput={(v) => runner.setParam('heat', v)} />
-          <Slider
-            id={`${def.id}-distance`}
-            label={loc(def.distance.label)}
-            min={def.distance.min}
-            max={def.distance.max}
-            step={def.distance.step}
-            value={s.distance}
-            unit={def.distance.unit}
-            onInput={(v) => runner.setParam('distance', v)}
-          />
-          <div class="scene-actions">
-            <button type="button" class={s.boost ? 'on' : ''} aria-pressed={s.boost} data-act="boost" onClick={() => runner.patch({ boost: !s.boost })}>
-              {t('boost')} ({BOOST_THRUST})
-            </button>
-            {!live && (
-              <button
-                type="button"
-                class={solo ? 'on' : ''}
-                data-act="engine-solo"
-                onClick={() => (solo ? runner.stopEngineSolo() : void runner.startEngineSolo())}
-              >
-                {solo ? `■ ${t('engineSoloStop')}` : `▶ ${t('engineSolo')}`}
+          {sliders.length > 0 && <h3>{t('sliders')}</h3>}
+          {sliders.includes('thrust') && (
+            <Slider id={`${def.id}-thrust`} label={t('thrust')} min={0} max={1} step={0.01} value={s.thrust} onInput={(v) => runner.setParam('thrust', v)} />
+          )}
+          {sliders.includes('heat') && (
+            <Slider id={`${def.id}-heat`} label={t('heat')} min={0} max={1.2} step={0.01} value={s.heat} onInput={(v) => runner.setParam('heat', v)} />
+          )}
+          {sliders.includes('distance') && (
+            <Slider
+              id={`${def.id}-distance`}
+              label={loc(def.distance.label)}
+              min={def.distance.min}
+              max={def.distance.max}
+              step={def.distance.step}
+              value={s.distance}
+              unit={def.distance.unit}
+              onInput={(v) => runner.setParam('distance', v)}
+            />
+          )}
+          {hasEngine && (
+            <div class="scene-actions">
+              <button type="button" class={s.boost ? 'on' : ''} aria-pressed={s.boost} data-act="boost" onClick={() => runner.patch({ boost: !s.boost })}>
+                {t('boost')} ({BOOST_THRUST})
               </button>
-            )}
-          </div>
-          {!live && <p class="dim small">{t('engineSoloHint')}</p>}
+              {!live && (
+                <button
+                  type="button"
+                  class={solo ? 'on' : ''}
+                  data-act="engine-solo"
+                  onClick={() => (solo ? runner.stopEngineSolo() : void runner.startEngineSolo())}
+                >
+                  {solo ? `■ ${t('engineSoloStop')}` : `▶ ${t('engineSolo')}`}
+                </button>
+              )}
+            </div>
+          )}
+          {hasEngine && !live && <p class="dim small">{t('engineSoloHint')}</p>}
           {missing.length > 0 && (
             <div class="missing" data-role="missing">
               {t('missing')}: <code>{missing.join(', ')}</code>

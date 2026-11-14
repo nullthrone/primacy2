@@ -15,8 +15,11 @@ construction, and only the part that makes each event is added on top.
 A one-shot has to end in silence (rule), so each junction has a gap of about 10 ms; the player
 should start the next file about 15 ms early (see the report).
 
-Everything is mono, structure path: excitation -> hull -> steep low-pass. Loudspeaker-like or
-bright content is kept far below the main level.
+Cruise, the fold tunnel and the weapon loops are structure path: excitation -> hull -> steep
+low-pass, and since 2026-11-14 two channels made as mid and side (the mid is the sound as approved
+in mono, the side is the same recipe with other seeds, nothing below 150 Hz). The charges, the
+engage and the disengage stay mono. The fold jump and the fold exit are energy path (see cat_impacts
+for the toolkit): a hiss, crackle and a crack in two channels, with a low push in the middle.
 """
 import numpy as np
 
@@ -24,6 +27,8 @@ from . import (LEVELS, SR, bandpass, burst_env, exp_decay, fade_edges, freq_filt
                machine_tone, normalize_rms,
                periodic_lfo, periodic_noise, rattles, register, resonator, rise, rms, seeded,
                slow_wander, snap_freq, structure_lowpass, thump, through_hull, transformer_tone)
+from . import Ctx, REGISTRY, lufs, load_spec, mid_side, true_peak_db
+from .cat_impacts import body_scale, crackle_lr, hiss_lr, lr_from, pan_gains, soft_limit
 
 # ----------------------------------------------------------------------------- levels
 # One table for the drive categories. Loops are integrated loudness, one-shots true peak.
@@ -38,7 +43,7 @@ DRIVE_LEVELS = {
     "fold_charge": ("peak", -8.0),         # chosen: heavier than the cruise charge, below the jump
     "fold_jump": ("peak", -1.5),           # brief
     "fold_tunnel_loop": ("lufs", -34.0),   # brief
-    "fold_exit": ("peak", -11.8),          # calibrated, see calibrate()
+    "fold_exit": ("peak", -4.0),           # chosen: the jump in reverse, a little below the jump's -1.5
 }
 LEVELS.update(DRIVE_LEVELS)
 
@@ -61,12 +66,13 @@ def _close(y: np.ndarray, in_ms: float = 0.0) -> np.ndarray:
     8 ms before them are a rounded fade. The silence is the price of a file that ends cleanly;
     the player starts the next file of a chain about 20 ms early to cover it."""
     y = np.array(y, dtype=np.float64)
+    shape = (-1,) + (1,) * (y.ndim - 1)          # works for two channels too
     gap, fade = int(0.0105 * SR), int(0.008 * SR)
     y[-gap:] = 0.0
-    y[-gap - fade:-gap] *= rise(fade)[::-1]
+    y[-gap - fade:-gap] *= rise(fade)[::-1].reshape(shape)
     a = int(in_ms * SR / 1000.0)
     if a:
-        y[:a] *= rise(a)
+        y[:a] *= rise(a).reshape(shape)
     return y
 
 
@@ -91,7 +97,7 @@ def _tone_stack(n: int, tones, name: str, trials: int = 40):
 
 def _seg(loop: np.ndarray, start_s: float, n: int) -> np.ndarray:
     """n samples of a periodic signal at timeline position start_s (negative = before its start)."""
-    return loop[(int(round(start_s * SR)) + np.arange(n)) % loop.size]
+    return loop[(int(round(start_s * SR)) + np.arange(n)) % loop.shape[0]]
 
 
 def _place(out: np.ndarray, seg: np.ndarray, pos: int, wrap: bool) -> None:
@@ -115,14 +121,23 @@ LOOP_WHINE_DB = -13.0  # in the loop the whine is this much below where the char
 _cache: dict = {}
 
 
-def _cruise_parts():
-    if "cruise" in _cache:
-        return _cache["cruise"]
-    s = lambda name: seeded("cruise/" + name)
+# The side of the two-channel loop: the tones above 170 Hz moved two bins (1/4 Hz) up, so that they
+# are exactly orthogonal to the mid's tones over the loop (left and right then carry equal power),
+# with other noise seeds and other phases. The lower tones have no side: below 150 Hz both ears are equal. The side level against the mid gives a correlation of about 0.6.
+CRUISE_SIDE_TONES = tuple((f + 0.25, a) for f, a in CRUISE_TONES if f > 170.0)
+CRUISE_SIDE_RATIO = 0.5
+
+
+def _cruise_parts(tag="cruise", tones=CRUISE_TONES):
+    """The drone and the whine of the cruise. tag "cruise" is the approved mono sound (its seeds are
+    named after it); another tag gives the same recipe with other seeds, for the side."""
+    if tag in _cache:
+        return _cache[tag]
+    s = lambda name: seeded(tag + "/" + name)
     n = CRUISE_N
     t = np.arange(n) / SR
     rng = s("phase")
-    low, _ = _tone_stack(n, CRUISE_TONES, "cruise")
+    low, _ = _tone_stack(n, tones, tag)
     flow = through_hull(periodic_noise(n, "pink", s("pink"), lo=90, hi=700), periodic=True, sharp=0.3,
                         gains=W_UP, dry=0.5)
     body = normalize_rms(low) + 0.4 * normalize_rms(flow)
@@ -138,14 +153,15 @@ def _cruise_parts():
     lvl = 1.0 + 0.45 * slow_wander(n, s("whine-level"), 0.1, 0.8)
     band = periodic_noise(n, "white", s("whine-band"), lo=WHINE_HZ - 9.0, hi=WHINE_HZ + 9.0, order=6)
     whine = WHINE_AMP * 10 ** (LOOP_WHINE_DB / 20.0) * lvl * (0.8 * np.sin(fm) + 0.8 * band)
-    _cache["cruise"] = (body, whine, wph, _tone_stack(n, CRUISE_TONES, "cruise")[1])
-    return _cache["cruise"]
+    _cache[tag] = (body, whine, wph, _tone_stack(n, tones, tag)[1])
+    return _cache[tag]
 
 
 @register("cruise_loop")
 def cruise_loop(ctx):
     body, whine, _w, _ph = _cruise_parts()
-    return body + whine
+    sbody, swhine, _, _ = _cruise_parts("cruise-side", CRUISE_SIDE_TONES)
+    return mid_side(body + whine, sbody + swhine, periodic=True, ratio=CRUISE_SIDE_RATIO)
 
 
 def _charge_am(t_g: np.ndarray) -> np.ndarray:
@@ -153,17 +169,26 @@ def _charge_am(t_g: np.ndarray) -> np.ndarray:
     return 1.0 + 0.3 * np.sin(2 * np.pi * (3 / 8.0) * t_g + 0.7)
 
 
+CHARGE_HEAD_N = 4 * SR     # the approved charge: the first four seconds never change
+CHARGE_TAIL_S = 0.8
+
+
 @register("cruise_charge")
 def cruise_charge(ctx):
+    """The approved four seconds (u and the timeline are tied to CHARGE_HEAD_N, not to the length of
+    the file), then a tail in which the whine hangs and fades, sinking a little. The head is the
+    same samples as before up to the fade that used to force silence at 4.0 s; there the sound now
+    carries on."""
     n = ctx.n
+    n0 = CHARGE_HEAD_N
     body, _, wph, _ph = _cruise_parts()
-    u = np.arange(n) / n
-    t_g = -5.5 + np.arange(n) / SR           # timeline: the loop starts at 0, the engage at -1.5
+    u = np.arange(n0) / n0
+    t_g = -5.5 + np.arange(n0) / SR          # timeline: the loop starts at 0, the engage at -1.5
     amp = 0.2 + 0.8 * u ** 1.5
     rate = 2.0 + 11.0 * u ** 1.3             # the throb gets quicker ...
     depth = np.clip(1.6 * u * (1 - u) ** 0.6, 0, 0.75)   # ... and melts into the drone at the end
     throb = 1.0 + depth * np.sin(2 * np.pi * np.cumsum(rate) / SR)
-    y = _seg(body, -5.5, n) * amp * throb
+    y = _seg(body, -5.5, n0) * amp * throb
 
     # the capacitor whine climbs to the whine of the loop and carries its phase and beating
     f = 110.0 * (WHINE_HZ / 110.0) ** (u ** 1.2)
@@ -176,8 +201,25 @@ def cruise_charge(ctx):
     sub_ph = ph * 0.5
     sub = 0.6 * WHINE_AMP * 40.0 * u ** 2 * (1 - u) ** 2 * np.sin(sub_ph) * np.minimum(1.0, u * 10.0)
     sub = lowpass(through_hull(sub, sharp=0.25, gains=W_UP, dry=0.6), 650, 8)
-    y = _shape(y + sub + whine, fc=760.0)
-    return _close(y - y.mean(), 2.0)
+    head = y + sub + whine
+
+    m = n - n0
+    if m > 0:
+        # the tail: the drone lets go over 0.5 s while the whine, which was nearly hidden in it,
+        # stays, swells a little in the clear and fades; its pitch sinks about 5 %. The phase and the
+        # slow level swing carry on from the head, so there is no seam at 4.0 s.
+        tt = np.arange(1, m + 1) / SR
+        tn = np.clip(tt / (m / SR), 0.0, 1.0)
+        drone = _seg(body, -1.5, m) * (0.5 + 0.5 * np.cos(np.pi * np.clip(tt / 0.5, 0.0, 1.0)))
+        fw = WHINE_HZ * (1.0 - 0.05 * (0.5 - 0.5 * np.cos(np.pi * tn)))
+        phw = ph[-1] + 2 * np.pi * np.cumsum(fw) / SR
+        hang = 1.0 + 4.0 * np.sin(np.pi * np.clip(tt / 0.55, 0.0, 1.0)) ** 2
+        fade = 0.5 + 0.5 * np.cos(np.pi * np.clip(tt / (m / SR - 0.01), 0.0, 1.0))
+        tail = drone + WHINE_AMP * _charge_am(-1.5 + tt) * hang * fade * np.sin(phw)
+        head = np.concatenate([head, tail])
+    shaped = _shape(head, fc=760.0)           # causal filters: the first 4.0 s come out as before
+    shaped = shaped - shaped[:n0].mean()
+    return _close(shaped, 2.0)
 
 
 @register("cruise_engage")
@@ -262,13 +304,22 @@ def _creak(rng, f: float, dur: float) -> np.ndarray:
     return y / max(np.max(np.abs(y)), 1e-9)
 
 
-def _tunnel_parts():
-    if "tunnel" in _cache:
-        return _cache["tunnel"]
-    s = lambda name: seeded("fold_tunnel/" + name)
+# The side of the tunnel: the pressure's upper tones and their octaves (nothing below 170 Hz, where both
+# ears are equal), on bins the mid does not use, so that the two are orthogonal over the loop.
+TUNNEL_SIDE_TONES = ((211.0 + 2.0 / 7.0, 0.35), (236.0, 0.5), (294.0 + 2.0 / 7.0, 0.4), (326.0, 0.3),
+                     (236.0 + 3.0 / 7.0, 0.18), (326.0 + 3.0 / 7.0, 0.1))
+TUNNEL_SIDE_RATIO = 0.5
+
+
+def _tunnel_parts(tag="fold_tunnel", tones=TUNNEL_TONES):
+    """The tunnel's drone and creaks. tag "fold_tunnel" is the approved mono sound; another tag is
+    the same recipe with other seeds, for the side."""
+    if tag in _cache:
+        return _cache[tag]
+    s = lambda name: seeded(tag + "/" + name)
     n = TUNNEL_N
     t = np.arange(n) / SR
-    low, _ = _tone_stack(n, TUNNEL_TONES, "fold_tunnel")
+    low, _ = _tone_stack(n, tones, tag)
     pressure = through_hull(periodic_noise(n, "pink", s("pink"), lo=60, hi=450), periodic=True, sharp=0.4,
                             gains=np.array([0.3, 0.3, 0.5, 0.7, 1, 1, 1, 1, 1, 1]), dry=0.6)
     body = normalize_rms(low) + 0.5 * normalize_rms(pressure)
@@ -281,18 +332,31 @@ def _tunnel_parts():
         _place(creaks, _creak(crng, f, dur), int(at * SR), wrap=True)   # distant: far below the drone
     creaks = structure_lowpass(through_hull(creaks, periodic=True, sharp=0.3, gains=W_UP, dry=0.5), periodic=True,
                                fc=520.0, order=4)
-    _cache["tunnel"] = (body, normalize_rms(creaks))
-    return _cache["tunnel"]
+    _cache[tag] = (body, normalize_rms(creaks))
+    return _cache[tag]
 
 
 CREAK_LEVEL = 0.30   # of the drone's RMS; the creaks are heard at the margin
 
 
-@register("fold_tunnel_loop", swing_max=9.0)
-def fold_tunnel_loop(ctx):
+def _tunnel_mid():
     body, creaks = _tunnel_parts()
     y = body + CREAK_LEVEL * creaks
     return y - y.mean()
+
+
+def _tunnel_pair():
+    """The tunnel in two channels (raw level): the mid is exactly the approved mono loop."""
+    if "tunnel-pair" not in _cache:
+        sbody, screaks = _tunnel_parts("fold_tunnel-side", TUNNEL_SIDE_TONES)
+        _cache["tunnel-pair"] = mid_side(_tunnel_mid(), sbody + CREAK_LEVEL * screaks, periodic=True,
+                                         ratio=TUNNEL_SIDE_RATIO)
+    return _cache["tunnel-pair"]
+
+
+@register("fold_tunnel_loop", swing_max=9.0)
+def fold_tunnel_loop(ctx):
+    return _tunnel_pair()
 
 
 def _blow_ring(n: int, seed: str, sharp: float, f_hi: float = 500.0, gains=None) -> np.ndarray:
@@ -341,62 +405,186 @@ def fold_charge(ctx):
     return _close(_shape(y - y.mean(), hp=60.0, fc=760.0), 4.0)
 
 
+# ----------------------------------------------------------------------------- fold jump and exit
+# Energy path, two channels (SOUND_DESIGN.md round 1: "energetic, hissing, rushing, not like a dull
+# blow"). A rush of band noise whose band sweeps, a broad crack with a low push under it, crackling
+# discharges, and the stereo image that widens as the hiss streams away (and narrows as it swells in).
+# The levels in this block are in the units of the hiss: its RMS is 1 at env 1.
+
+def _crack_lr(n, at_s, peak, seed):
+    """The crack: 20 ms of the full band (150 Hz to 14 kHz), a sharp edge, half of the noise shared
+    by both ears and half different. Scaled so that its largest sample is `peak`."""
+    m = int(0.05 * SR)
+    i0 = int(at_s * SR)
+    rng = seeded(seed)
+    c, l, r = (rng.standard_normal(m + 64) for _ in range(3))
+    env = burst_env(m, 0.15, 0.028)
+    out = np.zeros((n, 2))
+    for ch, own in enumerate((l, r)):
+        x = lowpass(highpass(0.7 * c + 0.7 * own, 150.0, 2), 14000.0, 2)[64:]
+        out[i0:i0 + m, ch] = x * env
+    return out * peak / max(np.max(np.abs(out)), 1e-12)
+
+
+def _push(n, at_s, f_hi, f_lo, t60, seed_drive=2.0):
+    """The low push under the crack: a sine falling from f_hi to f_lo, driven a little so that its
+    odd harmonics (150 to 250 Hz) carry it on small loudspeakers. Mono, so it sits in the middle."""
+    i0 = int(at_s * SR)
+    out = np.zeros(n)
+    th = thump(n - i0, f_hi, f_lo, 3.0, t60, 0.12)
+    out[i0:] = np.tanh(seed_drive * th) / np.tanh(seed_drive)
+    return out
+
+
+def _charge_bridge(n):
+    """The pressure of fold_charge carried on for the first moments of the jump: the same tones at
+    the pitch the charge ends on, with the phase and the throb of its last sample, so that the jump
+    grows out of the charge and the chain has no hole. Unit amplitude as in the charge's own `low`."""
+    N = 8 * SR
+    u = np.arange(N) / N
+    rng = seeded("fold_charge/phase")
+    parts, low = [], np.zeros(N)
+    for f, a in ((118.0, 1.0), (118.4, 0.6), (147.0, 0.8), (147.4, 0.5), (163.0, 0.55), (211.0, 0.3), (71.0, 0.1)):
+        ph = 2 * np.pi * np.cumsum(f * (1.0 + 0.12 * u ** 2)) / SR + rng.uniform(0, 2 * np.pi)
+        low += a * np.sin(ph)
+        parts.append((f * 1.12, a, ph[-1]))
+    k = 1.0 / rms(low)
+    rate = 0.8 + 5.5 * u ** 1.5
+    thr_end = 2 * np.pi * np.sum(rate) / SR
+    t = (np.arange(n) + 1) / SR
+    tone = sum(a * np.sin(p0 + 2 * np.pi * f * t) for f, a, p0 in parts)
+    throb = 1.0 + 0.6 * np.sin(thr_end + 2 * np.pi * rate[-1] * t)
+    return k * tone * throb
+
+
+def _charge_end_level(peak_target):
+    """RMS of the last 0.1 s of fold_charge as the build will set it (a fold_charge peak of
+    peak_target dBFS), in full-scale units."""
+    spec = load_spec()["sounds"]["fold_charge"]
+    raw = np.asarray(REGISTRY["fold_charge"].fn(Ctx("fold_charge", spec)))
+    gap = int(0.0125 * SR)
+    seg = raw[-int(0.1 * SR) - gap:-gap]
+    return rms(seg) * 10.0 ** ((peak_target - true_peak_db(raw)) / 20.0)
+
+
+def _drone_gain(raw_peak_db, peak_target):
+    """Amplitude (in the raw units of the tunnel loop) the tunnel drone must have inside a one-shot
+    that the build will set to peak_target, so that it is as loud as the loop it leads into
+    (fold_tunnel_loop is set by the loudness of its mono sum)."""
+    g_loop = LEVELS["fold_tunnel_loop"][1] - lufs(_tunnel_mid())
+    g_shot = peak_target - raw_peak_db
+    return 10.0 ** ((g_loop - g_shot) / 20.0)
+
+
+def _smooth(x):
+    return x * x * (3.0 - 2.0 * x)
+
+
 @register("fold_jump")
 def fold_jump(ctx):
+    """Half a second in which a hiss rises steeply while its band sweeps upward; the crack (20 ms of
+    the full band) with a heavy low push under it; then the hiss streams away for about two seconds,
+    its band sinking, thinning into single crackles, widening to the sides. At the start the
+    charge's pressure carries on; at the end the tunnel's drone comes in under the last of the hiss."""
     n = ctx.n
     t = np.arange(n) / SR
-    body = thump(n, 105.0, 50.0, 5.0, 0.8, 0.2)
-    ring = _blow_ring(n, "fold_jump/pulse", 1.2, 700.0, np.array([0.25, 0.25, 0.4, 0.6, 1, 1, 1, 1, 1, 1]))
-    scale = rms(body[: int(0.2 * SR)]) / max(rms(ring[: int(0.2 * SR)]), 1e-9)
-    y = _shape(body + 1.0 * scale * ring, hp=45.0, fc=760.0)
-    # the whole cabin shakes for an instant; nothing else is left after it
-    rat = rattles(n, 1.0, seeded("fold_jump/rattle"), per_second=3.0, periodic=False, lo=1500.0, hi=3000.0) \
-        * burst_env(n, 3.0, 0.35)
-    y = y + 0.03 * rms(y[: int(0.3 * SR)]) * 6 * rat
-    y = y * np.clip((n / SR - 0.12 - t) / 0.5, 0.0, 1.0) ** 0.7   # near silence at the end
-    return _close(y - y.mean(), 0.0)
+    tc = 0.52
+    u = np.clip(t / tc, 0.0, 1.0)
+    tau = np.maximum(t - tc, 0.0)
+    pre = t < tc
+    env = np.where(pre, 10.0 ** ((-30.0 + 28.0 * u ** 1.6) / 20.0),
+                   0.8 * (0.62 * np.exp(-6.9078 * tau / 1.9) + 0.38 * np.exp(-6.9078 * tau / 0.8)))
+    fc = np.where(pre, 900.0 * (8500.0 / 900.0) ** (u ** 1.2), 700.0 + 7800.0 * np.exp(-tau / 0.55))
+    sigma = np.where(pre, 0.8 + 0.8 * u, 1.0 + 0.6 * np.exp(-tau / 0.6))
+    rho = np.where(pre, 0.55, 0.05 + 0.5 * np.exp(-tau / 0.45))   # the image widens as it streams away
+    hs = hiss_lr(n, "fold_jump", env, fc, sigma, rho, depth=0.7)
+    rate = np.where(pre, 6.0 + 260.0 * u ** 3, 4.0 + 380.0 * np.exp(-tau / 0.30))
+    amp_env = np.where(pre, 0.2 + 0.8 * u ** 2, 0.15 + 0.85 * np.exp(-tau / 0.5))
+    cr = crackle_lr(n, seeded("fold_jump/crackle"), rate, 1.0, amp_env=amp_env, first_at=None)
+    w = slice(int(tc * SR), int((tc + 0.2) * SR))
+    cr *= 0.8 * rms(hs[w]) / max(rms(cr[w]), 1e-12)
+    cr = soft_limit(cr, 4.0 * rms(cr[w]))
+    crack = _crack_lr(n, tc, 5.8 * rms(hs[w]), "fold_jump/crack")
+    push = _push(n, tc, 90.0, 50.0, 0.4)
+    rest = 0.5 * (hs[:, 0] + hs[:, 1] + cr[:, 0] + cr[:, 1] + crack[:, 0] + crack[:, 1])
+    push = push * body_scale(push, rest, 0.28)
+    y = hs + cr + crack + lr_from(push)
+
+    # what carries the chain: the charge's pressure at the start, the tunnel's drone at the end
+    g_j = 10.0 ** ((LEVELS["fold_jump"][1] - true_peak_db(y)) / 20.0)
+    bridge = _charge_bridge(n) * _charge_end_level(LEVELS["fold_charge"][1]) / g_j
+    bridge = bridge * (0.5 + 0.5 * np.cos(np.pi * np.clip(t / 0.45, 0.0, 1.0)))
+    drone = _seg(_tunnel_pair(), -n / SR, n) * _drone_gain(true_peak_db(y), LEVELS["fold_jump"][1]) \
+        * _smooth(np.clip((t - 1.1) / 1.6, 0.0, 1.0))[:, None]
+    y = y + lr_from(bridge) + drone
+    return _close(y - y.mean(axis=0), 0.0)
 
 
 @register("fold_exit")
 def fold_exit(ctx):
+    """The jump in reverse: the tunnel drone lets go while a rush swells in from nothing for about
+    a second (its band sweeping up, the image narrowing), tears off with a crack and a push, and
+    leaves crackling discharges that die away; then two or three metal ticks of the hull."""
     n = ctx.n
-    body, creaks = _tunnel_parts()
     t = np.arange(n) / SR
-    # the tunnel drone is still there for an instant and lets go
-    drone = (_seg(body, 0.0, n) + CREAK_LEVEL * _seg(creaks, 0.0, n)) * np.exp(-t / 0.18)
-    thud = thump(n, 110.0, 55.0, 4.0, 0.3, 0.1)
-    ring = _blow_ring(n, "fold_exit/pulse", 0.8, 700.0, W_UP)
-    scale = rms(thud[: int(0.2 * SR)]) / max(rms(ring[: int(0.2 * SR)]), 1e-9)
-    thud = _shape(thud + 1.0 * scale * ring, fc=760.0)
-    # the hull ticks as the pressure goes: short rings of the upper hull modes, fewer and softer
-    ticks = np.zeros(n)
-    trng = seeded("fold_exit/ticks")
+    tc = 1.05
+    u = np.clip(t / tc, 0.0, 1.0)
+    tau = np.maximum(t - tc, 0.0)
+    pre = t < tc
+    env = np.where(pre, 10.0 ** ((-32.0 + 30.0 * u ** 2.2) / 20.0),
+                   0.8 * (0.6 * np.exp(-6.9078 * tau / 0.55) + 0.4 * np.exp(-6.9078 * tau / 0.22)))
+    fc = np.where(pre, 600.0 * (7500.0 / 600.0) ** (u ** 1.1), 600.0 + 6900.0 * np.exp(-tau / 0.25))
+    sigma = np.where(pre, 1.6 - 0.8 * u, 0.8)
+    rho = np.where(pre, 0.05 + 0.65 * u ** 1.5, 0.2 + 0.5 * np.exp(-tau / 0.3))
+    hs = hiss_lr(n, "fold_exit", env, fc, sigma, rho, depth=0.7)
+    rate = np.where(pre, 4.0 + 60.0 * u ** 3, 3.0 + 420.0 * np.exp(-tau / 0.32))
+    amp_env = np.where(pre, 0.2 + 0.8 * u ** 2, 0.1 + 0.9 * np.exp(-tau / 0.5))
+    cr = crackle_lr(n, seeded("fold_exit/crackle"), rate, 1.0, amp_env=amp_env, first_at=None)
+    w = slice(int(tc * SR), int((tc + 0.2) * SR))
+    cr *= 0.85 * rms(hs[w]) / max(rms(cr[w]), 1e-12)
+    cr = soft_limit(cr, 4.0 * rms(cr[w]))
+    crack = _crack_lr(n, tc, 5.4 * rms(hs[w]), "fold_exit/crack")
+    push = _push(n, tc, 80.0, 50.0, 0.3)
+    rest = 0.5 * (hs[:, 0] + hs[:, 1] + cr[:, 0] + cr[:, 1] + crack[:, 0] + crack[:, 1])
+    push = push * body_scale(push, rest, 0.25)
+    y = hs + cr + crack + lr_from(push)
+
+    # the hull ticks as the pressure goes: short rings of the upper hull modes, each at its own place
     upper = np.array([0, 0, 0, 0, 1, 1, 1, 1, 1, 1], dtype=float)
-    for at, lv in ((0.37, 0.4), (0.58, 0.22), (1.12, 0.26), (1.31, 0.15), (1.97, 0.1)):
-        _place(ticks, lv * _blow_ring(int(0.35 * SR), "fold_exit/tick%d" % int(at * 100), 0.12, 600.0, upper) *
-               trng.uniform(0.8, 1.2), int(at * SR), wrap=False)
-    ticks = structure_lowpass(ticks)
-    d_rms = rms(_seg(body, 0.0, SR))
-    y = drone + 9.0 * d_rms * thud / max(np.max(np.abs(thud)), 1e-9) + 5.0 * d_rms * ticks / max(np.max(np.abs(ticks)), 1e-9)
-    return _close(_shape(y - y.mean(), fc=760.0), 3.0)
+    ticks = np.zeros((n, 2))
+    for at, pk, place in ((1.86, 1.5, -0.55), (2.21, 0.95, 0.6), (2.72, 0.6, -0.2)):
+        ring = structure_lowpass(_blow_ring(int(0.35 * SR), "fold_exit/tick%d" % int(at * 100), 0.12, 600.0, upper))
+        ring = ring * pk * rms(hs[w]) / max(np.max(np.abs(ring)), 1e-12)
+        i0 = int(at * SR)
+        j = min(ring.size, n - i0)
+        gl, gr = pan_gains(place)
+        ticks[i0:i0 + j, 0] += gl * ring[:j]
+        ticks[i0:i0 + j, 1] += gr * ring[:j]
+    y = y + ticks
+
+    # the tunnel's drone, still there at the start, lets go before the tear
+    g_e = _drone_gain(true_peak_db(y), LEVELS["fold_exit"][1])
+    drone = _seg(_tunnel_pair(), 0.0, n) * g_e * np.exp(-(t / 0.6) ** 2)[:, None]
+    y = y + drone
+    return _close(y - y.mean(axis=0), 0.0)
 
 
 # ----------------------------------------------------------------------------- calibration
 def calibrate(print_it: bool = True) -> dict:
     """Print the peak targets at which the drone inside each one-shot has the loudness of the loop
-    it leads into (cruise loop -24 LUFS, tunnel -34 LUFS). Paste the result into DRIVE_LEVELS."""
-    from . import Ctx, load_spec, lufs, true_peak_db
+    it leads into (cruise loop -24 LUFS). Paste the result into DRIVE_LEVELS. The fold jump and
+    exit are not here any more: they are energy sounds with a peak chosen by ear, and they carry
+    the tunnel's drone at the level of the loop by `_drone_gain`. The loops are two channels, set
+    by the loudness of their mono sum, which is the approved mono loop."""
     spec = load_spec()["sounds"]
     out = {}
 
     def raw(i):
         return np.asarray(REGISTRY[i].fn(Ctx(i, spec[i])))
 
-    from . import REGISTRY
-    for loop_id, ids in (("cruise_loop", ("cruise_charge", "cruise_engage", "cruise_disengage")),
-                         ("fold_tunnel_loop", ("fold_exit",))):
+    for loop_id, ids in (("cruise_loop", ("cruise_charge", "cruise_engage", "cruise_disengage")),):
         lp = raw(loop_id)
-        gain_db = LEVELS[loop_id][1] - lufs(lp)
+        gain_db = LEVELS[loop_id][1] - lufs(lp.mean(axis=1))
         for i in ids:
             out[i] = round(float(true_peak_db(raw(i)) + gain_db), 1)
     if print_it:

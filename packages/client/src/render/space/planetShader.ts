@@ -196,6 +196,19 @@ float craterField(vec3 nb) {
 float hfield(vec3 nb) {
   return fbm((nb * 2.0 + seedOff()) * 1.6 + gWarp.x * 0.7, uOct) * 0.40 + craterField(nb) * 1.5;
 }
+#ifndef BAKED
+// Craters too small for a planet seen whole: every size counts as far as a pixel resolves it.
+float craterFine(vec3 nb) {
+  float cr = 0.0, scale = 100.0;
+  for (int j = 0; j < 4; j++) {
+    float w = 1.0 - smoothstep(0.15, 0.36, gSlant * scale * 2.5);
+    if (w <= 0.0) break;
+    cr += w * craters(nb, scale, uSeed + 17.0 + 4.0 * float(j));
+    scale *= 2.2;
+  }
+  return cr;
+}
+#endif
 Surf surface(vec3 nb, vec3 sunB) {
   Surf s = blank();
   vec3 p = nb * 2.0 + seedOff();
@@ -206,10 +219,24 @@ Surf surface(vec3 nb, vec3 sunB) {
   float mare = smoothstep(0.02, -0.22, fbm(p * 0.7 + 11.0, lo));
   float cr = craterField(nb);
   s.height = h * 0.40 + cr * 1.5;
-  float tone = clamp(0.55 + h * 0.9 + cr * 3.0, 0.0, 1.0);
+  float small = 0.0, grain = 0.0;
+#ifndef BAKED
+  // Close up: small craters, lit from one more sample of them toward the sun, and the grain of
+  // the regolith. (A body with a baked map shows its real terrain at this range instead.)
+  float geo = dot(nb, sunB);
+  small = craterFine(nb);
+  grain = fineNoise(nb, FINE, gSlant, 0.7).x;
+  if (geo > -0.2) s.fineRise = 2.2 * (craterFine(nb + gSunStep) - small);
+#endif
+  float tone = clamp(0.55 + h * 0.9 + (cr + small) * 3.0, 0.0, 1.0);
   s.albedo = mix(uBase * 0.42, uBase * 1.25, tone) * mix(1.0, 0.55, mare);
   s.albedo *= 0.9 + 0.25 * fbm(p * 9.0, lo);
+  s.albedo *= 1.0 + 0.07 * grain;
   s.bump = 1.3;
+#ifndef BAKED
+  // The relief of the height field cannot show deep in the night.
+  if (geo < -0.35) s.bump = 0.0;
+#endif
   return s;
 }
 #elif TYPE == 1
@@ -239,6 +266,19 @@ Surf surface(vec3 nb, vec3 sunB) {
   s.albedo = mix(col, vec3(0.88, 0.87, 0.84), cap);
   s.height = h * 0.4 + dunes * 0.10 - canyon * 0.35;
   s.bump = 1.0;
+#ifndef BAKED
+  // Close up: the ripples of the dune fields, drawn out the way the dunes run, lit from one more
+  // sample toward the sun. (A body with a baked map shows its real terrain at this range instead.)
+  float geo = dot(nb, sunB);
+  vec3 along = vec3(1.0, 2.6, 1.0);
+  vec4 f = fineNoise(nb * along, FINE, gSlant * 2.6, 0.7);
+  if (f.w > 0.0) {
+    s.albedo *= clamp(1.0 + 0.07 * f.x - 0.04 * f.y, 0.6, 1.4);
+    float soft = 1.0 - 0.7 * rock;
+    if (geo > -0.2) s.fineRise = 0.0022 * soft * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 2.6, 0.7).z - f.z);
+  }
+  if (geo < -0.35) s.bump = 0.0;
+#endif
   return s;
 }
 #elif TYPE == 2
@@ -262,14 +302,26 @@ Surf surface(vec3 nb, vec3 sunB) {
   float seas = smoothstep(0.18, 0.40, fbm(p * 0.65 + 31.0, lo));
   float churn = clamp(0.5 + 0.9 * fbm(p * 4.0 + vec3(0.0, uTime * 0.03, 0.0) + w, lo), 0.0, 1.0);
   float heat = clamp(crack * 0.8 + fine * 0.35 + seas * (0.15 + 0.75 * churn * churn), 0.0, 1.0);
+  float geo = dot(nb, sunB);
+  vec4 f = fineNoise(nb, FINE, gSlant, 0.7);
+  if (gNear > 0.0) {
+    // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between
+    // them, and hairline cracks wherever the crust is hot.
+    float seams = smoothstep(0.60, 0.80, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
+    float hair = smoothstep(-0.55, -1.05, f.y) * smoothstep(0.03, 0.35, heat);
+    heat = clamp(heat * mix(1.0, 0.22 + 1.05 * seams, gNear) + 0.4 * hair * gNear, 0.0, 1.0);
+  }
   float crust = fbm(p * 6.0, uOct);
   s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);
+  s.albedo *= clamp(1.0 + 0.22 * f.x, 0.5, 1.6);
+  if (f.w > 0.0 && heat < 0.5 && geo > -0.2) s.fineRise = 0.004 * (fineNoise(nb + gSunStep, FINE, gSlant, 0.7).z - f.z);
   float flick = 0.88 + 0.12 * gnoise(p * 5.0 + vec3(uTime * 0.2));
   vec3 glow = mix(vec3(0.9, 0.06, 0.0), vec3(2.2, 0.55, 0.04), smoothstep(0.15, 0.6, heat));
   glow = mix(glow, vec3(5.0, 2.6, 0.7), smoothstep(0.6, 1.0, heat));
   s.emission = glow * heat * heat * flick * 1.1;
   s.height = crust * 0.25 + plates * 0.15 - (crack * 0.9 + fine * 0.45) * 0.4;
-  s.bump = 1.2;
+  // The relief shows on sunlit crust only: not under the glow, not in the night.
+  s.bump = heat < 0.55 && geo > -0.35 ? 1.2 : 0.0;
   return s;
 }
 #elif TYPE == 3
@@ -484,22 +536,22 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec2 curl = vec2(0.0);
   float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * FINE);
   if (reach > 0.0) {
-    vec3 wq = vec3(nr.x * 34.0, lat * 60.0, nr.z * 34.0) + so;
-    curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.02 * reach);
+    vec3 wq = vec3(nr.x * 22.0, lat * 40.0, nr.z * 22.0) + so;
+    curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.025 * reach);
   }
   vec3 east = vec3(-nr.z, 0.0, nr.x);
   vec3 q = vec3(nr.x, lat * 1.8, nr.z) + east * curl.x + cross(nr, east) * curl.y;
   vec3 qx = dFdx(q), qy = dFdy(q);
   float qfoot = uFine > 0.0 ? uFine * max(length(qx), length(qy)) : 1e3;
   if (qfoot * FINE < 0.36) {
-    vec4 f = fineNoise(q, FINE, qfoot, 0.75);
-    fine = 0.6 * f.x + 0.3 * f.y;
+    vec4 f = fineNoise(q, FINE, qfoot, 0.6);
+    fine = 0.8 * f.x + 0.15 * f.y;
     if (gNear > 0.0 && dot(nb, sunB) > -0.1) {
-      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.75);
-      s.shade = clamp(1.0 - 0.5 * gNear * (0.6 * fSun.x + 0.3 * fSun.y - fine), 0.75, 1.2);
+      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.6);
+      s.shade = clamp(1.0 - 0.14 * gNear * (0.8 * fSun.x + 0.15 * fSun.y - fine), 0.85, 1.1);
     }
   }
-  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.09 * (0.4 + 0.6 * contrast) * fine;
+  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.075 * (0.4 + 0.6 * contrast) * fine;
   float zone = clamp(0.5 + 0.42 * b1 + 0.2 * b3 + turb, 0.0, 1.0);
   zone = mix(zone, smoothstep(0.15, 0.85, zone), 0.6);
   float luma = dot(uBase, vec3(0.3333));

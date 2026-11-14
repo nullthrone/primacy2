@@ -53,7 +53,10 @@ export function auditionPlugin(): Plugin {
       const audioDir = path.resolve(server.config.root, '../../assets/audio');
       const renderDir = path.join(audioDir, 'render');
       const downloadsDir = path.join(audioDir, 'downloads');
-      const ratingsFile = path.join(audioDir, 'ratings.json');
+      // Hashes of the files as heard in earlier listening rounds; read-only, like everything but the ratings.
+      const roundsDir = path.join(audioDir, 'rounds');
+      // A test server can keep its ratings elsewhere, so that a check never touches the owner's file.
+      const ratingsFile = process.env.AUDITION_RATINGS_FILE ? path.resolve(process.env.AUDITION_RATINGS_FILE) : path.join(audioDir, 'ratings.json');
 
       server.middlewares.use('/audio-lib', (req, res, next) => {
         void (async () => {
@@ -83,7 +86,7 @@ export function auditionPlugin(): Plugin {
               send(res, 400, 'body must be a JSON object');
               return;
             }
-            await fs.mkdir(audioDir, { recursive: true });
+            await fs.mkdir(path.dirname(ratingsFile), { recursive: true });
             await fs.writeFile(ratingsFile, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
             send(res, 200, '{"ok":true}', TYPES['.json']);
             return;
@@ -94,10 +97,19 @@ export function auditionPlugin(): Plugin {
             return;
           }
 
-          // Only render/, downloads/ and ratings.json are ever served; '..' is resolved before the check.
+          if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/ratings.json') {
+            try {
+              send(res, 200, req.method === 'HEAD' ? '' : await fs.readFile(ratingsFile), TYPES['.json']);
+            } catch {
+              send(res, 404, 'not found');
+            }
+            return;
+          }
+
+          // Only render/, downloads/, rounds/ and ratings.json are ever served; '..' is resolved before the check.
           const target = path.resolve(audioDir, '.' + path.posix.normalize('/' + pathname));
-          const allowed = target === ratingsFile || inside(renderDir, target) || inside(downloadsDir, target);
-          if (!allowed || target === renderDir || target === downloadsDir) {
+          const allowed = inside(renderDir, target) || inside(downloadsDir, target) || inside(roundsDir, target);
+          if (!allowed || target === renderDir || target === downloadsDir || target === roundsDir) {
             send(res, 403, 'not served');
             return;
           }
@@ -106,9 +118,9 @@ export function auditionPlugin(): Plugin {
             const real = await fs.realpath(target);
             const realAudio = await fs.realpath(audioDir);
             const okReal =
-              real === path.join(realAudio, 'ratings.json') ||
               inside(path.join(realAudio, 'render'), real) ||
-              inside(path.join(realAudio, 'downloads'), real);
+              inside(path.join(realAudio, 'downloads'), real) ||
+              inside(path.join(realAudio, 'rounds'), real);
             if (!okReal) {
               send(res, 403, 'not served');
               return;

@@ -1,6 +1,8 @@
 // Checks the audition page in a real (headless) Chromium. Starts nothing itself: run
-//   cd packages/client && npx vite --port 5183 --strictPort
+//   cd packages/client && AUDITION_RATINGS_FILE=<a scratch file> npx vite --port 5183 --strictPort
 // first. The page is taken from AUDITION_URL (default http://localhost:5183/dev/audition.html).
+// The check writes ratings through the page, so the server must keep them in AUDITION_RATINGS_FILE (the same
+// variable is read here), never in the owner's assets/audio/ratings.json.
 // Saves screenshots to screenshots/audition/ and exits with code 1 on any failure.
 import { chromium } from 'playwright';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -12,8 +14,13 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const URL_PAGE = process.env.AUDITION_URL ?? 'http://localhost:5183/dev/audition.html';
 const ORIGIN = new URL(URL_PAGE).origin;
 const SHOTS = path.join(ROOT, 'screenshots', 'audition');
-const RATINGS = path.join(ROOT, 'assets', 'audio', 'ratings.json');
-const BACKUP = path.join(ROOT, 'assets', 'audio', 'ratings.json.audition-check-backup');
+const OWNERS = path.join(ROOT, 'assets', 'audio', 'ratings.json');
+if (!process.env.AUDITION_RATINGS_FILE || path.resolve(process.env.AUDITION_RATINGS_FILE) === OWNERS) {
+  console.error('Set AUDITION_RATINGS_FILE to a scratch file (the same one the vite server was started with): this check writes ratings.');
+  process.exit(2);
+}
+const RATINGS = path.resolve(process.env.AUDITION_RATINGS_FILE);
+const BACKUP = RATINGS + '.audition-check-backup';
 const SPEED = 25;
 
 mkdirSync(SHOTS, { recursive: true });
@@ -176,9 +183,9 @@ try {
       downloads.map((x) => x.id),
       { timeout: 30000 },
     );
-    await scrollTo(page, '#cat-engines .part.downloaded', 330);
+    await scrollTo(page, '#cat-engines .part.downloaded', 375);
     await page.screenshot({ path: path.join(SHOTS, 'library-category-engines.png') });
-    await scrollTo(page, '#cat-radio .part.downloaded', 250);
+    await scrollTo(page, '#cat-radio .part.downloaded', 295);
     await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
   });
 
@@ -199,7 +206,7 @@ try {
   });
 
   await check('thrust slider crossfades the engine group with equal power', async () => {
-    await scrollTo(page, '#group-engine', 190);
+    await scrollTo(page, '#group-engine', 235);
     await page.click('#group-toggle');
     await sleep(300);
     const setThrust = (v) =>
@@ -327,10 +334,10 @@ try {
   });
 
   await check('the "only unrated" filter hides what is rated', async () => {
-    await page.locator('.counter input[type="checkbox"]').check();
+    await page.locator('#only-unrated').check();
     const rows = await page.locator('.sound').count();
     assert(rows === manifest.sounds.length - 1, `${rows} rows with the filter`);
-    await page.locator('.counter input[type="checkbox"]').uncheck();
+    await page.locator('#only-unrated').uncheck();
   });
 
   await check('Export produces a download with the ratings', async () => {
@@ -343,6 +350,321 @@ try {
   });
 
   await context.close();
+
+  // ---- The stage, the room, the changed mark and the fold scene, on a doctored manifest with generated test files.
+  const wav = (channels, left, right) => {
+    const n = left.length;
+    const buf = Buffer.alloc(44 + n * channels * 2);
+    buf.write('RIFF', 0);
+    buf.writeUInt32LE(36 + n * channels * 2, 4);
+    buf.write('WAVEfmt ', 8);
+    buf.writeUInt32LE(16, 16);
+    buf.writeUInt16LE(1, 20);
+    buf.writeUInt16LE(channels, 22);
+    buf.writeUInt32LE(48000, 24);
+    buf.writeUInt32LE(48000 * channels * 2, 28);
+    buf.writeUInt16LE(channels * 2, 32);
+    buf.writeUInt16LE(16, 34);
+    buf.write('data', 36);
+    buf.writeUInt32LE(n * channels * 2, 40);
+    for (let i = 0; i < n; i++) {
+      buf.writeInt16LE(Math.round(left[i] * 32767), 44 + i * channels * 2);
+      if (channels === 2) buf.writeInt16LE(Math.round(right[i] * 32767), 46 + i * channels * 2);
+    }
+    return buf;
+  };
+  // One second of 440 Hz at half scale, faded at both ends so that nothing clicks.
+  const tone = Float32Array.from({ length: 48000 }, (_, i) => 0.5 * Math.sin((2 * Math.PI * 440 * i) / 48000) * Math.min(1, i / 480, (48000 - i) / 480));
+  const silence = new Float32Array(48000);
+  const TEST_FILES = {
+    'test/mono.wav': wav(1, tone),
+    'test/left_only.wav': wav(2, tone, silence),
+  };
+  const testSound = (id, file, extra) => ({
+    id,
+    file,
+    category: 'engines',
+    kind: 'oneshot',
+    path: 'structure',
+    family: null,
+    intent: 'test tone',
+    source: 'synth',
+    licence: 'test',
+    duration: 1,
+    channels: 1,
+    gain: 1,
+    dry: false,
+    en: id,
+    de: id,
+    ...extra,
+  });
+  const hashOf = (id) => `h1-${id}`.slice(0, 12).padEnd(12, '0');
+  const stageRoute = (variant) => async (p) => {
+    await p.route('**/audio-lib/render/test/*.wav', (r) => r.fulfill({ body: TEST_FILES[`test/${new URL(r.request().url()).pathname.split('/').pop()}`], contentType: 'audio/wav' }));
+    await p.route('**/audio-lib/render/manifest.json', async (r) => {
+      const res = await r.fetch();
+      const m = await res.json();
+      m.sounds.push(
+        testSound('test_right', 'test/mono.wav', { place: 90 }),
+        testSound('test_free', 'test/mono.wav', {}),
+        testSound('test_dry', 'test/mono.wav', { place: 0, dry: true }),
+        testSound('test_left_only', 'test/left_only.wav', { channels: 2 }),
+      );
+      for (const sound of m.sounds) sound.hash = hashOf(sound.id);
+      // The cue of the fold charge: the jump must start there and not 20 ms before the end.
+      const charge = m.sounds.find((x) => x.id === 'fold_charge');
+      if (charge && variant.cue) charge.cue = variant.cue;
+      for (const [id, hash] of Object.entries(variant.hashes ?? {})) {
+        const sound = m.sounds.find((x) => x.id === id);
+        if (sound) sound.hash = hash;
+      }
+      await r.fulfill({ response: res, json: m });
+    });
+    if (variant.round1) await p.route('**/audio-lib/rounds/round1.json', (r) => r.fulfill({ json: { round: 1, hashes: variant.round1 } }));
+  };
+  const setRange = (pg, id, v) =>
+    pg.evaluate(
+      ([i, x]) => {
+        const el = document.getElementById(i);
+        el.value = String(x);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      },
+      [id, v],
+    );
+  // A click without the scrolling dance under the sticky header.
+  const press = (pg, selector) => pg.locator(selector).dispatchEvent('click');
+  // Plays a test sound and returns the highest peak of each output channel while it sounds.
+  const channelsOf = async (pg, id) => {
+    await pg.evaluate(() => window.__audition.resetPeak());
+    await press(pg, `button[data-sound="${id}"]`);
+    await sleep(900);
+    return pg.evaluate(() => ({ l: window.__audition.peakLMax, r: window.__audition.peakRMax }));
+  };
+
+  const ctxS = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'de-DE' });
+  const pageS = await ctxS.newPage();
+  pageS.on('console', (m) => {
+    if (m.type() === 'error' && !/favicon/.test(m.text())) errors.push(`console: ${m.text()}`);
+  });
+  pageS.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+  await stageRoute({ cue: 2 })(pageS);
+  await pageS.goto(URL_PAGE);
+  await pageS.waitForSelector('#s-test_right');
+  await pageS.evaluate((s) => (window.__audition.speed = s), SPEED);
+
+  await check('the stage switch has three settings, German texts, Stereo by default', async () => {
+    const labels = await pageS.locator('.segmented button').allInnerTexts();
+    assert(labels.join('|') === 'Mono|Stereo (Lautsprecher)|Kopfhörer', `labels ${labels.join('|')}`);
+    assert((await pageS.locator('[data-stage="stereo"]').getAttribute('aria-pressed')) === 'true', 'Stereo is not the default');
+    assert((await pageS.locator('label[for="room"]').innerText()) === 'Raum', 'room label');
+    await pageS.click('[data-lang="en"]');
+    const en = await pageS.locator('.segmented button').allInnerTexts();
+    assert(en.join('|') === 'Mono|Stereo (loudspeakers)|Headphones', `English labels ${en.join('|')}`);
+    await pageS.click('[data-lang="de"]');
+    await pageS.evaluate(() => window.scrollTo(0, 0));
+    await pageS.screenshot({ path: path.join(SHOTS, 'stage-header-de.png'), clip: { x: 0, y: 0, width: 1280, height: 190 } });
+  });
+
+  await check('Stereo: a sound with place 90 is louder on the right; a place ahead is even', async () => {
+    await setRange(pageS, 'room', 0);
+    const side = await channelsOf(pageS, 'test_right');
+    assert(side.r > 0.05, `right peak ${side.r}`);
+    assert(side.l < side.r * 0.1, `left ${side.l} against right ${side.r}`);
+    const ahead = await channelsOf(pageS, 'test_dry');
+    assert(ahead.l > 0.02 && Math.abs(ahead.l - ahead.r) < 0.15 * ahead.l, `ahead: left ${ahead.l}, right ${ahead.r}`);
+  });
+
+  await check('Mono: both channels are equal for a placed sound', async () => {
+    await pageS.click('[data-stage="mono"]');
+    const m = await channelsOf(pageS, 'test_right');
+    assert(m.l > 0.05 && Math.abs(m.l - m.r) < 0.02 * m.l, `mono: left ${m.l}, right ${m.r}`);
+  });
+
+  await check('Headphones: a place at 90 degrees is heard louder on the right (HRTF)', async () => {
+    await pageS.click('[data-stage="headphones"]');
+    const h = await channelsOf(pageS, 'test_right');
+    assert(h.r > 0.03 && h.r > h.l * 1.5, `headphones: left ${h.l}, right ${h.r}`);
+    const plays = await pageS.evaluate(() => window.__audition.plays.filter((x) => x.id === 'test_right').pop());
+    assert(plays.azimuth === 90, `azimuth ${plays.azimuth}`);
+  });
+
+  await check('a file with two channels keeps its channels in Stereo and Headphones, and is summed in Mono', async () => {
+    for (const mode of ['stereo', 'headphones']) {
+      await pageS.click(`[data-stage="${mode}"]`);
+      const c = await channelsOf(pageS, 'test_left_only');
+      assert(c.l > 0.05 && c.r < c.l * 0.02, `${mode}: left ${c.l}, right ${c.r}`);
+    }
+    await pageS.click('[data-stage="mono"]');
+    const m = await channelsOf(pageS, 'test_left_only');
+    assert(m.l > 0.02 && Math.abs(m.l - m.r) < 0.02 * m.l, `mono sum: left ${m.l}, right ${m.r}`);
+    assert(m.l < 0.3, `mono sum should be half the left file, got ${m.l}`);
+    const plays = await pageS.evaluate(() => window.__audition.plays.filter((x) => x.id === 'test_left_only').pop());
+    assert(plays.azimuth === null, 'a two-channel file must not get a direction');
+    await pageS.click('[data-stage="stereo"]');
+  });
+
+  await check('a sound without a place gets a new direction at every trigger', async () => {
+    for (let i = 0; i < 8; i++) {
+      await press(pageS, 'button[data-sound="test_free"]');
+      await sleep(60);
+    }
+    const az = await pageS.evaluate(() => window.__audition.plays.filter((x) => x.id === 'test_free').map((x) => x.azimuth));
+    assert(new Set(az.map((x) => Math.round(x))).size >= 4, `directions ${az.map((x) => Math.round(x)).join(', ')}`);
+    await sleep(1100);
+  });
+
+  await check('the room send: dry sounds get the full send, baked ones a smaller one, Room scales both, Cabin turns it off', async () => {
+    await pageS.click('#stop-all');
+    await setRange(pageS, 'room', 1);
+    await sleep(400);
+    const full = await pageS.evaluate(() => window.__audition.sendLevels());
+    assert(Math.abs(full.dryWet - 1) < 0.02 && full.bakedSend > 0.1 && full.bakedSend < full.dryWet * 0.5, `sends at room 1: ${JSON.stringify(full)}`);
+    await setRange(pageS, 'room', 0.5);
+    await sleep(400);
+    const half = await pageS.evaluate(() => window.__audition.sendLevels());
+    assert(Math.abs(half.dryWet - 0.5) < 0.02 && Math.abs(half.bakedSend - full.bakedSend / 2) < 0.01, `sends at room 0.5: ${JSON.stringify(half)}`);
+    await setRange(pageS, 'room', 1);
+    await pageS.uncheck('#sw-cabin');
+    await sleep(400);
+    const off = await pageS.evaluate(() => window.__audition.sendLevels());
+    assert(off.dryWet < 0.01 && off.bakedSend < 0.01 && off.dryDirect > 0.98, `sends with the cabin off: ${JSON.stringify(off)}`);
+    await pageS.check('#sw-cabin');
+    await sleep(300);
+  });
+
+  await check('the room is audible: a baked sound leaves a tail after it ends, and none at Room 0', async () => {
+    const tail = async (id, room) => {
+      await setRange(pageS, 'room', room);
+      await sleep(300);
+      await press(pageS, `button[data-sound="${id}"]`);
+      await sleep(1060);
+      await pageS.evaluate(() => window.__audition.resetPeak());
+      await sleep(300);
+      const t = await pageS.evaluate(() => Math.max(window.__audition.peakLMax, window.__audition.peakRMax));
+      await sleep(600);
+      return t;
+    };
+    const open = await tail('test_dry', 1);
+    const shut = await tail('test_dry', 0);
+    assert(open > 0.0005, `no tail with the room open: ${open}`);
+    assert(shut < open * 0.2, `tail ${shut} at room 0 against ${open} at room 1`);
+    // A sound with the cabin baked in gets the smaller send: its tail is there, and quieter.
+    const bakedOpen = await tail('test_right', 1);
+    assert(bakedOpen > 0.00005 && bakedOpen < open, `baked tail ${bakedOpen} against dry tail ${open}`);
+  });
+
+  await check('fold scene: buttons, chain honours the cue, tunnel passes meet without a gap', async () => {
+    await pageS.click('[data-tab="fold"]');
+    await pageS.evaluate(() => window.scrollTo(0, 0));
+    await pageS.waitForSelector('#scene-fold');
+    const buttons = await pageS.locator('#scene-fold .events button').count();
+    assert(buttons >= 7, `${buttons} event buttons`);
+    assert((await pageS.locator('#scene-fold [data-role="missing"]').count()) === 0, 'the fold scene lists missing sounds');
+    assert((await pageS.locator('#fold-thrust').count()) === 0, 'the fold scene should show no thrust slider');
+    await pageS.screenshot({ path: path.join(SHOTS, 'scene-fold-idle.png') });
+    await pageS.evaluate(() => (window.__audition.plays = []));
+    await press(pageS, '#scene-fold [data-event="chain2"]');
+    await pageS.waitForFunction(() => (window.__audition.plays ?? []).some((p) => p.id === 'fold_exit'), null, { timeout: 40000 });
+    const plays = await pageS.evaluate(() => window.__audition.plays);
+    const get = (id) => plays.filter((p) => p.id === id);
+    const charge = get('fold_charge')[0];
+    const jump = get('fold_jump')[0];
+    const passes = get('fold_tunnel_loop');
+    const exit = get('fold_exit')[0];
+    assert(Math.abs(jump.start - charge.start - 2) < 0.001, `jump starts ${(jump.start - charge.start).toFixed(4)} s after the charge, the cue is 2`);
+    assert(passes.length === 2, `${passes.length} tunnel passes`);
+    assert(Math.abs(passes[1].start - passes[0].end) < 0.001, 'the second tunnel pass does not start where the first ends');
+    assert(Math.abs(passes[0].start - (jump.end - 0.02)) < 0.001, 'the first tunnel pass does not start 20 ms before the end of the jump');
+    assert(Math.abs(exit.start - (passes[1].end - 0.02)) < 0.001, 'the exit does not start 20 ms before the end of the last pass');
+    // The cruise leaves with the jump.
+    await pageS.waitForFunction(() => document.querySelector('#scene-fold [data-event="cruise"]').getAttribute('aria-pressed') === 'false', null, { timeout: 5000 });
+  });
+
+  await check('fold scene: the written sequence runs to its end and takes the cruise away', async () => {
+    await pageS.evaluate(() => window.scrollTo(0, 0));
+    await pageS.evaluate(() => window.__audition.resetPeak());
+    await pageS.click('#scene-fold [data-act="play-scene"]');
+    await pageS.waitForFunction(() => window.__audition.sceneRuns.fold?.started >= 1, null, { timeout: 5000 });
+    await sleep((45 / SPEED) * 1000 * 0.2);
+    await pageS.screenshot({ path: path.join(SHOTS, 'scene-fold-running.png') });
+    await pageS.waitForFunction(() => window.__audition.sceneRuns.fold?.ended >= 1, null, { timeout: 20000 });
+    assert((await peakMax(pageS)) > 0.001, 'the scene made no sound');
+    await pageS.click('#stop-all');
+  });
+
+  await ctxS.close();
+
+  // Start the hash tests without the ratings of the first part.
+  if (existsSync(RATINGS)) rmSync(RATINGS);
+  // The changed mark: a rating keeps the hash of the file it was given on; another hash later marks the row.
+  const ctxH = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'de-DE' });
+  let ratedId;
+  await check('a new rating stores the hash of the file', async () => {
+    const pg = await ctxH.newPage();
+    pg.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+    await stageRoute({})(pg);
+    await pg.goto(URL_PAGE);
+    await pg.waitForSelector('#s-test_right');
+    ratedId = 'test_right';
+    await pg.locator(`#s-${ratedId} .stars button`).nth(3).click();
+    await pg.waitForFunction(() => /ratings\.json/.test(document.getElementById('save-status').textContent), null, { timeout: 5000 });
+    const saved = JSON.parse(readFileSync(RATINGS, 'utf-8'));
+    assert(saved.ratings[ratedId].hash === hashOf(ratedId), `stored hash ${saved.ratings[ratedId].hash}`);
+    assert((await pg.locator('.changed-mark').count()) === 0, 'a fresh rating must not be marked');
+    await pg.close();
+  });
+
+  await check('a rated sound whose hash changed is marked, dimmed, counted, filtered; rating again clears it and keeps the old one', async () => {
+    const pg = await ctxH.newPage();
+    pg.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+    await stageRoute({ hashes: { [ratedId]: 'h2-changed00' }, round1: { test_free: 'old-hash-0001', test_dry: hashOf('test_dry') } })(pg);
+    // Two more ratings given before hashes existed: one on a file that still matches round 1, one on a file that does not.
+    await pg.addInitScript(
+      ([id]) => {
+        try {
+          const raw = JSON.parse(localStorage.getItem('audition.ratings.v1'));
+          raw.savedAt = '2999-01-01T00:00:00.000Z';
+          raw.ratings.test_free = { stars: 5, verdict: 'fits', note: 'round one', at: '2026-11-14T10:00:00.000Z' };
+          raw.ratings.test_dry = { stars: 3, verdict: 'close', note: '', at: '2026-11-14T10:00:00.000Z' };
+          localStorage.setItem('audition.ratings.v1', JSON.stringify(raw));
+        } catch (e) {
+          // The first visit has nothing stored yet; the second page below carries the ratings.
+        }
+      },
+      [ratedId],
+    );
+    await pg.goto(URL_PAGE);
+    await pg.waitForSelector('#s-test_right');
+    const row = pg.locator(`#s-${ratedId}`);
+    assert((await row.locator('[data-role="changed"]').count()) === 1, 'the row has no changed mark');
+    assert(/geändert/i.test(await row.locator('[data-role="changed"]').innerText()), 'the mark is not German');
+    assert((await row.locator('.stars button.lit').count()) === 4, 'the old rating is not visible');
+    assert((await row.locator('.rate').getAttribute('class')).includes('stale'), 'the old rating is not dimmed');
+    const opacity = await row.locator('.rate .stars').evaluate((el) => getComputedStyle(el).opacity);
+    assert(Number(opacity) < 0.9, `stars opacity ${opacity}`);
+    // Round 1: test_free differs from its round 1 hash and is marked; test_dry matches it and is not.
+    assert((await pg.locator('#s-test_free [data-role="changed"]').count()) === 1, 'a rating without hash on a changed file is not marked');
+    assert((await pg.locator('#s-test_dry [data-role="changed"]').count()) === 0, 'a rating without hash on an unchanged file is marked');
+    const detail = await pg.locator('#count-detail').innerText();
+    assert(/2 geändert/.test(detail) && /unbewertet/.test(detail), `counter detail: ${detail}`);
+    assert(/^3 \/ /.test(await pg.locator('#rated-count').innerText()), 'rated count');
+    await row.scrollIntoViewIfNeeded();
+    await scrollTo(pg, `#s-${ratedId}`, 300);
+    await pg.screenshot({ path: path.join(SHOTS, 'library-changed-mark.png') });
+    await pg.locator('#only-changed').check();
+    assert((await pg.locator('.sound').count()) === 2, 'the filter should list the two changed sounds');
+    await row.locator('.stars button').nth(4).click();
+    assert((await pg.locator('.sound').count()) === 2, 'a row must not vanish from the filter under the cursor');
+    assert((await row.locator('[data-role="changed"]').count()) === 0, 'rating again did not clear the mark');
+    assert(/1 geändert/.test(await pg.locator('#count-detail').innerText()), 'counter did not drop');
+    await pg.waitForFunction(() => /ratings\.json/.test(document.getElementById('save-status').textContent), null, { timeout: 5000 });
+    await sleep(700);
+    const saved = JSON.parse(readFileSync(RATINGS, 'utf-8')).ratings[ratedId];
+    assert(saved.stars === 5 && saved.hash === 'h2-changed00', `new rating ${JSON.stringify(saved)}`);
+    assert(saved.history?.length === 1 && saved.history[0].stars === 4 && saved.history[0].hash === hashOf(ratedId), `history ${JSON.stringify(saved.history)}`);
+    await pg.close();
+  });
+  await ctxH.close();
 
   // A second load with a doctored manifest: one failed check, one sound taken away.
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'en-US' });

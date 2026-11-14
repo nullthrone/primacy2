@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import type { RatingsFile, SoundRating } from './types.ts';
+import type { ManifestSound, RatingsFile, SoundRating } from './types.ts';
 
 // Ratings live in localStorage, are saved to the dev server a moment after every change, and can be
 // exported as a file for the case that the server is not there.
@@ -10,6 +10,10 @@ const SAVE_DELAY_MS = 500;
 export const ratings = signal<Record<string, SoundRating>>({});
 export const sceneNotes = signal<Record<string, { note: string; at: string }>>({});
 export const general = signal('');
+/** File hashes of round 1: a rating without a hash of its own was given on these files. */
+export const round1Hashes = signal<Record<string, string>>({});
+/** Hashes of the files in the current manifest (only the sounds for which the build wrote one). */
+export const currentHashes = signal<Record<string, string>>({});
 export type SaveStatus = 'idle' | 'saving' | 'server' | 'local' | 'failed';
 export const saveStatus = signal<SaveStatus>('idle');
 
@@ -19,6 +23,24 @@ let loaded = false;
 
 export function setManifestInfo(placeholder: boolean, count: number): void {
   manifestInfo = { placeholder, count };
+}
+
+export function setCurrentHashes(sounds: ManifestSound[]): void {
+  const next: Record<string, string> = {};
+  for (const s of sounds) if (typeof s.hash === 'string' && s.hash) next[s.id] = s.hash;
+  currentHashes.value = next;
+}
+
+/** The hashes of round 1, served read-only by the dev server; a missing file only means no sound can be marked from it. */
+export async function loadRound1(): Promise<void> {
+  try {
+    const r = await fetch('/audio-lib/rounds/round1.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const parsed = (await r.json()) as { hashes?: Record<string, string> };
+    if (parsed && typeof parsed.hashes === 'object' && parsed.hashes !== null) round1Hashes.value = parsed.hashes;
+  } catch {
+    // Without the file the ratings that carry no hash are simply never marked.
+  }
 }
 
 function isRatingsFile(x: unknown): x is RatingsFile {
@@ -104,15 +126,39 @@ function scheduleSave(): void {
 
 const empty = (): SoundRating => ({ stars: 0, verdict: '', note: '', at: '' });
 
-export function rate(id: string, patch: Partial<SoundRating>): void {
-  const next = { ...(ratings.value[id] ?? empty()), ...patch, at: new Date().toISOString() };
-  ratings.value = { ...ratings.value, [id]: next };
-  scheduleSave();
-}
-
 export function isRated(id: string): boolean {
   const r = ratings.value[id];
   return !!r && (r.stars > 0 || r.verdict !== '' || r.note !== '');
+}
+
+/** The hash of the file the owner heard when he rated: stored with the rating, else that of round 1. */
+export function ratedHash(id: string): string | undefined {
+  const r = ratings.value[id];
+  if (!r) return undefined;
+  return r.hash ?? round1Hashes.value[id];
+}
+
+/** True when the sound is rated and its file is not the one that was rated. Unknown hashes never count as a change. */
+export function isChanged(id: string): boolean {
+  if (!isRated(id)) return false;
+  const now = currentHashes.value[id];
+  const then = ratedHash(id);
+  return !!now && !!then && now !== then;
+}
+
+export function rate(id: string, patch: Partial<SoundRating>): void {
+  const old = ratings.value[id] ?? empty();
+  const hash = currentHashes.value[id];
+  let base: SoundRating = old;
+  if (isChanged(id)) {
+    // Rating a sound whose file changed starts a new rating (the note stays to be edited); the old one is kept in the history.
+    const past = { stars: old.stars, verdict: old.verdict, note: old.note, at: old.at, hash: ratedHash(id) };
+    base = { ...empty(), note: old.note, history: [...(old.history ?? []), past] };
+  }
+  const next: SoundRating = { ...base, ...patch, at: new Date().toISOString() };
+  if (hash) next.hash = hash;
+  ratings.value = { ...ratings.value, [id]: next };
+  scheduleSave();
 }
 
 export function setSceneNote(id: string, note: string): void {

@@ -1,6 +1,6 @@
 import type { Loc } from './types.ts';
 
-// The three audition scenes as plain data and small functions. Every sound is named by its manifest id;
+// The four audition scenes as plain data and small functions. Every sound is named by its manifest id;
 // an id the manifest does not have is skipped by the runner and listed as missing on the scene.
 // The mapping from the sliders (thrust, heat, distance) to gains lives here and nowhere else.
 
@@ -30,6 +30,14 @@ export interface Shot {
   chain?: boolean;
   /** Plays through the radio filter, with squelch and hiss (downloaded speech is raw and needs it). */
   viaRadio?: boolean;
+  /** Starts at the sound before it ends exactly, with no overlap: for passes of one loop file laid end to end. */
+  seamless?: boolean;
+  /** Plays one pass of a loop file instead of looping it. */
+  once?: boolean;
+  /** Where the sound comes from: a direction in degrees, or 'alternate' for changing sides (hits). Else the sound's own place. */
+  direction?: number | 'alternate';
+  /** Switches that change at the moment this shot starts, so that a loop follows a chain on its own beat. */
+  set?: Record<string, boolean>;
 }
 
 export interface EventSpec {
@@ -38,6 +46,8 @@ export interface EventSpec {
   shots?: Shot[];
   /** Flips `state.on[key]`; a loop reads it. */
   toggle?: boolean;
+  /** Sets switches at once (an event without a sound of its own, such as "quiet cabin"). */
+  set?: Record<string, boolean>;
 }
 
 /** Fires `id` again and again, every `every(state)` seconds; null means not now. */
@@ -62,7 +72,12 @@ export interface SceneDef {
   title: Loc;
   blurb: Loc;
   distance: { label: Loc; unit: string; min: number; max: number; step: number; initial: number };
-  thrustFamily: string;
+  /** Family of looped engine levels crossfaded by thrust; null for a scene without engines. */
+  thrustFamily: string | null;
+  /** Sliders this scene shows; all three when missing. */
+  sliders?: Param[];
+  /** Switches that are on when the scene starts. */
+  initialOn?: Record<string, boolean>;
   /** Gain of the whole engine group, for "engines off". */
   engineGain: (s: SceneState) => number;
   loops: LoopSpec[];
@@ -81,7 +96,7 @@ export function effectiveThrust(s: SceneState): number {
 }
 
 export function initialState(def: SceneDef): SceneState {
-  return { thrust: 0, heat: 0.2, distance: def.distance.initial, boost: false, on: {} };
+  return { thrust: 0, heat: 0.2, distance: def.distance.initial, boost: false, on: { ...(def.initialOn ?? {}) } };
 }
 
 export function clamp(v: number, lo: number, hi: number): number {
@@ -188,12 +203,12 @@ export const COMBAT: SceneDef = {
     { key: 'cannon', label: { en: 'Cannon', de: 'Kanone' }, shots: [{ id: 'weapon_cannon_fire' }] },
     { key: 'beam', label: { en: 'Beam on/off', de: 'Strahl an/aus' }, toggle: true },
     { key: 'missile_launch', label: { en: 'Missile launch', de: 'Raketenstart' }, shots: [{ id: 'missile_launch' }] },
-    { key: 'shield_light', label: { en: 'Shield hit, light', de: 'Schildtreffer, leicht' }, shots: [{ id: 'impact_shield_light' }] },
-    { key: 'shield_medium', label: { en: 'Shield hit, medium', de: 'Schildtreffer, mittel' }, shots: [{ id: 'impact_shield_medium' }] },
-    { key: 'shield_heavy', label: { en: 'Shield hit, heavy', de: 'Schildtreffer, schwer' }, shots: [{ id: 'impact_shield_heavy' }] },
-    { key: 'hull_light', label: { en: 'Hull hit, light', de: 'Rumpftreffer, leicht' }, shots: [{ id: 'impact_hull_light' }] },
-    { key: 'hull_medium', label: { en: 'Hull hit, medium', de: 'Rumpftreffer, mittel' }, shots: [{ id: 'impact_hull_medium' }] },
-    { key: 'hull_heavy', label: { en: 'Hull hit, heavy', de: 'Rumpftreffer, schwer' }, shots: [{ id: 'impact_hull_heavy' }, { id: 'hull_stress_groan', at: 0.5 }] },
+    { key: 'shield_light', label: { en: 'Shield hit, light', de: 'Schildtreffer, leicht' }, shots: [{ id: 'impact_shield_light', direction: 'alternate' }] },
+    { key: 'shield_medium', label: { en: 'Shield hit, medium', de: 'Schildtreffer, mittel' }, shots: [{ id: 'impact_shield_medium', direction: 'alternate' }] },
+    { key: 'shield_heavy', label: { en: 'Shield hit, heavy', de: 'Schildtreffer, schwer' }, shots: [{ id: 'impact_shield_heavy', direction: 'alternate' }] },
+    { key: 'hull_light', label: { en: 'Hull hit, light', de: 'Rumpftreffer, leicht' }, shots: [{ id: 'impact_hull_light', direction: 'alternate' }] },
+    { key: 'hull_medium', label: { en: 'Hull hit, medium', de: 'Rumpftreffer, mittel' }, shots: [{ id: 'impact_hull_medium', direction: 'alternate' }] },
+    { key: 'hull_heavy', label: { en: 'Hull hit, heavy', de: 'Rumpftreffer, schwer' }, shots: [{ id: 'impact_hull_heavy', direction: 'alternate' }, { id: 'hull_stress_groan', at: 0.5 }] },
     { key: 'shields_down', label: { en: 'Shields down', de: 'Schilde unten' }, shots: [{ id: 'alarm_shields_down' }] },
     { key: 'missile', label: { en: 'Missile warning on/off', de: 'Raketenwarnung an/aus' }, toggle: true },
     { key: 'hull_critical', label: { en: 'Hull critical on/off', de: 'Rumpf kritisch an/aus' }, toggle: true },
@@ -297,14 +312,63 @@ export const LANDING: SceneDef = {
   duration: 40,
 };
 
-export const SCENES: SceneDef[] = [DOCKING, COMBAT, LANDING];
+/** One pass of the fold tunnel is seven seconds; the chain lays `passes` of them end to end. */
+function foldChain(passes: number): Shot[] {
+  const shots: Shot[] = [
+    { id: 'fold_charge' },
+    // The jump starts at the charge's cue and takes the cruise away with it.
+    { id: 'fold_jump', chain: true, set: { cruise: false } },
+  ];
+  for (let i = 0; i < passes; i++) shots.push({ id: 'fold_tunnel_loop', once: true, chain: i === 0, seamless: i > 0 });
+  shots.push({ id: 'fold_exit', chain: true });
+  return shots;
+}
+
+export const FOLD: SceneDef = {
+  id: 'fold',
+  title: { en: 'Fold jump', de: 'Faltsprung' },
+  blurb: {
+    en: 'The cruise runs, then the fold: charge, jump, the tunnel (one pass or two), exit, and the quiet cabin. Each step has a button; the whole chain starts every sound at the cue of the one before it.',
+    de: 'Der Reiseantrieb läuft, dann der Falt: Laden, Sprung, der Tunnel (ein Durchgang oder zwei), Austritt und die stille Kabine. Jeder Schritt hat einen Knopf; die ganze Kette startet jeden Klang am Einsatzpunkt des vorigen.',
+  },
+  distance: { label: { en: 'Distance', de: 'Entfernung' }, unit: 'm', min: 0, max: 1, step: 1, initial: 0 },
+  sliders: [],
+  initialOn: { cruise: true },
+  thrustFamily: null,
+  engineGain: () => 0,
+  loops: [
+    { id: 'cabin_ambience_loop', gain: full },
+    { id: 'cruise_loop', gain: (s) => (s.on.cruise ? 1 : 0) },
+    { id: 'fold_tunnel_loop', gain: (s) => (s.on.tunnel ? 1 : 0) },
+  ],
+  repeaters: [],
+  events: [
+    { key: 'cruise', label: { en: 'Cruise loop on/off', de: 'Reiseantrieb an/aus' }, toggle: true },
+    { key: 'charge', label: { en: '1 Fold charge', de: '1 Falt laden' }, shots: [{ id: 'fold_charge' }] },
+    { key: 'jump', label: { en: '2 Fold jump', de: '2 Faltsprung' }, shots: [{ id: 'fold_jump', set: { cruise: false } }] },
+    { key: 'tunnel', label: { en: '3 Tunnel loop on/off', de: '3 Falttunnel an/aus' }, toggle: true },
+    { key: 'exit', label: { en: '4 Fold exit', de: '4 Faltaustritt' }, shots: [{ id: 'fold_exit', set: { tunnel: false } }] },
+    { key: 'quiet', label: { en: '5 Quiet cabin', de: '5 Stille Kabine' }, set: { cruise: false, tunnel: false } },
+    { key: 'chain1', label: { en: 'Whole chain, one tunnel pass', de: 'Ganze Kette, ein Tunneldurchgang' }, shots: foldChain(1) },
+    { key: 'chain2', label: { en: 'Whole chain, two tunnel passes', de: 'Ganze Kette, zwei Tunneldurchgänge' }, shots: foldChain(2) },
+  ],
+  tracks: { thrust: [[0, 0]], heat: [[0, 0.2]], distance: [[0, 0]] },
+  script: [
+    { t: 4, event: 'chain2' },
+    // Charge about 8 s, jump about 3 s, two passes of 7 s, exit about 3 s: the chain is over after roughly 28 s.
+    { t: 38, event: 'quiet' },
+  ],
+  duration: 45,
+};
+
+export const SCENES: SceneDef[] = [DOCKING, COMBAT, LANDING, FOLD];
 
 /** Every id a scene refers to, for the "missing" list and for preloading. */
 export function sceneSoundIds(def: SceneDef): string[] {
-  const ids = new Set<string>([def.thrustFamily]);
+  const ids = new Set<string>(def.thrustFamily ? [def.thrustFamily] : []);
   for (const l of def.loops) ids.add(l.id);
   for (const r of def.repeaters) ids.add(r.id);
   for (const e of def.events) for (const s of e.shots ?? []) for (const id of Array.isArray(s.id) ? s.id : [s.id]) ids.add(id);
-  ids.delete(def.thrustFamily);
+  if (def.thrustFamily) ids.delete(def.thrustFamily);
   return [...ids];
 }

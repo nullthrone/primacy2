@@ -1,7 +1,6 @@
 import { signal, type Signal } from '@preact/signals';
 import { engine, type GroupVoice, type Voice } from './engine.ts';
 import {
-  CHAIN_OVERLAP,
   effectiveThrust,
   initialState,
   sampleTrack,
@@ -16,6 +15,8 @@ import {
 
 const TICK_MS = 50;
 const AUDIBLE = 0.002;
+/** Directions of the hits in turn, so that they come from changing sides (degrees, 0 ahead, 90 right, 180 behind). */
+const HIT_SIDES = [-65, 70, -120, 110, -35, 40];
 
 interface LoopVoice {
   voice: Voice | null;
@@ -29,7 +30,12 @@ export interface AuditionHooks {
   /** Output peak of the last frame and the highest since resetPeak(), linear. */
   peak: number;
   peakMax: number;
+  /** The same per output channel, to hear with numbers where a sound sits. */
+  peakLMax: number;
+  peakRMax: number;
   resetPeak(): void;
+  /** Current send levels of the room, for checking the Room slider without listening. */
+  sendLevels(): { dryDirect: number; dryWet: number; bakedSend: number };
   /** Target gains of the engine group, for checking the crossfade without listening. */
   groupLevels(): { id: string; thrust: number; gain: number }[];
 }
@@ -61,6 +67,7 @@ export class SceneRunner {
   private scriptIndex = 0;
   private repeatAcc = new Map<string, number>();
   private starting = false;
+  private sideIndex = 0;
 
   constructor(readonly def: SceneDef) {
     this.state = signal(initialState(def));
@@ -69,11 +76,12 @@ export class SceneRunner {
   /** Called when the manifest is known. */
   refreshMissing(): void {
     const out = sceneSoundIds(this.def).filter((id) => !engine.get(id));
-    if (!this.familyMembers().length) out.unshift(this.def.thrustFamily);
+    if (this.def.thrustFamily && !this.familyMembers().length) out.unshift(this.def.thrustFamily);
     this.missing.value = out;
   }
 
   private familyMembers() {
+    if (!this.def.thrustFamily) return [];
     return engine.all().filter((s) => s.family === this.def.thrustFamily && s.kind === 'loop' && typeof s.params?.thrust === 'number');
   }
 
@@ -238,14 +246,33 @@ export class SceneRunner {
     const picks = shots.map((sh) => engine.get(this.pickId(sh.id)));
     await engine.preload(picks.filter((p): p is NonNullable<typeof p> => !!p).map((p) => p.id));
     const base = engine.now() + 0.03;
-    let prevEnd = 0;
+    let prevAt = 0;
+    let prevLen = 0;
+    let prevCue = 0;
     shots.forEach((sh, i) => {
       const sound = picks[i];
       if (!sound) return;
-      const at = sh.chain ? Math.max(0, prevEnd - CHAIN_OVERLAP) : (sh.at ?? 0) / speed;
-      prevEnd = at + engine.lengthOf(sound);
-      void engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at });
+      const len = engine.lengthOf(sound);
+      // A chained sound starts at the cue of the one before it (the manifest's, else 20 ms before its end);
+      // a seamless one starts exactly at its end, so that passes of one loop meet without an overlap.
+      let at = (sh.at ?? 0) / speed;
+      if (sh.seamless) at = prevAt + prevLen;
+      else if (sh.chain) at = Math.max(0, prevAt + prevCue);
+      prevAt = at;
+      prevLen = len;
+      prevCue = engine.cueOf(sound);
+      void engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at, direction: this.directionOf(sh), once: sh.once });
+      if (sh.set) {
+        const set = sh.set;
+        // The switch follows the audio clock, so that a loop leaves with the sound that ends it.
+        window.setTimeout(() => this.patch({ on: { ...this.state.value.on, ...set } }), Math.max(0, base + at - engine.now()) * 1000);
+      }
     });
+  }
+
+  private directionOf(sh: Shot): number | undefined {
+    if (sh.direction === 'alternate') return HIT_SIDES[this.sideIndex++ % HIT_SIDES.length];
+    return sh.direction;
   }
 
   /** A button press or a step of the written sequence. `on` forces a toggle instead of flipping it. */
@@ -257,6 +284,10 @@ export class SceneRunner {
       this.patch({ on: { ...this.state.value.on, [key]: next } });
       if (!this.live.value) void this.startLive();
       return;
+    }
+    if (ev.set) {
+      this.patch({ on: { ...this.state.value.on, ...ev.set } });
+      if (!this.live.value) void this.startLive();
     }
     if (ev.shots?.length) void this.playShots(ev.shots, this.state.value);
   }
