@@ -421,10 +421,21 @@ class Engine {
         lp.type = 'lowpass';
         lp.frequency.value = behindCutoff(azimuth);
         lp.Q.value = 0.5;
-        const pan = ctx.createStereoPanner();
-        pan.pan.value = stagePan(azimuth);
-        g.connect(lp).connect(pan).connect(out);
-        nodes = [lp, pan];
+        // A balance law, not the browser's equal-power panner: a source straight ahead plays at the file's own
+        // level on both sides, as it does in Mono and as the level table of the sound files assumes, and no side
+        // ever gets more than the file holds. The equal-power panner put every centred point source 3 dB under
+        // the two-channel beds, which shifted the balance the owner judges.
+        const p = stagePan(azimuth);
+        const left = ctx.createGain();
+        left.gain.value = Math.min(1, 1 - p);
+        const right = ctx.createGain();
+        right.gain.value = Math.min(1, 1 + p);
+        const merge = ctx.createChannelMerger(2);
+        g.connect(lp);
+        lp.connect(left).connect(merge, 0, 0);
+        lp.connect(right).connect(merge, 0, 1);
+        merge.connect(out);
+        nodes = [lp, left, right, merge];
       } else {
         const p = ctx.createPanner();
         p.panningModel = 'HRTF';

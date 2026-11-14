@@ -39,6 +39,15 @@ the old procedural sound.
   agent with the category files it owns; look at the spectrogram pictures yourself before you
   hand a round over), record his words in section 4 of `SOUND_DESIGN.md`, and change the rules
   when his judgement contradicts them. He judges; nobody else can hear.
+- Before more rounds lean on the numbers, have the measuring reviewed: `tools/audio/listen/
+  measure.py`, `tools/audio/synth/rules.py` and `tools/audio/build.py` were never reviewed (the
+  review of 2026-11-14 covered the controller, the downloads, the licences and the dev-server
+  plugin). Known mismatch: the per-band table under-reports energy at the very start of a file
+  against the whole-file figure the rules use.
+- When he says a group of sounds is too quiet or too loud against another, look at the stage of
+  the page first (`packages/client/src/dev/audition/engine.ts`, `place`): how one-channel sounds
+  are panned decides their level against the two-channel beds. The files were rendered to one
+  level table for playback at gain 1.
 - Start the page for him: the dev server of the client (`npm run dev:client`), then
   `/dev/audition.html`. Tell him what changed and what to listen for.
 - If he has recorded household sounds (`tools/audio/RECORDINGS.md`), take them in as raw material:

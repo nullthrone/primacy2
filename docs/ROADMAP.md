@@ -370,12 +370,21 @@ Defects seen and left in:
 - Controller: with no pointer lock, a key pressed while a stick is held switches the device to
   keys and the stick's thrust drops to zero until the stick has been at rest once. The help block
   for controllers names the default layout, not the pilot's own bindings (it says so). Two pads
-  of the same model share one device key.
+  of the same model share one device key. After a menu or panel closes, an axis stays silent
+  until it has been at rest once (so that a stick still held does not fly the ship): a slider or
+  throttle bound as a plain axis rests at an end stop and so goes dead after every panel; only an
+  axis bound as the throttle lever is exempt. A joystick or HOTAS pilot will meet this.
 - Sound library: the radio filter fails its rule on speech clips shorter than about 3 s (the
   speech model mishears them even unfiltered; lines of 20 s pass with 0 to 9 % word errors). The
   rattles in the heavy hull hit sit at even distances. Downloaded loops are raw files whose seams
-  nobody checked. On the audition page a point source is about 3 dB quieter in Stereo than in
-  Mono. The intent texts on the page are English only.
+  nobody checked. On the audition page the level of a point source in the Headphones setting
+  against Mono and Stereo was never measured (Stereo uses a balance law that keeps a source
+  ahead at the file's level). The intent texts on the page are English only.
+- The measuring tools and rules of the sound library (`tools/audio/listen/measure.py`,
+  `tools/audio/synth/rules.py`, `tools/audio/build.py`) have their own tests but were not
+  reviewed by a second pair of eyes, and every "passes all rules" rests on them. One mismatch is
+  known: the table of energy per band under-reports a hit at the very start of a file compared
+  with the whole-file figure the rules use.
 
 Open findings with a test marked as an expected failure:
 
