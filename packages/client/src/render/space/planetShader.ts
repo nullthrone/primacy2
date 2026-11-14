@@ -125,6 +125,7 @@ float gEps;
 // pixels high would have, which says how large the planet stands in the view whatever the
 // resolution. gNear follows that: 0 for a planet seen whole, 1 once such a pixel covers less
 // than about 1/3000 of the radius, and the looks that only make sense close up follow gNear.
+// The lowest quality has neither the fine detail nor those looks.
 float gFoot;
 float gSlant;
 float gNear;
@@ -582,7 +583,8 @@ Surf surface(vec3 nb, vec3 sunB) {
     col = mix(col, mix(mix(cAlt, uBase * vec3(1.25, 0.55, 0.35), warm), cLight, clamp(0.5 + swirl + 0.12 * fine, 0.0, 1.0)), spot * 0.85);
   }
   col = mix(col, uBase * vec3(0.55, 0.62, 0.75), smoothstep(0.72, 0.98, abs(lat)) * 0.6);
-  s.albedo = col;
+  // The fine structure also shows inside a zone or a belt, where the banding itself is even.
+  s.albedo = col * (1.0 + 0.07 * (0.4 + 0.6 * contrast) * fine);
   s.limb = 0.9;
   return s;
 }
@@ -597,7 +599,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   gFoot = uPix * max(dot(d, uCenter + n * uRadius), 0.0) / uRadius;
   float slant = gFoot / max(ndv, 0.15);
   gSlant = uFine > 0.0 ? uFine * slant : 1e3;
-  gNear = 1.0 - smoothstep(3.5e-4, 1.5e-3, gFoot * uView);
+  gNear = uFine > 0.0 ? 1.0 - smoothstep(3.5e-4, 1.5e-3, gFoot * uView) : 0.0;
   vec3 sunB = uRot * uSunDir;
   gSunStep = (sunB - nb * dot(nb, sunB)) * (2.0 * slant);
   gSunPix = vec2(0.0);
