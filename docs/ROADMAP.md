@@ -181,10 +181,10 @@ the pointer is captured in flight, so nothing on the HUD itself can be clicked.
 One thing about the browser test is not explained. On 2026-11-14 `scripts/e2e.mjs` ran three times
 with the same game code. Twice it stopped in the first minutes at a step that steers the ship with
 the mouse hook ("could not bring the second pilot into view"; the second time the new step that
-turns the nose at a station failed the same way). The third time it passed in full, the steering
-steps settling within seconds at 61 frames per second. The two failed runs had been started as
-detached background jobs of an agent session, the passing one in the foreground; whether that is
-the cause was not established. `scripts/pad-check.mjs` passed both times it ran.
+turns the nose at a station failed the same way). The third and a fourth time it passed in full,
+the steering steps settling within seconds at 61 frames per second. The two failed runs had been
+started as detached background jobs of an agent session, the two passing ones in the foreground;
+whether that is the cause was not established. `scripts/pad-check.mjs` passed both times it ran.
 
 ## 3. Order of work
 
@@ -319,6 +319,9 @@ Other notes:
   `node tools/dev/orient-check.mjs` (own Vite server, screenshots in `screenshots/orient/`), on the
   page `/dev/local.html?scene=orient&hud=1&cam=cockpit&universe=16`; `sys=1` is a system with 19
   places, `panel=station` a made-up station with all six tabs (`packages/client/src/dev/hud.ts`).
+- Start `node scripts/e2e.mjs` in the foreground. Started as a detached background job of an
+  agent session it failed twice on 2026-11-14 at its steering steps; in the foreground it passed
+  (see "Orientation on the HUD").
 - Whether the game ports are in use: `netstat -ano | grep -E ":(8420|8421) "`. Do not grep for
   the word LISTENING: this Windows prints the state in German.
 - The Python environment for the audio tools is `.venv-audio` (ignored by git): PyTorch with CUDA
