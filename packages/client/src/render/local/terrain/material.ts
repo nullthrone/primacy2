@@ -188,10 +188,10 @@ vec3 planeNoise(vec2 x, float wrap, uint seed) {
 }
 
 // Stones of one size class: one to a lattice cell (in 'share' of the cells), anywhere in it,
-// 0.05 to 0.2 cells in radius, most of them small. A stone is a block with a flat top and steep
-// sides, a shade off the ground it lies on, with a dark line where it meets the ground and, with
-// 'sun' (xy: along the ground toward the star, z: cotangent of the star's height), the shadow it
-// casts. 'q' is the place on the lattice plane (m), 'px' the size of a pixel on the ground (m).
+// 0.05 to 0.2 cells in radius, most of them small. A stone is a low heap of a few flat faces,
+// a shade off the ground it lies on, a little darker where it meets the ground, and with
+// 'shadows' it casts one: 'sun' is the star (xy: along the ground toward it, z: cotangent of its
+// height). 'q' is the place on the lattice plane (m), 'px' the size of a pixel on the ground (m).
 // Adds to the slope of the ground and multiplies its reflectance and the star's light.
 void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec2 sunPlane, float px, float strength, bool shadows,
     inout vec2 slope, inout float tint, inout float light) {
@@ -215,34 +215,34 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     // The stone's own axes; it is up to 1.6 times as long as wide.
     vec2 ax = normalize(b.xy - 0.5 + 0.001);
     vec2 ay = vec2(-ax.y, ax.x);
-    float narrow = 1.0 + 0.6 * b.z;
+    float narrow = 1.0 + 0.7 * b.z;
     vec2 e = vec2(dot(d, ax), dot(d, ay) * narrow) / r;
-    vec2 e2 = e * e;
-    float m4 = dot(e2, e2);
-    // 1 on the outline of the stone, a rounded rectangle.
-    float m = sqrt(sqrt(m4));
-    float tall = 0.55 + 0.6 * b.w;
-    if (m < 1.6) {
-      float top = 0.3 + 0.35 * b.w;
-      float t = clamp((m - top) / (1.0 - top), 0.0, 1.0);
-      // Outward on the outline, per metre along the ground.
-      vec2 out2 = e2 * e / max(m4 / max(m, 1e-4), 1e-6);
-      vec2 outward = ax * out2.x + ay * (out2.y * narrow);
-      slope -= outward * (6.0 * t * (1.0 - t) * tall / (1.0 - top) * w);
-      // The top is not level.
-      slope += (b.zw - 0.5) * (0.35 * w * (1.0 - t));
-      float cover = 1.0 - smoothstep(1.0 - clamp(1.5 * px / r, 0.06, 0.5), 1.0, m);
+    // 1 on the outline of the stone: an ellipse with two pieces cut off straight. 'og' points
+    // outward across the outline; each cut is a flat face.
+    float m = length(e);
+    vec2 og = e / max(m, 1e-4);
+    float c1 = 0.45 + 0.5 * b.w;
+    float c2 = 0.45 + 0.5 * fract((b.x + b.y) * 5.7);
+    float m1 = dot(e, vec2(0.5, 0.866)) / c1;
+    float m2 = dot(e, vec2(0.6, -0.8)) / c2;
+    if (m1 > m) { m = m1; og = vec2(0.5, 0.866) / c1; }
+    if (m2 > m) { m = m2; og = vec2(0.6, -0.8) / c2; }
+    float tall = 0.4 + 0.5 * b.w;
+    if (m < 1.4) {
+      float cover = 1.0 - smoothstep(1.0 - clamp(1.5 * px / r, 0.08, 0.5), 1.0, m);
+      slope -= (ax * og.x + ay * (og.y * narrow)) * (tall * w * cover);
       tint *= mix(1.0, mix(shade.x, shade.y, a.z / share), w * cover);
       // Where stone and ground meet, little light gets in.
-      tint *= 1.0 - 0.38 * w * smoothstep(0.7, 1.0, m) * (1.0 - smoothstep(1.0, 1.6, m));
+      tint *= 1.0 - 0.22 * w * smoothstep(0.75, 1.0, m) * (1.0 - smoothstep(1.0, 1.4, m));
     }
     if (shadows) {
-      float len = min(r * tall * sun.z, 0.6 * cell);
+      // Under a high star still a sliver of shadow, which is what sets a stone on the ground.
+      float len = min(max(r * tall * sun.z, 0.3 * r), 0.6 * cell);
       float along = clamp(-dot(d, sun.xy), 0.0, len);
-      float wide = r / narrow * mix(0.95, 0.45, along / max(len, 1e-4));
+      float wide = r * (0.5 + 0.42 / narrow) * mix(1.0, 0.55, along / len);
       float soft = max(0.75 * px, 0.06 * r);
-      float dark = (1.0 - smoothstep(wide - soft, wide + soft, length(d + sun.xy * along))) * smoothstep(0.85, 1.1, m);
-      light *= 1.0 - dark * w * smoothstep(0.0, 0.3 * r, len);
+      float dark = (1.0 - smoothstep(wide - soft, wide + soft, length(d + sun.xy * along))) * smoothstep(0.85, 1.05, m);
+      light *= 1.0 - dark * w;
     }
   }
 }
@@ -342,10 +342,14 @@ void main() {
       if (i > 4) show *= uLow;
       if (show > 0.0) {
         vec3 nz = planeNoise(q / cell + vec2(0.37, 0.73) * float(i), count, face + 16u * uint(i + 1));
-        float rough = i == 0 ? 0.17 : i == 1 ? 0.13 : i == 2 ? 0.085 : i == 3 ? 0.05 : i == 4 ? 0.028 : 0.0;
-        float patchy = i == 0 ? 0.11 : i == 1 ? 0.07 : i == 2 ? 0.05 : i == 3 ? 0.045 : 0.04;
+        float rough = i == 0 ? 0.15 : i == 1 ? 0.10 : i == 2 ? 0.055 : i == 3 ? 0.03 : i == 4 ? 0.018 : 0.0;
+        float patchy = i == 0 ? 0.11 : i == 1 ? 0.07 : i == 2 ? 0.055 : i == 3 ? 0.05 : 0.045;
         slope += nz.xy * (rough * show);
         mottle += nz.z * (patchy * show);
+        // Clods and the shadows between them: dark flecks while they are a few pixels, which is
+        // what loose ground looks like at any distance. Nearer, the next finer cells have them.
+        float fleck = smoothstep(0.2, 0.4, nz.z) - 0.11;
+        if (i < 5) mottle -= fleck * (0.2 * show * smoothstep(cell * 0.02, cell * 0.07, px));
       }
     }
 
