@@ -1431,6 +1431,7 @@ try {
           return Math.hypot(ex, ey);
         }, first.id);
         held = off !== null && off < 60 ? held + 1 : 0;
+        if (i % 20 === 0) console.log(`places debug: step ${i} off ${off} ${JSON.stringify(await page.evaluate(() => { const g = window.primacy2.game; return { active: g.input.active(), mode: g.view.mode, focus: document.activeElement?.tagName, rot: g.view.self?.state.rot.map((x) => +x.toFixed(3)), look: g.input.look, w: window.innerWidth, h: window.innerHeight }; }))}`);
         await page.waitForTimeout(100);
       }
       if (held < 5) fail(`could not turn the nose at ${first.name}`);
