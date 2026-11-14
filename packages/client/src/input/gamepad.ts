@@ -168,7 +168,12 @@ export function padCodeLabel(code: string, style: PadStyle): string {
 
 const std = (s: string): string => `Pad:std:${s}`;
 
-/** Standard pad: Y (b3) is the modifier of every chord. The four thrust directions are on the left stick. */
+/**
+ * Standard pad: Y (b3) is the modifier of every chord. The four thrust directions are on the left
+ * stick. The D-pad is for targets: left and right step through the places of the system, up takes
+ * what lies ahead (and, with nothing new ahead, the next ship), down clears. Stepping through
+ * ships with keys of its own (`targetNext`, `targetPrev`) has no button left on a standard pad.
+ */
 export const DEFAULT_PAD_BINDINGS: Partial<Record<BindAction, string[]>> = {
   firePrimary: [std('b7')],
   fireSecondary: [std('b6')],
@@ -182,8 +187,8 @@ export const DEFAULT_PAD_BINDINGS: Partial<Record<BindAction, string[]>> = {
   cruise: [std('b8')],
   menu: [std('b9')],
   targetAhead: [std('b12')],
-  targetNext: [std('b15')],
-  targetPrev: [std('b14')],
+  navNext: [std('b15')],
+  navPrev: [std('b14')],
   targetClear: [std('b13')],
   dock: [std('b3+b0')],
   flightAssist: [std('b3+b1')],

@@ -53,7 +53,7 @@ export type BindAction =
   | 'throttleUp' | 'throttleDown' | 'throttleZero'
   | 'flightAssist' | 'cruise' | 'fold' | 'dock'
   | 'powerShields' | 'powerEngines' | 'powerWeapons' | 'powerReset' | 'silentRunning'
-  | 'targetNext' | 'targetPrev' | 'targetAhead' | 'targetClear'
+  | 'targetNext' | 'targetPrev' | 'targetAhead' | 'targetClear' | 'navNext' | 'navPrev'
   | 'camera' | 'galaxyMap' | 'systemMap' | 'contacts' | 'chat' | 'menu' | 'freeLook';
 
 /** Shooter-style defaults: WASD to move, Q/E to roll, Space up, Ctrl down, Shift to boost. */
@@ -89,6 +89,10 @@ const KEY_BINDINGS: Bindings = {
   targetPrev: ['KeyG'],
   targetAhead: ['Mouse3', 'KeyY'],
   targetClear: ['KeyU'],
+  // Places are stepped through with their own keys, O above L like T above G for ships; the
+  // forward side button of the mouse steps on, beside the back button that takes what is ahead.
+  navNext: ['KeyO', 'Mouse4'],
+  navPrev: ['KeyL'],
   camera: ['KeyV'],
   galaxyMap: ['KeyM'],
   systemMap: ['KeyN'],
@@ -111,6 +115,23 @@ export function addPadDefaults(b: Bindings, cleared: readonly BindAction[]): Bin
     const have = out[action] ?? [];
     if (have.some(isPadCode) || cleared.includes(action)) continue;
     out[action] = [...have, ...codes];
+  }
+  return out;
+}
+
+/**
+ * Settings saved before an action existed do not list it. Where such a new action has a default
+ * pad code that the save still gives to an older action (a default that has moved), the older
+ * action hands the code over, so that one button never does two things after an update.
+ */
+export function handOver(saved: Partial<Bindings>): Partial<Bindings> {
+  const out = { ...saved };
+  for (const [action, codes] of Object.entries(DEFAULT_PAD_BINDINGS) as [BindAction, string[]][]) {
+    if (saved[action] !== undefined) continue;
+    for (const other of Object.keys(out) as BindAction[]) {
+      const list = out[other];
+      if (list?.some((c) => codes.includes(c))) out[other] = list.filter((c) => !codes.includes(c));
+    }
   }
   return out;
 }
@@ -172,6 +193,12 @@ export const store = {
   contacts: signal<Contact[]>([]),
   targetId: signal<number | null>(null),
   navAnchor: signal<number | null>(null),
+  /**
+   * The places of the system in the order the pilot steps through them, and when the last step
+   * was made (`performance.now()`). The order is taken when the stepping starts and kept while
+   * the HUD shows its list, so that the rows do not change places under the pilot's hand.
+   */
+  navList: signal<{ ids: number[]; at: number } | null>(null),
   /** Selected fold destination (system id). */
   foldTarget: signal<string | null>(null),
   /** Open full-screen panel, if any. While a panel is open, flight input is paused. */
@@ -226,7 +253,7 @@ export function loadSettings(): void {
       graphics: { ...DEFAULT_SETTINGS.graphics, ...(saved.graphics ?? {}) },
       pad: { ...DEFAULT_PAD_SETTINGS, ...(saved.pad ?? {}), axes: { ...DEFAULT_PAD_SETTINGS.axes, ...(saved.pad?.axes ?? {}) } },
       padCleared: saved.padCleared ?? [],
-      bindings: addPadDefaults({ ...KEY_BINDINGS, ...(saved.bindings ?? {}) }, saved.padCleared ?? []),
+      bindings: addPadDefaults({ ...KEY_BINDINGS, ...handOver(saved.bindings ?? {}) }, saved.padCleared ?? []),
     };
   } catch {
     // Corrupt settings fall back to the defaults.

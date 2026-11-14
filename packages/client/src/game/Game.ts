@@ -41,6 +41,7 @@ import type { CameraMode, CmdReply, EntityView, FrameView, GameApi, GameRenderer
 import { Input } from '../input/Input.ts';
 import { ConnectError, Connection, normalizeServerUrl, type Welcome } from '../net/Connection.ts';
 import { importIdentity, loadIdentity } from '../net/identity.ts';
+import { AHEAD_COS, PLACE_LIST_MS, listPlaces, placeAhead, stepPlace } from '../state/places.ts';
 import { store, updateSettings, type BindAction, type Contact, type Panel } from '../state/store.ts';
 import { chaseCamera, frameUp, liftAboveGround, rotToSystem, sceneryView, surfaceView, toSystem, viewFrame, type ViewFrame } from './surface.ts';
 
@@ -332,6 +333,7 @@ class GameImpl implements Game {
     store.contacts.value = [];
     store.targetId.value = null;
     store.navAnchor.value = null;
+    store.navList.value = null;
   }
 
   private setLoadout(): void {
@@ -362,6 +364,7 @@ class GameImpl implements Game {
         store.contacts.value = [];
         store.targetId.value = null;
         store.navAnchor.value = null;
+        store.navList.value = null;
         break;
       case 'site': {
         const sys = this.system;
@@ -782,13 +785,19 @@ class GameImpl implements Game {
     this.setTarget(ships[(i + dir + ships.length) % ships.length]!.id);
   }
 
-  /** Locks whatever is closest to the nose: a ship, or a wreck or cargo pod to work on. Missiles are skipped. */
+  /**
+   * Takes whatever is closest to the nose. A ship, or a wreck or cargo pod to work on, comes first
+   * and is locked; missiles are skipped. With none ahead that is not locked already, the place the
+   * nose points at becomes the navigation target. With nothing new ahead at all, the lock steps on
+   * to the next ship in range, so that this one control reaches every ship (a standard pad has no
+   * button left for stepping through ships).
+   */
   private targetAhead(): void {
     const v = this.view;
     if (!v || !v.self) return;
     const fwd = forwardOf(v.self.rot);
     let best: number | null = null;
-    let bestCos = 0.9;
+    let bestCos = AHEAD_COS;
     for (const e of v.ents) {
       const kind = e.info.kind;
       if (kind !== EntityKind.Ship && kind !== EntityKind.Wreck && kind !== EntityKind.Loot) continue;
@@ -799,11 +808,32 @@ class GameImpl implements Game {
         best = e.id;
       }
     }
-    if (best !== null) this.setTarget(best);
+    if (best !== null && best !== store.targetId.value) return this.setTarget(best);
+    const place = placeAhead(v, v.self.rel, fwd, AHEAD_COS);
+    if (place && place.id !== store.navAnchor.value) return this.setNav(place.id);
+    if (store.contacts.value.some((c) => c.info.kind === EntityKind.Ship)) this.cycleTarget(1);
   }
 
   setNav(anchorId: number | null): void {
     store.navAnchor.value = anchorId;
+  }
+
+  cycleNav(dir: 1 | -1): void {
+    const v = this.view;
+    if (!v) return;
+    const now = performance.now();
+    const open = store.navList.value;
+    // While the HUD shows its list the order stays as it is; after that it is taken afresh.
+    const ids = open && now - open.at < PLACE_LIST_MS ? open.ids : listPlaces(v).map((p) => p.id);
+    const next = stepPlace(ids, store.navAnchor.value, dir);
+    store.navList.value = { ids, at: now };
+    if (next !== null) this.setNav(next);
+  }
+
+  /** Lets go of the ship lock; with no ship locked, of the chosen place. */
+  private clearTarget(): void {
+    if (store.targetId.value !== null) this.setTarget(null);
+    else this.setNav(null);
   }
 
   setFoldTarget(systemId: string | null): void {
@@ -926,7 +956,11 @@ class GameImpl implements Game {
       case 'targetAhead':
         return this.targetAhead();
       case 'targetClear':
-        return this.setTarget(null);
+        return this.clearTarget();
+      case 'navNext':
+        return this.cycleNav(1);
+      case 'navPrev':
+        return this.cycleNav(-1);
       default:
         break;
     }

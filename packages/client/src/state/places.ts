@@ -25,6 +25,11 @@ export interface PlaceEntry {
 
 const GROUP_ORDER: Record<PlaceGroup, number> = { dock: 0, gate: 1, site: 2, body: 3 };
 
+/** How long the HUD keeps its list of places open after the last step, milliseconds. */
+export const PLACE_LIST_MS = 6000;
+/** Cosine of the half angle of the cone in which "target ahead" looks: about 26 degrees. */
+export const AHEAD_COS = 0.9;
+
 /** A place a ship can dock at. */
 export function isDock(kind: SiteKind): boolean {
   return kind === 'station' || kind === 'outpost' || kind === 'base';
@@ -102,7 +107,8 @@ export function noseOf(rot: Readonly<Quat>): Vec3 {
 
 /**
  * The rows of a list of `total` entries that fit a window of `size` rows with the entry `selected`
- * in it: the first row shown and the count. The window moves only as far as it must.
+ * in it: the first row shown and the count. The selection stands in the middle of the window
+ * wherever the ends of the list allow it.
  */
 export function listWindow(total: number, selected: number, size: number): { start: number; count: number } {
   const count = Math.min(total, Math.max(1, size));

@@ -53,6 +53,7 @@ export function mountDevHud(view: () => FrameView | null, lang: string | null): 
     setTarget() {},
     cycleTarget() {},
     setNav() {},
+    cycleNav() {},
     setFoldTarget() {},
     toggleCruise() {},
     startFold() {},

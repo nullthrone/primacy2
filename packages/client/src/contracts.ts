@@ -297,6 +297,11 @@ export interface GameApi {
   /** Selects the next (+1) or previous (-1) contact as target. */
   cycleTarget(dir: 1 | -1): void;
   setNav(anchorId: number | null): void;
+  /**
+   * Chooses the next (+1) or previous (-1) place of the system as the navigation target, in the
+   * order of `listPlaces` (places to dock first), and opens the list of places on the HUD.
+   */
+  cycleNav(dir: 1 | -1): void;
   /** Selects the destination system for the next fold jump (does not start it). */
   setFoldTarget(systemId: string | null): void;
   toggleCruise(): void;
