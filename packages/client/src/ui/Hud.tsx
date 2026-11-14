@@ -14,7 +14,7 @@ import { store, type Notice } from '../state/store.ts';
 import { bindKey, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed, keyParams } from './format.ts';
 import { baseDropHere, landingCues, landingNear, liftBalance, noticeKey, type LandingCue } from './landing.ts';
 import { Compass, EdgeArrows, PlaceList, PlacePanel, RateLines, SystemLines, type CompassMark, type EdgeItem } from './Orient.tsx';
-import { compassDot, trackRate, type RangeRate } from './orient.ts';
+import { closingSpeed, compassDot } from './orient.ts';
 import { holdInFlight } from './trade.ts';
 
 /** Shortest and longest time a notice stays on screen. */
@@ -122,11 +122,8 @@ function heatRate(clock: number, heat: number): number {
   return heatTrend.rate;
 }
 
-/** How fast the distance to the chosen place and to the locked ship changes; kept from frame to frame. */
-const rates: { place: RangeRate | null; ship: RangeRate | null } = { place: null, ship: null };
-
 /** The selected target: a ship with shield and hull, a wreck with its salvage, or a cargo pod with its content. */
-function TargetPanel({ target, dist, rate }: { target: EntityView; dist: number; rate: RangeRate | null }) {
+function TargetPanel({ target, dist, closing }: { target: EntityView; dist: number; closing: number }) {
   const info = target.info;
   const wreck = info.kind === EntityKind.Wreck;
   const pod = info.kind === EntityKind.Loot;
@@ -138,7 +135,7 @@ function TargetPanel({ target, dist, rate }: { target: EntityView; dist: number;
       {pod && <div><span class="tag">{t('hud.pod')}</span></div>}
       {!wreck && !pod && <div class="dim">{HULLS[info.model]?.name ?? info.model}{info.npc ? ` · ${info.npc}` : ''}</div>}
       <div class="num">{fmtDistance(dist)}</div>
-      <RateLines dist={dist} rate={rate} eta={false} />
+      <RateLines dist={dist} closing={closing} eta={false} />
       {wreck && <Bar label={t('hud.salvage')} value={target.hull} cls="salvage" />}
       {wreck && <div class="dim hint">{t('hud.salvageHint', { key: bindKey('fireTool') })}</div>}
       {pod && info.c && <div>{COMMODITIES[info.c]?.name ?? info.c} · {fmt(info.n ?? 0)} t</div>}
@@ -299,12 +296,13 @@ function flightHud(view: FrameView, api: GameApi) {
     );
   }
 
-  // The chosen place and the locked ship: how fast the distance closes, and where each lies as
-  // seen from the ship's own axes, for the compass.
+  // The chosen place and the locked ship: how fast the ship closes on each, and where each lies
+  // as seen from the ship's own axes, for the compass. A place counts as standing still in the
+  // frame the ship flies in; another ship's velocity is in that same frame.
   const place = findPlace(view, nav);
   const targetDist = target ? v3.dist(target.rel, self.rel) : 0;
-  rates.place = place ? trackRate(rates.place, `p${place.id}`, view.time, place.dist) : null;
-  rates.ship = target ? trackRate(rates.ship, `e${target.id}`, view.time, targetDist) : null;
+  const placeClosing = place ? closingSpeed(v3.sub(place.rel, self.rel), self.vel) : 0;
+  const targetClosing = target ? closingSpeed(v3.sub(target.rel, self.rel), self.vel, target.vel) : 0;
   const shipAxes = (rel: Readonly<Vec3>): Vec3 => quat.unrotate(self.rot, v3.sub(rel, self.rel));
   const compass: CompassMark[] = [];
   if (place) compass.push({ key: 'place', cls: 'nav', ...compassDot(shipAxes(place.rel)) });
@@ -439,8 +437,8 @@ function flightHud(view: FrameView, api: GameApi) {
       </div>
 
       <div class="hud-block hud-right">
-        {target ? <TargetPanel target={target} dist={targetDist} rate={rates.ship} /> : null}
-        {place && <PlacePanel place={place} behind={camOf(place.rel)[2] > 0} rate={rates.place} />}
+        {target ? <TargetPanel target={target} dist={targetDist} closing={targetClosing} /> : null}
+        {place && <PlacePanel place={place} behind={camOf(place.rel)[2] > 0} closing={placeClosing} />}
       </div>
 
       <div class="hud-block hud-topleft">

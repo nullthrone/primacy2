@@ -9,7 +9,7 @@ import { t, type StringKey } from '../i18n/index.ts';
 import { PLACE_LIST_MS, findPlace, listPlaces, listWindow, type PlaceEntry } from '../state/places.ts';
 import { store, type BindAction } from '../state/store.ts';
 import { bindKey, fmtDistance, fmtDuration, fmtSpeed, hasBinding } from './format.ts';
-import { arrival, declutter, edgeMark, type Box, type CompassDot, type RangeRate } from './orient.ts';
+import { arrival, declutter, edgeMark, pullClear, type Box, type CompassDot, type EdgeMark } from './orient.ts';
 
 /** Rows of the list of places that are shown at once. */
 const LIST_ROWS = 8;
@@ -35,30 +35,48 @@ const heldAngle = new Map<string, number>();
 /** The size of 1em of the interface in pixels, as the style sheet sets it from the width of the view. */
 const emPx = (w: number): number => Math.min(17, Math.max(11, w * 0.0085)) * 1.15;
 
+/** The blocks of the HUD that an arrow must not lie over. */
+const HUD_BLOCKS = '.hud-left, .hud-power, .hud-centre, .compass, .hud-right > .panel-mini, .hud-topleft > *, .keys, .chat-line, .notice, .warnings';
+/** Room an arrow keeps to a block, pixels. */
+const BLOCK_MARGIN = 6;
+
+/** Where the blocks of the HUD stand, as they were laid out in the frame before this one. */
+function hudBlocks(): Box[] {
+  const out: Box[] = [];
+  for (const n of document.querySelectorAll(HUD_BLOCKS)) {
+    const r = n.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) out.push({ x0: r.left - BLOCK_MARGIN, y0: r.top - BLOCK_MARGIN, x1: r.right + BLOCK_MARGIN, y1: r.bottom + BLOCK_MARGIN });
+  }
+  return out;
+}
+
 export function EdgeArrows({ items, w, h }: { items: EdgeItem[]; w: number; h: number }) {
   // Labels give way to more important ones: the chosen targets first, then the nearest.
   const order = [...items].sort((a, b) => Number(b.big) - Number(a.big) || a.dist - b.dist);
   const em = emPx(w);
+  const blocks = hudBlocks();
+  const texts = order.map((it) => (it.big && it.c[2] > 0 ? `${fmtDistance(it.dist)} · ${t('hud.behind')}` : fmtDistance(it.dist)));
+  // The room the label of an arrow takes: it stands on the side toward the middle of the view.
+  const labelBox = (it: EdgeItem, text: string, m: EdgeMark): Box => {
+    const size = em * (it.big ? 1 : 0.85);
+    const width = Math.max(it.name.length, text.length) * size * 0.56 + 6;
+    const gap = it.big ? 20 : 14;
+    const x0 = m.x >= w / 2 ? m.x - gap - width : m.x + gap;
+    return { x0, y0: m.y - size * 1.3, x1: x0 + width, y1: m.y + size * 1.3 };
+  };
   const live = new Set<string>();
-  const marks = order.map((it) => {
+  const marks = order.map((it, i) => {
     live.add(it.key);
-    const m = edgeMark(it.c, w, h, heldAngle.get(it.key));
-    heldAngle.set(it.key, m.angle);
-    return m;
+    const on = edgeMark(it.c, w, h, heldAngle.get(it.key));
+    heldAngle.set(it.key, on.angle);
+    const half = it.big ? 14 : 9;
+    return pullClear(on, w, h, (m) => {
+      const label = labelBox(it, texts[i]!, m);
+      return { x0: Math.min(label.x0, m.x - half), y0: Math.min(label.y0, m.y - half), x1: Math.max(label.x1, m.x + half), y1: Math.max(label.y1, m.y + half) };
+    }, blocks);
   });
   for (const key of heldAngle.keys()) if (!live.has(key)) heldAngle.delete(key);
-
-  const texts = order.map((it, i) => (it.big && marks[i]!.behind ? `${fmtDistance(it.dist)} · ${t('hud.behind')}` : fmtDistance(it.dist)));
-  const boxes: Box[] = order.map((it, i) => {
-    const m = marks[i]!;
-    const size = em * (it.big ? 0.95 : 0.85);
-    const width = Math.max(it.name.length, texts[i]!.length) * size * 0.56 + 6;
-    const gap = it.big ? 20 : 14;
-    const left = m.x >= w / 2;
-    const x0 = left ? m.x - gap - width : m.x + gap;
-    return { x0, y0: m.y - size * 1.3, x1: x0 + width, y1: m.y + size * 1.3 };
-  });
-  const labelled = declutter(boxes);
+  const labelled = declutter(order.map((it, i) => labelBox(it, texts[i]!, marks[i]!)));
 
   return (
     <>
@@ -100,9 +118,8 @@ export function Compass({ marks }: { marks: CompassMark[] }) {
 }
 
 /** The lines of a target panel that say how the distance changes: closing speed and, for a place, the time of arrival. */
-export function RateLines({ dist, rate, eta: withEta = true }: { dist: number; rate: RangeRate | null; eta?: boolean }) {
-  const closing = rate?.ready ? rate.closing : 0;
-  const eta = arrival(dist, rate);
+export function RateLines({ dist, closing, eta: withEta = true }: { dist: number; closing: number; eta?: boolean }) {
+  const eta = arrival(dist, closing);
   return (
     <>
       <div class="pair">
@@ -120,7 +137,7 @@ export function RateLines({ dist, rate, eta: withEta = true }: { dist: number; r
 }
 
 /** The chosen place: what it is, how far, whether it lies behind, and how fast the ship closes on it. */
-export function PlacePanel({ place, behind, rate }: { place: PlaceEntry; behind: boolean; rate: RangeRate | null }) {
+export function PlacePanel({ place, behind, closing }: { place: PlaceEntry; behind: boolean; closing: number }) {
   return (
     <div class="panel-mini place">
       <h4>{t('hud.nav')} · {t(`kind.${place.kind}` as StringKey)}</h4>
@@ -129,7 +146,7 @@ export function PlacePanel({ place, behind, rate }: { place: PlaceEntry; behind:
         <span class="num">{fmtDistance(place.dist)}</span>
         {behind && <span class="dim">{t('hud.behind')}</span>}
       </div>
-      <RateLines dist={place.dist} rate={rate} />
+      <RateLines dist={place.dist} closing={closing} />
     </div>
   );
 }

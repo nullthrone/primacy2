@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EDGE_RX, EDGE_RY, arrival, boxesOverlap, compassDot, declutter, edgeMark, trackRate, type RangeRate } from './orient.ts';
+import { EDGE_RX, EDGE_RY, arrival, boxesOverlap, closingSpeed, compassDot, declutter, edgeMark, pullClear, type Box, type EdgeMark } from './orient.ts';
 
 const W = 1280;
 const H = 720;
@@ -88,48 +88,71 @@ describe('the compass', () => {
 });
 
 describe('the closing speed', () => {
-  const run = (dist: (t: number) => number, seconds: number, key = 'a'): RangeRate => {
-    let r: RangeRate | null = null;
-    for (let i = 0; i <= seconds * 60; i++) r = trackRate(r, key, i / 60, dist(i / 60));
-    return r!;
-  };
-
-  it('needs two samples before it says anything', () => {
-    const first = trackRate(null, 'a', 0, 1000);
-    expect(first.ready).toBe(false);
-    expect(arrival(1000, first)).toBeNull();
-    expect(trackRate(first, 'a', 1 / 60, 999).ready).toBe(true);
+  it('is the part of the ship velocity that points at the target', () => {
+    expect(closingSpeed([0, 0, -5000], [0, 0, -120])).toBeCloseTo(120, 12);
+    expect(closingSpeed([0, 0, -5000], [0, 0, 120])).toBeCloseTo(-120, 12);
+    // Flying past at a right angle closes nothing.
+    expect(closingSpeed([0, 0, -5000], [300, 0, 0])).toBeCloseTo(0, 12);
+    // At 60 degrees off the nose half of the speed counts.
+    expect(closingSpeed([Math.sin(Math.PI / 3), 0, -Math.cos(Math.PI / 3)], [0, 0, -200])).toBeCloseTo(100, 9);
   });
 
-  it('is positive while the distance shrinks and settles at the true rate', () => {
-    expect(run((t) => 5000 - 120 * t, 3).closing).toBeCloseTo(120, 6);
-    expect(run((t) => 5000 + 40 * t, 3).closing).toBeCloseTo(-40, 6);
+  it('counts the other ship moving as well', () => {
+    // Both fly the same way at the same speed: the distance stays.
+    expect(closingSpeed([0, 0, -800], [0, 0, -150], [0, 0, -150])).toBeCloseTo(0, 12);
+    // It comes toward a ship that lies still.
+    expect(closingSpeed([0, 0, -800], [0, 0, 0], [0, 0, 90])).toBeCloseTo(90, 12);
+    // A chase: 200 after 150.
+    expect(closingSpeed([0, 0, -800], [0, 0, -200], [0, 0, -150])).toBeCloseTo(50, 12);
   });
 
-  it('smooths a single jump instead of following it', () => {
-    let r = run((t) => 5000 - 100 * t, 2);
-    // One frame in which the position was corrected by 30 m.
-    r = trackRate(r, 'a', r.at + 1 / 60, r.dist - 100 / 60 - 30);
-    expect(r.closing).toBeGreaterThan(100);
-    expect(r.closing).toBeLessThan(200);
-  });
-
-  it('starts over for another target, after a gap and when time runs backward', () => {
-    const r = run((t) => 5000 - 100 * t, 1);
-    expect(trackRate(r, 'b', r.at + 1 / 60, 70).ready).toBe(false);
-    expect(trackRate(r, 'a', r.at + 5, 70).ready).toBe(false);
-    expect(trackRate(r, 'a', r.at - 1, 70).ready).toBe(false);
-    // A frame at the same time changes nothing.
-    expect(trackRate(r, 'a', r.at, 1)).toBe(r);
+  it('does not depend on how far the target is, and is zero at no distance', () => {
+    expect(closingSpeed([0, 0, -1], [0, 0, -40])).toBeCloseTo(closingSpeed([0, 0, -1e12], [0, 0, -40]), 9);
+    expect(closingSpeed([0, 0, 0], [0, 0, -40])).toBe(0);
   });
 
   it('gives a time of arrival only for a real approach', () => {
-    const closing = (v: number): RangeRate => ({ key: 'a', at: 0, dist: 0, closing: v, ready: true });
-    expect(arrival(6000, closing(100))).toBeCloseTo(60, 9);
-    expect(arrival(6000, closing(0.1))).toBeNull();
-    expect(arrival(6000, closing(-100))).toBeNull();
-    expect(arrival(1e12, closing(1))).toBeNull();
-    expect(arrival(6000, null)).toBeNull();
+    expect(arrival(6000, 100)).toBeCloseTo(60, 9);
+    expect(arrival(6000, 0.1)).toBeNull();
+    expect(arrival(6000, -100)).toBeNull();
+    expect(arrival(6000, Number.NaN)).toBeNull();
+    // More than a hundred hours away is no time worth showing.
+    expect(arrival(1e12, 1)).toBeNull();
+    // Cruise toward a place an astronomical unit off, at a tenth of light speed.
+    expect(arrival(1.5e11, 3e7)).toBeCloseTo(5000, 6);
+  });
+});
+
+describe('arrows keeping clear of the HUD', () => {
+  const around = (m: EdgeMark): Box => ({ x0: m.x - 60, y0: m.y - 15, x1: m.x + 15, y1: m.y + 15 });
+  // A panel in the top right corner, like the target panels.
+  const panel: Box = { x0: 1060, y0: 20, x1: 1260, y1: 290 };
+
+  it('leaves an arrow alone that touches nothing', () => {
+    const m = edgeMark([10, 0, -1], W, H);
+    expect(pullClear(m, W, H, around, [panel])).toBe(m);
+    expect(pullClear(m, W, H, around, [])).toBe(m);
+  });
+
+  it('moves an arrow inward along its own direction until it is clear, and keeps its angle', () => {
+    const m = edgeMark([10, 4.4, -1], W, H);
+    expect(boxesOverlap(around(m), panel)).toBe(true);
+    const c = pullClear(m, W, H, around, [panel]);
+    expect(boxesOverlap(around(c), panel)).toBe(false);
+    expect(c.angle).toBe(m.angle);
+    expect(c.behind).toBe(m.behind);
+    // Still on the same ray from the middle of the view, nearer to it.
+    const ratio = (c.x - W / 2) / (m.x - W / 2);
+    expect(ratio).toBeGreaterThan(0.33);
+    expect(ratio).toBeLessThan(1);
+    expect((c.y - H / 2) / (m.y - H / 2)).toBeCloseTo(ratio, 9);
+  });
+
+  it('does not go on to the middle when nothing helps', () => {
+    const everywhere: Box = { x0: 0, y0: 0, x1: W, y1: H };
+    const m = edgeMark([10, 0, -1], W, H);
+    const c = pullClear(m, W, H, around, [everywhere]);
+    expect((c.x - W / 2) / (m.x - W / 2)).toBeGreaterThan(0.33);
   });
 });
 

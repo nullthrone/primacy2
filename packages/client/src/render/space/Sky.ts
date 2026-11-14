@@ -313,7 +313,8 @@ export class Sky {
         }
       }
     }
-    const key = `${system.id}|${size}|${count}|${sum.toFixed(3)}`;
+    const stars = STAR_COUNTS[quality as 0 | 1 | 2] ?? STAR_COUNTS[2];
+    const key = `${system.id}|${size}|${stars}|${count}|${sum.toFixed(3)}`;
     if (key === this.key) return;
     this.key = key;
 
@@ -324,7 +325,8 @@ export class Sky {
       });
       this.cubeCam = new CubeCamera(0.1, 10, this.cubeRT);
     }
-    this.starGeo.setDrawRange(0, STAR_COUNTS[quality as 0 | 1 | 2] ?? STAR_COUNTS[2]);
+    // The bake holds the stars that are drawn, so the black hole bends the same sky.
+    this.starGeo.setDrawRange(0, stars);
     this.setNeighbours(system, galaxy);
     // In the bake a neighbour star covers a few texels of a 90 degree face.
     (this.neighbourBakeMat.uniforms.uHalf!.value as Vector2).set(10 / size, 10 / size);

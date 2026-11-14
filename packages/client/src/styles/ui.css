@@ -300,10 +300,10 @@
 .edge-glyph .tail { stroke-width: 1.6; opacity: 0.7; }
 .edge.big .edge-glyph { left: -14px; top: -14px; width: 28px; height: 28px; opacity: 1; }
 .edge-text { position: absolute; top: -1.2em; font-size: 0.85em; line-height: 1.2; color: var(--ink); opacity: 0.85; }
-.edge-text em { display: block; font-style: normal; color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 0.9em; }
+.edge-text em { display: block; font-style: normal; font-weight: 500; color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 0.82em; }
 .edge.right .edge-text { left: 14px; }
 .edge.left .edge-text { right: 14px; text-align: right; }
-.edge.big .edge-text { font-size: 0.95em; color: inherit; opacity: 1; }
+.edge.big .edge-text { font-size: 1em; font-weight: 600; color: inherit; opacity: 1; }
 .edge.big.right .edge-text { left: 20px; }
 .edge.big.left .edge-text { right: 20px; }
 .edge.nav { color: var(--amber); }

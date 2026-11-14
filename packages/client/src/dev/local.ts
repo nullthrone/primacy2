@@ -2,7 +2,7 @@
  * Development page for the local layer: the real layer over the real space renderer, fed with
  * synthetic frame views, so ships, structures and effects can be worked on without a server.
  *
- *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight|surface
+ *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight|surface|orient
  *
  * Scenes
  *   ships    every hull in a row, turning slowly; `hull=<id>` shows that one alone and close
@@ -19,6 +19,8 @@
  *            axes, `view.surface` is filled in). With it a second ship on the ground, one in the
  *            air, a wreck and a cargo pod at rest, and a hit and a blast on the ground at fixed
  *            spots, to see that they stay there while the body turns.
+ *   orient   the pilot near a place to dock with the nose turned away from it and ships around,
+ *            for the direction indicators of the HUD (use with `hud=1&cam=cockpit`)
  *
  * Options
  *   parts=objects,fx   parts of the layer to load (default both); a broken part is left out
@@ -50,9 +52,15 @@
  *   info=0               without the readout of the view data in the corner
  *   stats=1              a readout of the terrain part: tiles, levels, time per frame
  *
+ * Options of the orient scene
+ *   sys=<n>              which system of the sector (default 0); site=<n> which of its places to dock
+ *   yaw, pitch=<deg>     how far the nose is turned away from that place (default 150 and -8)
+ *   dist=<m>             distance to it (default 4200); speed=<m/s> the ship flies on along its nose
+ *
  * Any scene
- *   hud=1                the game's real HUD over the scene (`lang=en|de`), fed with the scene's
- *                        frame views; see `dev/hud.ts`
+ *   hud=1                the game's real HUD over the scene, fed with the scene's frame views; its
+ *                        own options (language, chosen targets, controller hints, the station
+ *                        screen) are listed in `dev/hud.ts`
  *
  * `window.__ready` turns true after thirty frames; `window.__clock` is the scene clock;
  * `window.__view` is the frame view last drawn and, in the surface scene, `window.__place` the
@@ -372,6 +380,40 @@ function fight(): SceneFn {
   };
 }
 
+/**
+ * Near a place to dock, looking away from it, with a trader ahead, one behind and a pirate off to
+ * the side: what the HUD has to lead the pilot back from.
+ */
+function orient(): SceneFn {
+  const sys = systems[Math.min(systems.length - 1, Math.max(0, Math.round(num('sys', 0))))]!;
+  const docks = sys.sites.filter((s) => s.kind === 'station' || s.kind === 'outpost');
+  const site = docks[Math.min(docks.length - 1, Math.max(0, Math.round(num('site', 0))))] ?? sys.sites[0]!;
+  const toward = rig({ sys, site }, 4200);
+  const turn = quat.mul(quat.fromAxisAngle([0, 1, 0], rad(num('yaw', 150))), quat.fromAxisAngle([1, 0, 0], rad(num('pitch', -8))));
+  const rot = quat.mul(toward.rot, turn);
+  const nose = quat.rotate(rot, [0, 0, -1]);
+  const speed = num('speed', 0);
+  const clock0 = num('t', 10);
+  return (clock, dt) => {
+    const r: Rig = { place: toward.place, rot, offset: v3.addScaled(toward.offset, nose, speed * (clock - clock0)) };
+    return base(r, clock, dt, {
+      selfState: { vel: v3.scale(nose, speed), throttle: speed > 0 ? 0.6 : 0 },
+      ents: [
+        shipEnt(10, 'lancet', ahead(r, -60, 20, 380), quat.mul(r.rot, quat.fromAxisAngle([0, 1, 0], 2.4))),
+        shipEnt(11, 'drover', ahead(r, 260, -40, -900), quat.mul(r.rot, quat.fromAxisAngle([0, 1, 0], 1.2))),
+        shipEnt(12, 'lancet', ahead(r, -1400, 300, -200), r.rot, {
+          flags: EntityFlag.Thrust | EntityFlag.Wanted,
+          info: { id: 12, kind: EntityKind.Ship, name: 'Raider 12', model: 'lancet', radius: HULLS.lancet?.radius ?? 10, npc: 'pirate' },
+        }),
+        {
+          id: 60, info: { id: 60, kind: EntityKind.Loot, name: 'alloys', model: 'cargo_pod', radius: 2, c: 'alloys', n: 4 },
+          rel: ahead(r, 90, -30, 260), vel: [0, 0, 0], rot: r.rot, flags: 0, hull: 1, shield: 0,
+        },
+      ],
+    });
+  };
+}
+
 /** What the surface scene last drew, for the readout and for scripts. */
 let surfacePlace: SurfacePlace | null = null;
 
@@ -526,6 +568,7 @@ const SCENES: Record<string, () => SceneFn> = {
   belt,
   fight,
   surface,
+  orient,
   station: () => structureScene('station_ring'),
   outpost: () => structureScene('station_outpost'),
   gate: () => structureScene('gate'),
@@ -553,7 +596,7 @@ async function main(): Promise<void> {
   hooks.__terrain = terrainDebug;
   hooks.__frames = [];
   hooks.__work = [];
-  if (params.get('hud') === '1') (await import('./hud.ts')).mountDevHud(() => hooks.__view ?? null, params.get('lang'));
+  if (params.get('hud') === '1') (await import('./hud.ts')).mountDevHud(() => hooks.__view ?? null, params);
   const start = performance.now();
   let last = num('t', 10);
   let frames = 0;

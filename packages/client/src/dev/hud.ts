@@ -11,6 +11,7 @@
  *   list=1            the list of places is open, as right after a step
  *   device=pad        hints name the buttons of a controller (padstyle=playstation for its names)
  *   panel=station     the station screen with a made-up station that has every tab
+ *   cmd=fail          every command is refused, so that screens show their error line
  *
  * `window.__api` is the stand-in, `window.__store` the store, for scripts.
  */
@@ -47,9 +48,16 @@ export function mountDevHud(view: () => FrameView | null, params: URLSearchParam
   store.targetId.value = num('target');
 
   // The scene knows nothing of the store: the targets chosen here are written into its view.
+  // Until something is chosen, what the scene itself has locked stands.
+  let seeded = false;
   const current = (): FrameView | null => {
     const v = view();
     if (!v) return null;
+    if (!seeded) {
+      seeded = true;
+      if (num('nav') === null) store.navAnchor.value = v.navAnchor;
+      if (num('target') === null) store.targetId.value = v.targetId;
+    }
     v.navAnchor = store.navAnchor.value;
     v.targetId = store.targetId.value;
     return v;
@@ -80,7 +88,13 @@ export function mountDevHud(view: () => FrameView | null, params: URLSearchParam
     },
     connect: async () => {},
     disconnect() {},
-    cmd: async () => ({ ok: true }),
+    // No server answers here. `cmd=fail` refuses every command, to see the error line of a screen;
+    // a sale is answered as one cut short by the import licence, to see its note.
+    cmd: async (c) => {
+      if (params.get('cmd') === 'fail') return { ok: false, err: 'Not enough credits for that.' };
+      if (c.k === 'sell') return { ok: true, data: { n: 2, total: 184, tariff: 16, limit: 'licence', limitOrigin: null } };
+      return { ok: true };
+    },
     chat() {},
     setTarget(id) { store.targetId.value = id; },
     cycleTarget(dir) {

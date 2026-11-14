@@ -1,7 +1,7 @@
 /**
  * Geometry of the HUD's direction indicators, as pure functions: where the arrow for something
- * off screen stands and which way it points, where a dot sits on the compass, how fast a distance
- * closes, and which labels have to give way to others.
+ * off screen stands and which way it points, where a dot sits on the compass, how fast the ship
+ * closes on a target, and which labels have to give way to others.
  *
  * Camera space here is what `quat.unrotate(camera.rot, rel)` gives: x to the right, y up, and the
  * view along -z, so a point with positive z lies behind the viewer.
@@ -60,34 +60,22 @@ export function compassDot(c: Readonly<Vec3>): CompassDot {
   return { x: c[0] / len, y: -c[1] / len, front: c[2] <= 0 };
 }
 
-/** Running estimate of how fast the distance to one thing changes. */
-export interface RangeRate {
-  /** What is being tracked; a new key starts over. */
-  key: string;
-  /** Time of the last sample, seconds. */
-  at: number;
-  dist: number;
-  /** Closing speed in m/s: positive while the distance shrinks. */
-  closing: number;
-  /** False until two samples have been seen: there is no rate yet. */
-  ready: boolean;
-}
-
-/** Seconds over which the closing speed is smoothed. */
-const RATE_SMOOTH = 0.4;
-/** A gap longer than this between two samples starts the estimate over, seconds. */
-const RATE_GAP = 1;
-
-/** Takes one more sample of the distance to `key` at time `at` (seconds) and returns the new estimate. */
-export function trackRate(prev: RangeRate | null, key: string, at: number, dist: number): RangeRate {
-  if (!prev || prev.key !== key) return { key, at, dist, closing: 0, ready: false };
-  const dt = at - prev.at;
-  if (dt < 0 || dt > RATE_GAP) return { key, at, dist, closing: 0, ready: false };
-  // Two frames at the same time (a paused view) add nothing.
-  if (dt < 1e-4) return prev;
-  const now = (prev.dist - dist) / dt;
-  const closing = prev.ready ? prev.closing + (now - prev.closing) * (1 - Math.exp(-dt / RATE_SMOOTH)) : now;
-  return { key, at, dist, closing, ready: true };
+/**
+ * How fast the ship closes on something, m/s: the part of their relative velocity that points
+ * from the ship at it, positive while the distance shrinks. `to` is where it is relative to the
+ * ship; `vel` and `otherVel` are the two velocities in one frame (a place stands still in it).
+ *
+ * This is the pilot's own approach, on purpose, and not the rate at which the distance changes:
+ * between two places on different orbits that rate is tens of kilometres per second while the
+ * ship lies still, and says nothing about the way there.
+ */
+export function closingSpeed(to: Readonly<Vec3>, vel: Readonly<Vec3>, otherVel?: Readonly<Vec3>): number {
+  const len = Math.hypot(to[0], to[1], to[2]);
+  if (!(len > 0)) return 0;
+  const rx = vel[0] - (otherVel?.[0] ?? 0);
+  const ry = vel[1] - (otherVel?.[1] ?? 0);
+  const rz = vel[2] - (otherVel?.[2] ?? 0);
+  return (rx * to[0] + ry * to[1] + rz * to[2]) / len;
 }
 
 /** Slowest approach that still gets a time of arrival, m/s. */
@@ -96,15 +84,32 @@ const ETA_MIN_CLOSING = 0.5;
 const ETA_MAX = 100 * 3600;
 
 /** Seconds until arrival at the present closing speed; null while not approaching or too far off to say. */
-export function arrival(dist: number, rate: RangeRate | null): number | null {
-  if (!rate || !rate.ready || rate.closing < ETA_MIN_CLOSING) return null;
-  const s = dist / rate.closing;
+export function arrival(dist: number, closing: number): number | null {
+  if (!(closing >= ETA_MIN_CLOSING)) return null;
+  const s = dist / closing;
   return s <= ETA_MAX ? s : null;
 }
 
 export interface Box { x0: number; y0: number; x1: number; y1: number }
 
 export const boxesOverlap = (a: Box, b: Box): boolean => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
+/**
+ * Keeps an arrow clear of the blocks of the HUD: where the rectangle it takes up (`boxOf`, the
+ * arrow with its label) would lie over one of `blocks`, the arrow moves toward the middle of the
+ * `w` by `h` view along its own direction, in steps, until it is clear. Its angle stays. The
+ * blocks stand at the rim of the view, so the way inward is the way out of them; an arrow that is
+ * still not clear at a third of its distance stays there.
+ */
+export function pullClear(mark: EdgeMark, w: number, h: number, boxOf: (m: EdgeMark) => Box, blocks: readonly Box[]): EdgeMark {
+  if (blocks.length === 0) return mark;
+  let m = mark;
+  for (let k = 1; ; k -= 0.06) {
+    m = k === 1 ? mark : { ...mark, x: w / 2 + (mark.x - w / 2) * k, y: h / 2 + (mark.y - h / 2) * k };
+    const box = boxOf(m);
+    if (k - 0.06 < 1 / 3 || !blocks.some((b) => boxesOverlap(b, box))) return m;
+  }
+}
 
 /**
  * Lets labels give way to each other: goes through the boxes in the order given (most important

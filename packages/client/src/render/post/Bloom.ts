@@ -6,7 +6,8 @@ const LEVELS = 8;
 /**
  * Share of the light each level spreads, from the tightest to the widest. The first levels are the
  * narrow gleam around a lamp or an engine; the long tail is a wide, faint veil, as a real lens
- * leaves it. The shares add up to 1: the bloom spreads the light it takes and adds none.
+ * leaves it. The shares add up to 1, so the bloom texture holds exactly the light it took; how
+ * much of that is laid over the picture is the final pass's choice.
  */
 const WEIGHTS = normalized([1.0, 0.8, 0.6, 0.45, 0.35, 0.3, 0.25, 0.22]);
 /** Light above this (scene-referred) blooms in full ... */
