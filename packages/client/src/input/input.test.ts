@@ -1,7 +1,7 @@
 import { FlightMode } from '@primacy2/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, addPadDefaults, handOver, loadSettings, store, type BindAction } from '../state/store.ts';
-import { assignPad, clearPad, presetJoystick, resetPad } from './binds.ts';
+import { assignAxis, assignPad, clearPad, listenStep, presetJoystick, resetPad } from './binds.ts';
 import { Input } from './Input.ts';
 import type { PadSnapshot } from './gamepad.ts';
 
@@ -233,6 +233,49 @@ describe('Input with a pad', () => {
     expect(input.throttle).toBeCloseTo(0.4);
   });
 
+  describe('the throttle lever', () => {
+    /** A pad whose third axis stands where a lever at `pos` (0..1) stands. */
+    const leverAt = (pos: number): PadSnapshot => pad([], [0, 0, pos * 2 - 1, 0]);
+    const withLever = (): Input => {
+      const { input } = makeInput();
+      store.settings.value = {
+        ...DEFAULT_SETTINGS,
+        pad: { turnRate: 1, axes: { throttle: [{ dev: 'std', axis: 2, invert: false, deadzone: 0, curve: 1, lever: true }] } },
+      };
+      input.setMode(FlightMode.Normal);
+      store.device.value = 'pad';
+      return input;
+    };
+    const walk = (input: Input, path: number[]): void => {
+      for (const pos of path) {
+        pads = [leverAt(pos)];
+        input.pollPads();
+      }
+    };
+    it('applies a move made while a panel was open when the panel closes', () => {
+      const input = withLever();
+      walk(input, [0.5, 0.2]);
+      expect(input.throttle).toBeCloseTo(0.2);
+      store.panel.value = 'galaxy';
+      walk(input, [0.5, 0.8]);
+      expect(input.throttle).toBeCloseTo(0.2);
+      store.panel.value = null;
+      input.pollPads();
+      expect(input.throttle).toBeCloseTo(0.8);
+    });
+    it('reaches zero and full however slowly the lever comes to its stop', () => {
+      const down = withLever();
+      walk(down, [0.5, 0.3, 0.12, 0.05, 0.035, 0.018, 0.006, 0]);
+      expect(down.throttle).toBe(0);
+      const quick = withLever();
+      walk(quick, [0.5, 0.2, 0.019, 0.01, 0]);
+      expect(quick.throttle).toBe(0);
+      const up = withLever();
+      walk(up, [0.5, 0.981, 0.99, 1]);
+      expect(up.throttle).toBe(1);
+    });
+  });
+
   it('works on a page without the Gamepad API', () => {
     vi.stubGlobal('window', { addEventListener: () => {} });
     vi.stubGlobal('document', { addEventListener: () => {}, activeElement: null, pointerLockElement: null });
@@ -326,6 +369,62 @@ describe('binding edits', () => {
     expect(r.bindings.dock).toEqual(['KeyF']);
     expect(addPadDefaults(r.bindings, r.padCleared).dock).toEqual(['KeyF']);
     expect(assignPad(r, 'dock', 'Pad:std:b4').padCleared).not.toContain('dock');
+  });
+  it('never takes the last controller code from the pause menu', () => {
+    // Without it the pause menu, and with it the binding screen, could not be opened by pad in flight.
+    const s = base();
+    const given = assignPad(s, 'cruise', 'Pad:std:b9');
+    expect(given).toBe(s);
+    expect(given.bindings.menu).toEqual(['Escape', 'Pad:std:b9']);
+    expect(given.bindings.cruise).toEqual(['KeyJ', 'Pad:std:b8']);
+    expect(clearPad(s, 'menu')).toBe(s);
+    // The menu itself can move to another button, and its old button is then free.
+    const moved = assignPad(s, 'menu', 'Pad:std:b16');
+    expect(moved.bindings.menu).toEqual(['Escape', 'Pad:std:b16']);
+    expect(assignPad(moved, 'cruise', 'Pad:std:b9').bindings.cruise).toEqual(['KeyJ', 'Pad:std:b9']);
+    // With a second code on the menu, one of the two may go.
+    const two = { ...s, bindings: { ...s.bindings, menu: ['Escape', 'Pad:std:b9', 'Pad:std:b16'] } };
+    expect(assignPad(two, 'cruise', 'Pad:std:b9').bindings.menu).toEqual(['Escape', 'Pad:std:b16']);
+  });
+  it('gives an axis to one action only, as a button', () => {
+    // The left stick's forward axis becomes pitch: it must not go on thrusting as well.
+    const p = assignAxis(DEFAULT_SETTINGS.pad, 'pitch', 'std', 1);
+    expect(p.axes.pitch?.map((b) => b.axis)).toEqual([1]);
+    expect(p.axes.thrustZ).toEqual([]);
+    expect(p.axes.thrustX?.map((b) => b.axis)).toEqual([0]);
+    // The same axis number on another device is another axis.
+    const q = assignAxis(DEFAULT_SETTINGS.pad, 'roll', '044f-b10a', 1);
+    expect(q.axes.thrustZ?.map((b) => b.axis)).toEqual([1]);
+  });
+  describe('listening on the binding screen', () => {
+    const idle = [pad()];
+    it('takes a button for an action', () => {
+      const s = base();
+      let r = listenStep(s, { kind: 'action', action: 'cruise' }, idle, [pad([16])], null);
+      expect(r.done).toBeNull();
+      r = listenStep(s, { kind: 'action', action: 'cruise' }, idle, idle, r.pending);
+      expect(r.done?.bindings.cruise).toEqual(['KeyJ', 'Pad:std:b16']);
+    });
+    it('ends with nothing changed when the pause-menu button is pressed for another action', () => {
+      // The pad's way out of an assignment that waits for a button.
+      const s = base();
+      let r = listenStep(s, { kind: 'action', action: 'camera' }, idle, [pad([9])], null);
+      r = listenStep(s, { kind: 'action', action: 'camera' }, idle, idle, r.pending);
+      expect(r.done).toBe(s);
+    });
+    it('takes an axis for an axis action', () => {
+      const s = base();
+      const r = listenStep(s, { kind: 'axis', action: 'roll' }, idle, [pad([], [0, 0, 0, 0, 0.9])], null);
+      expect(r.done?.pad.axes.roll?.[0]?.axis).toBe(4);
+      expect(r.done?.bindings).toBe(s.bindings);
+    });
+    it('ends with nothing changed when any button is pressed while it waits for an axis', () => {
+      const s = base();
+      expect(listenStep(s, { kind: 'axis', action: 'yaw' }, idle, idle, null).done).toBeNull();
+      for (const n of [1, 9, 0, 13]) {
+        expect(listenStep(s, { kind: 'axis', action: 'yaw' }, idle, [pad([n])], null).done, `button ${n}`).toBe(s);
+      }
+    });
   });
   it('reset brings the defaults back and the joystick preset adds its device', () => {
     const cleared = clearPad(base(), 'dock');

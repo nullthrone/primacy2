@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { NO_REPEAT, keepMark, pickDirection, pickFirst, pickNearest, stepRepeat, stepTab, stickDir, type Rect } from './padnav.ts';
+import {
+  NO_REPEAT, REPEAT_FIRST_MS, REPEAT_MS, keepMark, leavesPage, numberStep, pickDirection, pickFirst, pickNearest, stepNumber, stepRepeat, stepTab,
+  stickDir, type Rect,
+} from './padnav.ts';
 
 const r = (x: number, y: number, w = 100, h = 30): Rect => ({ x, y, w, h });
 
@@ -90,6 +93,51 @@ describe('keepMark', () => {
     keepMark(gone);
     expect(gone.classes.size).toBe(0);
     expect(() => keepMark(null)).not.toThrow();
+  });
+});
+
+describe('a number field held left or right', () => {
+  it('steps by one at first, then by ten, then by a hundred', () => {
+    expect(numberStep(1)).toBe(1);
+    expect(numberStep(10)).toBe(1);
+    expect(numberStep(11)).toBe(10);
+    expect(numberStep(30)).toBe(10);
+    expect(numberStep(31)).toBe(100);
+  });
+  it('lands on round numbers once it steps by more than one, and stops at the limits', () => {
+    expect(stepNumber(1, 1, 1, 1, 1, 9999)).toBe(2);
+    expect(stepNumber(11, 1, 11, 1, 1, 9999)).toBe(20);
+    expect(stepNumber(20, 1, 12, 1, 1, 9999)).toBe(30);
+    expect(stepNumber(210, 1, 31, 1, 1, 9999)).toBe(300);
+    expect(stepNumber(300, -1, 31, 1, 1, 9999)).toBe(200);
+    expect(stepNumber(205, -1, 11, 1, 1, 9999)).toBe(200);
+    expect(stepNumber(9950, 1, 40, 1, 1, 9999)).toBe(9999);
+    expect(stepNumber(5, -1, 40, 1, 1, 9999)).toBe(1);
+    // A field with a step of its own moves in multiples of it.
+    expect(stepNumber(0, 1, 11, 0.5, 0, 100)).toBe(5);
+  });
+  it('reaches 500 units from 1 in about four seconds of holding, where one unit per repeat took a minute', () => {
+    let rep = NO_REPEAT;
+    let value = 1;
+    let t = 0;
+    for (; value < 500 && t < 60_000; t += 10) {
+      const s = stepRepeat(rep, 'right', t);
+      rep = s.repeat;
+      if (s.fire) value = stepNumber(value, 1, rep.count, 1, 1, 9999);
+    }
+    expect(value).toBe(500);
+    expect(t).toBeLessThan(REPEAT_FIRST_MS + 35 * REPEAT_MS);
+  });
+});
+
+describe('leavesPage', () => {
+  const el = (tagName: string, attrs: Record<string, string>) => ({ tagName, getAttribute: (n: string) => attrs[n] ?? null });
+  it('is true for a link that opens another tab: a pad cannot follow it and come back', () => {
+    expect(leavesPage(el('A', { href: 'https://example.org', target: '_blank' }))).toBe(true);
+  });
+  it('is false for a link in the page and for a button', () => {
+    expect(leavesPage(el('A', { href: '#top' }))).toBe(false);
+    expect(leavesPage(el('BUTTON', { target: '_blank' }))).toBe(false);
   });
 });
 

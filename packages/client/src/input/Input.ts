@@ -256,11 +256,16 @@ export class Input {
     // The lever takes over the setpoint once it moves; the wheel keeps working in between.
     if (r.lever === null) {
       this.lastLever = null;
-    } else if (this.lastLever === null) {
-      this.lastLever = r.lever;
-    } else if (Math.abs(r.lever - this.lastLever) > LEVER_TAKEOVER) {
-      this.lastLever = r.lever;
-      if (this.active()) this.throttle = clamp(r.lever, this.mode === FlightMode.Cruise ? 0 : -1, 1);
+    } else {
+      const pos = leverStop(r.lever);
+      if (this.lastLever === null) {
+        this.lastLever = pos;
+      } else if (this.active() && leverMoved(pos, this.lastLever)) {
+        // `lastLever` only follows while the controls are live. A move made while a panel is open
+        // is then still a difference when the panel closes, and is applied there.
+        this.lastLever = pos;
+        this.throttle = clamp(pos, this.mode === FlightMode.Cruise ? 0 : -1, 1);
+      }
     }
   }
 
@@ -388,6 +393,23 @@ export class Input {
 }
 
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
+
+/**
+ * The lever position with its two end stops: the last stretch before zero and before full counts
+ * as zero and full. Without it a lever that creeps into its stop in steps smaller than the
+ * takeover threshold would leave the setpoint a little short of the stop.
+ */
+function leverStop(pos: number): number {
+  if (pos < LEVER_TAKEOVER) return 0;
+  if (pos > 1 - LEVER_TAKEOVER) return 1;
+  return pos;
+}
+
+/** Whether the lever has moved enough to take the setpoint over; arriving at a stop always counts. */
+function leverMoved(pos: number, last: number): boolean {
+  if (pos === last) return false;
+  return Math.abs(pos - last) > LEVER_TAKEOVER || pos === 0 || pos === 1;
+}
 
 /** The held actions that count for flight: all of them, minus those waiting for their release. */
 function withoutStale(held: Set<BindAction>, stale: Set<BindAction>): Set<BindAction> {

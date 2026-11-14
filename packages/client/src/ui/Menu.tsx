@@ -1,6 +1,7 @@
 /**
  * Start screen, settings and the in-game pause menu.
  */
+import type { ComponentChildren, VNode } from 'preact';
 import { useState } from 'preact/hooks';
 import type { GameAudio } from '../audio/index.ts';
 import type { GameApi } from '../contracts.ts';
@@ -112,9 +113,27 @@ function Identity({ api }: { api: GameApi }) {
   );
 }
 
+const CALL_SIGNS = ['Pilot', 'Comet', 'Nova', 'Vega', 'Orion', 'Lyra', 'Kestrel', 'Drifter'];
+
+/** A pilot name nobody typed: a call sign and four digits, such as "Vega 0421". */
+export function madeUpPilotName(random: () => number = Math.random): string {
+  const word = CALL_SIGNS[Math.min(CALL_SIGNS.length - 1, Math.floor(random() * CALL_SIGNS.length))]!;
+  const digits = String(Math.min(9999, Math.floor(random() * 10_000))).padStart(4, '0');
+  return `${word} ${digits}`;
+}
+
+/**
+ * The name the start screen begins with: the saved one, or a made-up one. The interface has no
+ * on-screen keyboard, so with an empty field a pilot who has only a controller (a phone, a tablet,
+ * a living-room PC) could never launch. The field stays editable.
+ */
+export function startName(saved: string): string {
+  return saved.trim().length >= 2 ? saved : madeUpPilotName();
+}
+
 export function StartScreen({ api, audio }: { api: GameApi; audio: GameAudio }) {
   const s = store.settings.value;
-  const [name, setName] = useState(s.pilotName);
+  const [name, setName] = useState(() => startName(s.pilotName));
   const [server, setServer] = useState(s.lastServer || location.origin);
   const [tab, setTab] = useState<'none' | 'identity' | 'settings' | 'controls'>('none');
   const [bindings, setBindings] = useState(false);
@@ -163,20 +182,39 @@ export function StartScreen({ api, audio }: { api: GameApi; audio: GameAudio }) 
   );
 }
 
+/**
+ * The pause menu's way back to the station screen, or null while not docked. A docked pilot may
+ * close that screen (Escape, B or Menu on a pad, opening a map) to look at the station from
+ * outside, and only docking opens it by itself. Without a way back the market and the services
+ * would stay out of reach until the pilot undocks and docks again.
+ */
+export function stationReturn(): (() => void) | null {
+  if (store.station.value === null) return null;
+  return () => { store.panel.value = 'station'; };
+}
+
+/**
+ * The panel of one of the two screens of the pause menu. Each has a key of its own: without keys
+ * the binding screen would reuse the node of the menu (a div in the place of a div), and the
+ * controller navigation, which gives a panel its focus when a new node appears, would leave the
+ * screen without a mark, so that the first press only shows where the focus is.
+ */
+export function pauseRoot(screen: 'menu' | 'bindings', children: ComponentChildren): VNode<{ class: string }> {
+  return <div key={screen} class={screen === 'bindings' ? 'panel wide' : 'panel narrow'}>{children}</div>;
+}
+
 export function PauseMenu({ api, audio }: { api: GameApi; audio: GameAudio }) {
   const [bindings, setBindings] = useState(false);
-  if (bindings) {
-    return (
-      <div class="panel wide">
-        <Bindings onBack={() => setBindings(false)} />
-      </div>
-    );
-  }
-  return (
-    <div class="panel narrow">
+  const toStation = stationReturn();
+  if (bindings) return pauseRoot('bindings', <Bindings onBack={() => setBindings(false)} />);
+  return pauseRoot('menu', (
+    <>
       <header>
         <h2>{t('app.title')}</h2>
-        <button onClick={() => (store.panel.value = null)}>{t('menu.resume')}</button>
+        <div class="row">
+          {toStation && <button onClick={toStation}>{t('menu.station')}</button>}
+          <button onClick={() => (store.panel.value = null)}>{t('menu.resume')}</button>
+        </div>
       </header>
       <Settings audio={audio} onBindings={() => setBindings(true)} />
       <h3>{t('menu.controls')}</h3>
@@ -187,6 +225,6 @@ export function PauseMenu({ api, audio }: { api: GameApi; audio: GameAudio }) {
         </button>
         <button class="danger" onClick={() => api.disconnect()}>{t('menu.disconnect')}</button>
       </div>
-    </div>
-  );
+    </>
+  ));
 }

@@ -34,6 +34,7 @@ export const en = {
   'menu.cameraChase': 'Chase',
   'menu.controls': 'Controls',
   'menu.resume': 'Resume',
+  'menu.station': 'Station services',
   'menu.disconnect': 'Disconnect',
   'menu.fullscreen': 'Fullscreen',
   'menu.licence': 'Free software under the AGPL-3.0',

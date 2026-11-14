@@ -36,6 +36,7 @@ export const de: Partial<Record<StringKey, string>> = {
   'menu.cameraChase': 'Verfolger',
   'menu.controls': 'Steuerung',
   'menu.resume': 'Weiter',
+  'menu.station': 'Stationsdienste',
   'menu.disconnect': 'Trennen',
   'menu.fullscreen': 'Vollbild',
   'menu.licence': 'Freie Software unter der AGPL-3.0',

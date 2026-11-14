@@ -510,6 +510,11 @@ export function captureProgress(before: readonly PadSnapshot[], now: readonly Pa
       if (b && down(b, n)) continue;
       return { pending: null, done: { kind: 'chord', dev: pending.dev, m: pending.n, n } };
     }
+    // The pending button may be one that only reads as held (a latched switch, a stuck button) and
+    // never comes up. A button pressed on another device is then the one the pilot means, and it
+    // takes the pending place; without this no press on any other device would ever be looked at.
+    const other = captureNext(before, now.filter((x) => x.index !== p.index));
+    if (other?.kind === 'button') return { pending: { dev: other.dev, n: other.n }, done: null };
     return { pending, done: null };
   }
   // A button already held when the assignment began is taken as the modifier.

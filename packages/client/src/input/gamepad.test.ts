@@ -331,6 +331,22 @@ describe('capture', () => {
     const p = captureProgress(before, [pad({ down: [3, 2] })], captureProgress(before, before, null).pending);
     expect(p.done).toEqual({ kind: 'chord', dev: 'std', m: 3, n: 2 });
   });
+  it('is not blocked by a button that reads as held on another device', () => {
+    // A latched switch of a HOTAS, or a stuck button, is down from the start.
+    const stick = (d: number[]): PadSnapshot => pad({ id: STICK, index: 1, mapping: '', down: d });
+    const before = [pad(), stick([5])];
+    let p = captureProgress(before, before, null);
+    expect(p.pending).toEqual({ dev: '044f-b10a', n: 5 });
+    // A on the standard pad: that is the button the pilot means.
+    p = captureProgress(before, [pad({ down: [0] }), stick([5])], p.pending);
+    expect(p.pending).toEqual({ dev: 'std', n: 0 });
+    expect(p.done).toBeNull();
+    p = captureProgress(before, [pad(), stick([5])], p.pending);
+    expect(p.done).toEqual({ kind: 'button', dev: 'std', n: 0 });
+    // A chord on the device with the held button still works.
+    const q = captureProgress(before, [pad(), stick([5, 2])], captureProgress(before, before, null).pending);
+    expect(q.done).toEqual({ kind: 'chord', dev: '044f-b10a', m: 5, n: 2 });
+  });
   it('takes an axis at once', () => {
     expect(captureProgress([pad()], [pad({ axes: [0, 0, 0, -0.9] })], null).done).toEqual({ kind: 'axis', dev: 'std', axis: 3, dir: -1 });
   });

@@ -280,12 +280,14 @@ Surf surface(vec3 nb, vec3 sunB) {
   // sample toward the sun. (A body with a baked map shows its real terrain at this range instead.)
   float geo = dot(nb, sunB);
   vec3 along = vec3(1.0, 1.7, 1.0);
-  vec4 f = fineNoise(nb * along, FINE, gSlant * 2.5, 0.7);
+  vec4 f = fineNoise(nb * along, FINE, gSlant * 1.7, 0.7);
   if (f.w > 0.0) {
     // Sand lies in fields between barer ground; rock carries almost none.
     float sand = (0.35 + 0.65 * smoothstep(0.45, 0.75, dunes)) * (1.0 - 0.7 * rock);
     s.albedo *= clamp(1.0 + sand * (0.05 * f.x - 0.03 * f.y), 0.6, 1.4);
-    if (geo > -0.2) s.fineRise = 0.0016 * sand * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 2.5, 0.7).z - f.z);
+    // Their relief costs one more sample, taken only where the sand lies thick enough to show it.
+    float lift = max(sand - 0.3, 0.0) / 0.7;
+    if (geo > -0.2 && lift > 0.0) s.fineRise = 0.0022 * lift * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 1.7, 0.7).z - f.z);
   }
   if (geo < -0.35) s.bump = 0.0;
 #endif

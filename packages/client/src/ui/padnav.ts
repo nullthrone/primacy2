@@ -143,8 +143,18 @@ const isTextLike = (el: Element): boolean => {
   return !['range', 'checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'color', 'hidden'].includes(el.type);
 };
 
+/**
+ * True for a link that opens another tab or window. It is no target for the pad: a click made by
+ * script may be stopped by the browser's popup blocker, and where it works it takes a pilot who
+ * has nothing but a pad to a page the pad cannot close.
+ */
+export function leavesPage(el: { tagName: string; getAttribute(name: string): string | null }): boolean {
+  return el.tagName === 'A' && el.getAttribute('target') === '_blank';
+}
+
 function usable(el: HTMLElement): boolean {
   if ((el as HTMLButtonElement).disabled) return false;
+  if (leavesPage(el)) return false;
   if (el instanceof HTMLInputElement && el.type === 'hidden') return false;
   if (el.closest('[inert], [hidden]')) return false;
   if (el.getClientRects().length === 0) return false;
@@ -212,10 +222,32 @@ function adjust(el: HTMLElement, dir: Dir, count: number): boolean {
     const step = Number(el.step) || 1;
     const lo = el.min === '' ? -Infinity : Number(el.min);
     const hi = el.max === '' ? Infinity : Number(el.max);
-    setValue(el, String(Math.min(hi, Math.max(lo, (Number(el.value) || 0) + sign * step))));
+    setValue(el, String(stepNumber(Number(el.value) || 0, sign, count, step, lo, hi)));
     return true;
   }
   return false;
+}
+
+/**
+ * How many steps one press or repeat moves a number field: one for the first ten, then ten, and a
+ * hundred after thirty. The market takes quantities up to 9999 and a pad has no digits to type.
+ */
+export function numberStep(count: number): number {
+  return count > 30 ? 100 : count > 10 ? 10 : 1;
+}
+
+/**
+ * The value of a number field after one press or repeat (`count` is how often the held direction
+ * has fired). While it moves by more than one step it goes to the next multiple of that stride, so
+ * that holding ends on round numbers (20, 30 ... 200, 300) and single presses do the rest.
+ */
+export function stepNumber(value: number, sign: 1 | -1, count: number, step: number, lo: number, hi: number): number {
+  const stride = step * numberStep(count);
+  const next = stride === step
+    ? value + sign * step
+    : (sign > 0 ? Math.floor(value / stride) + 1 : Math.ceil(value / stride) - 1) * stride;
+  // Rounded so that a fractional step does not leave 0.30000000000000004 in the field.
+  return Math.min(hi, Math.max(lo, Number(next.toFixed(6))));
 }
 
 function tabsOf(container: HTMLElement): HTMLElement[] {
