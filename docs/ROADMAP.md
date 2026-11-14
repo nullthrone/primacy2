@@ -208,9 +208,11 @@ Decided by the engineer, for the owner to overrule:
   have a place. The price is that the scale has to be read: the rings are named under it. A ship
   in cruise is detected across the whole system; whatever is farther than 100 km stands at the
   rim's distance in its direction, drawn hollow.
-- Places are marks on the rim at their bearing in the ship's plane, with a short stalk for above
-  or below. The stalk of a place is compressed (at most 0.4 of the radius) so that the mark stays
-  near the rim; the stalk of a contact is to scale.
+- Places are marks on the rim at their bearing in the ship's plane; a stalk with an arrowhead
+  points up or down from each by how far the place lies above or below. The mark itself never
+  leaves the rim, so that places and contacts cannot be mistaken for each other: a first version
+  put the mark at the end of the stalk, where it stood among the contacts. The stalk of a place
+  is compressed (at most 0.4 of the radius); the stalk of a contact is to scale.
 - Below a view width of 900 px the radar is left out: the bottom row of the HUD has no layout for
   a phone yet and overlaps there already.
 

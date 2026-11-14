@@ -126,10 +126,11 @@ export interface RadarRimMark extends RadarPoint {
 }
 
 /**
- * A place on the rim of the radar: far beyond its scale, so only the direction is shown. The foot
- * stands on the rim at the bearing in the ship's plane, and the stalk says how far above or below
- * the plane the place lies (its full length is straight up or down). Straight above or below
- * there is no bearing: the mark then keeps `held`, the bearing it had before, or stands ahead.
+ * A place on the rim of the radar: far beyond its scale, so only the direction is shown. The mark
+ * stands on the rim at the bearing in the ship's plane (`x`, `foot`), and a stalk from it to `y`
+ * says how far above or below the plane the place lies (its full length is straight up or down).
+ * Straight above or below there is no bearing: the mark then keeps `held`, the bearing it had
+ * before, or stands ahead.
  */
 export function radarRim(c: Readonly<Vec3>, held?: number): RadarRimMark {
   const len = Math.hypot(c[0], c[1], c[2]);

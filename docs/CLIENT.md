@@ -125,10 +125,11 @@ its panel show. Choosing one never drops the other.
   logarithmic: rings at 100 m, 1 km, 10 km and the rim at 100 km, written under the instrument.
   What is nearer than 100 m stands on the innermost ring; what is farther than 100 km (a ship in
   cruise is seen across the system) stands at the rim's distance and is drawn hollow. Every place
-  to dock, every gate (a square) and the chosen place (amber, whatever it is) are marks on the
-  rim: the foot at the bearing in the ship's plane, the stalk up or down by how far the place lies
-  above or below it, at most 0.4 of the radius. Straight above or below, where there is no
-  bearing, a mark keeps the one it had. It only shows; nothing on it can be chosen.
+  to dock (a diamond), every gate (a square) and the chosen place (amber, whatever it is) are
+  marks on the rim, at the bearing in the ship's plane; from each a stalk with an arrowhead points
+  up or down by how far the place lies above or below the plane, at most 0.4 of the radius.
+  Straight above or below, where there is no bearing, a mark keeps the one it had. It only shows;
+  nothing on it can be chosen.
 - "Target ahead" (`targetAhead` in `game/Game.ts`) looks in a cone of about 26 degrees around the
   nose. A ship, wreck or pod in it is locked. A place is taken only while none of those is in the
   cone, so that a press in a fight never replaces the chosen place. With nothing new ahead the

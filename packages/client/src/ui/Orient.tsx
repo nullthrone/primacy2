@@ -156,7 +156,8 @@ const RADAR_SCALE = RADAR_RINGS.map((m) => m / 1000);
  * The radar beside the speed readout, in the ship's own axes: its plane as a disc seen from
  * behind and above, ahead being up. Ships, wrecks and cargo pods in sensor range are points on
  * stalks that stand on the plane, the distance on a logarithmic scale; every place to dock, every
- * gate and the chosen place are marks on the rim, at their bearing. It only shows.
+ * gate and the chosen place are marks on the rim, at their bearing, each with a stalk that points
+ * up or down by how far the place lies above or below the plane. It only shows.
  */
 export function Radar({ contacts, places }: { contacts: RadarContact[]; places: RadarPlace[] }) {
   const u = RADAR_UNIT;
@@ -187,12 +188,15 @@ export function Radar({ contacts, places }: { contacts: RadarContact[]; places: 
         {marks.map(({ it, p }) => {
           const x = p.x * u;
           const y = p.y * u;
+          const rim = p.foot * u;
           const half = it.chosen ? 6.5 : 4.5;
+          // The arrowhead at the end of the stalk points away from the plane: up for a place above it.
+          const tip = y <= rim ? 3 : -3;
           return (
             <g key={it.key} data-key={it.key} class={`radar-mark ${it.chosen ? 'chosen' : ''} ${it.gate ? 'gate' : ''}`}>
-              <line class="radar-stalk" x1={x} y1={p.foot * u} x2={x} y2={y} />
-              <circle class="radar-foot" cx={x} cy={p.foot * u} r={2} />
-              <rect class="radar-head" x={x - half} y={y - half} width={half * 2} height={half * 2} transform={it.gate ? undefined : `rotate(45 ${x} ${y})`} />
+              <line class="radar-stalk" x1={x} y1={rim} x2={x} y2={y} />
+              <path class="radar-tip" d={`M${x - 3.5} ${y + tip} L${x} ${y - tip} L${x + 3.5} ${y + tip} Z`} />
+              <rect class="radar-rim" x={x - half} y={rim - half} width={half * 2} height={half * 2} transform={it.gate ? undefined : `rotate(45 ${x} ${rim})`} />
             </g>
           );
         })}

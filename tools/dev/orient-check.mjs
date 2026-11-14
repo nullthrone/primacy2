@@ -83,12 +83,14 @@ async function overlaps(page) {
 
 /**
  * The radar as it is drawn: the middle and the half axes of its disc in pixels, and for every
- * contact and every mark on the rim its classes and the middle of its head and of its foot.
+ * contact and every mark on the rim its classes and the middle of its two ends (`head` is the
+ * point of a contact or the tip of a mark's stalk, `foot` the end on the plane or the mark on the rim).
  */
 const radar = (page) => page.evaluate(() => {
   const mid = (n) => { const r = n.getBoundingClientRect(); return { x: (r.left + r.right) / 2, y: (r.top + r.bottom) / 2 }; };
   const disc = document.querySelector('.radar-disc').getBoundingClientRect();
-  const part = (g) => ({ key: g.dataset.key, cls: g.getAttribute('class').split(/\s+/).filter(Boolean), head: mid(g.querySelector('.radar-head')), foot: mid(g.querySelector('.radar-foot')), ring: g.querySelector('.radar-lock') !== null });
+  // A contact has its head on the stalk and its foot on the plane; a mark stands on the rim and its stalk ends in a tip.
+  const part = (g) => ({ key: g.dataset.key, cls: g.getAttribute('class').split(/\s+/).filter(Boolean), head: mid(g.querySelector('.radar-head, .radar-tip')), foot: mid(g.querySelector('.radar-foot, .radar-rim')), ring: g.querySelector('.radar-lock') !== null });
   const plate = document.querySelector('.radar-plate').getBoundingClientRect();
   const inside = (n) => { const r = n.getBoundingClientRect(); return r.left >= plate.left - 0.5 && r.right <= plate.right + 0.5 && r.top >= plate.top - 0.5 && r.bottom <= plate.bottom + 0.5; };
   return {
@@ -137,7 +139,7 @@ function blipAt(r, c) {
 }
 /** The longest stalk of a mark on the rim in units of the disc's radius, as in `ui/orient.ts`. */
 const RIM_STALK = 0.4;
-/** Where the radar has to draw the mark of a place in the direction `c`: its foot on the rim at the bearing, the head on the stalk. */
+/** Where the radar has to draw the mark of a place in the direction `c`: the mark on the rim at the bearing (`foot`), the tip of its stalk (`head`). */
 function rimAt(r, c) {
   const bearing = Math.atan2(c[0], -c[2]);
   const foot = { x: r.cx + Math.sin(bearing) * r.rx, y: r.cy - Math.cos(bearing) * r.ry };
@@ -309,7 +311,7 @@ try {
     check(r.marks.length === docks && docks === 5 && r.marks.every((m) => !m.cls.includes('chosen')), `every place to dock has a mark on the rim and none is amber with nothing chosen (${r.marks.length})`);
     const offRim = (rr, aa) => rr.marks.filter((m) => { const w = rimAt(rr, (aa.sites[m.key.slice(1)] ?? aa.bodies[m.key.slice(1)]).ship); return !near(m.foot, w.foot) || !near(m.head, w.head); });
     const offMarks = offRim(r, a);
-    check(offMarks.length === 0, `every mark has its foot on the rim at the bearing of its place and its stalk toward the side of the plane the place lies on${offMarks.length ? `: off ${offMarks.map((m) => m.key).join(' ')}` : ''}`);
+    check(offMarks.length === 0, `every mark stands on the rim at the bearing of its place, and its stalk ends on the side of the plane the place lies on${offMarks.length ? `: off ${offMarks.map((m) => m.key).join(' ')}` : ''}`);
     await shot(page, '09-radar-nothing-chosen-de');
 
     // A chosen place and a locked ship.
@@ -323,7 +325,7 @@ try {
     const c = a.sites[chosenId].ship;
     check(chosen.length === 1 && chosen[0].key === `p${chosenId}` && r.marks.length === docks, 'the chosen place is the one amber mark, in place of its plain one');
     check(c[2] > 0 && chosen[0].foot.y > r.cy && near(chosen[0].foot, rimAt(r, c).foot), `the chosen place lies behind the ship and stands on the near half of the rim, at its bearing (${xy(chosen[0].foot)})`);
-    check((await colour('.radar-mark.chosen .radar-head')) === 'rgb(255, 179, 71)', 'its mark is amber');
+    check((await colour('.radar-mark.chosen .radar-rim')) === 'rgb(255, 179, 71)', 'its mark is amber');
     const targetId = await page.evaluate(() => window.__store.targetId.value);
     const locked = r.blips.filter((b) => b.ring);
     check(locked.length === 1 && locked[0].key === `e${targetId}` && locked[0].cls.includes('locked'), `the locked ship is the one ringed contact (${locked.map((b) => b.key).join(' ')})`);

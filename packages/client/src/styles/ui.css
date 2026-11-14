@@ -331,8 +331,8 @@
 .compass-dot.hostile { color: var(--red); }
 /* The radar stands to the right of the speed readout, tied to the centre block so that it moves
    when that block grows wider over the ground. The ship's plane is a disc seen from behind and
-   above; contacts are points on stalks, places are marks on the rim. Lines keep their width in
-   pixels whatever the size of the drawing. */
+   above; contacts are points on stalks, places are marks on the rim with a stalk that points up or
+   down. Lines keep their width in pixels whatever the size of the drawing. */
 .radar { position: absolute; left: calc(100% + 1.2em); bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 0.1em; }
 .radar-plate { display: block; width: 12em; height: 12em; }
 .radar-plate * { vector-effect: non-scaling-stroke; stroke-width: 1px; fill: none; }
@@ -352,10 +352,10 @@
 .radar-blip.wreck .radar-head, .radar-blip.beyond .radar-head { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
 .radar-lock { stroke: #fff; stroke-width: 1.2px; }
 .radar-mark { color: var(--cyan); }
-.radar-mark .radar-head { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
-.radar-mark .radar-foot { fill: currentColor; stroke: none; }
+.radar-rim { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
+.radar-tip { fill: currentColor; }
 .radar-mark.chosen { color: var(--amber); }
-.radar-mark.chosen .radar-head { fill: currentColor; }
+.radar-mark.chosen .radar-rim { fill: currentColor; }
 .radar-scale { font-size: 0.82em; line-height: 1.2; color: var(--dim); white-space: nowrap; }
 /* The bottom row of a narrow view is full without it: the radar waits for a layout of that size. */
 @media (max-width: 900px) { .radar { display: none; } }
