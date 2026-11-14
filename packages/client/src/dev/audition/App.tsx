@@ -268,10 +268,6 @@ function Header(): JSX.Element {
         >
           {t('stopAll')}
         </button>
-        <span class="spacer" />
-        <span class="status dim" id="save-status">
-          {notice.value || statusText()}
-        </span>
       </div>
       <div class="bar stage-bar" aria-label={t('stage')}>
         <span class="stage-title" title={t('stageHint')}>
@@ -319,6 +315,9 @@ function Header(): JSX.Element {
           <span class="mono room-read">{room.value.toFixed(2)}</span>
         </div>
         <span class="dim small stage-note">{engine.stage.value === 'headphones' ? t('stageHeadphonesNote') : engine.stage.value === 'mono' ? t('stageMonoNote') : t('stageStereoNote')}</span>
+        <span class="status dim" id="save-status">
+          {notice.value || statusText()}
+        </span>
       </div>
     </header>
   );

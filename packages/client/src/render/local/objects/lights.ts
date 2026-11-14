@@ -145,12 +145,16 @@ export class CabinGlow {
   }
 
   /**
-   * Ambient light to add in the cabin for a sun of strength `sun` that stands at (x, y, z) in the
+   * How much of the sun comes in through the canopy, 0..1, when it stands at (x, y, z) in the
    * cabin's own axes (a unit vector; ahead is -Z, up is +Y). The canopy opens ahead, above and to
    * the sides; from behind and from below the hull is in the way.
    */
-  static bounce(sun: number, x: number, y: number, z: number): number {
-    const open = Math.min(1, Math.max(0, 0.45 - 0.9 * z + 0.7 * y - 0.15 * Math.abs(x)));
+  static open(x: number, y: number, z: number): number {
+    return Math.min(1, Math.max(0, 0.45 - 0.9 * z + 0.7 * y - 0.15 * Math.abs(x)));
+  }
+
+  /** Ambient light to add in the cabin for a sun of strength `sun` of which the share `open` comes in. */
+  static bounce(sun: number, open: number): number {
     return sun * open * BOUNCE;
   }
 }

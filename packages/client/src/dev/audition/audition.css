@@ -199,3 +199,7 @@ details.checks dd { margin: 0; }
 .rate.stale .stars, .rate.stale .verdicts, .rate.stale textarea { opacity: 0.5; }
 .rate.stale:hover .stars, .rate.stale:hover .verdicts, .rate.stale:hover textarea { opacity: 0.85; }
 .badge.place { text-transform: none; letter-spacing: 0; }
+
+/* The save status sits at the end of the stage bar, where the first bars are full. */
+.stage-bar .status { max-width: 13rem; margin-left: auto; text-align: right; }
+.stage-bar .stage-note { flex: 1 1 12rem; }

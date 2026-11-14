@@ -306,11 +306,9 @@ Surf surface(vec3 nb, vec3 sunB) {
   float geo = dot(nb, sunB);
   vec4 f = fineNoise(nb, FINE, gSlant, 0.7);
   if (gNear > 0.0) {
-    // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between
-    // them, and hairline cracks wherever the crust is hot.
+    // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between.
     float seams = smoothstep(0.60, 0.80, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
-    float hair = smoothstep(-0.65, -1.10, f.y) * smoothstep(0.05, 0.40, heat);
-    heat = clamp(heat * mix(1.0, 0.22 + 1.05 * seams, gNear) + 0.3 * hair * gNear, 0.0, 1.0);
+    heat = clamp(heat * mix(1.0, 0.22 + 1.05 * seams, gNear), 0.0, 1.0);
   }
   float crust = fbm(p * 6.0, uOct);
   s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);

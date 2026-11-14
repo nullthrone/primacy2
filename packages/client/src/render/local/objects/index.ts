@@ -68,6 +68,8 @@ export function createObjects(): Part {
   const buffer = new Vector2(1280, 720);
   /** The lighting as it reaches the camera; refilled every frame. */
   const lit: Lighting = { sunDir: [0, 1, 0], sunColor: [1, 1, 1], sunIntensity: 0, ambient: 0, envMap: null };
+  /** The same as it reaches the inside of the cockpit. */
+  const cabinLit: Lighting = { sunDir: [0, 1, 0], sunColor: [1, 1, 1], sunIntensity: 0, ambient: 0, envMap: null };
 
   return {
     root,
@@ -145,14 +147,24 @@ export function createObjects(): Part {
 
       const inCockpit = view.camera.mode === 'cockpit' && view.self !== null && cabinModel !== null;
       cabin.visible = inCockpit;
+      cabinLit.sunDir = light.sunDir;
+      cabinLit.sunColor = light.sunColor;
+      cabinLit.sunIntensity = light.sunIntensity;
+      cabinLit.ambient = light.ambient;
+      cabinLit.envMap = light.envMap;
+      cabinSun.bounce = 0;
       if (inCockpit) {
         const q = view.camera.rot;
         cabin.quaternion.set(q[0], q[1], q[2], q[3]);
         // Where the sun stands as the pilot sees it decides how much of it comes in through the canopy.
         sunIn.set(light.sunDir[0], light.sunDir[1], light.sunDir[2]).applyQuaternion(turnBack.copy(cabin.quaternion).invert());
-        cabinSun.bounce = CabinGlow.bounce(light.sunIntensity, sunIn.x, sunIn.y, sunIn.z);
+        const open = CabinGlow.open(sunIn.x, sunIn.y, sunIn.z);
+        cabinSun.bounce = CabinGlow.bounce(light.sunIntensity, open);
+        // Without a shadow map nothing keeps a sun behind or below the pilot off the dashboard: the
+        // hull around the cabin is not drawn. The same measure of the canopy stands in for it.
+        if (map === 0) cabinLit.sunIntensity *= open;
       }
-      cabinSun.update(light, 0, 0, 0, inCockpit ? COCKPIT_REACH : 0, COCKPIT_REACH * 3, Math.min(map, 1024), view.dt);
+      cabinSun.update(cabinLit, 0, 0, 0, inCockpit ? COCKPIT_REACH : 0, COCKPIT_REACH * 3, Math.min(map, 1024), view.dt);
     },
 
     dispose(): void {

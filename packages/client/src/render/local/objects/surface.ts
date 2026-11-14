@@ -482,7 +482,8 @@ float surfScale = 1.0;
     sSmall = surfPit(sP + 9.1, 0.027, sPix, sWarp);
     sPit = vec4(sPit.xyz + sSmall.xyz, max(sPit.w, sSmall.w));
   }
-  surfGrad += sPit.xyz;
+  // The floor of a pit is smoother than the ground around it, or the bowl is lost in the grain.
+  surfGrad = surfGrad * (1.0 - 0.6 * sPit.w) + sPit.xyz;
   // Dust lies in the pits.
   diffuseColor.rgb *= max(0.0, 1.0 + sTone * 1.3) * (1.0 - 0.38 * sPit.w);
   surfRough = sTone * 0.15;
