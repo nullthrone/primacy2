@@ -169,6 +169,14 @@ place, with the keyboard) and `scripts/pad-check.mjs` (the D-pad). Not checked: 
 the look in motion (only stills were judged); arrows and compass in cruise, in a fight and near a
 gate (no universe of the tests has a gate); the forward and back side buttons of a mouse.
 
+One thing about the browser test is not explained. On 2026-11-14 `scripts/e2e.mjs` ran three times
+with the same game code. Twice it stopped in the first minutes at a step that steers the ship with
+the mouse hook ("could not bring the second pilot into view"; the second time the new step that
+turns the nose at a station failed the same way). The third time it passed in full, the steering
+steps settling within seconds at 61 frames per second. The two failed runs had been started as
+detached background jobs of an agent session, the passing one in the foreground; whether that is
+the cause was not established. `scripts/pad-check.mjs` passed both times it ran.
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
