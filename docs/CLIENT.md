@@ -112,6 +112,10 @@ its panel show. Choosing one never drops the other.
   chosen place with closing speed and time of arrival. Two lines under the system name that count
   the places and the contacts in sensor range and name the controls. The list of places, open for
   six seconds after a step.
+- "Target ahead" (`targetAhead` in `game/Game.ts`) looks in a cone of about 26 degrees around the
+  nose. A ship, wreck or pod in it is locked. A place is taken only while none of those is in the
+  cone, so that a press in a fight never replaces the chosen place. With nothing new ahead the
+  lock steps on to the next ship in range.
 - The closing speed is the part of the ship's own velocity that points at the target (minus that
   of a target ship), not the rate at which the distance changes: between two places on different
   orbits that rate is tens of kilometres per second while the ship lies still.

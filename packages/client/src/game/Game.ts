@@ -787,10 +787,12 @@ class GameImpl implements Game {
 
   /**
    * Takes whatever is closest to the nose. A ship, or a wreck or cargo pod to work on, comes first
-   * and is locked; missiles are skipped. With none ahead that is not locked already, the place the
-   * nose points at becomes the navigation target. With nothing new ahead at all, the lock steps on
-   * to the next ship in range, so that this one control reaches every ship (a standard pad has no
-   * button left for stepping through ships).
+   * and is locked; missiles are skipped. A place becomes the navigation target only while none of
+   * those lies in the cone ahead: with one there the press belongs to it, and the place the pilot
+   * has chosen stays (the owner's decision of 2026-11-14, so that a press in a fight never replaces
+   * the destination). With nothing new ahead, the lock steps on to the next ship in range, so that
+   * this one control reaches every ship (a standard pad has no button left for stepping through
+   * ships).
    */
   private targetAhead(): void {
     const v = this.view;
@@ -808,9 +810,12 @@ class GameImpl implements Game {
         best = e.id;
       }
     }
-    if (best !== null && best !== store.targetId.value) return this.setTarget(best);
-    const place = placeAhead(v, v.self.rel, fwd, AHEAD_COS);
-    if (place && place.id !== store.navAnchor.value) return this.setNav(place.id);
+    if (best !== null) {
+      if (best !== store.targetId.value) return this.setTarget(best);
+    } else {
+      const place = placeAhead(v, v.self.rel, fwd, AHEAD_COS);
+      if (place && place.id !== store.navAnchor.value) return this.setNav(place.id);
+    }
     if (store.contacts.value.some((c) => c.info.kind === EntityKind.Ship)) this.cycleTarget(1);
   }
 

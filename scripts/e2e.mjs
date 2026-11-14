@@ -1417,40 +1417,70 @@ try {
       if ((await now()).id !== first.id) fail(`L did not step back to ${first.name}: ${JSON.stringify(await now())}`);
       await shot('03c-places');
 
-      // Turn the nose at the chosen place, let go of it, and take it again with "target ahead".
-      let held = 0;
-      for (let i = 0; i < 300 && held < 5; i++) {
-        const off = await page.evaluate((id) => {
-          const g = window.primacy2.game;
-          const s = g.view.sites.find((x) => x.def.id === id) ?? g.view.bodies.find((x) => x.def.id === id);
-          if (!s) return null;
-          const p = g.project(s.rel);
-          if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
-          const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
-          g.input.addMouse(ex * 0.2, ey * 0.2);
-          return Math.hypot(ex, ey);
-        }, first.id);
-        held = off !== null && off < 60 ? held + 1 : 0;
-        await page.waitForTimeout(100);
+      // "Target ahead" and places. A place is taken only while no ship, wreck or pod lies in the
+      // cone ahead of the nose (cosine 0.9); with one there the press locks it and the chosen
+      // place stays.
+      const turnAt = async (id) => {
+        let held = 0;
+        for (let i = 0; i < 300 && held < 5; i++) {
+          const off = await page.evaluate((anchor) => {
+            const g = window.primacy2.game;
+            const s = g.view.sites.find((x) => x.def.id === anchor) ?? g.view.bodies.find((x) => x.def.id === anchor);
+            if (!s) return null;
+            const p = g.project(s.rel);
+            if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
+            const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
+            g.input.addMouse(ex * 0.2, ey * 0.2);
+            return Math.hypot(ex, ey);
+          }, id);
+          held = off !== null && off < 60 ? held + 1 : 0;
+          await page.waitForTimeout(100);
+        }
+        return held >= 5;
+      };
+      // How many entities lie in the cone ahead of the nose, and a place with empty sky around it.
+      const sky = () => page.evaluate((chosen) => {
+        const v = window.primacy2.game.view;
+        const self = v.self;
+        const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+        const from = (rel) => unit([rel[0] - self.rel[0], rel[1] - self.rel[1], rel[2] - self.rel[2]]);
+        const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        const [x, y, z, w] = self.rot;
+        // The nose: the ship's -z axis turned by its orientation.
+        const nose = [-2 * (x * z + w * y), -2 * (y * z - w * x), -(1 - 2 * (x * x + y * y))];
+        const ents = v.ents.map((e) => from(e.rel));
+        const places = [...v.sites, ...v.bodies].map((p) => ({ id: p.def.id, name: p.def.name, dir: from(p.rel) }));
+        const lone = places.find((p) => p.id !== chosen && ents.every((e) => dot(e, p.dir) < 0.8) && places.every((q) => q.id === p.id || dot(q.dir, p.dir) < 0.97));
+        return { inCone: ents.filter((e) => dot(e, nose) > 0.9).length, lone: lone ? { id: lone.id, name: lone.name } : null };
+      }, first.id);
+      const pressAhead = async () => { await page.keyboard.press('KeyY'); await page.waitForTimeout(250); return now(); };
+      const letGo = async () => { await page.keyboard.press('KeyU'); await page.keyboard.press('KeyU'); await page.waitForTimeout(200); return now(); };
+
+      // Toward the station just left, with the station as the chosen place: whatever is in the
+      // cone, two presses leave the chosen place alone.
+      if (!(await turnAt(first.id))) fail(`could not turn the nose at ${first.name}`);
+      else {
+        const { inCone } = await sky();
+        const once = await pressAhead();
+        const twice = await pressAhead();
+        if (once.id !== first.id || twice.id !== first.id) fail(`"target ahead" replaced the chosen place ${first.name}: ${JSON.stringify([once, twice])}`);
+        if (inCone > 0 && once.target === null) fail(`"target ahead" did not lock anything with ${inCone} in the cone: ${JSON.stringify(once)}`);
+        console.log(`places: ok, O/L step; with ${inCone} in the cone ahead two presses of "target ahead" kept ${first.name} chosen${once.target !== null ? ' and locked a ship' : ''}`);
       }
-      if (held < 5) fail(`could not turn the nose at ${first.name}`);
-      await page.keyboard.press('KeyU');
-      await page.keyboard.press('KeyU');
-      await page.waitForTimeout(200);
-      const cleared = await now();
+      const cleared = await letGo();
       if (cleared.id !== null || cleared.target !== null) fail(`U twice did not let go of the ship and the place: ${JSON.stringify(cleared)}`);
-      // A ship in the cone ahead is locked first; the second press then takes the place behind it.
-      let ahead = cleared;
-      for (let i = 0; i < 2 && ahead.id === null; i++) {
-        await page.keyboard.press('KeyY');
-        await page.waitForTimeout(200);
-        ahead = await now();
+
+      // Toward a place with empty sky around it: the press takes the place.
+      const { lone } = await sky();
+      if (!lone) console.log('places: no place with an empty cone around it; taking a place by "target ahead" was not played');
+      else if (!(await turnAt(lone.id))) fail(`could not turn the nose at ${lone.name}`);
+      else if ((await sky()).inCone > 0) console.log(`places: something moved into the cone toward ${lone.name}; taking a place by "target ahead" was not played`);
+      else {
+        const taken = await pressAhead();
+        if (taken.id !== lone.id || taken.target !== null) fail(`"target ahead" did not take the place the nose points at (${lone.name}): ${JSON.stringify(taken)}`);
+        else console.log(`places: ok, "target ahead" took ${lone.name} with nothing in the cone`);
       }
-      if (held >= 5 && ahead.id !== first.id) fail(`"target ahead" did not take the place the nose points at (${first.name}): ${JSON.stringify(ahead)}`);
-      else if (held >= 5) console.log(`places: ok, O/L step, U lets go, "target ahead" took ${first.name}${ahead.target !== null ? ' after a ship in the same cone' : ''}`);
-      await page.keyboard.press('KeyU');
-      await page.keyboard.press('KeyU');
-      await page.waitForTimeout(200);
+      await letGo();
     }
 
     await page.keyboard.press('KeyV');

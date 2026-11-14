@@ -152,9 +152,9 @@ The owner was shown three sketches and chose:
   places, and the D-pad steps on a controller.
 
 Built: see `docs/CLIENT.md`, "Targets and direction indicators". In short: O and L (D-pad right
-and left) step through the places, places to dock first; Y (D-pad up) takes what is ahead: a ship
-first, then a place, then the next ship; U (D-pad down) lets go of the ship first and of the place
-second. The chosen place and the locked ship are two targets side by side. Edge arrows, compass,
+and left) step through the places, places to dock first; Y (D-pad up) takes what is ahead: a
+ship, wreck or pod if one lies in the cone ahead, otherwise the place the nose points at, and with
+nothing new the next ship; U (D-pad down) lets go of the ship first and of the place second. The chosen place and the locked ship are two targets side by side. Edge arrows, compass,
 the panel of the place with closing speed and arrival, two system lines, the list.
 
 Decided by the engineer, for the owner to overrule: D-pad left and right used to step through
@@ -163,15 +163,16 @@ ships (see `docs/CLIENT.md`). The key line in the corner of the HUD became key c
 and no longer repeats the power keys (they stand beside the pips) or the lists (beside the system
 lines). The navigation panel (N) lists places in the order of the stepping.
 
-One consequence of "target ahead" needs his decision. Pressed on a ship that is locked already, it
-goes on to the place in the same cone (about 26 degrees around the nose) and makes that the chosen
-place, so a second press in a fight can replace the destination. It is built this way because
-near a station there is nearly always a ship in the cone, and the station could otherwise not be
-taken by pointing at it. The alternative: a place is taken only while no ship is in the cone.
+Decided by the owner on 2026-11-14, after the first build: "target ahead" takes a place only
+while no ship, wreck or pod lies in the cone ahead (about 26 degrees around the nose). With one
+there the press locks it, and the chosen place stays, so a press in a fight never replaces the
+destination. The price: a station with traffic in front of it cannot be taken by pointing at it;
+it is chosen with O and L.
 
 Checked in a browser on the development page by `node tools/dev/orient-check.mjs` (1280 x 720,
-German and English) and in the game by `scripts/e2e.mjs` (O, L, U and "target ahead" taking a
-place, with the keyboard) and `scripts/pad-check.mjs` (the D-pad). Not checked: a real controller;
+German and English) and in the game by `scripts/e2e.mjs` (O, L, U, "target ahead" keeping the
+chosen place with a ship in the cone and taking a place with none, with the keyboard) and
+`scripts/pad-check.mjs` (the D-pad). Not checked: a real controller;
 the look in motion (only stills were judged); arrows and compass in cruise, in a fight and near a
 gate (no universe of the tests has a gate); the forward and back side buttons of a mouse (they are
 the browser's back and forward buttons; the game now takes them while a pilot plays, which no
