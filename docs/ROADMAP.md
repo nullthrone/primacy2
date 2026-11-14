@@ -111,8 +111,30 @@ light effects "fairly well". To do, in his order of weight:
   cockpit cover them and stay sharp. It costs nothing outside cruise and 0.27 ms per frame in
   cruise at 3840x2160 on the RTX 5080. The fold tunnel, the charge glow, the heat haze and the hit
   flash still lie over the whole frame, the cockpit included.
-- **Light effects**: he asks for more magic; the rays of distant stars look plain.
-- **Textures** are mostly not pretty, the sky box least of all.
+- **Light effects**: he asked for more magic; the rays of distant stars looked plain. Built on
+  2026-11-14 as proposed to him and chosen by him ("your recommendations"): the glare of a star
+  is light in the lens, drawn in the final pass (`packages/client/src/render/post/lens.ts`): a
+  soft veil, a pale ring with a colour fringe, six thin rays as from a six-bladed aperture, each
+  beaded with faint colour. It goes out softly when the star is covered: by a body (computed, with
+  the reddening of an atmosphere), or by ships, stations, the ground and the cockpit (read from
+  the depth buffer, which now keeps the local scene and the cockpit side by side, see
+  `COCKPIT_DEPTH`). In the cockpit, fine scratches and dust in the canopy glass light up around a
+  bright star. The bloom has two wider levels than before (eight), a longer faint tail, and takes
+  3 % of the light below its threshold as a veil; it is still added on top of the picture, at
+  about the old total. The exposure follows the light in view with the delay of an eye, within
+  0.62 to 1.25 (`post/Exposure.ts`). Measured at 3840x2160 on the RTX 5080: about 0.3 ms per frame with a sun
+  shining through the canopy, nothing measurable otherwise.
+- **The sky box** he liked least: the far stars were low in resolution and looked static. Built on
+  2026-11-14: every star is a point of light of its own (`packages/client/src/render/space/Sky.ts`),
+  48,000 of them at the highest quality level, with a real spread of brightness and colour, sharp
+  at any resolution; the brightest show small rays in the pattern of the sun's glare. The sky is
+  the same from every system (only the stars of the game's own systems move). The cube map holds
+  only what is diffuse: the glow of the galactic band with its dust lanes and a few small pale
+  nebulae.
+- **Textures** are mostly not pretty. Open. He named planets from close up, the ground while
+  landing, ships, stations, the cockpit and asteroids; what exactly bothers him he has not said.
+- After his next test he wants to be asked what to improve in light and sky, with proposals of
+  what more is possible.
 
 ## 3. Order of work
 
@@ -123,7 +145,9 @@ Each step is one work session with its own workflow runs.
    downloads with a licence list, the audition page.
 2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
-   touches only `packages/client/src/render` and can run beside step 1. Orientation: a target that
+   touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
+   light and the sky are built (2026-11-14) and wait for the owner's next test; the textures are
+   not started. Orientation: a target that
    is chosen without opening a panel, an indicator that always leads back to it, the system's
    contents on the HUD, one window size for the station menus; this touches the HUD and the
    interface and follows the controller work, which changes the same files.
@@ -165,6 +189,15 @@ Defects seen and left in:
   hard to read over sunlit ground.
 - Projectiles and beams end at the ground; salvage and mining beams and the base structure do not
   stop shots. A missile that hits the ground does no area damage.
+- The cockpit is nearly black at quality 1 and 2 and readable at quality 0, where there are no
+  shadows (seen on `dev/local.html?scene=cockpit`; the cause is not looked into).
+- The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
+  frame, the cockpit included.
+- Light in the lens: a black hole's disk has none; the core of a star that stays in the scene is
+  not reddened by an atmosphere in front of it, only its glare is; a bright star of the sky that
+  leaves the view loses its rays at once, because a point is clipped as a whole.
+- On `dev/space.html` every scene counts as a cockpit view, so the scratches of the canopy glass
+  show there although no cockpit is drawn.
 
 Open findings with a test marked as an expected failure:
 
@@ -189,6 +222,10 @@ Never verified:
   descent can judge it.
 - Frame times in the built game, weak graphics cards (six lights are always in the scene), any
   browser but Chromium, a lost WebGL context, a quality switch during play.
+- Light and sky of 2026-11-14 in motion: how the glare fades while a strut or a hull passes the
+  star, how fast the exposure follows, whether the canopy scratches distract. Seen only in still
+  pictures of the dev pages. The frame keeps its depth as a texture next to a multisampled colour
+  target and the final pass reads it in its vertex shader: tried in Chromium only.
 - `buildView` in `packages/client/src/game/Game.ts` and the HUD wiring have no test in the suite;
   `tools/dev/live-landing/live2.mts` checks them against a real server (about 90 s) and
   `live_guards.py` runs it with single rules switched off.
@@ -218,6 +255,10 @@ Other notes:
   (see `scripts/dev.ts`). In it Alpha's capital has a ground base on a rocky moon of 1,057 km
   radius, and a secure Beta system with a station is one jump away. Switches:
   `PRIMACY2_JOURNEY_ONLY=1`, `PRIMACY2_LANDING_ONLY=1`.
+- Frame time of a dev page: `node scripts/bench.mjs <name>=<url> ... --size=3840x2160` (needs
+  `npm run dev:client`, port given as `5173:` in front of the url). It switches the frame limit
+  off and reads a pixel back after every frame, so the interval is what CPU and graphics card need
+  together; without the read-back the browser only queues frames and the number says nothing.
 - Whether the game ports are in use: `netstat -ano | grep -E ":(8420|8421) "`. Do not grep for
   the word LISTENING: this Windows prints the state in German.
 - The Python environment for the audio tools is `.venv-audio` (ignored by git): PyTorch with CUDA

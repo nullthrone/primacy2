@@ -228,6 +228,7 @@ try {
   for (const id of ['docking', 'combat', 'landing']) {
     await check(`scene ${id}: written sequence starts and reaches its end`, async () => {
       await page.click(`[data-tab="${id}"]`);
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForSelector(`#scene-${id}`);
       await page.screenshot({ path: path.join(SHOTS, `scene-${id}-idle.png`) });
       await page.evaluate(() => window.__audition.resetPeak());
@@ -255,6 +256,7 @@ try {
 
   await check('the thrust slider sounds the engine alone while no scene runs', async () => {
     await page.click('[data-tab="combat"]');
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.evaluate(() => window.__audition.resetPeak());
     await page.evaluate(() => {
       const el = document.getElementById('combat-thrust');
@@ -282,6 +284,7 @@ try {
     await page.uncheck('#sw-limiter');
     for (const id of ['docking', 'combat', 'landing']) {
       await page.click(`[data-tab="${id}"]`);
+      await page.evaluate(() => window.scrollTo(0, 0));
       const before = await page.evaluate((sid) => window.__audition.sceneRuns[sid]?.ended ?? 0, id);
       await page.evaluate(() => window.__audition.resetPeak());
       await page.click(`#scene-${id} [data-act="play-scene"]`);
@@ -299,6 +302,7 @@ try {
 
   await check('scene sliders and boost move the state', async () => {
     await page.click('[data-tab="combat"]');
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.click('#scene-combat [data-act="boost"]');
     const pressed = await page.locator('#scene-combat [data-act="boost"]').getAttribute('aria-pressed');
     assert(pressed === 'true', 'boost did not engage');
