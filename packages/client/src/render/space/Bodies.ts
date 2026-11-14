@@ -19,7 +19,7 @@ import { BlackHoleVisual } from './BlackHole.ts';
 import { GLSL_NOISE } from './glsl.ts';
 import { computeLighting, dominantStar, effectiveLum, hexToLinear, starColor } from './lighting.ts';
 import { ATMO_FRAG, PLANET_FRAG, PLANET_TYPE, RING_FRAG, SPHERE_GLSL, WORLD_VERT } from './planetShader.ts';
-import { seedFloat, seededRandom, type SpaceFrame, type ViewParams } from './types.ts';
+import { seedFloat, seededRandom, type LensLight, type SpaceFrame, type ViewParams } from './types.ts';
 import { Glow, NO_DEPTH, SAFE_DIST, compress, glare, smoothstep, type Visual } from './visual.ts';
 
 const SPHERE = new SphereGeometry(1, 96, 48);
@@ -279,8 +279,24 @@ void main() {
 }
 `;
 
+/** Points a lens light at its body for this frame. */
+function aim(light: LensLight, body: BodyView, discPx: number, sizePx: number, gain: number): void {
+  const d = Math.max(body.dist, 1);
+  light.dir[0] = body.rel[0] / d;
+  light.dir[1] = body.rel[1] / d;
+  light.dir[2] = body.rel[2] / d;
+  light.discPx = discPx;
+  light.sizePx = sizePx;
+  light.gain = gain;
+}
+
+function lensLight(color: readonly [number, number, number]): LensLight {
+  return { dir: [0, 0, -1], discPx: 0, sizePx: 1, gain: 0, color: [color[0], color[1], color[2]], vis: [1, 1, 1] };
+}
+
 class StarVisual implements Visual {
   readonly group = new Group();
+  readonly light: LensLight;
   private readonly center = new Vector3();
   private readonly material: ShaderMaterial;
   private readonly surface: Mesh;
@@ -288,6 +304,7 @@ class StarVisual implements Visual {
 
   constructor(private readonly def: BodyDef) {
     const c = starColor(def);
+    this.light = lensLight([0.25 + 0.75 * c[0], 0.25 + 0.75 * c[1], 0.25 + 0.75 * c[2]]);
     const hot = smoothstep(2500, 12000, def.temp);
     this.material = new ShaderMaterial({
       vertexShader: WORLD_VERT, fragmentShader: STAR_FRAG,
@@ -304,7 +321,7 @@ class StarVisual implements Visual {
     this.surface = new Mesh(SPHERE, this.material);
     this.surface.frustumCulled = false;
     this.surface.renderOrder = 0;
-    this.glow = new Glow([0.25 + 0.75 * c[0], 0.25 + 0.75 * c[1], 0.25 + 0.75 * c[2]], 0.35);
+    this.glow = new Glow(this.light.color);
     this.glow.mesh.renderOrder = 1;
     this.group.add(this.surface, this.glow.mesh);
   }
@@ -328,12 +345,15 @@ class StarVisual implements Visual {
     }
     const flux = effectiveLum(def) / (4 * Math.PI * body.dist * body.dist) / 1361;
     const g = glare(flux, params);
-    const size = Math.max(g.sizePx, px * 3.2);
+    // In the scene: the disc with a thin corona, or the hot core of a star too far to resolve.
+    // The wide glare around it forms in the lens and is drawn by the final pass.
+    const size = Math.max(g.sizePx * 0.45, px * 2.4);
     // Up close the disc itself is the light; the corona around it is toned down.
     const t = smoothstep(3, 40, px);
     const gain = g.gain * (1 - t) + 0.4 * t;
     const sigma = Math.max(1.3 * (params.height / 1080), (size - px) * (0.035 + 0.09 * t));
-    this.glow.set(this.center, params, size, px, sigma, gain, 0.4);
+    this.glow.set(this.center, params, size, px, sigma, gain, 0.25);
+    aim(this.light, body, px, g.sizePx, g.gain * (1 - 0.7 * t));
   }
 
   dispose(): void {
@@ -384,6 +404,7 @@ function jetGeometry(width: number): CylinderGeometry {
 
 class NeutronVisual implements Visual {
   readonly group = new Group();
+  readonly light: LensLight;
   private readonly center = new Vector3();
   private readonly glow: Glow;
   private readonly jets: Mesh[] = [];
@@ -392,7 +413,8 @@ class NeutronVisual implements Visual {
 
   constructor(private readonly def: BodyDef) {
     const c = starColor(def);
-    this.glow = new Glow([0.3 + 0.7 * c[0], 0.3 + 0.7 * c[1], 0.3 + 0.7 * c[2]], 0.5);
+    this.light = lensLight([0.3 + 0.7 * c[0], 0.3 + 0.7 * c[1], 0.3 + 0.7 * c[2]]);
+    this.glow = new Glow(this.light.color);
     this.glow.mesh.renderOrder = 2;
     this.group.add(this.glow.mesh);
     if (def.jets) {
@@ -426,8 +448,9 @@ class NeutronVisual implements Visual {
     const flux = effectiveLum(this.def) / (4 * Math.PI * body.dist * body.dist) / 1361;
     const g = glare(flux, params);
     const res = params.height / 1080;
-    // The star itself is never resolved: a hard white core inside a blue glare.
-    this.glow.set(this.center, params, g.sizePx * 0.8, 0, Math.max(1.3 * res, g.sizePx * 0.02), g.gain * 0.5, 0.22);
+    // The star itself is never resolved: a hard white core in the scene, its blue glare in the lens.
+    this.glow.set(this.center, params, g.sizePx * 0.4, 0, Math.max(1.3 * res, g.sizePx * 0.02), g.gain * 0.5, 0.15);
+    aim(this.light, body, 0, g.sizePx * 0.8, g.gain * 0.5);
     const length = this.def.jets ? this.def.jets.length * k : 0;
     const visible = length / SAFE_DIST / params.pixAngle > 3;
     for (const mesh of this.jets) {
@@ -541,9 +564,57 @@ class BeltVisual {
 // The layer
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Sets `light.vis`: what the bodies in front of the source `self` leave of it. A body covers it
+ * like a straight edge sliding over a disc, and an atmosphere dims and reddens it before that,
+ * as at a sunset. A source too small to resolve is given the width of a pixel, so it fades
+ * over a pixel of travel instead of switching.
+ */
+function occlude(light: LensLight, self: number, bodies: readonly BodyView[], pixAngle: number): void {
+  const vis = light.vis;
+  vis[0] = vis[1] = vis[2] = 1;
+  const src = bodies[self]!;
+  const sd = Math.max(src.dist, 1);
+  const aSrc = Math.max(Math.asin(Math.min(1, src.def.radius / sd)), 1.2 * pixAngle);
+  for (let j = 0; j < bodies.length; j++) {
+    const b = bodies[j]!;
+    if (j === self || b.dist >= src.dist || b.def.cls === 'BH') continue;
+    const bd = Math.max(b.dist, 1);
+    const aBody = Math.asin(Math.min(1, b.def.radius / bd));
+    // The angle between the two directions, from the cross product: exact for small angles.
+    const cx = b.rel[1] * src.rel[2] - b.rel[2] * src.rel[1];
+    const cy = b.rel[2] * src.rel[0] - b.rel[0] * src.rel[2];
+    const cz = b.rel[0] * src.rel[1] - b.rel[1] * src.rel[0];
+    const dot = b.rel[0] * src.rel[0] + b.rel[1] * src.rel[1] + b.rel[2] * src.rel[2];
+    const sep = Math.atan2(Math.hypot(cx, cy, cz), dot);
+    if (sep > aBody * 1.25 + aSrc) continue;
+
+    const x = (sep - aBody) / aSrc;
+    let open = x >= 1 ? 1 : x <= -1 ? 0 : 0.5 + (x * Math.sqrt(1 - x * x) + Math.asin(x)) / Math.PI;
+    // A body smaller than the source (a moon crossing a sun) never covers all of it.
+    open = 1 - (1 - open) * Math.min(1, (aBody * aBody) / (aSrc * aSrc));
+    let r = open, g = open, bl = open;
+    const atmo = b.def.atmo;
+    if (atmo && open > 0 && sep < Math.PI / 2) {
+      // Height of the line of sight over the surface in body radii, against the shell the planet shader draws.
+      const strength = 1 - Math.exp(-atmo.density * 1.4);
+      const height = Math.max(0, (Math.sin(sep) * bd) / b.def.radius - 1);
+      const tau = 5 * strength * Math.exp(-height / (0.012 + 0.01 * strength));
+      r *= Math.exp(-0.22 * tau);
+      g *= Math.exp(-0.65 * tau);
+      bl *= Math.exp(-1.5 * tau);
+    }
+    vis[0] *= r;
+    vis[1] *= g;
+    vis[2] *= bl;
+  }
+}
+
 export class Bodies {
   /** Everything this layer draws; lives in the celestial scene. */
   readonly group = new Group();
+  /** The sources that dazzle this frame, for the glare in the lens (see `post/lens.ts`). */
+  readonly lights: LensLight[] = [];
   private visuals: Visual[] = [];
   private belts: BeltVisual[] = [];
   private system: unknown = null;
@@ -559,11 +630,17 @@ export class Bodies {
     this.order.length = 0;
     for (let i = 0; i < this.visuals.length && i < bodies.length; i++) this.order.push(i);
     this.order.sort((a, b) => bodies[b]!.dist - bodies[a]!.dist);
+    this.lights.length = 0;
     for (let rank = 0; rank < this.order.length; rank++) {
       const i = this.order[rank]!;
       const visual = this.visuals[i]!;
       visual.group.renderOrder = rank + 1;
       visual.update(bodies[i]!, frame, params);
+      const light = visual.light;
+      if (light && light.gain > 0) {
+        occlude(light, i, bodies, params.pixAngle);
+        this.lights.push(light);
+      }
     }
     for (const belt of this.belts) belt.update(frame, params);
   }

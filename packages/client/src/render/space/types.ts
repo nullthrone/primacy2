@@ -17,6 +17,29 @@ export interface ViewParams {
 }
 
 /**
+ * A source bright enough to dazzle, as the final pass needs it to draw its glare in the lens
+ * (see `post/lens.ts`). A gain of 0 means there is none this frame.
+ */
+export interface LensLight {
+  /** Unit vector from the camera toward the source, system axes. */
+  dir: Vec3;
+  /** Radius of its disc on screen in pixels; below 1 for a point. */
+  discPx: number;
+  /** Size of the glare in pixels: the veil fades over about this far, the rays reach farther. */
+  sizePx: number;
+  /** Scene-referred strength (see `glare` in `visual.ts`). */
+  gain: number;
+  /** Linear RGB, largest channel near 1. */
+  color: [number, number, number];
+  /**
+   * What the celestial bodies in front leave of it, per colour channel, 0..1: a planet covers it,
+   * an atmosphere reddens it first. The local scene and the cockpit are accounted for in the
+   * final pass, from the depth buffer.
+   */
+  vis: [number, number, number];
+}
+
+/**
  * Rotation axis of a body in system axes (unit vector): +Y tilted toward +Z by the body's tilt.
  * Rings, accretion disks and jets are laid out around it. This matches the generated universe,
  * where ring sites and moons orbit with inclination = tilt and ascending node 0.

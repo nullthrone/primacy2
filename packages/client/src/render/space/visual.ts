@@ -1,8 +1,7 @@
 import { AdditiveBlending, Mesh, PlaneGeometry, ShaderMaterial, Vector3 } from 'three';
 import type { Group } from 'three';
 import type { BodyView } from '../../contracts.ts';
-import { GLSL_NOISE } from './glsl.ts';
-import type { SpaceFrame, ViewParams } from './types.ts';
+import type { LensLight, SpaceFrame, ViewParams } from './types.ts';
 
 /**
  * Every body is drawn at this distance from the camera, scaled down by the same factor as its
@@ -13,6 +12,8 @@ export const SAFE_DIST = 1000;
 /** What draws one celestial body. Its group's render order is its far-to-near rank. */
 export interface Visual {
   readonly group: Group;
+  /** Set by `update` when the body dazzles: its glare in the lens. */
+  readonly light?: LensLight;
   update(body: BodyView, frame: SpaceFrame, params: ViewParams): void;
   dispose(): void;
 }
@@ -47,17 +48,14 @@ void main() {
 }
 `;
 
-// Radial glow: a tight core at the limb (or the centre of a point source) and a wide soft halo.
+// Radial glow: a tight core at the limb (or the centre of a point source) and a soft halo.
 const GLOW_FRAG = /* glsl */ `
 uniform vec3 uColor;
 uniform float uCore;
 uniform float uGain;
 uniform float uSig;
 uniform float uHalo;
-uniform float uRays;
-uniform float uTime;
 varying vec2 vUv;
-${GLSL_NOISE}
 void main() {
   float r = length(vUv);
   if (r >= 1.0) discard;
@@ -65,30 +63,26 @@ void main() {
   float win = (1.0 - e) * (1.0 - e);
   float core = exp(-e * e / (uSig * uSig));
   float halo = uHalo / (1.0 + e * e * 180.0) + uHalo * 0.25 / (1.0 + e * e * 12.0);
-  float rays = 1.0;
-  if (uRays > 0.0) {
-    vec2 dir = vUv / max(r, 1e-4);
-    float a = gnoise(vec3(dir * 2.5, uTime * 0.05)) + 0.5 * gnoise(vec3(dir * 7.0, uTime * 0.08 + 4.0));
-    rays = max(1.0 + uRays * a * smoothstep(0.0, 0.2, e), 0.0);
-  }
   // Over the disc of a resolved star the sprite only adds a thin veil.
   float inside = mix(0.07, 1.0, smoothstep(uCore * 0.85, uCore, r));
-  gl_FragColor = vec4(uColor * uGain * (core + halo * rays) * win * inside, 1.0);
+  gl_FragColor = vec4(uColor * uGain * (core + halo) * win * inside, 1.0);
 }
 `;
 
-/** A camera-facing additive glow: the glare of a star, or a body too small to resolve. */
+/**
+ * A camera-facing additive glow in the scene: the corona or the core of a star, or a body too
+ * small to resolve. The glare a bright source makes in the lens is not this, see `post/lens.ts`.
+ */
 export class Glow {
   readonly mesh: Mesh;
   private readonly material: ShaderMaterial;
 
-  constructor(color: readonly [number, number, number], rays = 0) {
+  constructor(color: readonly [number, number, number]) {
     this.material = new ShaderMaterial({
       vertexShader: GLOW_VERT, fragmentShader: GLOW_FRAG,
       uniforms: {
         uCenter: { value: new Vector3() }, uSize: { value: 1 }, uColor: { value: new Vector3(color[0], color[1], color[2]) },
-        uCore: { value: 0 }, uGain: { value: 1 }, uSig: { value: 0.1 }, uHalo: { value: 0.3 }, uRays: { value: rays },
-        uTime: { value: 0 },
+        uCore: { value: 0 }, uGain: { value: 1 }, uSig: { value: 0.1 }, uHalo: { value: 0.3 },
       },
       blending: AdditiveBlending, ...NO_DEPTH,
     });
@@ -110,7 +104,6 @@ export class Glow {
     u.uSig!.value = sigmaPx / (sizePx * (1 - core));
     u.uGain!.value = gain;
     u.uHalo!.value = halo;
-    u.uTime!.value = params.clock;
     this.mesh.visible = gain > 0.002;
   }
 

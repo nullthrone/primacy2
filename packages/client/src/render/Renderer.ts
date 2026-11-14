@@ -188,7 +188,10 @@ class SpaceRenderer implements GameRenderer {
     }
 
     const bloom = frame.graphics.bloom ? this.bloom.render(r, this.pass, target.texture, this.width, this.height) : null;
-    this.composite.render(r, this.pass, target.texture, target.depthTexture, bloom, frame.fx, frame.clock, this.width, this.height);
+    this.composite.render(
+      r, this.pass, target.texture, target.depthTexture, bloom, this.bodies.lights, this.spaceCam,
+      frame.fx, frame.clock, this.width, this.height,
+    );
   }
 
   dispose(): void {
