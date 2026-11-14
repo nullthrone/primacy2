@@ -381,9 +381,17 @@ export const en = {
   'pad.assign': 'Assign',
   'pad.cancel': 'Cancel',
   'pad.clear': 'Clear',
-  'pad.listenButton': 'Press a button. Hold one and press another for a combination. Esc cancels.',
-  'pad.listenAxis': 'Move the axis all the way. Esc cancels.',
+  'pad.listenButton': 'Press a button. Hold one and press another for a combination. {MENU} or Esc cancels.',
+  'pad.listenButtonKeys': 'Press a button. Hold one and press another for a combination. Esc cancels.',
+  'pad.listenAxis': 'Move the axis all the way. Any button or Esc cancels.',
   'pad.listening': 'Waiting for input…',
+  'pad.word.dpad': 'D-pad',
+  'pad.word.up': 'up',
+  'pad.word.down': 'down',
+  'pad.word.left': 'left',
+  'pad.word.right': 'right',
+  'pad.word.button': 'Button',
+  'pad.word.axis': 'Axis',
   'pad.axes': 'Analog axes',
   'pad.axis.yaw': 'Turn left / right (yaw)',
   'pad.axis.pitch': 'Nose up / down (pitch)',
@@ -411,7 +419,7 @@ export const en = {
   'ctlp.nav': '{VIEW}: cruise   {Y} + {X}: fold jump   {Y} + {A}: dock / undock   {Y} + {B}: flight assist',
   'ctlp.power': '{Y} + D-pad: power to shields ←, engines ↑, weapons →, reset ↓   {Y} + {L3}: silent running',
   'ctlp.ui': '{Y} + {VIEW}: galaxy map   {Y} + {MENU}: navigation   {Y} + {LB}: contacts   {Y} + {RB}: camera   {MENU}: menu',
-  'ctlp.custom': 'Your own assignments are under Settings, Controller.',
+  'ctlp.custom': 'These are the default assignments. Your own are under Settings, Controller.',
 } as const;
 
 export type StringKey = keyof typeof en;

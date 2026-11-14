@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, addPadDefaults, handOver, loadSettings, store, type BindAction } from '../state/store.ts';
 import { assignAxis, assignPad, clearPad, listenStep, presetJoystick, resetPad } from './binds.ts';
 import { Input } from './Input.ts';
-import type { PadSnapshot } from './gamepad.ts';
+import { readPads, type PadSettings, type PadSnapshot } from './gamepad.ts';
 
 function pad(down: number[] = [], axes: number[] = [0, 0, 0, 0]): PadSnapshot {
   return {
@@ -233,6 +233,92 @@ describe('Input with a pad', () => {
     expect(input.throttle).toBeCloseTo(0.4);
   });
 
+  it('keeps the pad loop running when one frame throws', () => {
+    const frames: (() => void)[] = [];
+    vi.stubGlobal('requestAnimationFrame', (f: () => void) => frames.push(f));
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { input } = makeInput();
+    expect(frames.length).toBe(1);
+    // Settings that got past the loader in a shape `readPads` cannot read.
+    store.settings.value = { ...DEFAULT_SETTINGS, pad: { turnRate: 1, axes: { yaw: [null] } } as unknown as PadSettings };
+    pads = [pad([7])];
+    expect(() => frames[0]!()).not.toThrow();
+    expect(frames.length).toBe(2);
+    expect(() => frames[1]!()).not.toThrow();
+    expect(frames.length).toBe(3);
+    // Said once, not sixty times a second.
+    expect(errors).toHaveBeenCalledTimes(1);
+    // With the settings mended the same loop reads the pad again.
+    store.settings.value = DEFAULT_SETTINGS;
+    frames[2]!();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+    errors.mockRestore();
+  });
+
+  it('caps mouse and stick together at what the server takes per tick, and loses none of the mouse turn', () => {
+    const { input } = makeInput();
+    store.device.value = 'pad';
+    pads = [pad([], [0, 0, 1, 0])];
+    input.pollPads();
+    const dt = 1 / 30;
+    // A flick of 1.1 rad while the stick is at full deflection.
+    input.addMouse(500, 0);
+    let sum = 0;
+    for (let i = 0; i < 4; i++) {
+      const aim = input.sample(FlightMode.Normal, dt).aim[0];
+      expect(aim).toBeLessThanOrEqual(0.5 + 1e-12);
+      sum += aim;
+    }
+    expect(sum).toBeCloseTo(500 * DEFAULT_SETTINGS.mouseSensitivity + 4 * 0.8 * dt);
+  });
+
+  describe('the mouse while a pad is the device in use', () => {
+    /** An Input whose window listeners the test can call. */
+    const withWindow = (): { input: Input; fire: (type: string, e: object) => void } => {
+      const listeners = new Map<string, ((e: object) => void)[]>();
+      vi.stubGlobal('window', { addEventListener: (type: string, f: (e: object) => void) => void listeners.set(type, [...(listeners.get(type) ?? []), f]) });
+      vi.stubGlobal('document', { addEventListener: () => {}, activeElement: null, pointerLockElement: null });
+      vi.stubGlobal('navigator', { getGamepads: () => pads, language: 'en' });
+      const input = new Input({} as HTMLCanvasElement);
+      return { input, fire: (type, e) => { for (const f of listeners.get(type) ?? []) f(e); } };
+    };
+    const click = { button: 0, target: null, preventDefault: () => {} };
+    it('a click without pointer lock hands the device back to the mouse and does not fire', () => {
+      const { input, fire } = withWindow();
+      store.pointerLocked.value = false;
+      pads = [pad([12])];
+      input.pollPads();
+      pads = [pad()];
+      input.pollPads();
+      expect(store.device.value).toBe('pad');
+      expect(input.active()).toBe(true);
+      fire('mousedown', click);
+      expect(store.device.value).toBe('keys');
+      expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(0);
+      fire('mouseup', click);
+    });
+    it('a wheel turn without pointer lock does not move the throttle', () => {
+      const { input, fire } = withWindow();
+      store.pointerLocked.value = false;
+      input.setMode(FlightMode.Normal);
+      pads = [pad([12])];
+      input.pollPads();
+      fire('wheel', { deltaY: -100 });
+      expect(store.device.value).toBe('keys');
+      expect(input.throttle).toBe(0);
+    });
+    it('under pointer lock the click fires and the wheel moves the throttle, as before', () => {
+      const { input, fire } = withWindow();
+      store.pointerLocked.value = true;
+      input.setMode(FlightMode.Normal);
+      fire('mousedown', click);
+      expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+      fire('wheel', { deltaY: -100 });
+      expect(input.throttle).toBeCloseTo(0.1);
+      store.pointerLocked.value = false;
+    });
+  });
+
   describe('the throttle lever', () => {
     /** A pad whose third axis stands where a lever at `pos` (0..1) stands. */
     const leverAt = (pos: number): PadSnapshot => pad([], [0, 0, pos * 2 - 1, 0]);
@@ -346,6 +432,50 @@ describe('settings with pad codes', () => {
     expect(b.camera).toEqual(['KeyV', 'Pad:std:b14']);
     expect(b.navPrev).toEqual(['KeyL']);
     expect(b.navNext).toContain('Pad:std:b15');
+  });
+  it('repairs malformed pad settings instead of letting them stop the pad loop', () => {
+    store0({
+      pad: {
+        turnRate: 'fast',
+        axes: { yaw: [null], pitch: { dev: 'std', axis: 3 }, roll: [{ dev: 'std', axis: 0 }, { dev: 7, axis: 1 }, { dev: 'std', axis: -1 }], thrustX: [], bogus: [{ dev: 'std', axis: 0 }] },
+      },
+    });
+    loadSettings();
+    const p = store.settings.value.pad;
+    expect(p.turnRate).toBe(1);
+    // A list with nothing usable in it, and a value that is no list, fall back to the default.
+    expect(p.axes.yaw).toEqual(DEFAULT_SETTINGS.pad.axes.yaw);
+    expect(p.axes.pitch).toEqual(DEFAULT_SETTINGS.pad.axes.pitch);
+    // A usable entry is kept and completed; the broken ones beside it go.
+    expect(p.axes.roll).toEqual([{ dev: 'std', axis: 0, invert: false, deadzone: 0.12, curve: 1.6 }]);
+    // An axis the pilot removed stays removed, and one that was never saved gets its default.
+    expect(p.axes.thrustX).toEqual([]);
+    expect(p.axes.thrustZ).toEqual(DEFAULT_SETTINGS.pad.axes.thrustZ);
+    expect(Object.keys(p.axes)).not.toContain('bogus');
+    const { input } = makeInput();
+    pads = [pad()];
+    expect(() => input.pollPads()).not.toThrow();
+    expect(readPads([pad()], store.settings.value.bindings, p, null).active).toBe(false);
+    pads = [pad([], [0, 0, 1, 0])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 1 / 30).aim[0]).toBeCloseTo(0.8 / 30);
+  });
+  it('keeps complete pad settings as they are', () => {
+    const mine = {
+      turnRate: 0.55,
+      axes: { throttle: [{ dev: '044f-b687', axis: 2, invert: true, deadzone: 0, curve: 1, lever: true }], yaw: [{ dev: 'std', axis: 0, invert: false, deadzone: 0.3, curve: 2.5, lever: false }] },
+    };
+    store0({ pad: mine });
+    loadSettings();
+    expect(store.settings.value.pad.turnRate).toBe(0.55);
+    expect(store.settings.value.pad.axes.throttle).toEqual(mine.axes.throttle);
+    expect(store.settings.value.pad.axes.yaw).toEqual(mine.axes.yaw);
+    store0({ pad: { turnRate: 7 } });
+    loadSettings();
+    expect(store.settings.value.pad.turnRate).toBe(1);
+    store0({ pad: null });
+    loadSettings();
+    expect(store.settings.value.pad).toEqual(DEFAULT_SETTINGS.pad);
   });
   it('loads settings without any pad fields', () => {
     store0({ volume: 0.2 });

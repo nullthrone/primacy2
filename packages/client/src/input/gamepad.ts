@@ -140,45 +140,61 @@ export function formatPadCode(c: PadCode): string {
 
 export const isPadCode = (code: string): boolean => code.startsWith('Pad:');
 
-const XBOX_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'L3', 'R3', 'D-pad up', 'D-pad down', 'D-pad left', 'D-pad right', 'Guide'];
-const PS_NAMES = ['Cross', 'Circle', 'Square', 'Triangle', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'D-pad up', 'D-pad down', 'D-pad left', 'D-pad right', 'PS'];
+/**
+ * The words a label is made of where a control has no name printed on it. This file knows no
+ * languages: whoever shows a label passes the words of the language in use, and English is the
+ * default.
+ */
+export interface PadWords { dpad: string; up: string; down: string; left: string; right: string; button: string; axis: string }
+export const PAD_WORDS_EN: PadWords = { dpad: 'D-pad', up: 'up', down: 'down', left: 'left', right: 'right', button: 'Button', axis: 'Axis' };
 
-/** The label of a button on the pad's own face: A on an Xbox pad, Cross on a PlayStation pad. */
-export function padButtonName(n: number, style: PadStyle): string {
-  if (style === 'xbox') return XBOX_NAMES[n] ?? `Button ${n + 1}`;
-  if (style === 'playstation') return PS_NAMES[n] ?? `Button ${n + 1}`;
-  return `Button ${n + 1}`;
+// Buttons 12 to 15 of the standard mapping are the D-pad; it carries arrows, not a name.
+const XBOX_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'View', 'Menu', 'L3', 'R3', null, null, null, null, 'Guide'];
+const PS_NAMES = ['Cross', 'Circle', 'Square', 'Triangle', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', null, null, null, null, 'PS'];
+const DPAD_FIRST = 12;
+const DPAD_WORDS = ['up', 'down', 'left', 'right'] as const;
+const DPAD_SHORT = ['D↑', 'D↓', 'D←', 'D→'];
+
+/** The D-pad direction (0 up, 1 down, 2 left, 3 right) of a button on a pad with face names, or -1. */
+function dpadDir(n: number, style: PadStyle): number {
+  return style !== 'generic' && n >= DPAD_FIRST && n < DPAD_FIRST + 4 ? n - DPAD_FIRST : -1;
 }
 
-export function padAxisName(axis: number, dir?: 1 | -1): string {
-  return `Axis ${axis + 1}${dir === undefined ? '' : dir > 0 ? '+' : '−'}`;
+/** The label of a button on the pad's own face: A on an Xbox pad, Cross on a PlayStation pad. */
+export function padButtonName(n: number, style: PadStyle, words: PadWords = PAD_WORDS_EN): string {
+  const d = dpadDir(n, style);
+  if (d >= 0) return `${words.dpad} ${words[DPAD_WORDS[d]!]}`;
+  const face = style === 'xbox' ? XBOX_NAMES[n] : style === 'playstation' ? PS_NAMES[n] : null;
+  return face ?? `${words.button} ${n + 1}`;
+}
+
+export function padAxisName(axis: number, dir?: 1 | -1, words: PadWords = PAD_WORDS_EN): string {
+  return `${words.axis} ${axis + 1}${dir === undefined ? '' : dir > 0 ? '+' : '−'}`;
 }
 
 /** A binding code as text for a hint or the binding screen: "A", "Y + A", "Axis 3+". */
-export function padCodeLabel(code: string, style: PadStyle): string {
+export function padCodeLabel(code: string, style: PadStyle, words: PadWords = PAD_WORDS_EN): string {
   const c = parsePadCode(code);
   if (!c) return code;
-  if (c.kind === 'button') return padButtonName(c.n, style);
-  if (c.kind === 'chord') return `${padButtonName(c.m, style)} + ${padButtonName(c.n, style)}`;
-  return padAxisName(c.axis, c.dir);
+  if (c.kind === 'button') return padButtonName(c.n, style, words);
+  if (c.kind === 'chord') return `${padButtonName(c.m, style, words)} + ${padButtonName(c.n, style, words)}`;
+  return padAxisName(c.axis, c.dir, words);
 }
 
-const SHORT_NAMES: Record<string, string> = { 'D-pad up': 'D↑', 'D-pad down': 'D↓', 'D-pad left': 'D←', 'D-pad right': 'D→' };
-
 /**
- * A binding code as a short label for tight places on the HUD: the D-pad is a D with an arrow and a
- * chord has no spaces ("Y+D←" where `padCodeLabel` says "Y + D-pad left").
+ * A binding code as a short label for tight places on the HUD: the D-pad is a D with an arrow, in
+ * every language, and a chord has no spaces ("Y+D←" where `padCodeLabel` says "Y + D-pad left").
  */
-export function padCodeShort(code: string, style: PadStyle): string {
+export function padCodeShort(code: string, style: PadStyle, words: PadWords = PAD_WORDS_EN): string {
   const c = parsePadCode(code);
   if (!c) return code;
   const name = (n: number): string => {
-    const full = padButtonName(n, style);
-    return SHORT_NAMES[full] ?? full;
+    const d = dpadDir(n, style);
+    return d >= 0 ? DPAD_SHORT[d]! : padButtonName(n, style, words);
   };
   if (c.kind === 'button') return name(c.n);
   if (c.kind === 'chord') return `${name(c.m)}+${name(c.n)}`;
-  return padAxisName(c.axis, c.dir);
+  return padAxisName(c.axis, c.dir, words);
 }
 
 // ---------------------------------------------------------------------------------------------

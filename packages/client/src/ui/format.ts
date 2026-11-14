@@ -1,7 +1,7 @@
 /** Unit formatting for the interface. */
 import { AU, C } from '@primacy2/shared';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
-import { isPadCode, padButtonName, padCodeLabel, padCodeShort, type PadStyle } from '../input/gamepad.ts';
+import { isPadCode, padButtonName, padCodeLabel, padCodeShort, type PadStyle, type PadWords } from '../input/gamepad.ts';
 import { store, type BindAction } from '../state/store.ts';
 
 const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
@@ -19,15 +19,39 @@ export function keyName(code: string): string {
   return KEY_GLYPHS[code] ?? (named ? t(named) : code);
 }
 
+/**
+ * The words pad labels are made of ("D-pad left", "Button 14", "Axis 3"), in the language of the
+ * interface. `input/gamepad.ts` knows no languages, so every place that shows a label passes these.
+ */
+export function padWords(): PadWords {
+  return {
+    dpad: t('pad.word.dpad'), up: t('pad.word.up'), down: t('pad.word.down'), left: t('pad.word.left'), right: t('pad.word.right'),
+    button: t('pad.word.button'), axis: t('pad.word.axis'),
+  };
+}
+
 /** The control to name for an action, with `padLabel` making the text for a pad code. */
-function bindLabel(action: BindAction, padLabel: (code: string, style: PadStyle) => string): string {
+function bindLabel(action: BindAction, padLabel: (code: string, style: PadStyle, words: PadWords) => string): string {
   const codes = store.settings.value.bindings[action] ?? [];
   const pad = codes.find(isPadCode);
-  if (store.device.value === 'pad' && pad) return padLabel(pad, store.padStyle.value);
+  if (store.device.value === 'pad' && pad) return padLabel(pad, store.padStyle.value, padWords());
   const keys = codes.filter((c) => !isPadCode(c));
   const code = keys.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? keys[0];
   if (code) return keyName(code);
-  return pad ? padLabel(pad, store.padStyle.value) : '–';
+  return pad ? padLabel(pad, store.padStyle.value, padWords()) : '–';
+}
+
+/**
+ * What the binding screen says while it waits. It names the way out that works with nothing but a
+ * pad: any button while an axis is wanted, and the button of the pause menu while a button is
+ * wanted (its current one, read from the bindings; see `assignPad` for why it cancels).
+ */
+export function listenHint(kind: 'action' | 'axis'): string {
+  if (kind === 'axis') return t('pad.listenAxis');
+  const menu = (store.settings.value.bindings.menu ?? []).find(isPadCode);
+  // A save from before the pause menu kept its code may have none: then only Escape cancels.
+  if (!menu) return t('pad.listenButtonKeys');
+  return t('pad.listenButton', { MENU: padCodeLabel(menu, store.padStyle.value, padWords()) });
 }
 
 /**

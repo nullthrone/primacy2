@@ -7,6 +7,7 @@
 import { sanitizeName, type StationView } from '@primacy2/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, store } from '../state/store.ts';
+import { bindKey, bindKeyShort, listenHint, padWords } from '../ui/format.ts';
 import { madeUpPilotName, pauseRoot, startName, stationReturn } from '../ui/Menu.tsx';
 
 beforeEach(() => {
@@ -31,6 +32,49 @@ describe('the way back to the station screen', () => {
   it('is not offered in space', () => {
     store.panel.value = 'menu';
     expect(stationReturn()).toBeNull();
+  });
+});
+
+describe('pad labels in the language of the interface', () => {
+  const german = (): void => { store.settings.value = { ...DEFAULT_SETTINGS, lang: 'de' }; };
+  it('spells the D-pad out in sentences and on the binding screen', () => {
+    store.device.value = 'pad';
+    expect(bindKey('powerShields')).toBe('Y + D-pad left');
+    german();
+    // The German help text calls it "Steuerkreuz"; the rows beside it must not say "D-pad left".
+    expect(bindKey('powerShields')).toBe('Y + Steuerkreuz links');
+    expect(bindKey('targetAhead')).toBe('Steuerkreuz hoch');
+    expect(padWords().axis).toBe('Achse');
+    expect(padWords().button).toBe('Taste');
+  });
+  it('keeps the short key caps of the HUD as they are', () => {
+    store.device.value = 'pad';
+    german();
+    expect(bindKeyShort('powerShields')).toBe('Y+D←');
+    expect(bindKeyShort('cruise')).toBe('View');
+  });
+});
+
+describe('what the binding screen says while it listens', () => {
+  it('names the button that opens the pause menu as the way to cancel a button assignment', () => {
+    expect(listenHint('action')).toContain('Menu or Esc cancels.');
+    store.padStyle.value = 'playstation';
+    expect(listenHint('action')).toContain('Options or Esc cancels.');
+  });
+  it('follows the menu action to another button', () => {
+    const s = store.settings.value;
+    store.settings.value = { ...s, bindings: { ...s.bindings, menu: ['Escape', 'Pad:std:b16'] } };
+    expect(listenHint('action')).toContain('Guide or Esc cancels.');
+  });
+  it('names only Esc when the pause menu has no controller code', () => {
+    const s = store.settings.value;
+    store.settings.value = { ...s, bindings: { ...s.bindings, menu: ['Escape'] } };
+    expect(listenHint('action')).toMatch(/combination\. Esc cancels\.$/);
+  });
+  it('says that any button cancels the wait for an axis', () => {
+    expect(listenHint('axis')).toContain('Any button or Esc cancels.');
+    store.settings.value = { ...DEFAULT_SETTINGS, lang: 'de' };
+    expect(listenHint('axis')).toContain('Eine beliebige Taste oder Esc bricht ab.');
   });
 });
 

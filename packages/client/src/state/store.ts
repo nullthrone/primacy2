@@ -6,7 +6,9 @@
 import { signal } from '@preact/signals';
 import type { ChatMessage, EntityInfo, GalaxyView, NoticeLevel, PilotView, StationView, SystemDef } from '@primacy2/shared';
 import type { CameraMode, GraphicsSettings } from '../contracts.ts';
-import { DEFAULT_PAD_BINDINGS, DEFAULT_PAD_SETTINGS, isPadCode, type PadSettings, type PadStyle } from '../input/gamepad.ts';
+import {
+  DEFAULT_PAD_BINDINGS, DEFAULT_PAD_SETTINGS, PAD_AXIS_ACTIONS, isPadCode, type PadAxisBinding, type PadSettings, type PadStyle,
+} from '../input/gamepad.ts';
 
 export type Phase =
   /** Start screen: choose a name and a server. */
@@ -252,6 +254,38 @@ export type Store = typeof store;
 
 const SETTINGS_KEY = 'primacy2.settings';
 
+/** One saved axis binding with every field the pad code reads, or null when it names no axis. */
+function cleanAxis(saved: unknown): PadAxisBinding | null {
+  if (!saved || typeof saved !== 'object') return null;
+  const b = saved as Record<string, unknown>;
+  if (typeof b.dev !== 'string' || b.dev === '' || typeof b.axis !== 'number' || !Number.isInteger(b.axis) || b.axis < 0) return null;
+  const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+  const out: PadAxisBinding = { dev: b.dev, axis: b.axis, invert: b.invert === true, deadzone: num(b.deadzone, 0.12), curve: num(b.curve, 1.6) };
+  if (typeof b.lever === 'boolean') out.lever = b.lever;
+  return out;
+}
+
+/**
+ * The pad part of saved settings in a shape the pad code can read. That code runs every animation
+ * frame and trusts its input: an entry that is no object throws there, a missing dead zone gives
+ * NaN, and a turn rate that is no number sends an aim the server drops. Nothing in the game writes
+ * such a save, but a hand edit, another build or a later change of the shape can.
+ */
+function cleanPad(saved: unknown): PadSettings {
+  const p = (saved && typeof saved === 'object' ? saved : {}) as { turnRate?: unknown; axes?: unknown };
+  const turnRate = typeof p.turnRate === 'number' && Number.isFinite(p.turnRate) ? Math.min(1, Math.max(0.2, p.turnRate)) : DEFAULT_PAD_SETTINGS.turnRate;
+  const lists = (p.axes && typeof p.axes === 'object' ? p.axes : {}) as Record<string, unknown>;
+  const axes: PadSettings['axes'] = { ...DEFAULT_PAD_SETTINGS.axes };
+  for (const action of PAD_AXIS_ACTIONS) {
+    const list = lists[action];
+    if (!Array.isArray(list)) continue;
+    const good = list.map(cleanAxis).filter((b): b is PadAxisBinding => b !== null);
+    // A list the pilot emptied stays empty; one with nothing usable in it keeps the default.
+    if (good.length > 0 || list.length === 0) axes[action] = good;
+  }
+  return { turnRate, axes };
+}
+
 export function loadSettings(): void {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -261,7 +295,7 @@ export function loadSettings(): void {
       ...DEFAULT_SETTINGS,
       ...saved,
       graphics: { ...DEFAULT_SETTINGS.graphics, ...(saved.graphics ?? {}) },
-      pad: { ...DEFAULT_PAD_SETTINGS, ...(saved.pad ?? {}), axes: { ...DEFAULT_PAD_SETTINGS.axes, ...(saved.pad?.axes ?? {}) } },
+      pad: cleanPad(saved.pad),
       padCleared: saved.padCleared ?? [],
       bindings: addPadDefaults({ ...KEY_BINDINGS, ...handOver(saved.bindings ?? {}) }, saved.padCleared ?? []),
     };

@@ -6,16 +6,16 @@
 import { useEffect, useState } from 'preact/hooks';
 import { t, type StringKey } from '../i18n/index.ts';
 import {
-  assignAxis, assignPad, clearPad, isRowAction, patchAxis, presetJoystick, presetStandard, removeAxis, resetPad, type PadPatch,
+  canClearPad, clearPad, isRowAction, listenStep, patchAxis, presetJoystick, presetStandard, removeAxis, resetPad, type ListenTarget, type PadPatch,
 } from '../input/binds.ts';
 import {
-  PAD_AXIS_ACTIONS, capturedCode, captureNext, captureProgress, devMatches, isPadCode, leverValue, padAxisName, padCodeLabel, shapeAxis,
+  PAD_AXIS_ACTIONS, devMatches, isPadCode, leverValue, padAxisName, padCodeLabel, shapeAxis,
   snapshotPads, type PadAxisAction, type PadAxisBinding, type PadSnapshot,
 } from '../input/gamepad.ts';
 import { store, updateSettings, type BindAction } from '../state/store.ts';
-import { keyName, padHelpParams } from './format.ts';
+import { keyName, listenHint, padHelpParams, padWords } from './format.ts';
 
-type Listening = { kind: 'action'; action: BindAction } | { kind: 'axis'; action: PadAxisAction } | null;
+type Listening = ListenTarget | null;
 
 const read = (): PadSnapshot[] => {
   try {
@@ -41,7 +41,8 @@ export function Bindings({ onBack }: { onBack: () => void }) {
     return () => clearInterval(id);
   }, []);
 
-  // While waiting for a button the flight actions of the pad stay silent and Escape cancels.
+  // While waiting for a button the flight actions of the pad stay silent. Escape cancels, and so
+  // does the pad (see `listenStep`): a pilot may have nothing else.
   useEffect(() => {
     store.padCapturing.value = listening !== null;
     if (!listening) return;
@@ -69,22 +70,14 @@ export function Bindings({ onBack }: { onBack: () => void }) {
         }
         before = now;
       }
-      if (listening.kind === 'action') {
-        const r = captureProgress(before, now, pending);
-        pending = r.pending;
-        if (r.done) {
-          patch(assignPad(current(), listening.action, capturedCode(r.done)));
-          setListening(null);
-          return;
-        }
-      } else {
-        const c = captureNext(before, now);
-        if (c?.kind === 'axis') {
-          const pad = assignAxis(store.settings.value.pad, listening.action, c.dev, c.axis);
-          updateSettings({ pad });
-          setListening(null);
-          return;
-        }
+      const was = current();
+      const r = listenStep(was, listening, before, now, pending);
+      pending = r.pending;
+      if (r.done) {
+        // The settings as they were mean that the pad cancelled: nothing to store.
+        if (r.done !== was) patch(r.done);
+        setListening(null);
+        return;
       }
       raf = requestAnimationFrame(step);
     };
@@ -98,6 +91,7 @@ export function Bindings({ onBack }: { onBack: () => void }) {
 
   const pads = store.pads.value;
   const style = store.padStyle.value;
+  const words = padWords();
   const joy = pads.find((p) => !p.standard);
   const devName = (dev: string): string => {
     const p = pads.find((x) => x.dev === dev);
@@ -131,8 +125,10 @@ export function Bindings({ onBack }: { onBack: () => void }) {
           onClick={() => joy && patch(presetJoystick(current(), joy.dev))}>{t('pad.presetJoystick')}</button>
         <button type="button" class="danger" onClick={() => patch(resetPad(current()))}>{t('pad.reset')}</button>
       </div>
+      {/* As text, not only as the tooltip: a disabled button takes no focus, so a pad never shows its tooltip. */}
+      {!joy && <p class="dim small">{t('pad.presetJoystick')}: {t('pad.presetJoystickNone')}</p>}
       <p class="dim small">{t('pad.help', padHelpParams())}</p>
-      {listening && <div class="listen">{t(listening.kind === 'axis' ? 'pad.listenAxis' : 'pad.listenButton')}</div>}
+      {listening && <div class="listen">{listenHint(listening.kind)}</div>}
 
       <h4>{t('pad.actions')}</h4>
       <table class="bind-table">
@@ -143,7 +139,7 @@ export function Bindings({ onBack }: { onBack: () => void }) {
           {rows.map((a) => {
             const codes = s.bindings[a] ?? [];
             const kb = codes.filter((c) => !isPadCode(c)).map(keyName).join(' / ');
-            const pc = codes.filter(isPadCode).map((c) => padCodeLabel(c, style)).join(' · ');
+            const pc = codes.filter(isPadCode).map((c) => padCodeLabel(c, style, words)).join(' · ');
             const on = listening?.kind === 'action' && listening.action === a;
             return (
               <tr key={a} class={on ? 'listening' : ''}>
@@ -152,7 +148,7 @@ export function Bindings({ onBack }: { onBack: () => void }) {
                 <td>{on ? t('pad.listening') : pc || '–'}</td>
                 <td class="acts">
                   <button type="button" class={on ? 'on' : ''} onClick={() => toggle({ kind: 'action', action: a })}>{t(on ? 'pad.cancel' : 'pad.assign')}</button>
-                  <button type="button" disabled={!codes.some(isPadCode)} onClick={() => patch(clearPad(current(), a))}>{t('pad.clear')}</button>
+                  <button type="button" disabled={!codes.some(isPadCode) || !canClearPad(a)} onClick={() => patch(clearPad(current(), a))}>{t('pad.clear')}</button>
                 </td>
               </tr>
             );
@@ -177,7 +173,7 @@ export function Bindings({ onBack }: { onBack: () => void }) {
             {on && <div class="dim">{t('pad.listening')}</div>}
             {list.length === 0 && !on && <div class="dim">{t('pad.axisUnbound')}</div>}
             {list.map((b, i) => (
-              <AxisRow key={`${b.dev}:${b.axis}`} action={a} b={b} snap={snap} name={devName(b.dev)}
+              <AxisRow key={`${b.dev}:${b.axis}`} action={a} b={b} snap={snap} name={`${devName(b.dev)} · ${padAxisName(b.axis, undefined, words)}`}
                 onChange={(p) => updateSettings({ pad: patchAxis(store.settings.value.pad, a, i, p) })}
                 onRemove={() => updateSettings({ pad: removeAxis(store.settings.value.pad, a, i) })} />
             ))}
@@ -210,7 +206,7 @@ function AxisRow({ action, b, snap, name, onChange, onRemove }: {
   }
   return (
     <div class="axis-row">
-      <span class="axis-name">{name} · {padAxisName(b.axis)}</span>
+      <span class="axis-name">{name}</span>
       <span class="meter"><i style={{ left: `${left}%`, width: `${width}%` }} /></span>
       <label class="slider">{t('pad.deadzone')} ({b.deadzone.toFixed(2)})
         <input type="range" min="0" max="0.9" step="0.01" value={b.deadzone} onInput={(e) => onChange({ deadzone: Number((e.target as HTMLInputElement).value) })} />

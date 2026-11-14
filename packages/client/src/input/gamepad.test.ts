@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   AXIS_ONLY_ACTIONS, DEFAULT_PAD_BINDINGS, DEFAULT_PAD_SETTINGS, captureNext, captureProgress, capturedCode, deviceKey,
-  emptyPadState, formatPadCode, joystickPreset, padButtonName, padCodeLabel, padName, padStyle, parsePadCode, readPads,
-  shapeAxis, type PadSettings, type PadSnapshot,
+  emptyPadState, formatPadCode, joystickPreset, padAxisName, padButtonName, padCodeLabel, padCodeShort, padName, padStyle, parsePadCode, readPads,
+  shapeAxis, type PadSettings, type PadSnapshot, type PadWords,
 } from './gamepad.ts';
 import { DEFAULT_BINDINGS, type BindAction } from '../state/store.ts';
 
@@ -41,6 +41,28 @@ describe('binding codes', () => {
     expect(padCodeLabel('Pad:std:b3+b0', 'playstation')).toBe('Triangle + Cross');
     expect(padCodeLabel('Pad:std:b7', 'generic')).toBe('Button 8');
     expect(padButtonName(6, 'playstation')).toBe('L2');
+  });
+  it('takes the words of another language where a label is made of words', () => {
+    const de: PadWords = { dpad: 'Steuerkreuz', up: 'hoch', down: 'runter', left: 'links', right: 'rechts', button: 'Taste', axis: 'Achse' };
+    expect(padCodeLabel('Pad:std:b3+b14', 'xbox', de)).toBe('Y + Steuerkreuz links');
+    expect(padCodeLabel('Pad:std:b12', 'playstation', de)).toBe('Steuerkreuz hoch');
+    expect(padCodeLabel('Pad:x:b13', 'generic', de)).toBe('Taste 14');
+    expect(padCodeLabel('Pad:std:b20', 'xbox', de)).toBe('Taste 21');
+    expect(padCodeLabel('Pad:x:a2+', 'generic', de)).toBe('Achse 3+');
+    expect(padAxisName(3, undefined, de)).toBe('Achse 4');
+    // Names printed on the pad stay as they are.
+    expect(padCodeLabel('Pad:std:b8', 'xbox', de)).toBe('View');
+    // Without words the labels are English, as before.
+    expect(padCodeLabel('Pad:std:b3+b14', 'xbox')).toBe('Y + D-pad left');
+    expect(padCodeLabel('Pad:x:a2-', 'generic')).toBe('Axis 3−');
+  });
+  it('keeps the short form of the D-pad an arrow in every language', () => {
+    const de: PadWords = { dpad: 'Steuerkreuz', up: 'hoch', down: 'runter', left: 'links', right: 'rechts', button: 'Taste', axis: 'Achse' };
+    expect(padCodeShort('Pad:std:b3+b14', 'xbox', de)).toBe('Y+D←');
+    expect(padCodeShort('Pad:std:b12', 'playstation', de)).toBe('D↑');
+    expect(padCodeShort('Pad:std:b3+b14', 'xbox')).toBe('Y+D←');
+    expect(padCodeShort('Pad:x:b13', 'generic', de)).toBe('Taste 14');
+    expect(padCodeShort('Pad:x:b13', 'generic')).toBe('Button 14');
   });
 });
 
