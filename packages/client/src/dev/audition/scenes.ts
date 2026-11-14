@@ -108,7 +108,7 @@ const full = (): number => 1;
 /** Overlap of chained one-shots: the fade and silence at the end of a file are about 18 ms long. */
 export const CHAIN_OVERLAP = 0.02;
 // Downloaded NASA speech is raw (peaks near full scale), so it comes down before the radio filter.
-const RAW_SPEECH_GAIN = 0.5;
+const RAW_SPEECH_GAIN = 0.4;
 const enginesUnlessOff = (s: SceneState): number => (s.on.engines_off ? 0 : 1);
 const relayClicks = ['relay_click_a', 'relay_click_b'];
 

@@ -19,6 +19,8 @@ function setLoopActive(id: string, on: boolean): void {
   else next.delete(id);
   activeLoops.value = next;
 }
+// Loops whose second press came before their file had loaded.
+const cancelledLoops = new Set<string>();
 const groupVoice = signal<GroupVoice | null>(null);
 const groupThrust = signal(0.5);
 const groupGains = signal<number[]>([]);
@@ -50,10 +52,20 @@ async function trigger(sound: ManifestSound, viaRadio: boolean): Promise<void> {
       setLoopActive(sound.id, false);
       return;
     }
+    if (activeLoops.value.has(sound.id)) {
+      // Pressed again while the file is still loading: the loop must not start at all.
+      cancelledLoops.add(sound.id);
+      setLoopActive(sound.id, false);
+      return;
+    }
     setLoopActive(sound.id, true);
     const v = await engine.play(sound, { viaRadio });
-    if (v) voices.set(sound.id, v);
-    else setLoopActive(sound.id, false);
+    if (v && cancelledLoops.delete(sound.id)) v.stop();
+    else if (v) voices.set(sound.id, v);
+    else {
+      cancelledLoops.delete(sound.id);
+      setLoopActive(sound.id, false);
+    }
     return;
   }
   if (sound.source === 'download') {

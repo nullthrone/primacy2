@@ -32,13 +32,13 @@ from . import (LEVELS, SR, bandpass, burst_env, exp_decay, fade_edges, freq_filt
 # the file, which prints them from the renderers).
 DRIVE_LEVELS = {
     "cruise_loop": ("lufs", -24.0),        # brief
-    "cruise_charge": ("peak", -10.3),      # calibrated: drone at the end equals the loop
-    "cruise_engage": ("peak", -2.9),       # calibrated, see calibrate()
-    "cruise_disengage": ("peak", -11.4),    # calibrated, see calibrate()
+    "cruise_charge": ("peak", -11.1),      # calibrated: drone at the end equals the loop
+    "cruise_engage": ("peak", -4.3),       # calibrated, see calibrate()
+    "cruise_disengage": ("peak", -10.1),    # calibrated, see calibrate()
     "fold_charge": ("peak", -8.0),         # chosen: heavier than the cruise charge, below the jump
     "fold_jump": ("peak", -1.5),           # brief
     "fold_tunnel_loop": ("lufs", -34.0),   # brief
-    "fold_exit": ("peak", -7.9),           # calibrated, see calibrate()
+    "fold_exit": ("peak", -11.8),          # calibrated, see calibrate()
 }
 LEVELS.update(DRIVE_LEVELS)
 
@@ -111,7 +111,7 @@ CRUISE_TONES = ((106.25, 1.0), (106.625, 0.2), (142.5, 0.8), (142.125, 0.15), (2
                 (285.0, 0.35), (284.5, 0.08), (71.125, 0.18))
 WHINE_HZ = 520.0     # the charge's whine climbs to this pitch and arrives there at the engage
 WHINE_AMP = 0.05     # against a drone body of unit RMS
-LOOP_WHINE_DB = -12.0  # in the loop the whine is this much below where the charge leaves it
+LOOP_WHINE_DB = -13.0  # in the loop the whine is this much below where the charge leaves it
 _cache: dict = {}
 
 
@@ -131,13 +131,13 @@ def _cruise_parts():
     body -= body.mean()
     wph = rng.uniform(0, 2 * np.pi)
     # the whine of the loop: a faint narrow band that wanders slowly in pitch and level, never a
-    # ruler-straight line. A slow frequency swing (about +-14 Hz) on a tone plus a narrow band of
+    # ruler-straight line. A slow frequency swing (about +-8 Hz) on a tone plus a narrow band of
     # noise next to it; all of it closes over the loop.
     wob = slow_wander(n, s("whine-pitch"), 0.15, 0.9)
-    fm = 2 * np.pi * WHINE_HZ * t + wph + 2.8 * wob            # 2.8 rad at <= 0.9 Hz is about 14 Hz at most
+    fm = 2 * np.pi * WHINE_HZ * t + wph + 10.0 * wob           # a typical swing of about +-8 Hz, at most +-30 Hz
     lvl = 1.0 + 0.45 * slow_wander(n, s("whine-level"), 0.1, 0.8)
     band = periodic_noise(n, "white", s("whine-band"), lo=WHINE_HZ - 9.0, hi=WHINE_HZ + 9.0, order=6)
-    whine = WHINE_AMP * 10 ** (LOOP_WHINE_DB / 20.0) * lvl * (np.sin(fm) + 0.5 * band)
+    whine = WHINE_AMP * 10 ** (LOOP_WHINE_DB / 20.0) * lvl * (0.8 * np.sin(fm) + 0.8 * band)
     _cache["cruise"] = (body, whine, wph, _tone_stack(n, CRUISE_TONES, "cruise")[1])
     return _cache["cruise"]
 

@@ -89,6 +89,8 @@ try {
     await page.click('[data-lang="en"]');
     assert((await page.locator('[data-tab="library"]').innerText()) === 'Library', 'English tab label expected');
     await page.screenshot({ path: path.join(SHOTS, 'library-top-en.png') });
+    // The owner reads German: every later screenshot is taken in German.
+    await page.click('[data-lang="de"]');
   });
 
   await check('server refuses paths outside render/downloads, oversized and malformed bodies', async () => {
@@ -170,7 +172,9 @@ try {
       downloads.map((x) => x.id),
       { timeout: 30000 },
     );
-    await page.locator('#cat-radio').scrollIntoViewIfNeeded();
+    await page.locator('#cat-engines .part.downloaded').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(SHOTS, 'library-category-engines.png') });
+    await page.locator('#cat-radio .part.downloaded').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
   });
 
