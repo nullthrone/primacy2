@@ -163,11 +163,20 @@ ships (see `docs/CLIENT.md`). The key line in the corner of the HUD became key c
 and no longer repeats the power keys (they stand beside the pips) or the lists (beside the system
 lines). The navigation panel (N) lists places in the order of the stepping.
 
+One consequence of "target ahead" needs his decision. Pressed on a ship that is locked already, it
+goes on to the place in the same cone (about 26 degrees around the nose) and makes that the chosen
+place, so a second press in a fight can replace the destination. It is built this way because
+near a station there is nearly always a ship in the cone, and the station could otherwise not be
+taken by pointing at it. The alternative: a place is taken only while no ship is in the cone.
+
 Checked in a browser on the development page by `node tools/dev/orient-check.mjs` (1280 x 720,
 German and English) and in the game by `scripts/e2e.mjs` (O, L, U and "target ahead" taking a
 place, with the keyboard) and `scripts/pad-check.mjs` (the D-pad). Not checked: a real controller;
 the look in motion (only stills were judged); arrows and compass in cruise, in a fight and near a
-gate (no universe of the tests has a gate); the forward and back side buttons of a mouse.
+gate (no universe of the tests has a gate); the forward and back side buttons of a mouse (they are
+the browser's back and forward buttons; the game now takes them while a pilot plays, which no
+test presses). "By mouse" means those two buttons in flight and clicking in the panels N and Tab:
+the pointer is captured in flight, so nothing on the HUD itself can be clicked.
 
 One thing about the browser test is not explained. On 2026-11-14 `scripts/e2e.mjs` ran three times
 with the same game code. Twice it stopped in the first minutes at a step that steers the ship with

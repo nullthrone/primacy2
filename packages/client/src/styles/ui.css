@@ -333,10 +333,11 @@
 .panel-mini.place { border-left-color: var(--amber); }
 .panel-mini.place .big { color: var(--amber); }
 .panel-mini .pair { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8em; }
-/* What the system holds: two lines under the system name, each with the controls that choose. */
-.sys-lines { display: grid; grid-template-columns: auto auto auto; justify-content: start; column-gap: 0.8em; row-gap: 0.15em; margin-top: 0.25em; font-size: 0.9em; align-items: baseline; white-space: nowrap; }
+/* What the system holds: two lines under the system name, each with the controls that choose.
+   They stand on a dark plate, like the list under them: over a sunlit planet they would wash out. */
+.sys-lines { align-self: flex-start; display: grid; grid-template-columns: auto auto auto; justify-content: start; column-gap: 0.8em; row-gap: 0.15em; margin-top: 0.35em; padding: 0.3em 0.7em; background: rgba(6, 14, 28, 0.62); border-left: 2px solid var(--line); font-size: 0.9em; align-items: baseline; white-space: nowrap; }
 .sys-line { display: contents; }
-.sys-label { color: var(--dim); letter-spacing: 0.08em; }
+.sys-label { color: var(--cyan); letter-spacing: 0.08em; }
 .sys-keys { color: var(--dim); }
 .keycap { display: inline-block; min-width: 1.25em; padding: 0 0.3em; margin-right: 0.25em; border: 1px solid var(--line); background: rgba(6, 14, 28, 0.55); color: var(--cyan); font-family: 'Share Tech Mono', ui-monospace, monospace; font-size: 0.92em; line-height: 1.3; text-align: center; }
 /* The list of places is open while the pilot steps through it. */

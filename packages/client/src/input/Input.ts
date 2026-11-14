@@ -355,6 +355,8 @@ export class Input {
 
   private onButton(e: MouseEvent, down: boolean): void {
     if (store.phase.value !== 'playing') return;
+    // The side buttons are the browser's back and forward; in the game they choose targets.
+    if (e.button >= 3 && !isTyping(e.target)) e.preventDefault();
     if (!down || this.active()) this.press(`Mouse${e.button}`, down);
   }
 
