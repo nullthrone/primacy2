@@ -79,6 +79,7 @@ uniform float uAtmo;
 uniform vec4 uPar;
 uniform float uFine;
 uniform float uNear;
+uniform float uView;
 varying vec3 vWorld;
 ${GLSL_NOISE}
 ${SPHERE_GLSL}
@@ -120,8 +121,10 @@ vec3 gWarp;
 float gEps;
 // Size of the pixel on the surface in body radii: gFoot across the view ray, gSlant along the
 // slanted ground (the long side of its footprint, scaled up at lower quality, and what fine
-// detail has to stay coarser than). gNear is 0 for a planet seen whole and 1 once a pixel
-// covers less than about 1/3000 of the radius; the looks that only make sense close up follow it.
+// detail has to stay coarser than). uView turns either into the size a pixel of a view 900
+// pixels high would have, which says how large the planet stands in the view whatever the
+// resolution. gNear follows that: 0 for a planet seen whole, 1 once such a pixel covers less
+// than about 1/3000 of the radius, and the looks that only make sense close up follow gNear.
 float gFoot;
 float gSlant;
 float gNear;
@@ -131,28 +134,30 @@ vec3 gSunStep;
 vec2 gSunPix;
 Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0); }
 // Detail finer than fbm() gives a planet seen whole: octaves of gradient noise from 'freq' cycles
-// per unit of 'q' upward (FINE per body radius is the first one a planet does not show yet
-// while its disc is 700 pixels across), each counted only as far as a pixel of 'foot' units resolves it (not
-// at all below three pixels per cycle, fully from seven). So detail grows on approach without
-// ever flickering, and a planet seen from afar gets none and looks as it always did.
-// Each octave has 'gain' times the weight of the one before.
+// per unit of 'q' upward, each 'gain' times the weight of the one before. Two things hold it back.
+// How large the planet stands in the view: none of it shows until the first octave (FINE cycles
+// per body radius) would span three pixels of a view 900 pixels high, so a planet seen from afar
+// looks as it always did, at any resolution. And the real pixel, 'foot' units of 'q' wide: an
+// octave counts only as far as that resolves it (not at all below three pixels per cycle, fully
+// from seven), so detail grows on approach and with resolution without ever flickering.
 // x: the sum, y: its billowed form (rounded cells with creases between), z: a sum that falls off
 // like terrain height; all around zero, x and y with a spread near one. w: how much shows at all.
 #define FINE 200.0
 vec4 fineNoise(vec3 q, float freq, float foot, float gain) {
+  float onset = 1.0 - smoothstep(0.15, 0.36, foot * uView * FINE);
+  if (onset <= 0.0) return vec4(0.0);
   vec3 sum = vec3(0.0);
-  float first = 0.0, a = 1.0, b = 1.0;
+  float a = 1.0, b = 1.0;
   for (int j = 0; j < 6; j++) {
     float w = 1.0 - smoothstep(0.15, 0.36, foot * freq);
     if (w <= 0.0) break;
-    if (j == 0) first = w;
     float g = gnoise(q * freq + float(j) * vec3(7.3, 3.1, 5.9) + uSeed);
     sum += w * vec3(a * g * 4.4, a * (abs(g) - 0.184) * 7.3, b * g * 4.4);
     freq *= 2.09;
     a *= gain;
     b *= 0.5;
   }
-  return vec4(sum.xy * sqrt(1.0 - gain * gain), sum.z, first);
+  return vec4(sum.xy * sqrt(1.0 - gain * gain), sum.z, 1.0) * onset;
 }
 vec3 seedOff() { return vec3(uSeed * 1.37, uSeed * 0.71 + 3.0, uSeed * 2.11 + 7.0); }
 vec3 rotY(vec3 p, float a) {
@@ -197,8 +202,11 @@ float hfield(vec3 nb) {
   return fbm((nb * 2.0 + seedOff()) * 1.6 + gWarp.x * 0.7, uOct) * 0.40 + craterField(nb) * 1.5;
 }
 #ifndef BAKED
-// Craters too small for a planet seen whole: every size counts as far as a pixel resolves it.
+// Craters too small for a planet seen whole: they come in as 'fineNoise' does, and every size
+// counts as far as a pixel resolves it.
 float craterFine(vec3 nb) {
+  float onset = 1.0 - smoothstep(0.15, 0.36, gSlant * uView * 250.0);
+  if (onset <= 0.0) return 0.0;
   float cr = 0.0, scale = 100.0;
   for (int j = 0; j < 4; j++) {
     float w = 1.0 - smoothstep(0.15, 0.36, gSlant * scale * 2.5);
@@ -206,7 +214,7 @@ float craterFine(vec3 nb) {
     cr += w * craters(nb, scale, uSeed + 17.0 + 4.0 * float(j));
     scale *= 2.2;
   }
-  return cr;
+  return cr * onset;
 }
 #endif
 Surf surface(vec3 nb, vec3 sunB) {
@@ -409,7 +417,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec3 cdx = dFdx(cd), cdy = dFdy(cd);
   vec2 coverPix = vec2(dFdx(cover), dFdy(cover));
   float cfoot = uFine > 0.0 ? uFine * max(length(cdx), length(cdy)) : 1e3;
-  bool fineCloud = cover > -0.10 && cfoot * FINE < 0.36;
+  bool fineCloud = cover > -0.10 && cfoot * uView * FINE < 0.36;
   vec4 cf = vec4(0.0);
   float patchy = 1.0;
   if (fineCloud) {
@@ -454,7 +462,8 @@ Surf surface(vec3 nb, vec3 sunB) {
   if (fineLand) f = fineNoise(nb, FINE, gSlant, 0.7);
   float cont = base + 0.003 * f.x;
   // Coast and beach are as narrow as the pixel allows: wide from afar, a line from low orbit.
-  float coast = clamp(gSlant * 9.0, 0.0015, 0.016);
+  float px = mix(gSlant * uView, gSlant, gNear);
+  float coast = clamp(px * 9.0, 0.0008, 0.016);
   float land = smoothstep(sea + 0.004 - 0.5 * coast, sea + 0.004 + 0.5 * coast, cont);
   float elev = max(cont - sea, 0.0);
   float lat = abs(nb.y);
@@ -486,7 +495,7 @@ Surf surface(vec3 nb, vec3 sunB) {
     lc = mix(lc, tundra, smoothstep(0.42, 0.26, temp));
     lc = mix(lc, rock, smoothstep(0.45, 0.85, mount - 0.06 * f.y));
     lc = mix(lc, snow, smoothstep(0.24, 0.15, temp));
-    lc = mix(sand * 1.1, lc, smoothstep(0.0, clamp(gSlant * 11.0, 0.004, 0.02), elev));
+    lc = mix(sand * 1.1, lc, smoothstep(0.0, clamp(px * 11.0, 0.003, 0.02), elev));
     lc *= clamp(1.0 + 0.09 * f.x - 0.04 * f.y, 0.6, 1.5);
     if (f.w > 0.0 && geo > -0.2) {
       // Fine relief, rugged in the mountains and gentle on the plains, lit from one more sample.
@@ -533,7 +542,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   // a planet seen whole could show.
   float fine = 0.0;
   vec2 curl = vec2(0.0);
-  float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * FINE);
+  float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * uView * FINE);
   if (reach > 0.0) {
     vec3 wq = vec3(nr.x * 22.0, lat * 40.0, nr.z * 22.0) + so;
     curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.025 * reach);
@@ -542,19 +551,19 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec3 q = vec3(nr.x, lat * 1.8, nr.z) + east * curl.x + cross(nr, east) * curl.y;
   vec3 qx = dFdx(q), qy = dFdy(q);
   float qfoot = uFine > 0.0 ? uFine * max(length(qx), length(qy)) : 1e3;
-  if (qfoot * FINE < 0.36) {
-    vec4 f = fineNoise(q, FINE, qfoot, 0.6);
+  if (qfoot * uView * FINE < 0.36) {
+    vec4 f = fineNoise(q, FINE, qfoot, 0.78);
     fine = 0.8 * f.x + 0.15 * f.y;
     // The relief of the deck shows where the sun stands low over it; one more sample tells
     // which way the tops slope.
     float geo = dot(nb, sunB);
     float low = gNear * (1.0 - smoothstep(0.30, 0.55, geo));
     if (low > 0.0 && geo > -0.1) {
-      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.6);
+      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.78);
       s.shade = clamp(1.0 - 0.16 * low * (0.8 * fSun.x + 0.15 * fSun.y - fine), 0.85, 1.1);
     }
   }
-  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.075 * (0.4 + 0.6 * contrast) * fine;
+  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.10 * (0.4 + 0.6 * contrast) * fine;
   float zone = clamp(0.5 + 0.42 * b1 + 0.2 * b3 + turb, 0.0, 1.0);
   zone = mix(zone, smoothstep(0.15, 0.85, zone), 0.6);
   float luma = dot(uBase, vec3(0.3333));
@@ -588,7 +597,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   gFoot = uPix * max(dot(d, uCenter + n * uRadius), 0.0) / uRadius;
   float slant = gFoot / max(ndv, 0.15);
   gSlant = uFine > 0.0 ? uFine * slant : 1e3;
-  gNear = 1.0 - smoothstep(3.5e-4, 1.5e-3, gFoot);
+  gNear = 1.0 - smoothstep(3.5e-4, 1.5e-3, gFoot * uView);
   vec3 sunB = uRot * uSunDir;
   gSunStep = (sunB - nb * dot(nb, sunB)) * (2.0 * slant);
   gSunPix = vec2(0.0);

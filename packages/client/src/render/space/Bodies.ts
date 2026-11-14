@@ -103,7 +103,7 @@ class PlanetVisual implements Visual {
       uniforms: {
         ...this.shared, uRot: { value: new Matrix3() }, uBase: { value: new Vector3(base[0], base[1], base[2]) },
         uSeed: { value: seed }, uOct: { value: 6 }, uTime: { value: 0 }, uCloudPhase: { value: 0 }, uPar: { value: par },
-        uFine: { value: 1 },
+        uFine: { value: 1 }, uView: { value: 1 },
         uFar: { value: null }, uBake: { value: 0 }, uGroundSun: { value: new Vector3() }, uGroundAmb: { value: new Vector3() },
       },
       ...NO_DEPTH,
@@ -187,6 +187,9 @@ class PlanetVisual implements Visual {
       // Detail finer than those octaves follows the size of a pixel on the surface (see
       // 'fineNoise' in the shader). The lowest quality has none, the middle one stops an octave early.
       u.uFine!.value = params.quality === 0 ? 0 : params.quality === 1 ? 1.6 : 1;
+      // It starts by how large the planet stands in the view, not by the pixel count: the shader
+      // measures that in pixels of a view 900 pixels high.
+      u.uView!.value = params.height / 900;
       u.uTime!.value = params.clock;
       // A slow angle for cloud drift and zonal sway, wrapped in float64 so it never jumps.
       u.uCloudPhase!.value = (frame.clock * 0.0015) % (Math.PI * 2);
