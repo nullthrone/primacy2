@@ -121,11 +121,63 @@ describe('chords', () => {
     expect(r.pressed).toEqual([]);
     expect(r.held.has('dock')).toBe(true);
   });
-  it('lets the plain binding work again once the modifier is released', () => {
-    let r = readPads([pad({ down: [3, 0] })], B, noPad, null);
-    r = readPads([pad({ down: [0] })], B, noPad, r.state);
-    expect(r.held.has('thrustUp')).toBe(true);
-    expect(r.held.has('dock')).toBe(false);
+  /** Feeds one reading after another and returns them all. */
+  const run = (...frames: number[][]): ReturnType<typeof readPads>[] => {
+    const out: ReturnType<typeof readPads>[] = [];
+    let state = null as ReturnType<typeof readPads>['state'] | null;
+    for (const d of frames) {
+      const r = readPads([pad({ down: d })], B, noPad, state);
+      state = r.state;
+      out.push(r);
+    }
+    return out;
+  };
+  it('keeps the target of a chord silent until it is let go, whichever button is released first', () => {
+    // Y + A docks. Letting go of Y first must not turn A into thrust up.
+    const r = run([3, 0], [0], [], [0]);
+    expect(r[1]!.held.has('thrustUp')).toBe(false);
+    expect(r[1]!.held.has('dock')).toBe(false);
+    expect(r[1]!.pressed).toEqual([]);
+    // A new press of A alone works again.
+    expect(r[3]!.held.has('thrustUp')).toBe(true);
+  });
+  it('does not run the plain action of a single-press button after its chord', () => {
+    // Y + View opens the galaxy map; View alone is the cruise drive.
+    const r = run([3], [3, 8], [8], [8], []);
+    expect(r[1]!.pressed).toEqual(['galaxyMap']);
+    expect(r[2]!.pressed).toEqual([]);
+    expect(r[2]!.held.has('cruise')).toBe(false);
+    expect(r[3]!.pressed).toEqual([]);
+    // The next lone press fires.
+    expect(run([3], [3, 8], [8], [], [8])[4]!.pressed).toEqual(['cruise']);
+  });
+  it('does not press a held button a second time when the modifier is tapped', () => {
+    const r = run([8], [8, 3], [8]);
+    expect(r[0]!.pressed).toEqual(['cruise']);
+    expect(r[1]!.pressed).toEqual([]);
+    expect(r[2]!.pressed).toEqual([]);
+  });
+  it('gives a button held from before the modifier its action back after the chord', () => {
+    // Thrust held, Y tapped: thrust pauses and comes back.
+    const a = run([0], [0, 3], [0]);
+    expect(a[1]!.held.has('thrustUp')).toBe(false);
+    expect(a[2]!.held.has('thrustUp')).toBe(true);
+    expect(a[2]!.pressed).toEqual([]);
+    // Fire held through Y + D-pad right (power to weapons) fires again afterwards.
+    const f = run([7], [7, 3], [7, 3, 15], [7, 3], [7]);
+    expect(f[2]!.pressed).toEqual(['powerWeapons']);
+    expect(f[3]!.held.has('firePrimary')).toBe(false);
+    expect(f[4]!.held.has('firePrimary')).toBe(true);
+  });
+  it('reports a press on a second device of an action another device already holds', () => {
+    const two = (a: number[], b: number[]): PadSnapshot[] => [pad({ down: a }), pad({ index: 1, down: b })];
+    let r = readPads(two([8], []), B, noPad, null);
+    expect(r.pressed).toEqual(['cruise']);
+    r = readPads(two([8], [8]), B, noPad, r.state);
+    expect(r.pressed).toEqual(['cruise']);
+    r = readPads(two([], [8]), B, noPad, r.state);
+    expect(r.pressed).toEqual([]);
+    expect(r.released).toEqual([]);
   });
   it('does not fire a chord when the target was held before the modifier', () => {
     let r = readPads([pad({ down: [0] })], B, noPad, null);

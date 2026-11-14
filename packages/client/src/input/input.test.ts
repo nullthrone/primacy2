@@ -124,6 +124,93 @@ describe('Input with a pad', () => {
     expect(actions).toEqual(['galaxyMap']);
   });
 
+  it('does not fire when the modifier of a chord is let go before its target', () => {
+    const { input } = makeInput();
+    input.setMode(FlightMode.Normal);
+    // Y + RT is throttle up; RT alone fires.
+    for (const d of [[3], [3, 7], [7]]) {
+      pads = [pad(d)];
+      input.pollPads();
+    }
+    expect(input.throttle).toBeCloseTo(0.1);
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(0);
+    pads = [pad()];
+    input.pollPads();
+    pads = [pad([7])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+  });
+
+  it('keeps a button that closed a panel silent until it is let go', () => {
+    const { input } = makeInput();
+    // A on "Resume": the panel closes while A, which is thrust up in flight, is still down.
+    store.device.value = 'pad';
+    store.panel.value = 'menu';
+    pads = [pad([0])];
+    input.pollPads();
+    store.panel.value = null;
+    input.pollPads();
+    expect(input.active()).toBe(true);
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(0);
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(0);
+    // Let go and press again: now it is thrust.
+    pads = [pad()];
+    input.pollPads();
+    pads = [pad([0])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(1);
+  });
+
+  it('also when the panel closes in the very frame the button goes down', () => {
+    const { input } = makeInput();
+    store.device.value = 'pad';
+    store.panel.value = 'menu';
+    pads = [pad()];
+    input.pollPads();
+    // The menu loop saw B first and closed the panel before this loop reads the pad.
+    store.panel.value = null;
+    pads = [pad([1])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(0);
+    pads = [pad()];
+    input.pollPads();
+    pads = [pad([1])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(-1);
+  });
+
+  it('keeps a button from the start screen silent, but not one held through a fold', () => {
+    const { input } = makeInput();
+    store.device.value = 'pad';
+    // A on "Launch" is still down when the game starts.
+    store.phase.value = 'connecting';
+    pads = [pad([0])];
+    input.pollPads();
+    store.phase.value = 'playing';
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[1]).toBe(0);
+    pads = [pad()];
+    input.pollPads();
+    // No menu takes the pad between two servers, so fire held through the jump keeps firing.
+    pads = [pad([7])];
+    input.pollPads();
+    store.phase.value = 'handoff';
+    input.pollPads();
+    store.phase.value = 'playing';
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+  });
+
+  it('fires at once with the press that takes the device over from the mouse', () => {
+    const { input } = makeInput();
+    store.pointerLocked.value = false;
+    expect(input.active()).toBe(false);
+    pads = [pad([7])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+  });
+
   it('lets the lever take over the setpoint only when it moves', () => {
     const { input } = makeInput();
     store.settings.value = {

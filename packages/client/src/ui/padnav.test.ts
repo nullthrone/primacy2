@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NO_REPEAT, pickDirection, pickFirst, pickNearest, stepRepeat, stepTab, stickDir, type Rect } from './padnav.ts';
+import { NO_REPEAT, keepMark, pickDirection, pickFirst, pickNearest, stepRepeat, stepTab, stickDir, type Rect } from './padnav.ts';
 
 const r = (x: number, y: number, w = 100, h = 30): Rect => ({ x, y, w, h });
 
@@ -67,6 +67,29 @@ describe('stepTab', () => {
     expect(stepTab(4, -1, 1)).toBe(0);
     expect(stepTab(4, -1, -1)).toBe(3);
     expect(stepTab(0, -1, 1)).toBe(-1);
+  });
+});
+
+describe('keepMark', () => {
+  /** An element as far as the mark is concerned: its class list, and whether it is in the page. */
+  const element = (classes: string[], isConnected = true) => {
+    const set = new Set(classes);
+    return { isConnected, classList: { contains: (c: string) => set.has(c), add: (c: string) => void set.add(c) }, classes: set };
+  };
+  it('puts the mark back after the page rewrote the class of the focused element', () => {
+    // A tab that turns "on": the framework writes class="on" and the mark added by hand is gone.
+    const tab = element(['on']);
+    keepMark(tab);
+    expect([...tab.classes]).toEqual(['on', 'padfocus']);
+  });
+  it('leaves a marked element, a removed one and no element alone', () => {
+    const marked = element(['padfocus']);
+    keepMark(marked);
+    expect([...marked.classes]).toEqual(['padfocus']);
+    const gone = element([], false);
+    keepMark(gone);
+    expect(gone.classes.size).toBe(0);
+    expect(() => keepMark(null)).not.toThrow();
   });
 });
 

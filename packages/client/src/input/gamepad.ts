@@ -282,6 +282,12 @@ export interface PadState {
   on: Set<string>;
   held: Set<BindAction>;
   buttons: Map<number, boolean[]>;
+  /**
+   * Buttons, keyed `<pad index>|<button>`, that went down while a chord modifier was held. Their
+   * plain bindings stay silent until the button is let go, so that the target of a chord never runs
+   * its own action when the modifier happens to be released first.
+   */
+  muted: Set<string>;
   /** Raw value of each lever axis, keyed `<pad index>|<axis>`, to tell a moved lever from a resting one. */
   levers: Map<string, number>;
   active: boolean;
@@ -289,7 +295,11 @@ export interface PadState {
 
 export interface PadReading {
   held: Set<BindAction>;
-  /** Actions that went on in this reading: once per press. */
+  /**
+   * Actions pressed in this reading, once per press and per binding: a plain button counts when the
+   * button itself went down, a chord or an axis half when it went on. A button that was held all
+   * along and whose binding only comes back (the modifier of a chord was let go) is not a press.
+   */
   pressed: BindAction[];
   released: BindAction[];
   axes: Record<PadAxisAction, number>;
@@ -304,7 +314,7 @@ export interface PadReading {
   state: PadState;
 }
 
-export const emptyPadState = (): PadState => ({ on: new Set(), held: new Set(), buttons: new Map(), levers: new Map(), active: false });
+export const emptyPadState = (): PadState => ({ on: new Set(), held: new Set(), buttons: new Map(), muted: new Set(), levers: new Map(), active: false });
 
 interface Entry {
   action: BindAction;
@@ -347,7 +357,9 @@ export function readPads(
   const c = compile(bindings);
   const on = new Set<string>();
   const held = new Set<BindAction>();
+  const pressed = new Set<BindAction>();
   const buttons = new Map<number, boolean[]>();
+  const muted = new Set<string>();
   const edges: PadReading['edges'] = [];
   let active = false;
   let activeIndex: number | null = null;
@@ -370,14 +382,26 @@ export function readPads(
     for (const x of c.mods) if (devMatches(x.dev, p)) mods.add(x.m);
     let modHeld = false;
     for (const m of mods) if (down(p, m)) modHeld = true;
+    // A button that goes down while a modifier is held belongs to the chord and stays muted until
+    // it is let go. One that was down before the modifier is not muted: fire or thrust held
+    // through a chord comes back when the modifier is released.
+    for (let n = 0; n < now.length; n++) {
+      if (!now[n]) continue;
+      const mk = `${p.index}|${n}`;
+      if (before.muted.has(mk) || (modHeld && !was?.[n])) muted.add(mk);
+    }
 
     for (const e of c.entries) {
       const k = e.code;
       if (!devMatches(k.dev, p)) continue;
       const key = `${p.index}|${e.raw}`;
       let isOn = false;
+      // Whether this binding went on by a press of its own in this reading.
+      let fresh = !before.on.has(key);
       if (k.kind === 'button') {
-        isOn = down(p, k.n) && !modHeld && !mods.has(k.n);
+        isOn = down(p, k.n) && !modHeld && !mods.has(k.n) && !muted.has(`${p.index}|${k.n}`);
+        // The button itself has to go down: a binding that only comes back is no press.
+        fresh = !was?.[k.n];
       } else if (k.kind === 'chord') {
         if (down(p, k.m) && down(p, k.n)) {
           // A chord starts with the second button; holding the target and then the modifier does not count.
@@ -391,6 +415,7 @@ export function readPads(
       if (isOn) {
         on.add(key);
         held.add(e.action);
+        if (fresh) pressed.add(e.action);
       }
     }
   }
@@ -419,11 +444,9 @@ export function readPads(
     }
   }
 
-  const pressed: BindAction[] = [];
-  for (const a of held) if (!before.held.has(a)) pressed.push(a);
   const released: BindAction[] = [];
   for (const a of before.held) if (!held.has(a)) released.push(a);
-  return { held, pressed, released, axes, lever, active, activeIndex, edges, state: { on, held, buttons, levers, active } };
+  return { held, pressed: [...pressed], released, axes, lever, active, activeIndex, edges, state: { on, held, buttons, muted, levers, active } };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -187,18 +187,100 @@ vec3 planeNoise(vec2 x, float wrap, uint seed) {
   return vec3(g, v);
 }
 
+// The outline of a stone: an ellipse with two pieces cut off straight, so no two look alike and
+// each has a few flat faces. 'e' is the place in the stone's own axes, in radii. Returns 1 on the
+// outline, less inside; 'og' points outward across it.
+float stoneOutline(vec2 e, vec2 cuts, out vec2 og) {
+  float m = length(e);
+  og = e / max(m, 1e-4);
+  float m1 = dot(e, vec2(0.5, 0.866)) / cuts.x;
+  float m2 = dot(e, vec2(0.6, -0.8)) / cuts.y;
+  if (m1 > m) { m = m1; og = vec2(0.5, 0.866) / cuts.x; }
+  if (m2 > m) { m = m2; og = vec2(0.6, -0.8) / cuts.y; }
+  return m;
+}
+
 // Stones of one size class: one to a lattice cell (in 'share' of the cells), anywhere in it,
-// 0.05 to 0.2 cells in radius, most of them small. A stone is a low heap of a few flat faces,
-// a shade off the ground it lies on, a little darker where it meets the ground, and with
-// 'shadows' it casts one: 'sun' is the star (xy: along the ground toward it, z: cotangent of its
-// height). 'q' is the place on the lattice plane (m), 'px' the size of a pixel on the ground (m).
+// 0.05 to 0.2 cells in radius, most of them small, a shade off the ground they lie on.
+//
+// A stone stands up. The mesh has no stones, so the ground behind one, as far as the stone would
+// hide it from this camera, is drawn as the stone: its top where the outline lifted to the
+// stone's height is seen, its side below that. Seen from above that is the outline alone; from
+// the cockpit of a landed ship it is a stone a few pixels high where a flat mark would be a line.
+// 'eye' and 'sun' are the camera and the star as seen from the place (xy: along the ground toward
+// it, z: cotangent of its height); a stone casts its shadow away from the star. 'q' is the place
+// on the lattice plane (m), 'px' the size of a pixel on the ground (m), along the view and across.
 // Adds to the slope of the ground and multiplies its reflectance and the star's light.
-void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec2 sunPlane, float px, float strength, bool shadows,
+void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec3 eye, vec2 px, float strength,
+    inout vec2 slope, inout float tint, inout float light) {
+  float cell = PERIOD / count;
+  if (strength <= 0.0 || 0.2 * cell < 0.8 * px.y || 0.7 * cell < 0.8 * px.x) return;
+  vec2 p = q / cell;
+  vec2 first = floor(p) - 1.0;
+  // Stone and shadow reach one cell at most, so the nine cells around the place hold all of them.
+  for (int j = 0; j < 9; j++) {
+    vec2 c = first + vec2(float(j % 3), float(j / 3));
+    uint n = cellHash(mod(c, count), seed);
+    vec4 a = hashBytes(n);
+    if (a.z >= share) continue;
+    vec2 d = alongGround((p - c - a.xy) * cell);
+    if (dot(d, d) > cell * cell) continue;
+    float r = (0.05 + 0.15 * a.w * a.w * a.w) * cell;
+    vec4 b = hashBytes(hashAgain(n));
+    float tall = (0.45 + 0.65 * b.w) * r;
+    // Metres of ground the stone hides behind itself.
+    float rise = min(tall * eye.z, cell - r);
+    float w = smoothstep(0.8, 2.5, r / px.y) * smoothstep(0.8, 2.5, (r + 0.5 * rise) / px.x) * strength;
+    if (w <= 0.0) continue;
+    // The stone's own axes; it is up to 1.7 times as long as wide.
+    vec2 ax = normalize(b.xy - 0.5 + 0.001);
+    vec2 ay = vec2(-ax.y, ax.x);
+    float narrow = 1.0 + 0.7 * b.z;
+    vec2 cuts = 0.45 + 0.5 * vec2(b.w, fract((b.x + b.y) * 5.7));
+    // The stone narrows to half its outline at the top. 'up' is how high on it the view meets it.
+    float lift = clamp(-dot(d, eye.xy), 0.0, rise);
+    float up = lift / max(rise, 1e-4);
+    vec2 dTop = d + eye.xy * rise;
+    vec2 dSide = d + eye.xy * lift;
+    vec2 og;
+    float mTop = 2.0 * stoneOutline(vec2(dot(dTop, ax), dot(dTop, ay) * narrow) / r, cuts, og);
+    vec2 lid = ax * og.x + ay * (og.y * narrow);
+    // An edge is softened by a pixel, which along the view is more ground than across it.
+    float soft = clamp(3.0 * mix(px.y, px.x, abs(dot(normalize(lid), eye.xy))) / r, 0.08, 0.6);
+    float top = 1.0 - smoothstep(1.0 - soft, 1.0, mTop);
+    vec2 og2;
+    float mSide = stoneOutline(vec2(dot(dSide, ax), dot(dSide, ay) * narrow) / r, cuts, og2) / (1.0 - 0.5 * up);
+    vec2 rim = normalize(ax * og2.x + ay * (og2.y * narrow));
+    soft = clamp(1.5 * mix(px.y, px.x, abs(dot(rim, eye.xy))) / r, 0.08, 0.6);
+    float body = 1.0 - smoothstep(1.0 - soft, 1.0, mSide);
+    float side = body * (1.0 - top);
+    // The top is a few faces leaning outward; the flank leans outward more, and where the view
+    // meets it head on it faces the camera.
+    slope -= lid * (0.4 * top * w);
+    slope -= normalize(mix(eye.xy, rim, clamp(mSide, 0.0, 1.0)) + 1e-4) * (1.15 * side * w);
+    tint *= mix(1.0, mix(shade.x, shade.y, a.z / share), w * body);
+    // Darker toward the foot of the stone, and the ground darker around it: little light gets in there.
+    tint *= 1.0 - 0.25 * w * side * (1.0 - smoothstep(0.0, 0.6, up)) * smoothstep(0.0, 0.3 * r, rise);
+    float ring = length(d) / r;
+    tint *= 1.0 - 0.22 * w * (1.0 - body) * smoothstep(0.75, 1.0, ring) * (1.0 - smoothstep(1.0, 1.45, ring));
+    // Under a high star still a sliver of shadow, which is what sets a stone on the ground.
+    float len = min(max(tall * sun.z, 0.3 * r), cell - r);
+    float along = clamp(-dot(d, sun.xy), 0.0, len);
+    float wide = r * (0.5 + 0.42 / narrow) * mix(1.0, 0.55, along / len);
+    float blur = max(0.75 * px.y, 0.06 * r);
+    float dark = (1.0 - smoothstep(wide - blur, wide + blur, length(d + sun.xy * along))) * (1.0 - body);
+    light *= 1.0 - dark * w;
+  }
+}
+
+// Gravel: the same stones where they are too small to stand up on screen, or where the full
+// stones would cost too much: flat marks, four cells looked at instead of nine. With 'shadows'
+// they cast short ones (0.6 cells at most), and the four cells lie toward the star.
+void gravelLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec2 sunPlane, float px, float strength, bool shadows,
     inout vec2 slope, inout float tint, inout float light) {
   float cell = PERIOD / count;
   if (strength <= 0.0 || 0.2 * cell < 0.8 * px) return;
   vec2 p = q / cell;
-  // A shadow reaches 0.6 cells from its stone, so the four cells looked at lie toward the star.
   vec2 first = floor(p - 0.5 + (shadows ? sunPlane * 0.3 : vec2(0.0)));
   for (int j = 0; j < 4; j++) {
     vec2 c = first + vec2(float(j & 1), float(j >> 1));
@@ -209,40 +291,24 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     float w = smoothstep(0.8, 2.5, r / px) * strength;
     if (w <= 0.0) continue;
     vec2 d = alongGround((p - c - a.xy) * cell);
-    float reach = shadows ? 0.6 * cell + r : 1.6 * r;
+    float reach = shadows ? 0.6 * cell + r : 1.5 * r;
     if (dot(d, d) > reach * reach) continue;
     vec4 b = hashBytes(hashAgain(n));
-    // The stone's own axes; it is up to 1.6 times as long as wide.
     vec2 ax = normalize(b.xy - 0.5 + 0.001);
     vec2 ay = vec2(-ax.y, ax.x);
     float narrow = 1.0 + 0.7 * b.z;
-    vec2 e = vec2(dot(d, ax), dot(d, ay) * narrow) / r;
-    // 1 on the outline of the stone: an ellipse with two pieces cut off straight. 'og' points
-    // outward across the outline; each cut is a flat face.
-    float m = length(e);
-    vec2 og = e / max(m, 1e-4);
-    float c1 = 0.45 + 0.5 * b.w;
-    float c2 = 0.45 + 0.5 * fract((b.x + b.y) * 5.7);
-    float m1 = dot(e, vec2(0.5, 0.866)) / c1;
-    float m2 = dot(e, vec2(0.6, -0.8)) / c2;
-    if (m1 > m) { m = m1; og = vec2(0.5, 0.866) / c1; }
-    if (m2 > m) { m = m2; og = vec2(0.6, -0.8) / c2; }
-    float tall = 0.4 + 0.5 * b.w;
-    if (m < 1.4) {
-      float cover = 1.0 - smoothstep(1.0 - clamp(1.5 * px / r, 0.08, 0.5), 1.0, m);
-      slope -= (ax * og.x + ay * (og.y * narrow)) * (tall * w * cover);
-      tint *= mix(1.0, mix(shade.x, shade.y, a.z / share), w * cover);
-      // Where stone and ground meet, little light gets in.
-      tint *= 1.0 - 0.22 * w * smoothstep(0.75, 1.0, m) * (1.0 - smoothstep(1.0, 1.4, m));
-    }
+    vec2 og;
+    float m = stoneOutline(vec2(dot(d, ax), dot(d, ay) * narrow) / r, 0.45 + 0.5 * vec2(b.w, fract((b.x + b.y) * 5.7)), og);
+    float body = 1.0 - smoothstep(1.0 - clamp(1.5 * px / r, 0.08, 0.6), 1.0, m);
+    slope -= (ax * og.x + ay * (og.y * narrow)) * (0.6 * body * w);
+    tint *= mix(1.0, mix(shade.x, shade.y, a.z / share), w * body);
+    tint *= 1.0 - 0.22 * w * (1.0 - body) * smoothstep(0.75, 1.0, m) * (1.0 - smoothstep(1.0, 1.45, m));
     if (shadows) {
-      // Under a high star still a sliver of shadow, which is what sets a stone on the ground.
-      float len = min(max(r * tall * sun.z, 0.3 * r), 0.6 * cell);
+      float len = min(max((0.7 + 0.8 * b.w) * r * sun.z, 0.3 * r), 0.6 * cell);
       float along = clamp(-dot(d, sun.xy), 0.0, len);
       float wide = r * (0.5 + 0.42 / narrow) * mix(1.0, 0.55, along / len);
-      float soft = max(0.75 * px, 0.06 * r);
-      float dark = (1.0 - smoothstep(wide - soft, wide + soft, length(d + sun.xy * along))) * smoothstep(0.85, 1.05, m);
-      light *= 1.0 - dark * w;
+      float blur = max(0.75 * px, 0.06 * r);
+      light *= 1.0 - (1.0 - smoothstep(wide - blur, wide + blur, length(d + sun.xy * along))) * (1.0 - body) * w;
     }
   }
 }
@@ -298,7 +364,8 @@ void main() {
   // What the terrain function does not have, by the size of a pixel on the ground (its longer
   // side: slanted ground is squeezed on screen): every size of thing is shown while it is a few
   // pixels and is gone before it could flicker.
-  float px = max(length(dFdx(vView)), length(dFdy(vView)));
+  vec2 pixel = vec2(length(dFdx(vView)), length(dFdy(vView)));
+  float px = max(pixel.x, pixel.y);
   float tint = 1.0;
   float starlight = 1.0;
   if (uDetail > 0.0 && px < 21.0) {
@@ -307,17 +374,20 @@ void main() {
     vec3 ab = abs(dirB);
     vec3 sunB = uToBody * (uSunView * normalMatrix);
     vec3 sunFlat = sunB - dirB * dot(sunB, dirB);
+    vec3 eyeB = uToBody * (normalize(-vView) * normalMatrix);
+    vec3 eyeFlat = eyeB - dirB * dot(eyeB, dirB);
     vec2 q;
     vec2 lean;
     vec2 sunPlane;
+    vec2 eyePlane;
     float edge;
     uint face;
     if (ab.x >= ab.y && ab.x >= ab.z) {
-      q = vDetail.yz; lean = dirB.yz / dirB.x; sunPlane = sunFlat.yz; edge = ab.x - max(ab.y, ab.z); face = 0u;
+      q = vDetail.yz; lean = dirB.yz / dirB.x; sunPlane = sunFlat.yz; eyePlane = eyeFlat.yz; edge = ab.x - max(ab.y, ab.z); face = 0u;
     } else if (ab.y >= ab.z) {
-      q = vDetail.zx; lean = dirB.zx / dirB.y; sunPlane = sunFlat.zx; edge = ab.y - max(ab.z, ab.x); face = 1u;
+      q = vDetail.zx; lean = dirB.zx / dirB.y; sunPlane = sunFlat.zx; eyePlane = eyeFlat.zx; edge = ab.y - max(ab.z, ab.x); face = 1u;
     } else {
-      q = vDetail.xy; lean = dirB.xy / dirB.z; sunPlane = sunFlat.xy; edge = ab.z - max(ab.x, ab.y); face = 2u;
+      q = vDetail.xy; lean = dirB.xy / dirB.z; sunPlane = sunFlat.xy; eyePlane = eyeFlat.xy; edge = ab.z - max(ab.x, ab.y); face = 2u;
     }
     // Metres to where the next face's lattice takes over: everything fades out toward that line.
     edge *= 0.7071 * uRadius;
@@ -327,8 +397,15 @@ void main() {
     gStretch = (stretch - 1.0) / max(lean2, 1e-8);
     vec2 sunGround = alongGround(sunPlane);
     float sunLength = max(length(sunGround), 1e-5);
-    vec3 sun3 = vec3(sunGround / sunLength, sunLength / max(dot(sunB, dirB), 0.05));
+    vec3 nlB = uToBody * nl;
+    float sunUp = dot(sunB, nlB);
+    vec3 sun3 = vec3(sunGround / sunLength, sqrt(max(1.0 - sunUp * sunUp, 0.0)) / max(sunUp, 0.05));
     sunPlane /= sunLength;
+    vec2 eyeGround = alongGround(eyePlane);
+    float eyeLength = max(length(eyeGround), 1e-5);
+    float eyeUp = dot(eyeB, nlB);
+    vec3 eye3 = vec3(eyeGround / eyeLength, sqrt(max(1.0 - eyeUp * eyeUp, 0.0)) / max(eyeUp, 0.02));
+    vec2 px2 = vec2(px, min(pixel.x, pixel.y));
 
     vec2 slope = vec2(0.0);
     float mottle = 0.0;
@@ -342,7 +419,7 @@ void main() {
       if (i > 4) show *= uLow;
       if (show > 0.0) {
         vec3 nz = planeNoise(q / cell + vec2(0.37, 0.73) * float(i), count, face + 16u * uint(i + 1));
-        float rough = i == 0 ? 0.15 : i == 1 ? 0.10 : i == 2 ? 0.055 : i == 3 ? 0.03 : i == 4 ? 0.018 : 0.0;
+        float rough = i == 0 ? 0.14 : i == 1 ? 0.085 : i == 2 ? 0.042 : i == 3 ? 0.026 : i == 4 ? 0.016 : 0.0;
         float patchy = i == 0 ? 0.11 : i == 1 ? 0.07 : i == 2 ? 0.055 : i == 3 ? 0.05 : 0.045;
         slope += nz.xy * (rough * show);
         mottle += nz.z * (patchy * show);
@@ -355,7 +432,7 @@ void main() {
 
     // How much there is of what, by the kind of ground: ice has few blocks, brighter than the
     // dusty plain, and few pits; a desert is gravel with hardly a crater.
-    float stones = uKind == 1 ? 0.3 : uKind == 2 ? 0.75 : 0.55;
+    float stones = uKind == 1 ? 0.22 : uKind == 2 ? 0.6 : 0.42;
     float craters = uKind == 1 ? 0.3 : uKind == 2 ? 0.22 : 0.62;
     vec2 shade = uKind == 1 ? vec2(0.95, 1.45) : uKind == 2 ? vec2(0.72, 1.25) : vec2(0.68, 1.42);
     float e16 = clamp(edge / 16.0, 0.0, 1.0);
@@ -364,9 +441,14 @@ void main() {
     craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * e16, slope, tint);
     craterLayer(q, 800.0, face + 272u, craters, 0.85, px, e5, slope, tint);
     craterLayer(q, 2560.0, face + 288u, craters, 1.0, px, e1, slope, tint);
-    stoneLayer(q, 4000.0, face + 304u, stones, shade, sun3, sunPlane, px, e1, full, slope, tint, starlight);
-    stoneLayer(q, 12800.0, face + 320u, stones, shade, sun3, sunPlane, px, e1, full, slope, tint, starlight);
-    if (full) stoneLayer(q, 40000.0, face + 336u, stones, shade, sun3, sunPlane, px, e1, true, slope, tint, starlight);
+    if (full) {
+      stoneLayer(q, 4000.0, face + 304u, stones, shade, sun3, eye3, px2, e1, slope, tint, starlight);
+      stoneLayer(q, 12800.0, face + 320u, stones, shade, sun3, eye3, px2, e1, slope, tint, starlight);
+      gravelLayer(q, 40000.0, face + 336u, stones, shade, sun3, sunPlane, px, e1, true, slope, tint, starlight);
+    } else {
+      gravelLayer(q, 4000.0, face + 304u, stones, shade, sun3, sunPlane, px, e1, false, slope, tint, starlight);
+      gravelLayer(q, 12800.0, face + 320u, stones, shade, sun3, sunPlane, px, e1, false, slope, tint, starlight);
+    }
 
     tint *= 1.0 + mottle * (uKind == 1 ? 0.7 : 1.0);
     // The slope along the ground, back in the lattice plane, then in body-fixed axes.

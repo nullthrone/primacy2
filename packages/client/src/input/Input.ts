@@ -58,6 +58,12 @@ export class Input {
   /** Flight mode as of the latest tick or mode change. */
   private mode: FlightMode = FlightMode.Docked;
   private padHeld = new Set<BindAction>();
+  /**
+   * Actions whose button was down while a menu or panel had the pad. They stay out of `padHeld`
+   * until the button is let go: A that pressed "Resume" must not thrust up afterwards.
+   */
+  private padStale = new Set<BindAction>();
+  private padWasBlocked = false;
   private padState: PadState = emptyPadState();
   private padAxes: Readonly<Record<PadAxisAction, number>> = ZERO_AXES;
   private lastLever: number | null = null;
@@ -215,7 +221,21 @@ export class Input {
     const s = store.settings.value;
     const r = readPads(pads, s.bindings, s.pad ?? DEFAULT_PAD_SETTINGS, this.padState);
     this.padState = r.state;
-    this.padHeld = r.held;
+    // While the start screen or a panel has the pad, its buttons press controls there. One that is
+    // still down when flight takes over again would fly the ship (A is thrust up, B thrust down),
+    // so it waits for its release. The frame after counts too, because the menu loop may close the
+    // panel before this loop has seen the button. It hangs on the panel, not on `active()`, so that
+    // the press that takes the device over from the mouse works at once; and a fold between two
+    // servers is not a menu, so what is held through it stays held.
+    const phase = store.phase.value;
+    const blocked = store.panel.value !== null || phase === 'menu' || phase === 'connecting' || phase === 'error';
+    if (blocked || this.padWasBlocked) {
+      this.padStale = new Set(r.held);
+    } else {
+      for (const a of this.padStale) if (!r.held.has(a)) this.padStale.delete(a);
+    }
+    this.padWasBlocked = blocked;
+    this.padHeld = withoutStale(r.held, this.padStale);
     this.padAxes = r.axes;
 
     for (const e of r.edges) store.padButton.value = { seq: ++this.padSeq, n: e.button, standard: e.standard };
@@ -368,6 +388,14 @@ export class Input {
 }
 
 const clamp = (x: number, lo: number, hi: number): number => (x < lo ? lo : x > hi ? hi : x);
+
+/** The held actions that count for flight: all of them, minus those waiting for their release. */
+function withoutStale(held: Set<BindAction>, stale: Set<BindAction>): Set<BindAction> {
+  if (stale.size === 0) return held;
+  const out = new Set<BindAction>();
+  for (const a of held) if (!stale.has(a)) out.add(a);
+  return out;
+}
 
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;

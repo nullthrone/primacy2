@@ -127,6 +127,16 @@ export function stepRepeat(r: Repeat, dir: Dir | null, now: number): { fire: boo
 
 const FOCUSABLE = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const MARK = 'padfocus';
+
+/**
+ * Puts the focus mark back on the focused element when it is missing. The mark is a class added
+ * by hand, and the page framework writes the whole class attribute when the element's own classes
+ * change (a tab that turns "on", "Assign" that becomes "Cancel"). That wipes the mark while the
+ * element is still the one A acts on, so every frame checks it.
+ */
+export function keepMark(el: { isConnected: boolean; classList: { contains(name: string): boolean; add(name: string): void } } | null): void {
+  if (el && el.isConnected && !el.classList.contains(MARK)) el.classList.add(MARK);
+}
 const isTextLike = (el: Element): boolean => {
   if (el instanceof HTMLTextAreaElement) return true;
   if (!(el instanceof HTMLInputElement)) return false;
@@ -245,6 +255,8 @@ export class PadNav {
       // A panel that opens under controller use gets its focus at once; otherwise at the first press.
       if (c && store.device.value === 'pad') this.set(this.initial(c));
     }
+    // Before the early return below: the binding screen rewrites the class of "Assign" as well.
+    keepMark(this.current);
     // The binding screen is listening for a button: nothing here may react to it.
     if (!c || store.padCapturing.value) {
       this.repeat = NO_REPEAT;

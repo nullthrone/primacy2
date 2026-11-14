@@ -280,12 +280,12 @@ Surf surface(vec3 nb, vec3 sunB) {
   // sample toward the sun. (A body with a baked map shows its real terrain at this range instead.)
   float geo = dot(nb, sunB);
   vec3 along = vec3(1.0, 1.7, 1.0);
-  vec4 f = fineNoise(nb * along, FINE, gSlant * 1.7, 0.7);
+  vec4 f = fineNoise(nb * along, FINE, gSlant * 2.5, 0.7);
   if (f.w > 0.0) {
     // Sand lies in fields between barer ground; rock carries almost none.
     float sand = (0.35 + 0.65 * smoothstep(0.45, 0.75, dunes)) * (1.0 - 0.7 * rock);
     s.albedo *= clamp(1.0 + sand * (0.05 * f.x - 0.03 * f.y), 0.6, 1.4);
-    if (geo > -0.2) s.fineRise = 0.0016 * sand * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 1.7, 0.7).z - f.z);
+    if (geo > -0.2) s.fineRise = 0.0016 * sand * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 2.5, 0.7).z - f.z);
   }
   if (geo < -0.35) s.bump = 0.0;
 #endif
@@ -322,7 +322,6 @@ Surf surface(vec3 nb, vec3 sunB) {
   float crust = fbm(p * 6.0, uOct);
   s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);
   s.albedo *= clamp(1.0 + 0.22 * f.x, 0.5, 1.6);
-  if (f.w > 0.0 && heat < 0.5 && geo > -0.2) s.fineRise = 0.004 * (fineNoise(nb + gSunStep, FINE, gSlant, 0.7).z - f.z);
   float flick = 0.88 + 0.12 * gnoise(p * 5.0 + vec3(uTime * 0.2));
   vec3 glow = mix(vec3(0.9, 0.06, 0.0), vec3(2.2, 0.55, 0.04), smoothstep(0.15, 0.6, heat));
   glow = mix(glow, vec3(5.0, 2.6, 0.7), smoothstep(0.6, 1.0, heat));
