@@ -105,6 +105,8 @@ struct Surf {
 };
 // Low-frequency warp of the current pixel, shared between the surface and its height field.
 vec3 gWarp;
+// Distance of the relief samples from the pixel, in body radii: about two pixels.
+float gEps;
 Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0); }
 vec3 seedOff() { return vec3(uSeed * 1.37, uSeed * 0.71 + 3.0, uSeed * 2.11 + 7.0); }
 vec3 rotY(vec3 p, float a) {
@@ -269,11 +271,19 @@ float hfield(vec3 nb) {
   vec3 p = nb * 1.45 + seedOff();
   float cont = fbm(p + gWarp * 0.8, uOct) + 0.30 * fbm(p * 3.3 + 4.0, uOct);
   float elev = max(cont - uPar.x, 0.0);
-  float mount = ridged(p * 3.2 + gWarp * 1.5, uOct) * smoothstep(0.04, 0.28, elev);
+  float mount = elev > 0.04 ? ridged(p * 3.2 + gWarp * 1.5, uOct) * smoothstep(0.04, 0.28, elev) : 0.0;
   return smoothstep(uPar.x - 0.004, uPar.x + 0.012, cont) * (elev * 0.5 + mount * 0.35);
 }
+// Every term is worked out only where it can show: the sea needs no land cover, the day side no
+// settlement lights, and so on. The shader runs for every pixel of a planet that fills the view.
 Surf surface(vec3 nb, vec3 sunB) {
   Surf s = blank();
+  float geo = dot(nb, sunB);
+  float cl = cloudAt(nb);
+  s.cloud = cl * 0.95;
+  s.cloudShadow = s.cloud;
+  // Past the terminator there is no direct light left for a shadow to take away.
+  if (uOct >= 5 && geo > -0.2) s.cloudShadow = cloudAt(normalize(nb + sunB * 0.02));
   vec3 p = nb * 1.45 + seedOff();
   int lo = min(uOct, 4);
   vec3 warp = vec3(fbm(p + 1.7, lo), fbm(p + 5.2, lo), fbm(p + 9.1, lo));
@@ -283,32 +293,42 @@ Surf surface(vec3 nb, vec3 sunB) {
   float land = smoothstep(sea - 0.004, sea + 0.012, cont);
   float elev = max(cont - sea, 0.0);
   float lat = abs(nb.y);
-  float mount = ridged(p * 3.2 + warp * 1.5, uOct) * smoothstep(0.04, 0.28, elev);
-  float temp = 1.0 - lat * 1.05 - elev * 0.5 - mount * 0.25 + fbm(p * 2.1 + 17.0, lo) * 0.14;
-  float dry = smoothstep(0.12, 0.3, lat) * smoothstep(0.5, 0.3, lat);
-  float moist = clamp(0.5 + fbm(p * 1.9 + 23.0, lo) * 1.4 - 0.35 * dry, 0.0, 1.0);
-  vec3 forest = vec3(0.035, 0.105, 0.03), grass = vec3(0.13, 0.19, 0.055), sand = vec3(0.46, 0.36, 0.20);
-  vec3 rock = vec3(0.22, 0.19, 0.16), snow = vec3(0.86, 0.89, 0.93), tundra = vec3(0.20, 0.19, 0.13);
-  vec3 lc = mix(sand, mix(grass, forest, smoothstep(0.45, 0.8, moist)), smoothstep(0.22, 0.48, moist));
-  lc = mix(lc, tundra, smoothstep(0.42, 0.26, temp));
-  lc = mix(lc, rock, smoothstep(0.45, 0.85, mount));
-  lc = mix(lc, snow, smoothstep(0.24, 0.15, temp));
-  lc = mix(sand * 1.1, lc, smoothstep(0.0, 0.02, elev));
-  vec3 deep = vec3(0.006, 0.028, 0.095), shallow = vec3(0.02, 0.16, 0.24);
-  float depth = clamp((sea - cont) * 5.0, 0.0, 1.0);
-  vec3 sc = mix(shallow, deep, smoothstep(0.0, 0.35, depth));
-  float seaIce = smoothstep(0.80, 0.86, lat + fbm(p * 5.0, lo) * 0.07);
-  sc = mix(sc, snow * 0.92, seaIce);
+  vec3 snow = vec3(0.86, 0.89, 0.93);
+  vec3 sc = vec3(0.0), lc = vec3(0.0);
+  float seaIce = 0.0, mount = 0.0;
+  if (land < 1.0) {
+    vec3 deep = vec3(0.006, 0.028, 0.095), shallow = vec3(0.02, 0.16, 0.24);
+    float depth = clamp((sea - cont) * 5.0, 0.0, 1.0);
+    sc = mix(shallow, deep, smoothstep(0.0, 0.35, depth));
+    // The noise moves the ice edge by at most 0.07 of latitude.
+    if (lat > 0.72) seaIce = smoothstep(0.80, 0.86, lat + fbm(p * 5.0, lo) * 0.07);
+    sc = mix(sc, snow * 0.92, seaIce);
+  }
+  if (land > 0.0) {
+    if (elev > 0.04) mount = ridged(p * 3.2 + warp * 1.5, uOct) * smoothstep(0.04, 0.28, elev);
+    float temp = 1.0 - lat * 1.05 - elev * 0.5 - mount * 0.25 + fbm(p * 2.1 + 17.0, lo) * 0.14;
+    float dry = smoothstep(0.12, 0.3, lat) * smoothstep(0.5, 0.3, lat);
+    float moist = clamp(0.5 + fbm(p * 1.9 + 23.0, lo) * 1.4 - 0.35 * dry, 0.0, 1.0);
+    vec3 forest = vec3(0.035, 0.105, 0.03), grass = vec3(0.13, 0.19, 0.055), sand = vec3(0.46, 0.36, 0.20);
+    vec3 rock = vec3(0.22, 0.19, 0.16), tundra = vec3(0.20, 0.19, 0.13);
+    lc = mix(sand, mix(grass, forest, smoothstep(0.45, 0.8, moist)), smoothstep(0.22, 0.48, moist));
+    lc = mix(lc, tundra, smoothstep(0.42, 0.26, temp));
+    lc = mix(lc, rock, smoothstep(0.45, 0.85, mount));
+    lc = mix(lc, snow, smoothstep(0.24, 0.15, temp));
+    lc = mix(sand * 1.1, lc, smoothstep(0.0, 0.02, elev));
+    if (geo < 0.02) {
+      float pop = smoothstep(0.42, 0.62, 0.5 + fbm(p * 5.0 + 40.0, lo)) * smoothstep(0.25, 0.5, temp) * (1.0 - smoothstep(0.3, 0.6, mount));
+      float grain = uOct >= 6 ? smoothstep(0.55, 0.9, 0.5 + 0.9 * gnoise(p * 150.0)) * 1.4 : 0.10;
+      s.night = land * pop * grain * uPar.w;
+    }
+  }
   s.albedo = mix(sc, lc, land);
   s.spec = (1.0 - land) * (1.0 - seaIce);
   s.gloss = 420.0;
   s.height = land * (elev * 0.5 + mount * 0.35);
-  s.bump = 0.9;
-  float pop = smoothstep(0.42, 0.62, 0.5 + fbm(p * 5.0 + 40.0, lo)) * smoothstep(0.25, 0.5, temp) * (1.0 - smoothstep(0.3, 0.6, mount));
-  float grain = uOct >= 6 ? smoothstep(0.55, 0.9, 0.5 + 0.9 * gnoise(p * 150.0)) * 1.4 : 0.10;
-  s.night = land * pop * grain * uPar.w;
-  s.cloud = cloudAt(nb) * 0.95;
-  s.cloudShadow = uOct >= 5 ? cloudAt(normalize(nb + sunB * 0.02)) : s.cloud;
+  // Relief costs two more samples of the height field: none over open sea (with a margin for the
+  // samples that reach across a coast), under closed cloud or deep in the night.
+  s.bump = cont > sea - 0.004 - 4.0 * gEps && geo > -0.35 && cl < 0.999 ? 0.9 : 0.0;
   return s;
 }
 #else
@@ -344,8 +364,10 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec3 dv = nr - sc;
   float sd = length(vec3(dv.x, dv.y * 2.3, dv.z));
   float spot = smoothstep(0.26, 0.12, sd) * uPar.z;
-  float swirl = fbm(rotY(nr, (0.3 - sd) * 9.0) * 9.0 + so, lo);
-  col = mix(col, mix(mix(cAlt, uBase * vec3(1.25, 0.55, 0.35), warm), cLight, clamp(0.5 + swirl, 0.0, 1.0)), spot * 0.85);
+  if (spot > 0.0) {
+    float swirl = fbm(rotY(nr, (0.3 - sd) * 9.0) * 9.0 + so, lo);
+    col = mix(col, mix(mix(cAlt, uBase * vec3(1.25, 0.55, 0.35), warm), cLight, clamp(0.5 + swirl, 0.0, 1.0)), spot * 0.85);
+  }
   col = mix(col, uBase * vec3(0.55, 0.62, 0.75), smoothstep(0.72, 0.98, abs(lat)) * 0.6);
   s.albedo = col;
   s.limb = 0.9;
@@ -357,12 +379,13 @@ Surf surface(vec3 nb, vec3 sunB) {
 const PLANET_MAIN = /* glsl */ `
 // The procedural look: d is the view ray, n the sphere normal, nb the same in the body's frame.
 vec3 procedural(vec3 d, vec3 n, vec3 nb) {
+  gEps = max(2.0 * uPix * dot(d, uCenter) / uRadius, 0.0012);
   Surf s = surface(nb, uRot * uSunDir);
   float ndv = max(dot(n, -d), 0.0);
   vec3 nn = n;
   if (s.bump > 0.0 && uOct >= 4) {
     // Relief: the gradient of the height field from two more samples about a pixel away.
-    float eps = max(2.0 * uPix * dot(d, uCenter) / uRadius, 0.0012);
+    float eps = gEps;
     vec3 t1 = normalize(cross(nb, abs(nb.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
     vec3 t2 = cross(nb, t1);
     float h1 = hfield(normalize(nb + t1 * eps)), h2 = hfield(normalize(nb + t2 * eps));
