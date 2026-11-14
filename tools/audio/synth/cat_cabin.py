@@ -40,17 +40,17 @@ def cabin_ambience(ctx):
     n = ctx.n
     s = lambda name, ch: seeded("cabin/%s/%d" % (name, ch))
     # life-support fan: broad air noise, blade-pass partials that beat, a faint motor whine
-    air = _stereo(lambda c: periodic_noise(n, "pink", s("air", c), lo=90, hi=2200, order=2))
+    air = _stereo(lambda c: periodic_noise(n, "pink", s("air", c), lo=80, hi=1300, order=3))
     blades = _stereo(lambda c: machine_tone(n, 146.0, (1, 2, 3), (1.0, 0.45, 0.2), beat_hz=0.35,
                                             flutter_hz=0.6, flutter=0.004, rng=s("blades", c)))
     whine = _stereo(lambda c: machine_tone(n, 1180.0, (1,), (1.0,), beat_hz=0.2, flutter_hz=0.4,
                                            flutter=0.002, rng=s("whine", c)))
     hum = _stereo(lambda c: transformer_tone(n, 100.0, 0.0, s("hum", c)))
     drift = 1.0 + 0.08 * slow_wander(n, s("drift", 0), 0.1, 0.8)  # the fan breathes a little
-    bed = (1.0 * air + 0.30 * blades + 0.015 * whine + 0.10 * hum) * drift[:, None]
+    bed = (1.0 * air + 0.55 * blades + 0.015 * whine + 0.22 * hum) * drift[:, None]
     bed = normalize_rms(bed)
     ticks = thermal_ticks(n, 5, seeded("cabin/ticks/ambience"))
-    dry = bed + 0.35 * ticks
+    dry = bed + 3.5 * ticks
     return apply_cabin(dry, periodic=True)
 
 
@@ -63,7 +63,7 @@ def silent_running(ctx):
     bed = normalize_rms(hum) * 1.0 + 0.45 * normalize_rms(noise)
     bed = normalize_rms(bed)
     ticks = thermal_ticks(n, 4, seeded("cabin/ticks/silent"), min_gap_s=2.0)
-    dry = bed + 0.9 * ticks
+    dry = bed + 4.5 * ticks
     return apply_cabin(dry, periodic=True)
 
 

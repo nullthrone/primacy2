@@ -1,0 +1,44 @@
+{
+  "summary": "The audition page is built: placeholder renderer, dev-server plugin, Preact page (library, engine group, three scenes, ratings, German/English) and a Playwright check. The check is green (18 passed) against placeholder sounds and tsc shows no error in the files of this area.",
+  "built": [
+    "tools/audio/placeholder.py",
+    "packages/client/dev/auditionPlugin.ts (registered in packages/client/vite.config.ts, apply serve)",
+    "packages/client/dev/audition.html",
+    "packages/client/src/dev/audition/{main.tsx,App.tsx,Library.tsx,ScenesView.tsx,engine.ts,scenes.ts,sceneRunner.ts,ratings.ts,strings.ts,types.ts,audition.css}",
+    "tools/dev/audition-check.mjs",
+    "assets/audio/render/** (placeholder WAVs, spectrogram PNGs, manifest.json; ignored by git)",
+    "screenshots/audition/*.png (ignored by git)"
+  ],
+  "verified": [
+    "node tools/dev/audition-check.mjs against the page on a vite dev server: 18 passed, 0 failed (manifest count equals row count 64; one-shot, loop and keyboard play give a peak above 0.001; engine group at thrust 0 sounds idle only, at 0.375 two neighbours with squared gains summing to 1, at 1.4 boost alone; all three written sequences start and reach their end at 25x speed with no console error; a star, a verdict and a note reach assets/audio/ratings.json; the Only-unrated filter hides the rated sound; Export yields a download that holds the rating; a doctored manifest with a failed check and a removed sensor_proximity_tick shows the failed rules and the missing list without an exception; a 404 manifest shows the red banner with the build command)",
+    "Server limits, checked inside audition-check.mjs: traversal probes sent as raw HTTP (render/../../../package.json and %2e%2e variants) and the bare render directory give 403, a 1.1 MB PUT gives 413, a non-JSON PUT gives 400. Cache-Control no-store and content types for wav, png and json seen with curl.",
+    "npx tsc -p packages/client from the repository root: no output at the last run",
+    "placeholder.py refuses (exit 1) when the manifest says placeholder false and regenerates 64 sounds when it says true; cabin_ambience_loop checked as 2 channels, 12 s, 48 kHz PCM_16",
+    "Screenshots opened and read at 1280x720: library-top-de.png and library-top-en.png show the header in two rows (title, scene tabs, export/import, DE/EN; then master, cabin, radio filter, limiter, peak meter, stop all, save status), the amber placeholder banner with the render command, the rated counter with filter, the Engines heading and the first row with play button, badges, spectrogram, check summary, stars, three verdict buttons and a note field. engine-group.png shows the group running at thrust 1.40 with only the boost level bar full and the meter live. scene-combat, scene-landing and scene-docking running shots show the Running state at 21 of 40 s, the progress bar, the three sliders moved by the script, a lit toggle button in combat, and the meter with limiter reduction. library-failed-checks.png shows the red failed list, four lit stars and the Close verdict lit. scene-docking-missing.png shows the dashed amber list naming sensor_proximity_tick. manifest-missing.png shows the red banner, the command and a retry button. Fixed after looking: the header was three rows high, the meter track collapsed to a sliver, readouts wrapped and overlapped Stop all, the seconds badge was uppercased, and the engine group's idle row showed Stop for a loop it had not started."
+  ],
+  "notVerified": [
+    "Nothing was listened to. The signal checks only prove that the peak at the analyser is above 0.001. The equal-power crossfade is checked on the target gains, not on the audible result.",
+    "Radio filter, cabin convolver and squelch ends ran without console error but their sound was not judged; in the placeholder manifest cabin_ir is a synthetic noise decay.",
+    "Loop seam gaplessness (AudioBufferSourceNode.loop) holds by construction and was not measured.",
+    "Only Chromium was tried. The AudioContext is created at 48000 Hz and relies on the browser resampling if the device differs.",
+    "The check was not run against port 5183 as written in the brief (see deviations); it ran against 5184 through AUDITION_URL.",
+    "The German scene tabs were not screenshotted, only the library in German; the missing-sound and 404 screenshots are English.",
+    "Manifests with downloaded files (file path starting with ../downloads/) were not tried; the URL resolver and the plugin allow-list are written for it but unexercised.",
+    "The Import button was not exercised by the check.",
+    "No real manifest from tools/audio/build.py was available; fields read from it follow SOUND_DESIGN.md section 3."
+  ],
+  "deviations": [
+    "Port 5183 was occupied by a vite dev server of the main checkout (PID 37712, node_modules of C:\\Claude Code\\LOCAL\\primacy2) that I did not start; I did not kill it and used 5184 instead. audition-check.mjs reads AUDITION_URL and defaults to the brief's http://localhost:5183/dev/audition.html. My own server on 5184 is stopped and the port is free; the one on 5183 was still running when I finished.",
+    "The check's traversal probes go out through node's http module, not the browser, because a browser removes the dot segments before sending.",
+    "sounds.json carries no dry or channels field, so placeholder.py derives dry from the category (alarms, sensors, radio) and channels from a fixed id list (cabin_ambience_loop, silent_running_loop, cabin_ir are 2 channels).",
+    "The global radio switch bypasses filter, squelch and hiss for all radio-routed sounds when off; the per-row via-radio switch is not offered on rows of path radio.",
+    "Extras not in the brief: keyboard shortcuts on a focused row (1 to 5 stars, F, C, W), an Import button, a merge of the browser copy with the server's ratings.json at start (the newer savedAt wins), and a ?speed=N query parameter besides window.__audition.speed."
+  ],
+  "openIssues": [
+    "Decoded buffers are cached per page load; reload the page to hear files that were rendered again.",
+    "A scene's engine group starts only when the scene is made live; moving sliders in a silent scene changes nothing audible, by design.",
+    "ratings.json carries the manifest's placeholder flag and count, so ratings given on placeholder sounds are marked as such; the owner should wait for the real library before rating.",
+    "packages/client/dev/auditionPlugin.ts is type-checked only through its import in vite.config.ts."
+  ],
+  "forNextAgent": "The owner opens the page with npm run dev:client (repository root, port 5173), then http://localhost:5173/dev/audition.html. There he plays every sound on its row (loops toggle), hears the engine levels crossfaded with the thrust slider, switches master volume, cabin, radio filter and limiter, watches the peak meter and its CLIP lamp, plays three scenes live (sliders, boost, event buttons) or as a written 40 second sequence, rates each sound with stars, a verdict and a note (keys 1-5, F, C, W on a focused row), writes a note per scene and a general note, filters to unrated sounds, and gets the ratings in assets/audio/ratings.json automatically (Export downloads the same file). DE/EN switches the language. The page needs assets/audio/render/manifest.json: .venv-audio/Scripts/python.exe tools/audio/placeholder.py writes stand-ins (it refuses over a real manifest unless --force); tools/audio/build.py writes the real one. Manifest fields used: id, file, spectrogram, category, kind (loop, oneshot, ir), path, family, params.thrust, de/en, intent, duration, channels, gain, dry, checks, licence, source, and top-level placeholder and categories. The scene mapping is all in packages/client/src/dev/audition/scenes.ts (plain data, ids only; unknown ids are skipped and listed on the scene). Test hooks on window.__audition: speed, sceneRuns, peak, peakMax, resetPeak(), groupLevels(). To run the check: cd packages/client && npx vite --port 5183 --strictPort in the background, then from the repository root node tools/dev/audition-check.mjs (AUDITION_URL overrides the address); it backs up and restores assets/audio/ratings.json and writes screenshots to screenshots/audition/. Python edits of these files need encoding utf-8 on this Windows (the default is cp1252). Stop the vite server afterwards and check the port with netstat -ano | grep ':<port> '."
+}

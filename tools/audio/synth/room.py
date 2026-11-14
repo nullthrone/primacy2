@@ -21,7 +21,7 @@ def _image_arrivals(src, dst, order: int = 3, absorb: float = 0.82):
         bounces = sum(abs(i) for i in idx)
         if bounces > order or bounces == 0:
             continue
-        img = np.array([(i * 2 * L[k] + (src[k] if i % 2 == 0 else L[k] - src[k]))
+        img = np.array([(i * L[k] + (src[k] if i % 2 == 0 else L[k] - src[k]))
                         for k, i in enumerate(idx)])
         d = float(np.linalg.norm(img - dst))
         out.append((d / C, absorb**bounces / max(d, 0.3)))

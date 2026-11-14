@@ -1,0 +1,74 @@
+[
+  {
+    "name": "dead zone switched off",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (a <= dz) return 0;",
+    "replace": "if (false) return 0;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["is zero inside the dead zone"]
+  },
+  {
+    "name": "chord suppression of plain bindings switched off",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "isOn = down(p, k.n) && !modHeld && !mods.has(k.n);",
+    "replace": "isOn = down(p, k.n);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["fires the chord action and silences", "gives the modifier no action of its own"]
+  },
+  {
+    "name": "chord does not need the target to be pressed second",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "isOn = before.on.has(key) || !was?.[k.n];",
+    "replace": "isOn = true;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["does not fire a chord when the target was held before the modifier"]
+  },
+  {
+    "name": "device match accepts every device",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "return dev === 'std' ? p.mapping === 'standard' : deviceKey(p.id) === dev;",
+    "replace": "return true;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["std matches only standard devices", "a device key matches only its device"]
+  },
+  {
+    "name": "release on disconnect forgotten",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "  const pressed: BindAction[] = [];",
+    "replace": "  for (const a of before.held) held.add(a);\n  const pressed: BindAction[] = [];",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["releases what a vanished device held"]
+  },
+  {
+    "name": "single-press edge switched off",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "for (const a of held) if (!before.held.has(a)) pressed.push(a);",
+    "replace": "for (const a of held) pressed.push(a);",
+    "tests": ["packages/client/src/input/gamepad.test.ts", "packages/client/src/input/input.test.ts"],
+    "expect": ["holds a button and fires a single press once", "turns a pad press into the same action as a key"]
+  },
+  {
+    "name": "axis half hysteresis removed",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "isOn = v > (before.on.has(key) ? AXIS_OFF : AXIS_ON);",
+    "replace": "isOn = v > AXIS_ON;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["turns on above 0.5 and off below 0.4"]
+  },
+  {
+    "name": "capture ignores the resting value of an axis",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "const move = (p.axes[a] ?? 0) - (b.axes[a] ?? 0);",
+    "replace": "const move = (p.axes[a] ?? 0);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["judges an axis against its resting value"]
+  },
+  {
+    "name": "stick aim ignores the turn rate",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "const px = pa.yaw * this.turnRates[0] * k;",
+    "replace": "const px = pa.yaw * k;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["asks for deflection * turn rate * dt"]
+  }
+]

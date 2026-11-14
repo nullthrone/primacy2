@@ -79,7 +79,9 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
         j = judge(clap, common.to_mono(data), sr, pos, neg)
         checks["clap"] = {"best": j.get("bestPos") or j["best"], "margin": j.get("margin"),
                           "bestNeg": j.get("bestNeg")}
-        if j.get("margin") is not None and j["margin"] <= 0:
+        # an impulse response is a tool for the convolver, not a sound anyone hears by itself:
+        # its CLAP margin is recorded but does not decide pass or fail
+        if j.get("margin") is not None and j["margin"] <= 0 and s["kind"] != "ir":
             failed.append("clap-margin")
     if describe_fn is not None:
         checks["described"] = describe_fn(wav)
@@ -169,6 +171,42 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
     return manifest
 
 
+REQUIRED = ("id", "file", "spectrogram", "category", "kind", "path", "en", "de", "intent", "source",
+            "licence", "duration", "channels", "gain", "dry", "checks")
+
+
+def validate_manifest(manifest: dict, out: Path) -> list[str]:
+    """Check the manifest against the contract of SOUND_DESIGN.md section 3. Returns problems."""
+    bad = []
+    if manifest.get("version") != 1:
+        bad.append("version is not 1")
+    cats = {c["id"] for c in manifest.get("categories", [])}
+    seen = set()
+    for s in manifest.get("sounds", []):
+        name = s.get("id", "?")
+        for k in REQUIRED:
+            if k not in s:
+                bad.append("%s: missing %s" % (name, k))
+        if name in seen:
+            bad.append("%s: listed twice" % name)
+        seen.add(name)
+        if s.get("category") not in cats:
+            bad.append("%s: category %r not listed" % (name, s.get("category")))
+        if s.get("kind") not in ("loop", "oneshot", "ir"):
+            bad.append("%s: kind %r" % (name, s.get("kind")))
+        if s.get("source") not in ("synth", "download"):
+            bad.append("%s: source %r" % (name, s.get("source")))
+        if s.get("file") and not (out / s["file"]).is_file():
+            bad.append("%s: file %s not found" % (name, s["file"]))
+        if s.get("source") == "synth" and s.get("spectrogram") and not (out / s["spectrogram"]).is_file():
+            bad.append("%s: spectrogram not found" % name)
+        c = s.get("checks", {})
+        for k in ("pass", "failed", "peakDb", "lufs", "lowShare", "highShare"):
+            if s.get("source") == "synth" and k not in c:
+                bad.append("%s: checks.%s missing" % (name, k))
+    return bad
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--only", help="comma separated sound ids")
@@ -209,11 +247,18 @@ def main(argv=None) -> int:
             except Exception as e:
                 print("CLAP not available (%s: %s); continuing without it" % (type(e).__name__, e))
         describe_fn = None
-        if args.describe:
-            if (HERE / "listen" / "describe.py").is_file():
-                print("note: listen/describe.py exists but its interface is not wired into the build yet")
-            else:
-                print("note: --describe given but tools/audio/listen/describe.py does not exist yet")
+        if args.describe and todo:
+            try:
+                from describe import Describer
+
+                describer = Describer()  # loaded once per run
+
+                def describe_fn(wav):
+                    d, sr = common.load_audio(wav)
+                    return describer.ask(common.to_mono(d), sr, "What is this sound?")
+            except BaseException as e:  # the model may not fit or may be missing: not a build failure
+                print("describing model not available (%s: %s); continuing without it" % (type(e).__name__, e))
+                describe_fn = None
         t0 = time.time()
         for sid in todo:
             try:
@@ -236,6 +281,11 @@ def main(argv=None) -> int:
         print("rendered %d in %.1f s" % (len(todo), time.time() - t0))
     manifest = assemble_manifest(out, measure, common)
     print("manifest: %d sounds in %s" % (len(manifest["sounds"]), out / "manifest.json"))
+    problems = validate_manifest(manifest, out)
+    for p in problems:
+        print("manifest problem: " + p)
+    print("manifest validates against the contract" if not problems else "manifest has %d problems" % len(problems))
+    failures += len(problems)
     return 1 if failures else 0
 
 

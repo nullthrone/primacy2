@@ -260,3 +260,28 @@
 @keyframes heat-rise { to { background-position-x: 0.8em; } }
 @media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
 @media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .map-body aside { max-height: none; } .settings { grid-template-columns: 1fr; } .customs { grid-template-columns: 1fr; } }
+
+/* Controller binding screen */
+.settings .span-all { grid-column: 1 / -1; }
+.start-card.wide { width: min(58em, 94vw); max-height: 92vh; overflow: auto; }
+.panel.wide:has(.bindings) { overflow: auto; }
+.bindings { display: flex; flex-direction: column; gap: 0.5em; }
+.bindings h3, .bindings h4 { color: var(--cyan); }
+.bindings h4 { font-size: 0.85em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-top: 0.6em; }
+.bindings .row.between { justify-content: space-between; }
+.bindings .small { font-size: 0.85em; margin: 0; }
+.bindings .device { display: flex; justify-content: space-between; gap: 1em; border-left: 2px solid var(--line); padding: 0.15em 0.8em; }
+.bindings .listen { border-left: 2px solid var(--amber); padding: 0.3em 0.8em; color: var(--amber); }
+.bind-table { width: 100%; border-collapse: collapse; }
+.bind-table th { text-align: left; color: var(--dim); font-weight: 600; padding: 0.2em 0.5em; border-bottom: 1px solid var(--line); }
+.bind-table td { padding: 0.15em 0.5em; border-bottom: 1px solid rgba(127, 233, 255, 0.08); }
+.bind-table tr.listening td { background: rgba(255, 179, 71, 0.1); color: var(--amber); }
+.bind-table td.acts { display: flex; gap: 0.4em; justify-content: flex-end; }
+.bindings .slider { display: flex; flex-direction: column; gap: 0.1em; color: var(--dim); min-width: 9em; }
+.bindings .check { display: flex; flex-direction: row; align-items: center; gap: 0.4em; }
+.axis-block { display: flex; flex-direction: column; gap: 0.3em; padding: 0.4em 0.8em; border-left: 2px solid var(--line); }
+.axis-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6em 1em; }
+.axis-row .axis-name { min-width: 11em; color: var(--dim); }
+.meter { position: relative; flex: 0 0 9em; height: 0.7em; background: rgba(127, 233, 255, 0.08); border: 1px solid var(--line); }
+.meter::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.meter i { position: absolute; top: 0; bottom: 0; background: var(--cyan); }

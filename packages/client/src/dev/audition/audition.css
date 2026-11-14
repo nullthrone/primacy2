@@ -70,20 +70,22 @@ input[type='range'] { accent-color: var(--cyan); width: 100%; min-width: 7em; }
 .brand { display: flex; align-items: baseline; gap: 0.8rem; }
 .brand h1 { font-size: 1.25rem; color: var(--cyan); }
 .tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-left: auto; }
+.file-actions { display: flex; gap: 0.35rem; }
 .lang { display: flex; gap: 0.2rem; }
 .lang button { padding: 0.15em 0.6em; }
 .switch { display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer; user-select: none; }
 .switch input { accent-color: var(--cyan); width: 1.1rem; height: 1.1rem; margin: 0; }
-.volume { display: flex; align-items: center; gap: 0.5rem; width: 13rem; }
+.volume { display: flex; align-items: center; gap: 0.5rem; width: 11rem; }
 .spacer { flex: 1; }
-.status { font-size: 0.9rem; }
+.status { font-size: 0.85rem; max-width: 11rem; line-height: 1.15; }
 
-.meter { display: flex; align-items: center; gap: 0.6rem; min-width: 17rem; }
-.meter-track { position: relative; flex: 1; height: 0.9rem; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--line); overflow: hidden; }
+.meter { display: flex; align-items: center; gap: 0.6rem; flex: 1 1 28rem; min-width: 28rem; max-width: 38rem; }
+.meter-reduce { width: 4.8rem; white-space: nowrap; }
+.meter-track { position: relative; flex: 1; min-width: 8rem; height: 0.9rem; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--line); overflow: hidden; }
 .meter-fill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--green) 0%, var(--green) 70%, var(--amber) 85%, var(--red) 100%); }
 .meter-hold { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; }
 .meter-zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--red); }
-.meter-read { width: 5.8rem; text-align: right; }
+.meter-read { width: 6.4rem; text-align: right; white-space: nowrap; }
 .clip { padding: 0.05em 0.5em; border: 1px solid var(--line); color: var(--dim); font-weight: 700; letter-spacing: 0.1em; background: none; clip-path: none; }
 .clip.hot { background: var(--red); border-color: var(--red); color: #fff; }
 
@@ -118,6 +120,7 @@ main { padding: 1rem 1.2rem 3rem; max-width: 1500px; margin: 0 auto; }
 .sound .intent { margin: 0.15rem 0 0.4rem; color: var(--dim); }
 .badges { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 .badge { font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0 0.5em; border: 1px solid var(--line); color: var(--dim); }
+.badge.mono { text-transform: none; }
 .badge.structure { color: #ffd08a; border-color: rgba(255, 179, 71, 0.5); }
 .badge.cabin { color: var(--cyan); }
 .badge.sensor { color: var(--green); border-color: rgba(125, 255, 168, 0.5); }

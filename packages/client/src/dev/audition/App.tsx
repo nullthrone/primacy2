@@ -89,11 +89,9 @@ function Meter(): JSX.Element {
       <button type="button" class={`clip ${clipped ? 'hot' : ''}`} id="clip-lamp" title={t('clipReset')} onClick={() => (clipUntil.value = 0)}>
         {t('clip')}
       </button>
-      {limiterOn.value && reductionDb.value < -0.1 && (
-        <span class="mono dim small">
-          {t('limiterReduction')} {reductionDb.value.toFixed(1)} dB
-        </span>
-      )}
+      <span class="mono dim small meter-reduce" title={t('limiterReduction')}>
+        {limiterOn.value && reductionDb.value < -0.1 ? `↓ ${Math.abs(reductionDb.value).toFixed(1)} dB` : ''}
+      </span>
     </div>
   );
 }
@@ -128,8 +126,8 @@ function Header(): JSX.Element {
     <header class="top">
       <div class="bar">
         <div class="brand">
-          <h1>PRIMACY2 / {t('title')}</h1>
-          <span class="dim small">{t('subtitle')}</span>
+          <h1 title={t('subtitle')}>PRIMACY2 / {t('title')}</h1>
+          
         </div>
         <div class="tabs" role="tablist">
           <button type="button" role="tab" aria-selected={view.value === 'library'} class={view.value === 'library' ? 'on' : ''} data-tab="library" onClick={() => (view.value = 'library')}>
@@ -149,6 +147,29 @@ function Header(): JSX.Element {
               {r.live.value ? ' ●' : ''}
             </button>
           ))}
+        </div>
+        <div class="file-actions">
+          <button type="button" id="export" onClick={() => exportRatings()}>
+            {t('export')}
+          </button>
+          <button type="button" onClick={() => fileInput.current?.click()}>
+            {t('import')}
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            onChange={async (e) => {
+              const input = e.currentTarget as HTMLInputElement;
+              const f = input.files?.[0];
+              if (f) {
+                notice.value = (await importRatings(f)) ? t('imported') : t('importFailed');
+                window.setTimeout(() => (notice.value = ''), 4000);
+              }
+              input.value = '';
+            }}
+          />
         </div>
         <div class="lang" role="group" aria-label={t('language')}>
           {(['de', 'en'] as Lang[]).map((l) => (
@@ -218,27 +239,6 @@ function Header(): JSX.Element {
         <span class="status dim" id="save-status">
           {notice.value || statusText()}
         </span>
-        <button type="button" id="export" onClick={() => exportRatings()}>
-          {t('export')}
-        </button>
-        <button type="button" onClick={() => fileInput.current?.click()}>
-          {t('import')}
-        </button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={async (e) => {
-            const input = e.currentTarget as HTMLInputElement;
-            const f = input.files?.[0];
-            if (f) {
-              notice.value = (await importRatings(f)) ? t('imported') : t('importFailed');
-              window.setTimeout(() => (notice.value = ''), 4000);
-            }
-            input.value = '';
-          }}
-        />
       </div>
     </header>
   );

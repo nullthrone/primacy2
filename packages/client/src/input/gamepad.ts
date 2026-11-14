@@ -99,7 +99,8 @@ export function padName(id: string): string {
   return name || id;
 }
 
-function devMatches(dev: string, p: PadSnapshot): boolean {
+/** True when a binding's device part (`std` or a device key) names this pad. */
+export function devMatches(dev: string, p: PadSnapshot): boolean {
   return dev === 'std' ? p.mapping === 'standard' : deviceKey(p.id) === dev;
 }
 

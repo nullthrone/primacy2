@@ -6,8 +6,10 @@ import type { GameAudio } from '../audio/index.ts';
 import type { GameApi } from '../contracts.ts';
 import { t } from '../i18n/index.ts';
 import { store, updateSettings } from '../state/store.ts';
+import { Bindings } from './Bindings.tsx';
+import { bindKey, padHelpParams } from './format.ts';
 
-export function Settings({ audio }: { audio: GameAudio }) {
+export function Settings({ audio, onBindings }: { audio: GameAudio; onBindings?: () => void }) {
   const s = store.settings.value;
   const g = s.graphics;
   return (
@@ -45,18 +47,35 @@ export function Settings({ audio }: { audio: GameAudio }) {
       </label>
       <label class="check"><input type="checkbox" checked={g.bloom} onChange={(e) => updateSettings({ graphics: { ...g, bloom: (e.target as HTMLInputElement).checked } })} />{t('menu.bloom')}</label>
       <label class="check"><input type="checkbox" checked={s.invertY} onChange={(e) => updateSettings({ invertY: (e.target as HTMLInputElement).checked })} />{t('menu.invertY')}</label>
+      {onBindings && <button type="button" class="span-all" onClick={onBindings}>{t('pad.open')}</button>}
     </div>
   );
 }
 
 export function Controls() {
+  const key = { key: bindKey('thrustUp') };
+  if (store.device.value === 'pad') {
+    const p = padHelpParams();
+    return (
+      <div class="controls">
+        <div>{t('ctlp.move', p)}</div>
+        <div>{t('ctlp.look', p)}</div>
+        <div>{t('ctlp.fire', p)}</div>
+        <div>{t('ctlp.nav', p)}</div>
+        <div>{t('ctl.land', key)}</div>
+        <div>{t('ctlp.power', p)}</div>
+        <div>{t('ctlp.ui', p)}</div>
+        <div class="dim">{t('ctlp.custom')}</div>
+      </div>
+    );
+  }
   return (
     <div class="controls">
       <div>{t('ctl.move')}</div>
       <div>{t('ctl.look')}</div>
       <div>{t('ctl.fire')}</div>
       <div>{t('ctl.nav')}</div>
-      <div>{t('ctl.land')}</div>
+      <div>{t('ctl.land', key)}</div>
       <div>{t('ctl.power')}</div>
       <div>{t('ctl.ui')}</div>
       <div class="dim">{t('ctl.ctrlw')}</div>
@@ -98,7 +117,15 @@ export function StartScreen({ api, audio }: { api: GameApi; audio: GameAudio }) 
   const [name, setName] = useState(s.pilotName);
   const [server, setServer] = useState(s.lastServer || location.origin);
   const [tab, setTab] = useState<'none' | 'identity' | 'settings' | 'controls'>('none');
+  const [bindings, setBindings] = useState(false);
   const connecting = store.phase.value === 'connecting';
+  if (bindings) {
+    return (
+      <div class="start">
+        <div class="start-card wide"><Bindings onBack={() => setBindings(false)} /></div>
+      </div>
+    );
+  }
   return (
     <div class="start">
       <form
@@ -126,7 +153,7 @@ export function StartScreen({ api, audio }: { api: GameApi; audio: GameAudio }) 
           <button type="button" class={tab === 'controls' ? 'on' : ''} onClick={() => setTab(tab === 'controls' ? 'none' : 'controls')}>{t('menu.controls')}</button>
         </div>
         {tab === 'identity' && <Identity api={api} />}
-        {tab === 'settings' && <Settings audio={audio} />}
+        {tab === 'settings' && <Settings audio={audio} onBindings={() => setBindings(true)} />}
         {tab === 'controls' && <Controls />}
         <p class="dim small">
           {t('menu.licence')} · <a href="https://github.com/nullthrone/primacy2" target="_blank" rel="noreferrer">{t('menu.source')}</a>
@@ -137,13 +164,21 @@ export function StartScreen({ api, audio }: { api: GameApi; audio: GameAudio }) 
 }
 
 export function PauseMenu({ api, audio }: { api: GameApi; audio: GameAudio }) {
+  const [bindings, setBindings] = useState(false);
+  if (bindings) {
+    return (
+      <div class="panel wide">
+        <Bindings onBack={() => setBindings(false)} />
+      </div>
+    );
+  }
   return (
     <div class="panel narrow">
       <header>
         <h2>{t('app.title')}</h2>
         <button onClick={() => (store.panel.value = null)}>{t('menu.resume')}</button>
       </header>
-      <Settings audio={audio} />
+      <Settings audio={audio} onBindings={() => setBindings(true)} />
       <h3>{t('menu.controls')}</h3>
       <Controls />
       <div class="row">

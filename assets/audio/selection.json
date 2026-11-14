@@ -192,18 +192,6 @@
     "speech": false
   },
   {
-    "id": "k_switch_ui_30",
-    "file": "kenney-ui-audio/Audio/switch30.ogg",
-    "category": "switches",
-    "kind": "oneshot",
-    "en": "Toggle switch, version 30",
-    "de": "Kippschalter, Variante 30",
-    "intent": "A light rocker switch.",
-    "licence": "CC0 1.0",
-    "credit": "Kenney (www.kenney.nl)",
-    "speech": false
-  },
-  {
     "id": "k_toggle_1",
     "file": "kenney-interface-sounds/Audio/toggle_001.ogg",
     "category": "switches",
@@ -444,6 +432,38 @@
     "excerpt": [
       1121.0,
       1131.0
+    ],
+    "speech": true
+  },
+  {
+    "id": "n_iss_safe_haven_start",
+    "file": "nasa-iss-safe-haven-start/06-05-26_MCC-H-calls-ISS-to-safe-haven~128k.mp3",
+    "category": "radio",
+    "kind": "oneshot",
+    "en": "ISS: capcom calls the crew to safe haven",
+    "de": "ISS: Capcom ruft die Crew in den Schutzraum",
+    "intent": "A current station loop call, clear speech with the noise of a modern link.",
+    "licence": "Public domain (NASA)",
+    "credit": "NASA",
+    "excerpt": [
+      29.0,
+      39.0
+    ],
+    "speech": true
+  },
+  {
+    "id": "n_iss_safe_haven_end",
+    "file": "nasa-iss-safe-haven-end/06-05-26_MCC-H-calls-ISS-to-end-safe-haven~128k.mp3",
+    "category": "radio",
+    "kind": "oneshot",
+    "en": "ISS: capcom ends the safe haven",
+    "de": "ISS: Capcom beendet den Schutzraum",
+    "intent": "The answering call, with crew replies after the ground speaks.",
+    "licence": "Public domain (NASA)",
+    "credit": "NASA",
+    "excerpt": [
+      129.0,
+      139.0
     ],
     "speech": true
   },

@@ -17,7 +17,7 @@ REACTOR_HZ = 71.0    # plasma feed, two partials
 def mode_gains(t: float) -> np.ndarray:
     """Which hull modes the engine drives: the low ones always, higher ones as thrust grows."""
     k = np.arange(N_MODES)
-    return np.clip((t - 0.075 * k) / 0.4 + 0.45, 0.0, 1.0)
+    return np.clip((t - 0.075 * k) / 0.7 + 0.5, 0.0, 1.0)
 
 
 def render_engine(n: int, t: float) -> np.ndarray:
@@ -29,11 +29,11 @@ def render_engine(n: int, t: float) -> np.ndarray:
     pink = periodic_noise(n, "pink", s("pink"), lo=25, hi=1500)
     brown = periodic_noise(n, "brown", s("brown"), lo=20, hi=400)
     flow = 0.7 * brown + 0.5 * pink
-    flow = through_hull(flow, periodic=True, sharp=0.3, gains=mode_gains(t), dry=0.5)
+    flow = through_hull(flow, periodic=True, sharp=0.2, gains=mode_gains(t), dry=0.6)
     flow = normalize_rms(flow)
 
     # roughness: slow wander and fast flutter that close over the loop, deeper with thrust
-    rough = (0.5 * slow_wander(n, s("wander"), 3.0, 40.0)
+    rough = (0.5 * slow_wander(n, s("wander"), 6.0, 40.0)
              + 0.3 * periodic_lfo(n, 11.0, 0.13) + 0.2 * periodic_lfo(n, 29.0, 0.61))
     depth = 0.05 + 0.50 * min(t, 1.4)
     flow = flow * (1.0 + depth * rough)

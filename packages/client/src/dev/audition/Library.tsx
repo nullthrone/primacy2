@@ -10,6 +10,15 @@ export const onlyUnrated = signal(false);
 
 // Library voices: a loop is toggled, a one-shot may overlap itself.
 const voices = new Map<string, Voice>();
+// Loops this list started itself (not those of the engine group or a scene), which decides what a row's button offers.
+const activeLoops = signal<ReadonlySet<string>>(new Set());
+
+function setLoopActive(id: string, on: boolean): void {
+  const next = new Set(activeLoops.value);
+  if (on) next.add(id);
+  else next.delete(id);
+  activeLoops.value = next;
+}
 const groupVoice = signal<GroupVoice | null>(null);
 const groupThrust = signal(0.5);
 const groupGains = signal<number[]>([]);
@@ -27,6 +36,7 @@ function setOnlyUnrated(on: boolean, sounds: ManifestSound[]): void {
 export function stopLibrary(): void {
   for (const v of voices.values()) v.stop();
   voices.clear();
+  activeLoops.value = new Set();
   groupVoice.value?.stop();
   groupVoice.value = null;
 }
@@ -37,10 +47,13 @@ async function trigger(sound: ManifestSound, viaRadio: boolean): Promise<void> {
     if (running) {
       running.stop();
       voices.delete(sound.id);
+      setLoopActive(sound.id, false);
       return;
     }
+    setLoopActive(sound.id, true);
     const v = await engine.play(sound, { viaRadio });
     if (v) voices.set(sound.id, v);
+    else setLoopActive(sound.id, false);
     return;
   }
   await engine.play(sound, { viaRadio });
@@ -66,6 +79,7 @@ function toggleRadioRow(sound: ManifestSound): void {
   if (running) {
     running.stop();
     voices.delete(sound.id);
+    setLoopActive(sound.id, false);
     void trigger(sound, next.has(sound.id));
   }
 }
@@ -172,20 +186,20 @@ function onRowKey(e: KeyboardEvent, sound: ManifestSound): void {
 
 function SoundRow({ sound }: { sound: ManifestSound }): JSX.Element {
   const isPlaying = engine.playing.value.has(sound.id);
+  const loopOn = activeLoops.value.has(sound.id);
   const viaRadio = radioRows.value.has(sound.id);
   const label = loc(sound);
   const canRadio = sound.path !== 'radio';
-  const loop = sound.kind === 'loop';
   return (
     <div class={`sound ${isPlaying ? 'playing' : ''} ${isRated(sound.id) ? 'rated' : ''}`} id={`s-${sound.id}`} onKeyDown={(e) => onRowKey(e, sound)}>
       <button
         type="button"
-        class={`play ${isPlaying && loop ? 'on' : 'primary'}`}
+        class={`play ${loopOn ? 'on' : 'primary'}`}
         data-sound={sound.id}
-        aria-label={`${loop && isPlaying ? t('stop') : t('play')}: ${label}`}
+        aria-label={`${loopOn ? t('stop') : t('play')}: ${label}`}
         onClick={() => void trigger(sound, viaRadio)}
       >
-        {loop && isPlaying ? '■' : '▶'}
+        {loopOn ? '■' : '▶'}
       </button>
       <div>
         <div class="title">

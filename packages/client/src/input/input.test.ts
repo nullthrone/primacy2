@@ -1,0 +1,216 @@
+import { FlightMode } from '@primacy2/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_SETTINGS, addPadDefaults, loadSettings, store, type BindAction } from '../state/store.ts';
+import { assignPad, clearPad, presetJoystick, resetPad } from './binds.ts';
+import { Input } from './Input.ts';
+import type { PadSnapshot } from './gamepad.ts';
+
+function pad(down: number[] = [], axes: number[] = [0, 0, 0, 0]): PadSnapshot {
+  return {
+    id: 'Xbox 360 Controller (XInput STANDARD GAMEPAD)', index: 0, mapping: 'standard', axes,
+    buttons: Array.from({ length: 17 }, (_, n) => ({ pressed: down.includes(n), value: down.includes(n) ? 1 : 0 })),
+  };
+}
+
+let pads: (PadSnapshot | null)[] = [];
+
+function makeInput(): { input: Input; actions: BindAction[] } {
+  vi.stubGlobal('window', { addEventListener: () => {} });
+  vi.stubGlobal('document', { addEventListener: () => {}, activeElement: null, pointerLockElement: null });
+  vi.stubGlobal('navigator', { getGamepads: () => pads, language: 'en' });
+  const input = new Input({} as HTMLCanvasElement);
+  const actions: BindAction[] = [];
+  input.onAction = (a) => actions.push(a);
+  return { input, actions };
+}
+
+beforeEach(() => {
+  pads = [];
+  store.settings.value = DEFAULT_SETTINGS;
+  store.phase.value = 'playing';
+  store.panel.value = null;
+  store.device.value = 'keys';
+  store.padCapturing.value = false;
+});
+afterEach(() => vi.unstubAllGlobals());
+
+describe('Input with a pad', () => {
+  it('turns a pad press into the same action as a key', () => {
+    const { input, actions } = makeInput();
+    pads = [pad([9])];
+    input.pollPads();
+    expect(actions).toEqual(['menu']);
+    expect(store.device.value).toBe('pad');
+    input.pollPads();
+    expect(actions).toEqual(['menu']);
+  });
+
+  it('runs throttle and power presses through the shared path, not onAction', () => {
+    const { input, actions } = makeInput();
+    input.setMode(FlightMode.Normal);
+    pads = [pad([3])];
+    input.pollPads();
+    pads = [pad([3, 7])];
+    input.pollPads();
+    expect(input.throttle).toBeCloseTo(0.1);
+    pads = [pad([3, 6])];
+    input.pollPads();
+    pads = [pad([3, 12])];
+    input.pollPads();
+    expect(actions).toEqual([]);
+    expect(input.pips).not.toBe(new Input({} as HTMLCanvasElement).pips);
+  });
+
+  it('is live without pointer lock while a pad was used last', () => {
+    const { input } = makeInput();
+    store.pointerLocked.value = false;
+    expect(input.active()).toBe(false);
+    pads = [pad([12])];
+    input.pollPads();
+    expect(input.active()).toBe(true);
+  });
+
+  it('asks for deflection * turn rate * dt from the stick, and nothing once it is let go', () => {
+    const { input } = makeInput();
+    input.turnRates = [0.8, 0.5];
+    pads = [pad([], [0, 0, 1, -1])];
+    input.pollPads();
+    const dt = 1 / 30;
+    const on = input.sample(FlightMode.Normal, dt);
+    expect(on.aim[0]).toBeCloseTo(0.8 * dt);
+    expect(on.aim[1]).toBeCloseTo(0.5 * dt);
+    pads = [pad()];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, dt).aim).toEqual([0, 0]);
+  });
+
+  it('adds the strafe and forward axes to thrust, clamped, and moves the throttle in cruise', () => {
+    const { input } = makeInput();
+    pads = [pad([], [1, -1, 0, 0])];
+    input.pollPads();
+    const n = input.sample(FlightMode.Normal, 0.05);
+    expect(n.thrust[0]).toBeCloseTo(1);
+    expect(n.thrust[2]).toBeCloseTo(1);
+    const c = input.sample(FlightMode.Cruise, 0.1);
+    expect(c.thrust[2]).toBe(0);
+    expect(c.throttle).toBeCloseTo(0.07);
+  });
+
+  it('holds buttons for the tick input and drops them when the pad vanishes', () => {
+    const { input } = makeInput();
+    pads = [pad([7])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
+    pads = [];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(0);
+  });
+
+  it('keeps presses silent while the binding screen listens, and in panels except toggles', () => {
+    const { input, actions } = makeInput();
+    store.padCapturing.value = true;
+    pads = [pad([9])];
+    input.pollPads();
+    expect(actions).toEqual([]);
+    store.padCapturing.value = false;
+    store.panel.value = 'station';
+    pads = [pad([13])];
+    input.pollPads();
+    expect(actions).toEqual([]);
+    pads = [pad([13, 3])];
+    input.pollPads();
+    pads = [pad([3, 8])];
+    input.pollPads();
+    expect(actions).toEqual(['galaxyMap']);
+  });
+
+  it('lets the lever take over the setpoint only when it moves', () => {
+    const { input } = makeInput();
+    store.settings.value = {
+      ...DEFAULT_SETTINGS,
+      pad: { turnRate: 1, axes: { throttle: [{ dev: 'std', axis: 2, invert: false, deadzone: 0, curve: 1, lever: true }] } },
+    };
+    input.setMode(FlightMode.Normal);
+    store.device.value = 'pad';
+    pads = [pad([], [0, 0, 0.5, 0])];
+    input.pollPads();
+    expect(input.throttle).toBe(0);
+    pads = [pad([], [0, 0, 0.51, 0])];
+    input.pollPads();
+    expect(input.throttle).toBe(0);
+    pads = [pad([], [0, 0, 1, 0])];
+    input.pollPads();
+    expect(input.throttle).toBeCloseTo(1);
+    input.throttle = 0.4;
+    input.pollPads();
+    expect(input.throttle).toBeCloseTo(0.4);
+  });
+
+  it('works on a page without the Gamepad API', () => {
+    vi.stubGlobal('window', { addEventListener: () => {} });
+    vi.stubGlobal('document', { addEventListener: () => {}, activeElement: null, pointerLockElement: null });
+    vi.stubGlobal('navigator', { language: 'en' });
+    const input = new Input({} as HTMLCanvasElement);
+    expect(() => input.pollPads()).not.toThrow();
+    expect(input.snapshot()).toEqual([]);
+    input.testMode = true;
+    expect(input.sample(FlightMode.Normal, 0.05).thrust).toEqual([0, 0, 0]);
+  });
+});
+
+describe('settings with pad codes', () => {
+  const store0 = (raw: unknown): void => {
+    const mem = new Map<string, string>([['primacy2.settings', JSON.stringify(raw)]]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v) });
+  };
+  it('adds the pad defaults to settings saved by an older version', () => {
+    store0({ lang: 'de', bindings: { dock: ['KeyF'], firePrimary: ['Mouse0'] } });
+    loadSettings();
+    const b = store.settings.value.bindings;
+    expect(b.dock).toEqual(['KeyF', 'Pad:std:b3+b0']);
+    expect(b.firePrimary).toContain('Pad:std:b7');
+    expect(b.cruise).toContain('Pad:std:b8');
+    expect(store.settings.value.pad.axes.yaw?.[0]?.axis).toBe(2);
+  });
+  it('keeps a cleared pad binding cleared', () => {
+    store0({ bindings: { dock: ['KeyF'] }, padCleared: ['dock'] });
+    loadSettings();
+    expect(store.settings.value.bindings.dock).toEqual(['KeyF']);
+  });
+  it('leaves a customised pad list alone', () => {
+    store0({ bindings: { dock: ['KeyF', 'Pad:std:b5'] } });
+    loadSettings();
+    expect(store.settings.value.bindings.dock).toEqual(['KeyF', 'Pad:std:b5']);
+  });
+  it('loads settings without any pad fields', () => {
+    store0({ volume: 0.2 });
+    loadSettings();
+    expect(store.settings.value.pad.turnRate).toBe(1);
+    expect(store.settings.value.padCleared).toEqual([]);
+  });
+});
+
+describe('binding edits', () => {
+  const base = (): { bindings: typeof DEFAULT_SETTINGS.bindings; padCleared: BindAction[]; pad: typeof DEFAULT_SETTINGS.pad } =>
+    ({ bindings: DEFAULT_SETTINGS.bindings, padCleared: [], pad: DEFAULT_SETTINGS.pad });
+  it('assign replaces the pad code, keeps the keyboard code and takes the code from its old owner', () => {
+    const r = assignPad(base(), 'dock', 'Pad:std:b2');
+    expect(r.bindings.dock).toEqual(['KeyF', 'Pad:std:b2']);
+    expect(r.bindings.fireTool).toEqual(['Mouse1', 'KeyR']);
+    expect(r.padCleared).toContain('fireTool');
+  });
+  it('clear records the action so that it stays cleared after a reload', () => {
+    const r = clearPad(base(), 'dock');
+    expect(r.bindings.dock).toEqual(['KeyF']);
+    expect(addPadDefaults(r.bindings, r.padCleared).dock).toEqual(['KeyF']);
+    expect(assignPad(r, 'dock', 'Pad:std:b4').padCleared).not.toContain('dock');
+  });
+  it('reset brings the defaults back and the joystick preset adds its device', () => {
+    const cleared = clearPad(base(), 'dock');
+    expect(resetPad(cleared).bindings.dock).toEqual(['KeyF', 'Pad:std:b3+b0']);
+    const j = presetJoystick(base(), '044f-b10a');
+    expect(j.bindings.firePrimary).toContain('Pad:044f-b10a:b0');
+    expect(j.bindings.firePrimary).toContain('Pad:std:b7');
+    expect(j.pad.axes.yaw?.length).toBe(2);
+  });
+});
