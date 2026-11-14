@@ -36,7 +36,7 @@ const COCKPIT_REACH = 2.2;
  * between its walls. With the glow of the instruments (`CabinGlow`) it makes the cabin readable
  * when no sunlight reaches it, and it is a small fraction of what the sun gives.
  */
-const CABIN_FILL = 0.14;
+const CABIN_FILL = 0.17;
 
 const sunIn = new Vector3();
 const turnBack = new Quaternion();

@@ -119,7 +119,7 @@ const GLOW: readonly (readonly [number, number, number, number])[] = [
   [0.92, -0.28, -0.16, 0.8],
 ];
 /** Luminous intensity of a source of strength one, scene-referred. */
-const GLOW_LEVEL = 0.075;
+const GLOW_LEVEL = 0.095;
 /** Reach of a source, metres; three lets the light run out smoothly toward it. */
 const GLOW_REACH = 2.4;
 /** Share of the sunlight entering through the canopy that the cabin throws back onto itself, as ambient light. */

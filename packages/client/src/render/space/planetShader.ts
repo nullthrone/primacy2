@@ -104,9 +104,11 @@ struct Surf {
   float cloudShadow;
   float night;
   float limb;
-  // Height of the relief too fine for the height field, and of the cloud tops here and a step
-  // toward the sun. They are lit from their gradient on screen, which costs no further samples.
-  float fineH;
+  // Close up: how much the relief too fine for the height field, and the tops of the cloud,
+  // rise over a step of two pixels toward the sun; the height of the cloud tops here and where
+  // the shadow is sampled.
+  float fineRise;
+  float cloudRise;
   float cloudH;
   float cloudSunH;
 };
@@ -121,14 +123,19 @@ float gEps;
 float gFoot;
 float gSlant;
 float gNear;
-Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); }
+// A step of about two pixels toward the sun, for lighting fine relief from one more sample of
+// it: the step on the unit sphere and the same step in pixels on screen.
+vec3 gSunStep;
+vec2 gSunPix;
+Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); }
 // Detail finer than fbm() gives a planet seen whole: octaves of gradient noise from 'freq' cycles
 // per unit of 'q' upward, each counted only as far as a pixel of 'foot' units resolves it (not
 // at all below three pixels per cycle, fully from eight). So detail grows on approach without
 // ever flickering, and a planet seen from afar gets none and looks as it always did.
+// Each octave has 'gain' times the weight of the one before.
 // x: the sum, y: its billowed form (rounded cells with creases between), z: a sum that falls off
 // like terrain height; all around zero, x and y with a spread near one. w: how much shows at all.
-vec4 fineNoise(vec3 q, float freq, float foot) {
+vec4 fineNoise(vec3 q, float freq, float foot, float gain) {
   vec3 sum = vec3(0.0);
   float first = 0.0, a = 1.0, b = 1.0;
   for (int j = 0; j < 6; j++) {
@@ -138,10 +145,10 @@ vec4 fineNoise(vec3 q, float freq, float foot) {
     float g = gnoise(q * freq + float(j) * vec3(7.3, 3.1, 5.9) + uSeed);
     sum += w * vec3(a * g * 4.4, a * (abs(g) - 0.184) * 7.3, b * g * 4.4);
     freq *= 2.09;
-    a *= 0.7;
+    a *= gain;
     b *= 0.5;
   }
-  return vec4(sum.xy * 0.71, sum.z, first);
+  return vec4(sum.xy * sqrt(1.0 - gain * gain), sum.z, first);
 }
 vec3 seedOff() { return vec3(uSeed * 1.37, uSeed * 0.71 + 3.0, uSeed * 2.11 + 7.0); }
 vec3 rotY(vec3 p, float a) {
@@ -307,21 +314,22 @@ float cloudCover(vec3 nb, out vec3 cd) {
   float zonal = 0.10 * cos(lat * 9.0) - 0.08 * smoothstep(0.15, 0.35, lat) * smoothstep(0.55, 0.35, lat);
   return cl + zonal - uPar.y;
 }
-// x: how much of the ground the cloud hides, y: the height of its tops. 'foot' is the size of the
-// pixel in the pattern.
-vec2 cloudDeck(float cover, vec3 cd, float foot) {
-  vec4 f = fineNoise(cd, 150.0, foot);
-  // Cells and wisps eat into the edges and the thin parts; the thick middle keeps its body.
-  float c = cover + (0.10 * f.x + 0.06 * f.y) * (1.0 - 0.55 * smoothstep(0.15, 0.6, cover));
-  // With them to break it up, the edge may be as crisp as that of real cloud.
-  float wd = mix(0.32, 0.13, f.w);
-  return vec2(smoothstep(0.16 - 0.5 * wd, 0.16 + 0.5 * wd, c), clamp(c * 1.7, 0.0, 1.0));
+// x: how much of the ground the cloud hides, y: the height of its tops. 'f' is the fine
+// structure at this place and 'patchy' how strongly it breaks the cloud up here.
+vec2 cloudDeck(float cover, vec4 f, float patchy) {
+  float soft = smoothstep(0.0, 0.32, cover);
+  // Close up, the soft edge of a front is a field of cells and wisps: the fine structure opens
+  // and closes the cloud wherever it is neither clear sky nor a closed deck.
+  float open = smoothstep(-0.10, 0.04, cover) * (1.0 - smoothstep(0.12, 0.36, cover));
+  float a = clamp(soft + open * patchy * (0.30 * f.x + 0.34 * f.y), 0.0, 1.0);
+  // The tops rise toward the middle of a front, and every cell is a rounded hump on them.
+  float h = (clamp(cover * 1.5, 0.0, 0.75) + 0.14 * f.y) * smoothstep(0.0, 0.5, a);
+  return vec2(a, h);
 }
-// Roughness of the sea inside the sun's glint, around one: wind streaks and calmer patches.
+// Roughness of the sea inside the sun's glint, around one: calm and ruffled water in swirls.
 float seaRough(vec3 nb) {
-  float r = 1.0 + 1.5 * fbm(nb * 37.0 + gWarp * 3.0 + uSeed, 3);
-  vec4 f = fineNoise(nb, 150.0, gSlant);
-  return clamp(r * (1.0 + 0.30 * f.x), 0.12, 2.6);
+  float r = 1.0 + 1.1 * fbm(nb * 31.0 + gWarp * 4.0 + uSeed, 3);
+  return clamp(r + 0.15 * fineNoise(nb, 150.0, gSlant, 0.7).x, 0.5, 1.8);
 }
 float hfield(vec3 nb) {
   vec3 p = nb * 1.45 + seedOff();
@@ -337,9 +345,19 @@ Surf surface(vec3 nb, vec3 sunB) {
   float geo = dot(nb, sunB);
   vec3 cd;
   float cover = cloudCover(nb, cd);
-  // The size of the pixel in the cloud pattern, which the fronts stretch and squeeze.
-  float cfoot = uFine > 0.0 ? uFine * max(length(dFdx(cd)), length(dFdy(cd))) : 1e3;
-  vec2 deck = cloudDeck(cover, cd, cfoot);
+  // The size of the pixel in the cloud pattern, which the fronts stretch and squeeze, and how
+  // pattern and cover change from pixel to pixel.
+  vec3 cdx = dFdx(cd), cdy = dFdy(cd);
+  vec2 coverPix = vec2(dFdx(cover), dFdy(cover));
+  float cfoot = uFine > 0.0 ? uFine * max(length(cdx), length(cdy)) : 1e3;
+  bool fineCloud = cover > -0.10 && cfoot * 150.0 < 0.30;
+  vec4 cf = vec4(0.0);
+  float patchy = 1.0;
+  if (fineCloud) {
+    cf = fineNoise(cd, 150.0, cfoot, 0.8);
+    patchy = 0.45 + 0.75 * smoothstep(-0.25, 0.25, gnoise(cd * 55.0 + uSeed));
+  }
+  vec2 deck = cloudDeck(cover, cf, patchy);
   float cl = deck.x;
   s.cloud = cl * 0.95;
   s.cloudShadow = s.cloud;
@@ -350,10 +368,18 @@ Surf surface(vec3 nb, vec3 sunB) {
     // From afar the shadow is thrown wide so that it shows at all; close up it lies where the
     // shadow of real cloud would.
     vec3 cs;
-    float coverSun = cloudCover(normalize(nb + sunB * mix(0.02, 0.008, uNear)), cs);
-    vec2 deckSun = cloudDeck(coverSun, cs, cfoot * 1.6);
+    float coverSun = cloudCover(normalize(nb + sunB * mix(0.02, 0.003, uNear)), cs);
+    vec4 fs = vec4(0.0);
+    if (fineCloud) fs = fineNoise(cs, 150.0, cfoot * 1.6, 0.8);
+    vec2 deckSun = cloudDeck(coverSun, fs, patchy);
     s.cloudShadow = deckSun.x;
     s.cloudSunH = deckSun.y;
+    // The same deck two pixels toward the sun tells which way its tops slope here.
+    if (fineCloud && cl > 0.0 && gNear > 0.0) {
+      vec3 cdSun = cd + cdx * gSunPix.x + cdy * gSunPix.y;
+      float coverStep = cover + dot(coverPix, gSunPix);
+      s.cloudRise = cloudDeck(coverStep, fineNoise(cdSun, 150.0, cfoot, 0.8), patchy).y - deck.y;
+    }
   }
   vec3 p = nb * 1.45 + seedOff();
   int lo = min(uOct, 4);
@@ -365,7 +391,8 @@ Surf surface(vec3 nb, vec3 sunB) {
   float sea = uPar.x;
   float rise = max(base - sea, 0.0);
   vec4 f = vec4(0.0);
-  if (base > sea - 0.03 && cl < 0.999) f = fineNoise(nb, 150.0, gSlant);
+  bool fineLand = base > sea - 0.03 && cl < 0.999;
+  if (fineLand) f = fineNoise(nb, 150.0, gSlant, 0.7);
   float cont = base + 0.003 * f.x;
   // Coast and beach are as narrow as the pixel allows: wide from afar, a line from low orbit.
   float coast = clamp(gSlant * 9.0, 0.0015, 0.016);
@@ -401,8 +428,12 @@ Surf surface(vec3 nb, vec3 sunB) {
     lc = mix(lc, rock, smoothstep(0.45, 0.85, mount - 0.06 * f.y));
     lc = mix(lc, snow, smoothstep(0.24, 0.15, temp));
     lc = mix(sand * 1.1, lc, smoothstep(0.0, clamp(gSlant * 11.0, 0.004, 0.02), elev));
-    lc *= clamp(1.0 + 0.13 * f.x - 0.05 * f.y, 0.6, 1.5);
-    s.fineH = land * f.z * (0.002 + 0.006 * mount);
+    lc *= clamp(1.0 + 0.09 * f.x - 0.04 * f.y, 0.6, 1.5);
+    if (f.w > 0.0 && geo > -0.2) {
+      // Fine relief, rugged in the mountains and gentle on the plains, lit from one more sample.
+      float rough = 0.0008 + 0.006 * mount;
+      s.fineRise = land * rough * (fineNoise(nb + gSunStep, 150.0, gSlant, 0.7).z - f.z);
+    }
     if (geo < 0.02) {
       float pop = smoothstep(0.42, 0.62, 0.5 + fbm(p * 5.0 + 40.0, lo)) * smoothstep(0.25, 0.5, temp) * (1.0 - smoothstep(0.3, 0.6, mount));
       float grain = uOct >= 6 ? smoothstep(0.55, 0.9, 0.5 + 0.9 * gnoise(p * 150.0)) * 1.4 : 0.10;
@@ -473,30 +504,32 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   gSlant = uFine > 0.0 ? uFine * slant : 1e3;
   gNear = 1.0 - smoothstep(3.5e-4, 1.5e-3, gFoot);
   vec3 sunB = uRot * uSunDir;
+  gSunStep = (sunB - nb * dot(nb, sunB)) * (2.0 * slant);
+  gSunPix = vec2(0.0);
+#ifndef BAKED
+  // Where that step lands on screen, from how the place on the sphere changes between
+  // neighbouring pixels. (Not for bodies with a baked map: there this code sits in a branch.)
+  vec3 px = dFdx(nb), py = dFdy(nb);
+  float det = dot(px, cross(py, nb));
+  if (abs(det) > 1e-20) gSunPix = vec2(dot(gSunStep, cross(py, nb)), dot(gSunStep, cross(nb, px))) / det;
+#endif
   Surf s = surface(nb, sunB);
-  vec3 grad = vec3(0.0);
+  vec3 nn = n;
+  float limbFade = smoothstep(0.0, 0.25, ndv);
   if (s.bump > 0.0 && uOct >= 4) {
     // Relief: the gradient of the height field from two more samples about a pixel away.
     float eps = gEps;
     vec3 t1 = normalize(cross(nb, abs(nb.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
     vec3 t2 = cross(nb, t1);
     float h1 = hfield(normalize(nb + t1 * eps)), h2 = hfield(normalize(nb + t2 * eps));
-    grad = ((h1 - s.height) * t1 + (h2 - s.height) * t2) * (s.bump / eps);
+    vec3 grad = ((h1 - s.height) * t1 + (h2 - s.height) * t2) / eps;
+    vec3 bent = normalize(nb - grad * s.bump * 0.07) * uRot;
+    nn = normalize(mix(n, bent, limbFade));
   }
-#ifndef BAKED
-  // Fine relief and the cloud tops: the gradient on the sphere from the differences between
-  // neighbouring pixels. (Not for bodies with a baked map: there this code sits in a branch.)
-  vec3 px = dFdx(nb), py = dFdy(nb);
-  vec3 r1 = cross(py, nb), r2 = cross(nb, px);
-  float det = dot(px, r1);
-  float inv = abs(det) > 1e-20 ? 1.0 / det : 0.0;
-  grad += (dFdx(s.fineH) * r1 + dFdy(s.fineH) * r2) * (inv * 0.9);
-  // Rise of the cloud tops over two pixels toward the sun: above zero on the side turned away.
-  float cloudRise = dot(dFdx(s.cloudH) * r1 + dFdy(s.cloudH) * r2, sunB) * inv * 2.0 * slant;
-#endif
-  vec3 bent = normalize(nb - grad * 0.07) * uRot;
-  vec3 nn = normalize(mix(n, bent, smoothstep(0.0, 0.25, ndv)));
   float ndl = dot(nn, uSunDir);
+  // Fine relief tilts the ground toward or away from the sun by its rise along the step.
+  float rise = 0.063 * s.fineRise * limbFade / max(2.0 * slant, 1e-7);
+  ndl = (ndl - rise) / sqrt(1.0 + 2.0 * rise * rise);
   // The unperturbed normal decides the terminator and shadows.
   float geo = dot(n, uSunDir);
   float lambert = max(ndl, 0.0) * smoothstep(-0.05, 0.12, geo);
@@ -510,12 +543,14 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
     float nh = max(dot(mix(n, nn, 0.5), hv), 0.0);
     float sp = pow(nh, s.gloss) * min(s.gloss / 300.0, 1.1) + 0.05 * pow(nh, 18.0);
 #if TYPE == 4
-    // Close up the glint reads as water: the sun's small hot image inside a wide skirt of
-    // sparkle that the roughness of the sea breaks up, brighter where the light grazes.
-    float skirt = max(pow(nh, 70.0) - 0.004, 0.0);
-    if (gNear > 0.0 && skirt > 0.0) {
+    // Close up the glint reads as water: the sun's small hot image inside a wide patch of
+    // sparkle. A rougher sea spreads the sparkle wider and thinner, so calm water is bright in
+    // the middle of the patch and dark at its edge; the light that grazes the sea reflects best.
+    if (gNear > 0.0 && pow(nh, 45.0) > 0.004) {
+      float r = seaRough(nb);
       float graze = 1.0 + 2.0 * pow(1.0 - max(dot(-d, hv), 0.0), 3.0);
-      sp = mix(sp, 1.1 * pow(nh, 1600.0) + 0.05 * pow(nh, 18.0) + 0.30 * skirt * seaRough(nb) * graze, gNear);
+      float sparkle = 0.15 * graze * pow(nh, 150.0 / (r * r)) / (r * r);
+      sp = mix(sp, 1.1 * pow(nh, 1600.0) + 0.05 * pow(nh, 18.0) + sparkle, gNear);
     }
 #endif
     col += sun * s.spec * sp * (1.0 - s.cloud) * step(0.0, geo);
@@ -527,7 +562,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
 #ifndef BAKED
     // Close up the deck has a body: slopes turned from the sun are darker, cloud that stands
     // behind taller cloud is in its shadow, and thin cloud is greyer than thick.
-    float relief = clamp(1.0 - 2.4 * cloudRise, 0.55, 1.15);
+    float relief = clamp(1.0 - 2.4 * s.cloudRise, 0.5, 1.2);
     float shaded = 1.0 - 0.32 * smoothstep(0.04, 0.40, s.cloudSunH - s.cloudH);
     cc *= mix(1.0, relief * shaded * (0.84 + 0.16 * s.cloudH), gNear);
 #endif

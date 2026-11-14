@@ -433,7 +433,7 @@ vec4 surfPit(vec3 p, float cell, float pix, float warp) {
   vec3 c = p / cell;
   vec3 ic = floor(c);
   uint h = surfMix(uint(int(ic.x)) * 0x9e3779b1u ^ surfMix(uint(int(ic.y)) * 0x85ebca6bu ^ surfMix(uint(int(ic.z)))));
-  if ((h >> 28) > 6u) return vec4(0.0);
+  if ((h >> 28) > 8u) return vec4(0.0);
   vec3 mid = 0.32 + 0.36 * vec3(float(h & 511u), float((h >> 9) & 511u), float((h >> 18) & 511u)) / 511.0;
   float size = float((h >> 27) & 1u) * 0.5 + float(h & 127u) / 254.0;
   float rad = 0.08 + 0.2 * size * size;
@@ -443,7 +443,7 @@ vec4 surfPit(vec3 p, float cell, float pix, float warp) {
   if (dd >= 1.0 || fade <= 0.0) return vec4(0.0);
   // A shallow bowl with a soft rim: the slope is steepest half way out.
   float wall = dd * (1.0 - dd) * 4.0;
-  return vec4(d / (rad * sqrt(max(dd, 1e-4))) * (0.8 * wall * fade), (1.0 - dd) * fade);
+  return vec4(d / (rad * sqrt(max(dd, 1e-4))) * (1.3 * wall * fade), (1.0 - dd) * fade);
 }`;
 
 const ROCK_COLOR = /* glsl */ `
@@ -463,7 +463,7 @@ float surfScale = 1.0;
   int sReads = uSurfQ > 1.5 ? 4 : uSurfQ > 0.5 ? 3 : 2;
   float sFreq = 0.3;
   float sAmp = 1.0;
-  float sSlope = 2.2;
+  float sSlope = 1.6;
   for (int i = 0; i < sReads; i++) {
     // Once the coarsest grain of a reading is smaller than a pixel there is nothing left in it.
     if (sFreq * sPix > 0.12) break;
@@ -473,7 +473,7 @@ float surfScale = 1.0;
     if (i == 1) sWarp = (n.a - 0.5) * 2.4;
     sFreq *= 8.0;
     sAmp *= 0.6;
-    sSlope *= 1.15;
+    sSlope *= 1.05;
   }
   vec4 sPit = surfPit(sP, 0.26, sPix, sWarp);
   vec4 sSmall = surfPit(sP + 3.7, 0.085, sPix, sWarp);
@@ -553,7 +553,7 @@ export function surfaceFor(name: string, key: string, radius: number): SurfaceSp
   const block = (large ? 1.6 : 1.05) * Math.pow(Math.max(radius, 1), 0.4);
   const base: SurfaceSpec = {
     kind: 'hull', block, polar: polar ? 1 : 0, seed,
-    joint: block * 0.0035, tone: 0.07, rough: 0.12, wear: 1, relief: 1, levels: large ? 7 : 4, dark: 0.45,
+    joint: block * 0.0035, tone: 0.07, rough: 0.12, wear: 1, relief: 1, levels: large ? 5 : 4, dark: 0.45,
   };
   // Paint in the signal colours keeps its colour; dark plating shows its plates in the gloss.
   if (name.startsWith('hull_accent')) return { ...base, tone: 0.025, rough: 0.08, wear: 0.4 };
