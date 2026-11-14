@@ -266,8 +266,6 @@
 @media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
 /* A narrow view has no room for full-width status bars beside the power display and the speed readout. */
 @media (max-width: 900px) { .hud-left { width: 11em; } .hud-power { left: calc(2vw + 12.2em); } .pip-key { display: none; } }
-/* The bottom row of a narrow view is full without it: the radar waits for a layout of that size. */
-@media (max-width: 900px) { .radar { display: none; } }
 @media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .map-body aside { max-height: none; } .settings { grid-template-columns: 1fr; } .customs { grid-template-columns: 1fr; } }
 
 /* Controller binding screen */
@@ -359,6 +357,8 @@
 .radar-mark.chosen { color: var(--amber); }
 .radar-mark.chosen .radar-head { fill: currentColor; }
 .radar-scale { font-size: 0.82em; line-height: 1.2; color: var(--dim); white-space: nowrap; }
+/* The bottom row of a narrow view is full without it: the radar waits for a layout of that size. */
+@media (max-width: 900px) { .radar { display: none; } }
 /* The chosen place stands under the locked ship, in the colour of its marker. */
 .panel-mini.place { border-left-color: var(--amber); }
 .panel-mini.place .big { color: var(--amber); }

@@ -16,7 +16,8 @@ const OUT = 'screenshots/e2e';
 const JOURNEY_ONLY = process.env.PRIMACY2_JOURNEY_ONLY === '1';
 // PRIMACY2_LANDING_ONLY=1 plays only the landing at a ground base.
 const LANDING_ONLY = process.env.PRIMACY2_LANDING_ONLY === '1';
-const URL = process.env.PRIMACY2_URL ?? 'http://localhost:8420';
+// PRIMACY2_DEV_PORT moves the servers this script starts to other ports (see scripts/dev.ts).
+const URL = process.env.PRIMACY2_URL ?? `http://localhost:${process.env.PRIMACY2_DEV_PORT ?? 8420}`;
 mkdirSync(OUT, { recursive: true });
 
 function startServers() {

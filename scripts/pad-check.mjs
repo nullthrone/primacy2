@@ -13,7 +13,8 @@ import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const OUT = 'screenshots/pad';
-const URL = process.env.PRIMACY2_URL ?? 'http://localhost:8420';
+// PRIMACY2_DEV_PORT moves the servers this script starts to other ports (see scripts/dev.ts).
+const URL = process.env.PRIMACY2_URL ?? `http://localhost:${process.env.PRIMACY2_DEV_PORT ?? 8420}`;
 const XBOX = 'Xbox 360 Controller (XInput STANDARD GAMEPAD)';
 const PLAYSTATION = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)';
 mkdirSync(OUT, { recursive: true });

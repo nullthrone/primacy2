@@ -3,6 +3,9 @@
  *
  *   npm run dev            # Alpha on :8420, Beta on :8421 (data in .data/)
  *   npm run dev:client     # in a second terminal, for hot-reloading the client against Alpha
+ *
+ * PRIMACY2_DEV_PORT=<n> puts Alpha on port n and Beta on n + 1, and PRIMACY2_DEV_DATA=<dir> keeps
+ * their data there: for a test run beside a stack that is already up on the usual ports.
  */
 import { startServer } from '../packages/server/src/server.ts';
 import { publicKeyOf, sha256Hex, type KeyPair } from '../packages/shared/src/index.ts';
@@ -26,14 +29,17 @@ const identity = (name: string): { keys?: KeyPair } => {
   return { keys: { secretKey, publicKey: publicKeyOf(secretKey) } };
 };
 
+const port = Number(process.env.PRIMACY2_DEV_PORT ?? 8420);
+const data = process.env.PRIMACY2_DEV_DATA ?? '.data';
+
 // The two servers rate each other partner (the default would be visitor, with all cargo sealed),
 // so trade, tariffs and the trade balance can be tried between them.
 const alpha = await startServer(
-  { name: 'Alpha Reach', port: 8420, seed: 'alpha', dataDir: '.data/alpha', defaultTrust: 'partner' },
+  { name: 'Alpha Reach', port, seed: 'alpha', dataDir: `${data}/alpha`, defaultTrust: 'partner' },
   identity('alpha'),
 );
 const beta = await startServer(
-  { name: 'Beta Expanse', port: 8421, seed: 'beta', dataDir: '.data/beta', peers: [alpha.url], defaultTrust: 'partner' },
+  { name: 'Beta Expanse', port: port + 1, seed: 'beta', dataDir: `${data}/beta`, peers: [alpha.url], defaultTrust: 'partner' },
   identity('beta'),
 );
 await beta.peer();
