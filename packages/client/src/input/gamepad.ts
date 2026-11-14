@@ -306,6 +306,13 @@ export interface PadState {
   muted: Set<string>;
   /** Raw value of each lever axis, keyed `<pad index>|<axis>`, to tell a moved lever from a resting one. */
   levers: Map<string, number>;
+  /**
+   * Where each lever stood when it last counted as moved (same keys), and the key of the lever
+   * whose position is the one reported. Two devices can match one lever binding (two standard pads,
+   * two identical units); the lever that moved last is the one the pilot has in hand.
+   */
+  leverRefs: Map<string, number>;
+  leverOwner: string | null;
   active: boolean;
 }
 
@@ -330,7 +337,9 @@ export interface PadReading {
   state: PadState;
 }
 
-export const emptyPadState = (): PadState => ({ on: new Set(), held: new Set(), buttons: new Map(), muted: new Set(), levers: new Map(), active: false });
+export const emptyPadState = (): PadState => ({
+  on: new Set(), held: new Set(), buttons: new Map(), muted: new Set(), levers: new Map(), leverRefs: new Map(), leverOwner: null, active: false,
+});
 
 interface Entry {
   action: BindAction;
@@ -437,8 +446,12 @@ export function readPads(
   }
 
   const axes: Record<PadAxisAction, number> = { yaw: 0, pitch: 0, roll: 0, thrustX: 0, thrustY: 0, thrustZ: 0, throttle: 0 };
-  let lever: number | null = null;
   const levers = new Map<string, number>();
+  const leverRefs = new Map<string, number>();
+  /** The position of every lever found, in the order of the bindings and the pads. */
+  const leverAt = new Map<string, number>();
+  let movedKey: string | null = null;
+  let movedBy = LEVER_MOVE;
   for (const action of PAD_AXIS_ACTIONS) {
     for (const b of padSettings.axes[action] ?? []) {
       for (const p of pads) {
@@ -446,11 +459,20 @@ export function readPads(
         const raw = p.axes[b.axis];
         if (raw === undefined) continue;
         if (action === 'throttle' && b.lever) {
-          lever = leverValue(raw, b.invert);
           const lk = `${p.index}|${b.axis}`;
+          leverAt.set(lk, leverValue(raw, b.invert));
           levers.set(lk, raw);
           const was = before.levers.get(lk);
           if (was !== undefined && Math.abs(raw - was) > LEVER_MOVE) markActive(p);
+          // Against where it stood when it last counted as moved, not against the last reading: a
+          // lever pushed slowly moves less than the threshold from one reading to the next.
+          const ref = before.leverRefs.get(lk);
+          const move = ref === undefined ? 0 : Math.abs(raw - ref);
+          leverRefs.set(lk, ref === undefined || move > LEVER_MOVE ? raw : ref);
+          if (move > movedBy) {
+            movedBy = move;
+            movedKey = lk;
+          }
           continue;
         }
         const v = shapeAxis(raw, b);
@@ -459,10 +481,20 @@ export function readPads(
       }
     }
   }
+  // The lever that moved in this reading counts from now on (the one that moved furthest, if two
+  // did); otherwise the one that counted before; and the first one found while none has moved yet
+  // or the one that counted is gone.
+  let leverOwner: string | null = movedKey;
+  if (leverOwner === null && before.leverOwner !== null && leverAt.has(before.leverOwner)) leverOwner = before.leverOwner;
+  if (leverOwner === null) for (const k of leverAt.keys()) { leverOwner = k; break; }
+  const lever = leverOwner === null ? null : leverAt.get(leverOwner)!;
 
   const released: BindAction[] = [];
   for (const a of before.held) if (!held.has(a)) released.push(a);
-  return { held, pressed: [...pressed], released, axes, lever, active, activeIndex, edges, state: { on, held, buttons, muted, levers, active } };
+  return {
+    held, pressed: [...pressed], released, axes, lever, active, activeIndex, edges,
+    state: { on, held, buttons, muted, levers, leverRefs, leverOwner, active },
+  };
 }
 
 // ---------------------------------------------------------------------------------------------

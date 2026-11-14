@@ -7,7 +7,8 @@
 import { Button, DEFAULT_PIPS, FlightMode, addPip, type ShipInput } from '@primacy2/shared';
 import { store, type BindAction, type PadInfo } from '../state/store.ts';
 import {
-  DEFAULT_PAD_SETTINGS, devOf, emptyPadState, padName, padStyle, readPads, snapshotPads, type PadAxisAction, type PadSnapshot, type PadState,
+  DEFAULT_PAD_SETTINGS, PAD_AXIS_ACTIONS, devOf, emptyPadState, padName, padStyle, readPads, snapshotPads, type PadAxisAction, type PadSnapshot,
+  type PadState,
 } from './gamepad.ts';
 
 /** Actions that are levels (held) rather than single presses. */
@@ -63,6 +64,8 @@ export class Input {
    * until the button is let go: A that pressed "Resume" must not thrust up afterwards.
    */
   private padStale = new Set<BindAction>();
+  /** Axes that were outside their dead zone while a menu or panel had the pad; zero until they have been at rest once. */
+  private padAxesStale = new Set<PadAxisAction>();
   private padWasBlocked = false;
   private padState: PadState = emptyPadState();
   private padAxes: Readonly<Record<PadAxisAction, number>> = ZERO_AXES;
@@ -70,6 +73,8 @@ export class Input {
   private padSeq = 0;
   private padListKey = '';
   private padWasActive = false;
+  /** A failed pad frame was logged: said once, not sixty times a second. */
+  private padLoopFailed = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
@@ -81,6 +86,10 @@ export class Input {
       if (document.pointerLockElement === this.canvas) this.addMouse(e.movementX, e.movementY);
     });
     window.addEventListener('wheel', (e) => {
+      // A wheel turn is mouse use, also when the mouse did not move first. While a pad is the device
+      // in use the controls are live without pointer lock, and a wheel turn anywhere on the page
+      // would set the throttle; as mouse use it needs the pointer lock again.
+      store.device.value = 'keys';
       if (!this.active()) return;
       this.press(e.deltaY < 0 ? 'WheelUp' : 'WheelDown', true);
       this.press(e.deltaY < 0 ? 'WheelUp' : 'WheelDown', false);
@@ -158,10 +167,13 @@ export class Input {
     // works pending aim off at that rate with a lag of about a fourteenth of a second, and when the
     // stick is let go nothing more is added, so the ship stops within its own angular acceleration.
     const k = clamp(store.settings.value.pad?.turnRate ?? 1, 0.1, 1) * dt;
-    const px = pa.yaw * this.turnRates[0] * k;
-    const py = pa.pitch * this.turnRates[1] * k;
-    const ax = clamp(this.aimX, -AIM_PER_TICK, AIM_PER_TICK);
-    const ay = clamp(this.aimY, -AIM_PER_TICK, AIM_PER_TICK);
+    const px = clamp(pa.yaw * this.turnRates[0] * k, -AIM_PER_TICK, AIM_PER_TICK);
+    const py = clamp(pa.pitch * this.turnRates[1] * k, -AIM_PER_TICK, AIM_PER_TICK);
+    // The server's cap is on the sum of both, so the mouse gets the room the stick leaves. Capped
+    // each by itself, a flick together with a deflected stick would send more than the server
+    // takes; it cuts the rest off, and the client's own prediction would be ahead by that much.
+    const ax = clamp(this.aimX, -AIM_PER_TICK - px, AIM_PER_TICK - px);
+    const ay = clamp(this.aimY, -AIM_PER_TICK - py, AIM_PER_TICK - py);
     // Whatever exceeds the per-tick cap is carried into the next tick, so fast flicks are not lost.
     this.aimX = live ? this.aimX - ax : 0;
     this.aimY = live ? this.aimY - ay : 0;
@@ -231,12 +243,16 @@ export class Input {
     const blocked = store.panel.value !== null || phase === 'menu' || phase === 'connecting' || phase === 'error';
     if (blocked || this.padWasBlocked) {
       this.padStale = new Set(r.held);
+      this.padAxesStale = new Set(PAD_AXIS_ACTIONS.filter((a) => r.axes[a] !== 0));
     } else {
       for (const a of this.padStale) if (!r.held.has(a)) this.padStale.delete(a);
+      // The same for a stick: the left one moves the focus in a menu, and one that is still
+      // deflected when the panel closes would thrust. It counts again once it has been at rest.
+      for (const a of this.padAxesStale) if (r.axes[a] === 0) this.padAxesStale.delete(a);
     }
     this.padWasBlocked = blocked;
     this.padHeld = withoutStale(r.held, this.padStale);
-    this.padAxes = r.axes;
+    this.padAxes = withoutStaleAxes(r.axes, this.padAxesStale);
 
     for (const e of r.edges) store.padButton.value = { seq: ++this.padSeq, n: e.button, standard: e.standard };
     // Only a fresh press or a stick that starts to move takes the device over from the mouse.
@@ -272,7 +288,17 @@ export class Input {
   private startPadLoop(): void {
     if (typeof requestAnimationFrame !== 'function' || typeof navigator === 'undefined' || typeof navigator.getGamepads !== 'function') return;
     const loop = (): void => {
-      this.pollPads();
+      try {
+        this.pollPads();
+      } catch (err) {
+        // One frame that cannot be read (settings in a shape the pad code does not expect) must not
+        // end the loop: the next frame would never be asked for and the pad would be dead until
+        // the page is loaded again. What the pad held is dropped, or it would stay held for good.
+        this.padHeld = new Set();
+        this.padAxes = ZERO_AXES;
+        if (!this.padLoopFailed) console.error('Controller input could not be read:', err);
+        this.padLoopFailed = true;
+      }
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
@@ -379,6 +405,10 @@ export class Input {
   }
 
   private onButton(e: MouseEvent, down: boolean): void {
+    // A click is mouse use, like a key press and mouse movement. Without this a click made while a
+    // pad is the device in use, with the mouse not moved since, would fire: the controls are live
+    // without pointer lock then.
+    if (down) store.device.value = 'keys';
     if (store.phase.value !== 'playing') return;
     // The side buttons are the browser's back and forward; in the game they choose targets.
     if (e.button >= 3 && !isTyping(e.target)) e.preventDefault();
@@ -416,6 +446,14 @@ function withoutStale(held: Set<BindAction>, stale: Set<BindAction>): Set<BindAc
   if (stale.size === 0) return held;
   const out = new Set<BindAction>();
   for (const a of held) if (!stale.has(a)) out.add(a);
+  return out;
+}
+
+/** The axis values that count for flight: those waiting to come to rest read as zero. */
+function withoutStaleAxes(axes: Readonly<Record<PadAxisAction, number>>, stale: Set<PadAxisAction>): Readonly<Record<PadAxisAction, number>> {
+  if (stale.size === 0) return axes;
+  const out = { ...axes };
+  for (const a of stale) out[a] = 0;
   return out;
 }
 

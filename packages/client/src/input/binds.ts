@@ -6,7 +6,7 @@
 import type { BindAction, Bindings, Settings } from '../state/store.ts';
 import { addPadDefaults } from '../state/store.ts';
 import {
-  DEFAULT_PAD_SETTINGS, captureNext, captureProgress, capturedCode, isPadCode, joystickPreset,
+  DEFAULT_PAD_SETTINGS, captureNext, captureProgress, capturedCode, isPadCode, joystickPreset, parsePadCode,
   type CaptureProgress, type PadAxisAction, type PadAxisBinding, type PadSettings, type PadSnapshot,
 } from './gamepad.ts';
 
@@ -20,24 +20,40 @@ export function isRowAction(a: BindAction): boolean {
 }
 
 /**
- * True when taking `code` away would leave the pause menu without a controller code. The pause
- * menu is the pad's way to the settings and the binding screen, and out of the game; a pilot with
- * nothing but a pad could not open it in flight any more.
+ * True when the pause menu has a controller code that opens it: a chord or half an axis, or a
+ * button that no chord of the same device uses as its modifier (a modifier has no action of its
+ * own, see `readPads`). The pause menu is the pad's way to the settings and the binding screen,
+ * and out of the game; a pilot with nothing but a pad must always be able to open it in flight.
  */
-function lastMenuCode(s: PadPatch, code: string): boolean {
-  const pad = (s.bindings.menu ?? []).filter(isPadCode);
-  return pad.length === 1 && pad[0] === code;
+export function menuReachable(bindings: Bindings): boolean {
+  const modifiers = new Set<string>();
+  for (const codes of Object.values(bindings)) {
+    for (const c of codes) {
+      const k = parsePadCode(c);
+      if (k?.kind === 'chord') modifiers.add(`${k.dev}|${k.m}`);
+    }
+  }
+  return (bindings.menu ?? []).some((c) => {
+    const k = parsePadCode(c);
+    return k !== null && (k.kind !== 'button' || !modifiers.has(`${k.dev}|${k.n}`));
+  });
 }
 
 /**
  * Gives an action one controller code. The code is taken away from any other action that had it, so
  * a button never does two things; an action left without a controller code is recorded as cleared.
- * The one exception is the last controller code of the pause menu: it stays where it is and the
- * settings come back unchanged (the same object). The binding screen uses that as the pad's way to
- * cancel an assignment.
+ * The one exception is an assignment after which the pause menu could no longer be opened by pad:
+ * one that takes its last controller code for another action, makes its button the modifier of a
+ * chord, or moves the menu onto a modifier. Then nothing changes and the settings come back as
+ * they were (the same object). The binding screen uses that as the pad's way to cancel an
+ * assignment. Settings in which the pause menu has no working code already are not held back.
  */
 export function assignPad(s: PadPatch, action: BindAction, code: string): PadPatch {
-  if (action !== 'menu' && lastMenuCode(s, code)) return s;
+  const out = assignPadFreely(s, action, code);
+  return menuReachable(s.bindings) && !menuReachable(out.bindings) ? s : out;
+}
+
+function assignPadFreely(s: PadPatch, action: BindAction, code: string): PadPatch {
   const bindings = { ...s.bindings };
   const cleared = new Set(s.padCleared);
   for (const a of Object.keys(bindings) as BindAction[]) {

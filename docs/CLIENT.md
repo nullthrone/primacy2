@@ -45,7 +45,8 @@ place. See "Targets and direction indicators" below.
 Gamepads, joysticks and HOTAS sets work through the browser's Gamepad API and feed the same input
 values as keyboard and mouse; nothing in `shared` or `server` knows about them. This is also the only
 way to play on a phone or tablet for now: there are no touch controls. Flight is live without pointer
-lock while the last device used is a pad; moving the mouse or pressing a key switches back.
+lock while the last device used is a pad; moving the mouse, a click, a turn of the wheel or a key
+switches back.
 `input/gamepad.ts` holds the logic without any DOM access, `input/Input.ts` polls once per animation
 frame, `ui/padnav.ts` moves the focus through menus, and `ui/Bindings.tsx` is the binding screen
 (settings on the start screen and in the pause menu).
@@ -67,25 +68,96 @@ hold it and press a second button for the combinations.
 | Y + LB | contacts | Y + RB | camera |
 | Y + L3 | silent running | Y + R3 / RT / LT | throttle zero / up / down |
 
+A button pressed while Y is held belongs to the chord: it does nothing of its own until it is let
+go, whichever of the two is released first. A button held from before Y pauses during the chord
+and goes on afterwards, without counting as pressed again.
+
 In menus and station screens the D-pad or left stick moves the focus mark (it repeats while held),
 A presses, B closes or goes back, LB and RB switch tabs, and left and right change a slider or
-select. The galaxy map lists the systems so one can be chosen without the mouse.
+select. A number field is edited after A: left and right count, by one at first, then in tens and
+in hundreds while the direction is held, and B ends the editing. A link that opens another tab is
+no target. The galaxy map lists the systems so one can be chosen without the mouse. The start
+screen comes with a made-up pilot name (a word and four digits) while none is saved, so that Launch
+works without a keyboard; every other text field still needs one.
+
+B closes the station screen as Escape does, and so do the Menu button and opening a map. While the
+ship is docked the pause menu has a "Station services" button that brings the screen back.
+
+What is still held when a menu or panel closes does not fly the ship: a button stays without
+effect until it has been let go, a stick until it has been at rest. A on "Resume" does not thrust
+up. Buttons held through a fold jump between two servers stay held.
+
+On the binding screen a pad ends an assignment by itself: any button while an axis is wanted, and
+the button of the pause menu while a button is wanted. That button is never taken from the pause
+menu: it cannot be given to another action, become the modifier of a chord, or be cleared; the
+menu action can be moved to another button, as long as that one is not the modifier of a chord
+(a modifier has no action of its own). An axis given to an action is taken from the action that
+had it, as a button is.
 
 Binding codes in `Settings.bindings` are `Pad:<dev>:b<n>` for a button, `Pad:<dev>:b<m>+b<n>` for a
 chord and `Pad:<dev>:a<n>+` or `a<n>-` for half an axis used as a button; `<dev>` is `std` for every
 standard-mapping device or a short key made from the device id. Analog axes live in `Settings.pad`
-(dead zone, curve, invert, a throttle lever).
+(dead zone, curve, invert, a throttle lever). A lever sets the throttle when it moves; the last
+two hundredths of its travel before either stop count as the stop; a move made while a panel is
+open is applied when the panel closes; and of two levers that match one binding the one that moved
+last counts. Saved pad settings are repaired when they are loaded (an entry that is no axis binding
+is dropped, a missing field is filled in), and a frame in which the pads cannot be read does not
+end the polling.
 
-Checked with a simulated pad (`node scripts/pad-check.mjs`, a fake `navigator.getGamepads` in
-Chromium): start screen, station screen and undock by D-pad and A; stick thrust, stick turn and its
-stop, boost, fire, the D-pad choosing places, the Y chord for the camera, the pause menu, assigning a
-new button on the binding screen and the hint changing with it, PlayStation names in a hint. Not
-checked and needing real hardware: how the sticks feel, drift and dead zones of a real pad, the
-joystick preset and other non-standard devices (axis numbering, hat switches, throttle units),
-browser differences in `Gamepad.id` and `mapping`, and phones and tablets. At 844 x 390 the panels
-fit and scroll inside themselves; the flight HUD has no layout of its own for that size, and its
-bottom row (status bars, power, compass, speed) still overlaps. The radar is left out below a
-width of 900 px until that layout exists.
+Labels made of words ("D-pad left", "Button 14", "Axis 3") are in the language of the interface:
+`ui/format.ts` passes the words to `input/gamepad.ts`, which knows no languages. The short form of
+the D-pad on the key caps of the HUD (D←) and the names printed on a pad (View, Cross) are the same
+in every language. The pad help block in the pause menu shows the default layout, not the pilot's
+own assignments, and says so.
+
+What is checked, and how:
+
+- `node scripts/pad-check.mjs` plays the built game in Chromium with a fake
+  `navigator.getGamepads` (one standard-mapping pad, English interface). Where this list says
+  "the mark", the script looks at which control carries the mark (the class `padfocus`), not at
+  whether the mark can be seen:
+  - start screen: D-pad from the name field over the server field to Launch, and A connects; in a
+    second pass nothing is typed, the name is the made-up one, and the mark passes the link to the
+    source code by;
+  - station screen: the mark on a tab when it opens, RB and LB with the mark still on a tab after
+    the change, a quantity held right for three seconds (past 100) and one press back, B closing
+    the screen, the way back through the pause menu, undock;
+  - flight: stick thrust, stick turn and its stop, boost, fire, the D-pad choosing places, Y + RB
+    for the camera with either button let go first (RB does not roll the ship afterwards);
+  - pause menu: a slider, a select, a held direction, and no "Station services" button in space;
+  - binding screen from the pause menu: the mark on Back when it opens, a new button for an action
+    and the hint changing with it, the mark on the button that listens, the Menu button ending a
+    button assignment and B an axis assignment with nothing changed and the screen still open, a
+    mark at once on the way back to the pause menu;
+  - A and a deflected stick held through "Resume": no thrust and no turn until both were let go;
+  - galaxy map by Y + View: the mark in the list, D-pad down, A selects;
+  - PlayStation names in a hint;
+  - at 844 x 390: the station screen (two tabs) and the pause menu lie inside the viewport, and the
+    D-pad reaches the last button of the pause menu, scrolled into view.
+- The logic that needs no page (chords and their mutes, held buttons and sticks after a menu, the
+  lever, capture on the binding screen, binding edits, loading saved pad settings, label words,
+  number steps) has unit tests in `input/gamepad.test.ts`, `input/input.test.ts`,
+  `input/padui.test.ts` and `ui/padnav.test.ts`. `python tools/dev/guards.py
+  tools/dev/guards/pad-core.json` switches one rule off at a time and names the test that has to
+  fail. The page side of `ui/padnav.ts` (the `PadNav` class) has no unit test; the browser check
+  is what covers it.
+
+Known gap, measured on 2026-11-14 on the screenshots of that script and on a page with the built
+stylesheet: the mark cannot be seen on a button. `#ui button` in `styles/ui.css` has a `clip-path`
+for its cut corners, and the mark is an outline and a glow outside the box, so both are cut off
+(no amber pixel around a marked Launch, Resume or tab; on a field, slider, select or a row of a
+list, which are not clipped, the mark shows). Until the stylesheet lifts the clip on a marked
+button or draws the mark inside it, a pilot with a pad sees the focus on fields, sliders, selects
+and list rows only.
+
+Not checked: anything on real hardware (how the sticks feel, drift and dead zones of a real pad,
+the joystick preset and other non-standard devices with their axis numbering, hat switches and
+throttle units, a throttle lever, two devices at once, browser differences in `Gamepad.id` and
+`mapping`); phones and tablets themselves; the German interface in a browser (its pad labels have
+unit tests only); the binding screen opened from the start screen; the system map and the contacts
+list by pad; the binding screen and the maps at 844 x 390. The flight HUD has no layout of its
+own for that size, and its bottom row (status bars, power, compass, speed) still overlaps. The
+radar is left out below a width of 900 px until that layout exists.
 
 Stepping through ships (`targetNext`, `targetPrev`) has no button on a standard pad: every button
 and every Y chord is taken. "Target ahead" covers it: with nothing new ahead of the nose it steps

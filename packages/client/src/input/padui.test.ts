@@ -6,8 +6,9 @@
  */
 import { sanitizeName, type StationView } from '@primacy2/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { t } from '../i18n/index.ts';
 import { DEFAULT_SETTINGS, store } from '../state/store.ts';
-import { bindKey, bindKeyShort, listenHint, padWords } from '../ui/format.ts';
+import { bindKey, bindKeyShort, listenHint, padHelpParams, padWords } from '../ui/format.ts';
 import { madeUpPilotName, pauseRoot, startName, stationReturn } from '../ui/Menu.tsx';
 
 beforeEach(() => {
@@ -47,6 +48,16 @@ describe('pad labels in the language of the interface', () => {
     expect(padWords().axis).toBe('Achse');
     expect(padWords().button).toBe('Taste');
   });
+  it('names the buttons of a pad without face names in that language in the help lines', () => {
+    store.padStyle.value = 'generic';
+    expect(padHelpParams().Y).toBe('Button 4');
+    german();
+    expect(padHelpParams().Y).toBe('Taste 4');
+    expect(padHelpParams().MENU).toBe('Taste 10');
+    // Names printed on the pad are no words to translate.
+    store.padStyle.value = 'xbox';
+    expect(padHelpParams().Y).toBe('Y');
+  });
   it('keeps the short key caps of the HUD as they are', () => {
     store.device.value = 'pad';
     german();
@@ -75,6 +86,19 @@ describe('what the binding screen says while it listens', () => {
     expect(listenHint('axis')).toContain('Any button or Esc cancels.');
     store.settings.value = { ...DEFAULT_SETTINGS, lang: 'de' };
     expect(listenHint('axis')).toContain('Eine beliebige Taste oder Esc bricht ab.');
+  });
+});
+
+describe('texts a pad user reads', () => {
+  it('says that the help block shows the default layout, since it does not follow the bindings', () => {
+    expect(t('ctlp.custom')).toContain('default assignments');
+    store.settings.value = { ...DEFAULT_SETTINGS, lang: 'de' };
+    expect(t('ctlp.custom')).toContain('Standardbelegung');
+  });
+  it('names the way back to the station screen in both languages', () => {
+    expect(t('menu.station')).toBe('Station services');
+    store.settings.value = { ...DEFAULT_SETTINGS, lang: 'de' };
+    expect(t('menu.station')).toBe('Stationsdienste');
   });
 });
 

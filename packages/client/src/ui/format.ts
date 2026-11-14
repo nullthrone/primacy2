@@ -78,7 +78,9 @@ export function hasBinding(action: BindAction): boolean {
 /** Button names for the pad help lines, by the style of the pad in use. */
 export function padHelpParams(): Record<string, string> {
   const s = store.padStyle.value;
-  const n = (i: number): string => padButtonName(i, s);
+  // A pad without names on its buttons reads "Button 4": that is a word, and it has a language.
+  const words = padWords();
+  const n = (i: number): string => padButtonName(i, s, words);
   return { A: n(0), B: n(1), X: n(2), Y: n(3), LB: n(4), RB: n(5), LT: n(6), RT: n(7), VIEW: n(8), MENU: n(9), L3: n(10), R3: n(11), key: n(0) };
 }
 

@@ -10,7 +10,7 @@
   {
     "name": "chord suppression of plain bindings switched off",
     "file": "packages/client/src/input/gamepad.ts",
-    "find": "isOn = down(p, k.n) && !modHeld && !mods.has(k.n);",
+    "find": "isOn = down(p, k.n) && !modHeld && !mods.has(k.n) && !muted.has(`${p.index}|${k.n}`);",
     "replace": "isOn = down(p, k.n);",
     "tests": ["packages/client/src/input/gamepad.test.ts"],
     "expect": ["fires the chord action and silences", "gives the modifier no action of its own"]
@@ -34,16 +34,16 @@
   {
     "name": "release on disconnect forgotten",
     "file": "packages/client/src/input/gamepad.ts",
-    "find": "  const pressed: BindAction[] = [];",
-    "replace": "  for (const a of before.held) held.add(a);\n  const pressed: BindAction[] = [];",
+    "find": "  const released: BindAction[] = [];",
+    "replace": "  for (const a of before.held) held.add(a);\n  const released: BindAction[] = [];",
     "tests": ["packages/client/src/input/gamepad.test.ts"],
     "expect": ["releases what a vanished device held"]
   },
   {
     "name": "single-press edge switched off",
     "file": "packages/client/src/input/gamepad.ts",
-    "find": "for (const a of held) if (!before.held.has(a)) pressed.push(a);",
-    "replace": "for (const a of held) pressed.push(a);",
+    "find": "if (fresh) pressed.add(e.action);",
+    "replace": "pressed.add(e.action);",
     "tests": ["packages/client/src/input/gamepad.test.ts", "packages/client/src/input/input.test.ts"],
     "expect": ["holds a button and fires a single press once", "turns a pad press into the same action as a key"]
   },
@@ -66,9 +66,280 @@
   {
     "name": "stick aim ignores the turn rate",
     "file": "packages/client/src/input/Input.ts",
-    "find": "const px = pa.yaw * this.turnRates[0] * k;",
-    "replace": "const px = pa.yaw * k;",
+    "find": "const px = clamp(pa.yaw * this.turnRates[0] * k, -AIM_PER_TICK, AIM_PER_TICK);",
+    "replace": "const px = clamp(pa.yaw * k, -AIM_PER_TICK, AIM_PER_TICK);",
     "tests": ["packages/client/src/input/input.test.ts"],
     "expect": ["asks for deflection * turn rate * dt"]
+  },
+
+  {
+    "name": "high, chord-plain-after-modifier-release: a button pressed during a chord is not muted",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (before.muted.has(mk) || (modHeld && !was?.[n])) muted.add(mk);",
+    "replace": "void mk;",
+    "tests": ["packages/client/src/input/gamepad.test.ts", "packages/client/src/input/input.test.ts"],
+    "expect": [
+      "keeps the target of a chord silent until it is let go",
+      "does not run the plain action of a single-press button after its chord",
+      "does not fire when the modifier of a chord is let go before its target"
+    ]
+  },
+  {
+    "name": "high, chord-plain-after-modifier-release: a mute does not last past the reading it began in",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (before.muted.has(mk) || (modHeld && !was?.[n])) muted.add(mk);",
+    "replace": "if (modHeld && !was?.[n]) muted.add(mk);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["keeps the target of a chord silent until it is let go"]
+  },
+  {
+    "name": "high, chord-plain-after-modifier-release: a binding that only comes back counts as a press",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "fresh = !was?.[k.n];",
+    "replace": "fresh = !before.on.has(key);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["does not press a held button a second time when the modifier is tapped"]
+  },
+  {
+    "name": "high, held-button-leaks-into-flight-after-close: a button held in a panel is not kept silent",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "this.padStale = new Set(r.held);",
+    "replace": "this.padStale = new Set();",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": [
+      "keeps a button that closed a panel silent until it is let go",
+      "also when the panel closes in the very frame the button goes down",
+      "keeps a button from the start screen silent"
+    ]
+  },
+  {
+    "name": "high, held-button-leaks-into-flight-after-close: the frame after the panel does not count",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "if (blocked || this.padWasBlocked) {",
+    "replace": "if (blocked) {",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["also when the panel closes in the very frame the button goes down"]
+  },
+  {
+    "name": "high, held-button-leaks-into-flight-after-close: the start screen does not count as a menu",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "const blocked = store.panel.value !== null || phase === 'menu' || phase === 'connecting' || phase === 'error';",
+    "replace": "const blocked = store.panel.value !== null;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["keeps a button from the start screen silent"]
+  },
+  {
+    "name": "high, held-button-leaks-into-flight-after-close: a stick deflected in a panel is not kept silent",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "this.padAxesStale = new Set(PAD_AXIS_ACTIONS.filter((a) => r.axes[a] !== 0));",
+    "replace": "this.padAxesStale = new Set();",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["keeps a stick that was deflected when a panel closed silent"]
+  },
+  {
+    "name": "high, focus-mark-wiped-by-rerender: the focus mark is not put back",
+    "file": "packages/client/src/ui/padnav.ts",
+    "find": "if (el && el.isConnected && !el.classList.contains(MARK)) el.classList.add(MARK);",
+    "replace": "void el;",
+    "tests": ["packages/client/src/ui/padnav.test.ts"],
+    "expect": ["puts the mark back after the page rewrote the class"]
+  },
+  {
+    "name": "high, b-closes-station-while-docked: the pause menu offers no way back to the station screen",
+    "file": "packages/client/src/ui/Menu.tsx",
+    "find": "if (store.station.value === null) return null;",
+    "replace": "return null;",
+    "tests": ["packages/client/src/input/padui.test.ts"],
+    "expect": ["is offered while docked and opens the station screen"]
+  },
+
+  {
+    "name": "medium, lever-lost-while-panel-open-and-no-end-stop: the lever is followed while a panel is open",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "} else if (this.active() && leverMoved(pos, this.lastLever)) {",
+    "replace": "} else if (leverMoved(pos, this.lastLever)) {",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["applies a move made while a panel was open when the panel closes"]
+  },
+  {
+    "name": "medium, lever-lost-while-panel-open-and-no-end-stop: the lever has no end stops",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "const pos = leverStop(r.lever);",
+    "replace": "const pos = r.lever;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["counts a lever that rests just short of its stop as at the stop"]
+  },
+  {
+    "name": "medium, pad-only-cannot-cancel-listening: a button does not end the wait for an axis",
+    "file": "packages/client/src/input/binds.ts",
+    "find": "if (c) return { pending: null, done: s };",
+    "replace": "if (c) return { pending: null, done: null };",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["ends with nothing changed when any button is pressed while it waits for an axis"]
+  },
+  {
+    "name": "medium, pad-only-cannot-cancel-listening: the hint names only Esc",
+    "file": "packages/client/src/ui/format.ts",
+    "find": "if (!menu) return t('pad.listenButtonKeys');",
+    "replace": "if (menu) return t('pad.listenButtonKeys');",
+    "tests": ["packages/client/src/input/padui.test.ts"],
+    "expect": ["names the button that opens the pause menu as the way to cancel", "follows the menu action to another button"]
+  },
+  {
+    "name": "medium, menu-button-can-be-given-away: an assignment may leave the pause menu without a working button",
+    "file": "packages/client/src/input/binds.ts",
+    "find": "return menuReachable(s.bindings) && !menuReachable(out.bindings) ? s : out;",
+    "replace": "return out;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": [
+      "never takes the last controller code from the pause menu",
+      "ends with nothing changed when the pause-menu button is pressed for another action",
+      "does not make the pause-menu button the modifier of a chord"
+    ]
+  },
+  {
+    "name": "medium, menu-button-can-be-given-away: a modifier counts as a working menu button",
+    "file": "packages/client/src/input/binds.ts",
+    "find": "return k !== null && (k.kind !== 'button' || !modifiers.has(`${k.dev}|${k.n}`));",
+    "replace": "return k !== null;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["does not make the pause-menu button the modifier of a chord"]
+  },
+  {
+    "name": "medium, menu-button-can-be-given-away: the pause menu's code can be cleared",
+    "file": "packages/client/src/input/binds.ts",
+    "find": "return action !== 'menu';",
+    "replace": "return true;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["never takes the last controller code from the pause menu"]
+  },
+  {
+    "name": "medium, bindings-in-pause-menu-opens-unfocused: the two screens of the pause menu share a key",
+    "file": "packages/client/src/ui/Menu.tsx",
+    "find": "<div key={screen} class=",
+    "replace": "<div key=\"one\" class=",
+    "tests": ["packages/client/src/input/padui.test.ts"],
+    "expect": ["have different keys"]
+  },
+  {
+    "name": "medium, number-field-needs-keyboard: a held direction does not speed a number field up",
+    "file": "packages/client/src/ui/padnav.ts",
+    "find": "return count > 30 ? 100 : count > 10 ? 10 : 1;",
+    "replace": "return 1;",
+    "tests": ["packages/client/src/ui/padnav.test.ts"],
+    "expect": ["steps by one at first, then by ten, then by a hundred", "reaches 500 units from 1 in about four seconds"]
+  },
+  {
+    "name": "medium, number-field-needs-keyboard: the start screen begins with an empty name",
+    "file": "packages/client/src/ui/Menu.tsx",
+    "find": "return saved.trim().length >= 2 ? saved : madeUpPilotName();",
+    "replace": "return saved;",
+    "tests": ["packages/client/src/input/padui.test.ts"],
+    "expect": ["is a made-up name otherwise"]
+  },
+  {
+    "name": "medium, number-field-needs-keyboard: a link that opens another tab is a pad target",
+    "file": "packages/client/src/ui/padnav.ts",
+    "find": "return el.tagName === 'A' && el.getAttribute('target') === '_blank';",
+    "replace": "return false;",
+    "tests": ["packages/client/src/ui/padnav.test.ts"],
+    "expect": ["is true for a link that opens another tab"]
+  },
+  {
+    "name": "medium, phantom-held-button-blocks-assignment: a press on another device is not looked at",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (other?.kind === 'button') return { pending: { dev: other.dev, n: other.n }, done: null };",
+    "replace": "void other;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["is not blocked by a button that reads as held on another device"]
+  },
+
+  {
+    "name": "low, second-pad-press-not-reported: pressed comes from the union of held actions",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (fresh) pressed.add(e.action);",
+    "replace": "if (fresh && !before.held.has(e.action)) pressed.add(e.action);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["reports a press on a second device of an action another device already holds"]
+  },
+  {
+    "name": "low, lever-two-pads-same-dev: a lever that moves does not become the one that counts",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "let leverOwner: string | null = movedKey;",
+    "replace": "let leverOwner: string | null = null;\n  void movedKey;",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["follows the lever that moved last", "follows a lever that is moved slowly as well"]
+  },
+  {
+    "name": "low, lever-two-pads-same-dev: a lever counts as moved only within one reading",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "leverRefs.set(lk, ref === undefined || move > LEVER_MOVE ? raw : ref);",
+    "replace": "leverRefs.set(lk, raw);",
+    "tests": ["packages/client/src/input/gamepad.test.ts"],
+    "expect": ["follows a lever that is moved slowly as well"]
+  },
+  {
+    "name": "low, mouse-click-and-wheel-live-in-pad-mode: a click does not hand the device back to the mouse",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "    if (down) store.device.value = 'keys';\n    if (store.phase.value !== 'playing') return;\n    // The side buttons",
+    "replace": "    if (store.phase.value !== 'playing') return;\n    // The side buttons",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["a click without pointer lock hands the device back to the mouse"]
+  },
+  {
+    "name": "low, mouse-click-and-wheel-live-in-pad-mode: a wheel turn does not hand the device back to the mouse",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "      store.device.value = 'keys';\n      if (!this.active()) return;",
+    "replace": "      if (!this.active()) return;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["a wheel turn without pointer lock does not move the throttle"]
+  },
+  {
+    "name": "low, aim-sum-exceeds-server-cap: the mouse is capped without regard to the stick",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "const ax = clamp(this.aimX, -AIM_PER_TICK - px, AIM_PER_TICK - px);",
+    "replace": "const ax = clamp(this.aimX, -AIM_PER_TICK, AIM_PER_TICK);",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["caps mouse and stick together at what the server takes per tick"]
+  },
+  {
+    "name": "low, corrupt-pad-settings-kill-loop: a frame that throws ends the pad loop",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "      try {\n        this.pollPads();\n      } catch (err) {",
+    "replace": "      this.pollPads();\n      try {\n      } catch (err) {",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["keeps the pad loop running when one frame throws"]
+  },
+  {
+    "name": "low, corrupt-pad-settings-kill-loop: what the pad held stays held when a frame throws",
+    "file": "packages/client/src/input/Input.ts",
+    "find": "        this.padHeld = new Set();\n        this.padAxes = ZERO_AXES;",
+    "replace": "",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["drops what the pad held when a frame cannot be read"]
+  },
+  {
+    "name": "low, axis-assigned-to-two-actions: an axis stays with its old action as well",
+    "file": "packages/client/src/input/binds.ts",
+    "find": "if (a !== action && other?.some((b) => b.dev === dev && b.axis === axis)) axes[a] = other.filter((b) => !(b.dev === dev && b.axis === axis));",
+    "replace": "void other;",
+    "tests": ["packages/client/src/input/input.test.ts"],
+    "expect": ["gives an axis to one action only, as a button"]
+  },
+  {
+    "name": "low, german-ui-shows-english-pad-labels: the D-pad is named in English whatever the words",
+    "file": "packages/client/src/input/gamepad.ts",
+    "find": "if (d >= 0) return `${words.dpad} ${words[DPAD_WORDS[d]!]}`;",
+    "replace": "if (d >= 0) return `D-pad ${DPAD_WORDS[d]!}`;",
+    "tests": ["packages/client/src/input/gamepad.test.ts", "packages/client/src/input/padui.test.ts"],
+    "expect": ["takes the words of another language where a label is made of words", "spells the D-pad out in sentences and on the binding screen"]
+  },
+  {
+    "name": "low, german-ui-shows-english-pad-labels: the help lines name buttons without the words of the language",
+    "file": "packages/client/src/ui/format.ts",
+    "find": "const n = (i: number): string => padButtonName(i, s, words);",
+    "replace": "const n = (i: number): string => padButtonName(i, s);\n  void words;",
+    "tests": ["packages/client/src/input/padui.test.ts"],
+    "expect": ["names the buttons of a pad without face names in that language in the help lines"]
   }
 ]

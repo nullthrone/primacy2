@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-14T13:50:18.311Z",
+  "savedAt": "2026-11-14T20:14:36.388Z",
   "manifest": {
     "placeholder": false,
     "count": 114
@@ -125,6 +125,20 @@
       "verdict": "wrong",
       "note": "",
       "at": "2026-11-14T13:46:09.237Z"
+    },
+    "k_engine_circular_0": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T16:58:44.685Z",
+      "hash": "8ab85f9fa85e"
+    },
+    "weapon_pulse_fire": {
+      "stars": 0,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T20:14:35.886Z",
+      "hash": "233ee0d3bd38"
     }
   },
   "scenes": {},

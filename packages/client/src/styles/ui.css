@@ -295,6 +295,14 @@
 
 /* Controller navigation: a mark of our own, because :focus-visible does not follow script focus reliably. */
 [data-device="pad"] #ui .padfocus { outline: 2px solid var(--amber); outline-offset: 2px; box-shadow: 0 0 12px rgba(255, 179, 71, 0.45); }
+/* Buttons are cut to their chamfered shape by a clip-path, which also cuts away an outline and an
+   outer glow. Their mark is drawn inside the shape instead: an amber frame, a warm fill and amber
+   text, so that the focused button reads at a glance among its neighbours. */
+[data-device="pad"] #ui button.padfocus {
+  box-shadow: inset 0 0 0 2px var(--amber), inset 0 0 1.1em rgba(255, 179, 71, 0.4);
+  background-color: rgba(255, 179, 71, 0.16);
+  color: var(--amber);
+}
 .sys-pick { display: flex; flex-direction: column; gap: 0.3em; }
 .sys-pick h4 { font-size: 0.8em; color: var(--dim); }
 #ui .sys-list { max-height: 14em; }

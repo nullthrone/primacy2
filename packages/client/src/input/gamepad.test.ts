@@ -290,6 +290,48 @@ describe('analog axes and the lever', () => {
     expect(readPads([], B, mk(false), null).lever).toBeNull();
     expect(readPads([dev(1)], B, mk(false), null).axes.throttle).toBe(0);
   });
+  describe('two levers on one device key', () => {
+    // Two standard pads, or two identical units, share a key; the lever binding matches both.
+    const s: PadSettings = { turnRate: 1, axes: { throttle: [{ dev: 'std', axis: 3, invert: false, deadzone: 0, curve: 1, lever: true }] } };
+    const two = (a: number, b: number): PadSnapshot[] => [pad({ axes: [0, 0, 0, a] }), pad({ index: 1, axes: [0, 0, 0, b] })];
+    /** Feeds one reading after another and returns the lever position of each. */
+    const levers = (...frames: PadSnapshot[][]): (number | null)[] => {
+      let state: ReturnType<typeof readPads>['state'] | null = null;
+      return frames.map((f) => {
+        const r = readPads(f, B, s, state);
+        state = r.state;
+        return r.lever;
+      });
+    };
+    it('follows the lever that moved last, not the last device in the list', () => {
+      const r = levers(two(-1, 0), two(-0.2, 0), two(-0.2, 0), two(-0.2, 0.6), two(-0.2, 0.6), two(0.4, 0.6));
+      // Nothing has moved yet: the first one counts.
+      expect(r[0]).toBeCloseTo(0);
+      // The first pad's lever moves and the other rests.
+      expect(r[1]).toBeCloseTo(0.4);
+      expect(r[2]).toBeCloseTo(0.4);
+      // Then the second pad's lever moves, and stays the one that counts while both rest.
+      expect(r[3]).toBeCloseTo(0.8);
+      expect(r[4]).toBeCloseTo(0.8);
+      // And back.
+      expect(r[5]).toBeCloseTo(0.7);
+    });
+    it('follows a lever that is moved slowly as well', () => {
+      // A hundredth per reading is below what counts as a move in one reading, but it adds up.
+      const frames = [two(-1, 0.5)];
+      for (let i = 1; i <= 20; i++) frames.push(two(-1 + i * 0.01, 0.5));
+      for (let i = 1; i <= 20; i++) frames.push(two(-0.8, 0.5 - i * 0.01));
+      const r = levers(...frames);
+      expect(r[20]).toBeCloseTo(0.1);
+      expect(r[40]).toBeCloseTo(0.65);
+    });
+    it('falls back to a lever that is there when the one that counted is unplugged', () => {
+      const r = levers(two(-1, 0), two(-1, 0.6), [pad({ axes: [0, 0, 0, -1] })], []);
+      expect(r[1]).toBeCloseTo(0.8);
+      expect(r[2]).toBeCloseTo(0);
+      expect(r[3]).toBeNull();
+    });
+  });
 });
 
 describe('active', () => {

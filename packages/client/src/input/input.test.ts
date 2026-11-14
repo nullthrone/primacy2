@@ -202,6 +202,65 @@ describe('Input with a pad', () => {
     expect(input.sample(FlightMode.Normal, 0.05).buttons & 1).toBe(1);
   });
 
+  it('keeps a stick that was deflected when a panel closed silent until it has been at rest', () => {
+    const { input } = makeInput();
+    store.device.value = 'pad';
+    // The left stick moved the focus down the pause menu and is still down when A closes it.
+    store.panel.value = 'menu';
+    pads = [pad([0], [0, 1, 0.9, 0])];
+    input.pollPads();
+    store.panel.value = null;
+    input.pollPads();
+    let s = input.sample(FlightMode.Normal, 0.05);
+    expect(s.thrust).toEqual([0, 0, 0]);
+    expect(s.aim).toEqual([0, 0]);
+    // The right stick comes to rest and turns again; the left one is still held and stays silent.
+    pads = [pad([], [0, 1, 0, 0])];
+    input.pollPads();
+    pads = [pad([], [0, 1, 1, 0])];
+    input.pollPads();
+    s = input.sample(FlightMode.Normal, 0.05);
+    expect(s.thrust[2]).toBe(0);
+    expect(s.aim[0]).toBeCloseTo(0.8 * 0.05);
+    pads = [pad()];
+    input.pollPads();
+    pads = [pad([], [0, -1, 0, 0])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[2]).toBe(1);
+  });
+
+  it('lets a stick that is moved in flight work at once, also right after a panel closed', () => {
+    const { input } = makeInput();
+    store.device.value = 'pad';
+    store.panel.value = 'menu';
+    pads = [pad()];
+    input.pollPads();
+    store.panel.value = null;
+    input.pollPads();
+    pads = [pad([], [0, -1, 0, 0])];
+    input.pollPads();
+    expect(input.sample(FlightMode.Normal, 0.05).thrust[2]).toBe(1);
+  });
+
+  it('drops what the pad held when a frame cannot be read', () => {
+    const frames: (() => void)[] = [];
+    vi.stubGlobal('requestAnimationFrame', (f: () => void) => frames.push(f));
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { input } = makeInput();
+    pads = [pad([7], [0, -1, 0, 0])];
+    frames[0]!();
+    let s = input.sample(FlightMode.Normal, 0.05);
+    expect(s.buttons & 1).toBe(1);
+    expect(s.thrust[2]).toBe(1);
+    // From here on the pad cannot be read: fire and thrust must not stay as they were for good.
+    store.settings.value = { ...DEFAULT_SETTINGS, pad: { turnRate: 1, axes: { yaw: [null] } } as unknown as PadSettings };
+    frames[1]!();
+    s = input.sample(FlightMode.Normal, 0.05);
+    expect(s.buttons & 1).toBe(0);
+    expect(s.thrust).toEqual([0, 0, 0]);
+    errors.mockRestore();
+  });
+
   it('fires at once with the press that takes the device over from the mouse', () => {
     const { input } = makeInput();
     store.pointerLocked.value = false;
@@ -360,6 +419,19 @@ describe('Input with a pad', () => {
       walk(up, [0.5, 0.981, 0.99, 1]);
       expect(up.throttle).toBe(1);
     });
+    it('counts a lever that rests just short of its stop as at the stop', () => {
+      // A worn lever, or one whose travel the device reports a little short, never reads 0 or 1.
+      const down = withLever();
+      walk(down, [0.5, 0.3, 0.12, 0.05, 0.035, 0.018, 0.006, 0.006]);
+      expect(down.throttle).toBe(0);
+      const up = withLever();
+      walk(up, [0.5, 0.9, 0.97, 0.985, 0.994, 0.994]);
+      expect(up.throttle).toBe(1);
+      // Away from the stops the position is taken as it is.
+      const mid = withLever();
+      walk(mid, [0.5, 0.03]);
+      expect(mid.throttle).toBeCloseTo(0.03);
+    });
   });
 
   it('works on a page without the Gamepad API', () => {
@@ -515,6 +587,29 @@ describe('binding edits', () => {
     // With a second code on the menu, one of the two may go.
     const two = { ...s, bindings: { ...s.bindings, menu: ['Escape', 'Pad:std:b9', 'Pad:std:b16'] } };
     expect(assignPad(two, 'cruise', 'Pad:std:b9').bindings.menu).toEqual(['Escape', 'Pad:std:b16']);
+  });
+  it('does not make the pause-menu button the modifier of a chord, nor move the menu onto a modifier', () => {
+    // A modifier has no action of its own while a chord uses it, so either way Menu would stop
+    // opening the pause menu although it still stands in the list.
+    const s = base();
+    const menuOpens = (b: Record<string, string[]>, button: number): boolean =>
+      readPads([pad([button])], b, s.pad, readPads([pad()], b, s.pad, null).state).pressed.includes('menu');
+    expect(menuOpens(s.bindings, 9)).toBe(true);
+    // Held Menu and A while "Camera" listens.
+    const chord = assignPad(s, 'camera', 'Pad:std:b9+b0');
+    expect(chord).toBe(s);
+    expect(menuOpens(chord.bindings, 9)).toBe(true);
+    // Y is the modifier of every default chord.
+    expect(assignPad(s, 'menu', 'Pad:std:b3')).toBe(s);
+    // A chord for the menu itself is fine, and so is a chord on another modifier for another action.
+    const own = assignPad(s, 'menu', 'Pad:std:b3+b16');
+    expect(own.bindings.menu).toEqual(['Escape', 'Pad:std:b3+b16']);
+    expect(assignPad(s, 'camera', 'Pad:std:b8+b0').bindings.camera).toEqual(['KeyV', 'Pad:std:b8+b0']);
+    // The same button number on another device is another button.
+    expect(assignPad(s, 'camera', 'Pad:044f-b10a:b9+b0').bindings.camera).toEqual(['KeyV', 'Pad:044f-b10a:b9+b0']);
+    // A save in which the menu has no working button may be edited freely, or it could not be mended.
+    const broken = { ...s, bindings: { ...s.bindings, menu: ['Escape'] } };
+    expect(assignPad(broken, 'camera', 'Pad:std:b9+b0').bindings.camera).toEqual(['KeyV', 'Pad:std:b9+b0']);
   });
   it('gives an axis to one action only, as a button', () => {
     // The left stick's forward axis becomes pitch: it must not go on thrusting as well.
