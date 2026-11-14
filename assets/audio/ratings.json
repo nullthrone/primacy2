@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-14T13:50:02.792Z",
+  "savedAt": "2026-11-14T13:50:18.311Z",
   "manifest": {
     "placeholder": false,
     "count": 114
@@ -128,5 +128,5 @@
     }
   },
   "scenes": {},
-  "general": "Die Töne klingen alle sehr mono, haben wir die Chance"
+  "general": "Die Töne klingen alle sehr mono, haben wir die Chance, die Tonengine etwas mehr auf Stereo-/Raumklang zu tunen?"
 }

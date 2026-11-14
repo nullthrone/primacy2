@@ -225,10 +225,21 @@ celestial body as the chosen place; with the camera turned 55 degrees away from 
 radar still shows the ship's axes; nothing lies over anything else in German and English, in the
 system with 19 places, over the ground (also with controller hints). The geometry has unit tests
 (`ui/orient.test.ts`). Not checked: the radar in the game with a server behind it (the browser
-tests of the game do not look at it; they pass with it on the HUD); the look in motion and in a
+tests of the game, `scripts/pad-check.mjs` and `scripts/e2e.mjs`, do not look at it; they pass
+with it on the HUD); the look in motion and in a
 fight with many contacts; a real gate (the development page turns a beacon into one); cruise; a
 view wider than 1920 px (the instrument grows with the interface's unit of size, as every HUD
-block does).
+block does); a ship standing on the ground, where the centre block holds other lines and the
+radar hangs on its width; view widths between 900 and 1280 px, where the radar comes nearer to
+the key caps than the 13 px it keeps over the ground at 1280; the chase camera (every check of
+the radar uses the cockpit, where the ship is two metres from the camera).
+
+The browser tests of the game start their own two servers on ports 8420 and 8421. On that day a
+development stack of the owner's was up on those ports, so `scripts/dev.ts` now takes
+`PRIMACY2_DEV_PORT` (Alpha on that port, Beta on the next) and `PRIMACY2_DEV_DATA` (a data
+directory of its own), and both test scripts follow `PRIMACY2_DEV_PORT`. Run that way (ports 8430
+and 8431, an empty data directory) `scripts/e2e.mjs` took 18 minutes and passed; it was started
+in the foreground and went on in the background after ten minutes.
 
 ## 3. Order of work
 
