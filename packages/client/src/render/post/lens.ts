@@ -29,7 +29,7 @@ const KIND = import.meta.env.DEV && typeof location !== 'undefined' ? KINDS[new 
 const VEIL = 1;
 const RING = 1;
 const RAYS = 1;
-export const CANOPY = 0.03;
+export const CANOPY = 0.022;
 
 /**
  * Vertex part: how much of each light the local scene and the cockpit leave uncovered. The depth
@@ -164,16 +164,16 @@ vec3 lensCanopy(vec2 frag, vec4 pos, vec3 col) {
   vec2 tangent = vec2(-d.y, d.x) / max(r, 1e-3);
   float acc = 0.0;
   for (int k = 0; k < 2; k++) {
-    float cell = (k == 0 ? 54.0 : 23.0) * px;
+    float cell = (k == 0 ? 96.0 : 41.0) * px;
     vec2 g = frag / cell + float(k) * 17.3;
     vec2 id = floor(g);
-    if (h21(id + 29.0) < 0.45) continue;
+    if (h21(id + 29.0) < (k == 0 ? 0.3 : 0.55)) continue;
     float a = h21(id + 3.0) * 3.14159265;
     vec2 u = vec2(cos(a), sin(a));
     vec2 f = fract(g) - 0.5 - 0.4 * (vec2(h21(id + 7.0), h21(id + 13.0)) - 0.5);
     float across = abs(f.x * u.y - f.y * u.x) * cell;
     float along = abs(dot(f, u));
-    float line = exp(-across * across / (0.36 * px * px)) * (1.0 - smoothstep(0.18, 0.42, along));
+    float line = exp(-across * across / (0.25 * px * px)) * (1.0 - smoothstep(0.3, 0.5, along));
     float facing = abs(dot(u, tangent));
     acc += line * pow(facing, 28.0) * (0.35 + 0.65 * h21(id + 41.0));
   }

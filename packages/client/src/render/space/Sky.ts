@@ -1,12 +1,13 @@
 import {
   AdditiveBlending, BackSide, BoxGeometry, BufferAttribute, BufferGeometry, CubeCamera, DoubleSide, Group, HalfFloatType,
-  LinearFilter, LinearMipmapLinearFilter, Mesh, PMREMGenerator, Scene, ShaderMaterial, Vector2, Vector3, Vector4,
+  LinearFilter, LinearMipmapLinearFilter, Mesh, PMREMGenerator, Points, Scene, ShaderMaterial, Vector2, Vector3, Vector4,
   WebGLCubeRenderTarget,
 } from 'three';
 import type { CubeTexture, Texture, WebGLRenderTarget, WebGLRenderer } from 'three';
 import type { GalaxyView, StarClass, SystemDef } from '@primacy2/shared';
 import { GLSL_NOISE } from './glsl.ts';
-import { hashString, seededRandom, type ViewParams } from './types.ts';
+import { kelvinToLinear } from './lighting.ts';
+import { seededRandom, type ViewParams } from './types.ts';
 
 const NEBULAE = 4;
 
@@ -18,49 +19,18 @@ void main() {
 }
 `;
 
-// Stars that are drawn individually. The same function runs in the bake (as a luminance in the
-// alpha channel, for lensing) and every frame on screen, where it stays sharp at any resolution.
-const STAR_GLSL = /* glsl */ `
-vec3 starTint(float h) {
-  vec3 c = mix(vec3(1.0, 0.50, 0.30), vec3(1.0, 0.82, 0.60), smoothstep(0.0, 0.3, h));
-  c = mix(c, vec3(1.0), smoothstep(0.3, 0.6, h));
-  return mix(c, vec3(0.62, 0.76, 1.0), smoothstep(0.6, 1.0, h));
-}
-// One star per cell of a 3D grid cut by the unit sphere. A star is kept only when its projection
-// onto the sphere stays well inside its own cell, so no star is clipped at a cell border.
-vec3 starLayer(vec3 d, float n, float density, float sigma, float base, float gain, float power, float seed) {
-  vec3 cell = floor(d * n);
-  vec3 h = hash33(cell + seed);
-  if (h.x > density) return vec3(0.0);
-  vec3 sd = normalize(cell + 0.2 + 0.6 * hash33(cell * 1.31 + seed + 7.7));
-  vec3 pr = sd * n - cell;
-  if (any(lessThan(pr, vec3(0.15))) || any(greaterThan(pr, vec3(0.85)))) return vec3(0.0);
-  float ang = length(d - sd);
-  return starTint(h.z) * exp(-ang * ang / (sigma * sigma)) * (base + gain * pow(h.y, power));
-}
-vec3 brightStars(vec3 d, vec3 seed, float sigma, vec3 galN) {
-  float lat = dot(d, galN);
-  float dens = 0.35 + 0.65 * exp(-lat * lat / 0.16);
-  return starLayer(d, 36.0, 0.20, min(sigma * 1.3, 0.0020), 0.10, 9.0, 6.0, seed.x * 91.0)
-       + starLayer(d, 80.0, 0.34 * dens, min(sigma, 0.0011), 0.012, 1.3, 5.0, seed.y * 57.0);
-}
-`;
-
-// Procedural sky, evaluated once per system into a cube map. RGB holds the galactic band, unresolved
-// star dust and nebulae; alpha holds the luminance of the individually drawn stars.
+// The diffuse part of the sky, evaluated once into a cube map: the glow of the galactic band with
+// its dust lanes and a few pale nebulae. Alpha starts empty; the stars, which are drawn as points
+// of their own, add their luminance to it for the black hole's lensing.
 const BAKE_FRAG = /* glsl */ `
-uniform vec3 uSeed;
 uniform vec3 uGalN;
 uniform vec3 uGalC;
-uniform float uSigma;
-uniform float uDustFreq;
 uniform vec3 uNebDir[${NEBULAE}];
 uniform vec3 uNebCol[${NEBULAE}];
 uniform vec3 uNebCol2[${NEBULAE}];
 uniform vec4 uNebPar[${NEBULAE}];
 varying vec3 vDir;
 ${GLSL_NOISE}
-${STAR_GLSL}
 
 void main() {
   vec3 d = normalize(vDir);
@@ -75,16 +45,10 @@ void main() {
   float lanes = smoothstep(-0.08, 0.28, fbm(d * 4.2 + 21.0 + n1 * 0.8, 8)) * exp(-lat * lat / 0.012);
   float clumps = clamp(0.55 + 1.5 * n1 + 0.8 * n2, 0.0, 2.0);
   vec3 bandCol = mix(vec3(0.42, 0.52, 0.88), vec3(1.0, 0.80, 0.56), clamp(core * 1.5 + toCore * 0.4, 0.0, 1.0));
-  vec3 col = bandCol * (band * clumps * clumps * 0.045 * (0.30 + 0.70 * toCore) + core * 0.20);
-  col += vec3(0.22, 0.27, 0.42) * wide * 0.006;
-
-  // Unresolved star dust, denser toward the galactic plane.
-  float dens = 0.20 + 0.50 * wide + 0.55 * band * clumps;
-  // The peaks of fine noise make round specks about a texel wide, with no grid to clip them.
-  float s1 = max(gnoise(d * uDustFreq + uSeed.z * 50.0), 0.0);
-  float s2 = max(gnoise(d * uDustFreq * 1.7 + uSeed.x * 31.0 + 17.0), 0.0);
-  vec3 dust = mix(vec3(1.0, 0.86, 0.72), vec3(0.80, 0.88, 1.0), smoothstep(-0.2, 0.2, n2)) * (pow(s1, 6.0) * 1.3 + pow(s2, 6.0) * 0.7) * dens;
-  col = (col + dust) * (1.0 - 0.90 * lanes);
+  // The light of stars too many and too faint to tell apart: a soft glow, never a speck.
+  vec3 col = bandCol * (band * clumps * (0.6 + 0.4 * clumps) * 0.034 * (0.30 + 0.70 * toCore) + core * 0.15);
+  col += vec3(0.22, 0.27, 0.42) * wide * 0.005;
+  col *= 1.0 - 0.90 * lanes;
 
   for (int i = 0; i < ${NEBULAE}; i++) {
     float m = smoothstep(uNebPar[i].x, 1.0, dot(d, uNebDir[i]));
@@ -99,22 +63,61 @@ void main() {
     col *= 1.0 - 0.6 * dark * m;
     col += nc * (body * body * 0.55 + fil * 0.75) * m * (1.0 - 0.85 * dark) * uNebPar[i].y;
   }
-  vec3 stars = brightStars(d, uSeed, uSigma, uGalN);
-  gl_FragColor = vec4(col, dot(stars, vec3(0.3333)));
+  gl_FragColor = vec4(col, 0.0);
 }
 `;
 
 const SKY_FRAG = /* glsl */ `
 uniform samplerCube uSky;
-uniform vec3 uSeed;
-uniform vec3 uGalN;
-uniform float uSigma;
 varying vec3 vDir;
-${GLSL_NOISE}
-${STAR_GLSL}
 void main() {
-  vec3 d = normalize(vDir);
-  gl_FragColor = vec4(textureCube(uSky, d).rgb + brightStars(d, uSeed, uSigma, uGalN), 1.0);
+  gl_FragColor = vec4(textureCube(uSky, normalize(vDir)).rgb, 1.0);
+}
+`;
+
+// The stars: every one a point of light of its own, so they are sharp at any resolution and as
+// bright as they are, from the faintest speck to the few that bloom. Each is drawn as the small
+// soft disc a lens makes of a point; the brightest also get the thin rays of the aperture, in the
+// same pattern as the glare of a sun (see post/lens.ts). With uLum they add their luminance to the
+// alpha channel of the bake instead of drawing colour.
+const STAR_VERT = /* glsl */ `
+attribute vec3 color;
+uniform float uPx;
+uniform float uHot;
+varying vec3 vColor;
+varying float vSize;
+varying float vRays;
+void main() {
+  vColor = color;
+  float peak = max(color.r, max(color.g, color.b));
+  // Stars above uHot are bright enough for rays and get the room to draw them.
+  vRays = smoothstep(uHot, uHot * 3.0, peak);
+  vSize = (vRays > 0.0 ? 9.0 + 34.0 * vRays : 5.0) * uPx;
+  gl_PointSize = vSize;
+  gl_Position = projectionMatrix * vec4(mat3(viewMatrix) * position, 1.0);
+}
+`;
+const STAR_FRAG = /* glsl */ `
+uniform float uPx;
+uniform float uLum;
+varying vec3 vColor;
+varying float vSize;
+varying float vRays;
+float ray(vec2 p, float angle, float reach) {
+  vec2 u = vec2(cos(angle), sin(angle));
+  float along = abs(dot(p, u)) / reach;
+  float across = abs(p.x * u.y - p.y * u.x) / (0.6 * uPx);
+  return exp(-across * across) * (1.0 - smoothstep(0.6, 1.0, along)) / (1.0 + 90.0 * along * along);
+}
+void main() {
+  vec2 p = (gl_PointCoord - 0.5) * vSize;
+  float s = 0.78 * uPx;
+  vec3 c = vColor * exp(-dot(p, p) / (2.0 * s * s));
+  if (vRays > 0.0) {
+    float reach = 0.5 * vSize;
+    c += vColor * vRays * 0.5 * (ray(p, 0.72, reach) + 0.85 * ray(p, 1.7672, reach) + 0.92 * ray(p, 2.8144, reach));
+  }
+  gl_FragColor = uLum > 0.5 ? vec4(0.0, 0.0, 0.0, dot(c, vec3(0.3333))) : vec4(c, 1.0);
 }
 `;
 
@@ -150,21 +153,73 @@ const CLASS_TINT: Record<StarClass, [number, number, number]> = {
   O: [0.60, 0.72, 1.0], B: [0.70, 0.80, 1.0], A: [0.85, 0.90, 1.0], F: [1.0, 1.0, 0.94], G: [1.0, 0.93, 0.78],
   K: [1.0, 0.78, 0.55], M: [1.0, 0.58, 0.38], WD: [0.82, 0.90, 1.0], NS: [0.70, 0.85, 1.0], BH: [1.0, 0.55, 0.30],
 };
-// Colour pairs of nebulae: emission red to violet, oxygen teal to blue, reflection blue to violet, amber to red.
+// Colour pairs of nebulae, pale as the eye sees them: emission rose to violet, oxygen teal to blue,
+// reflection blue to violet, amber to rose.
 const NEBULA_PALETTE: [number, number, number][][] = [
-  [[1.0, 0.16, 0.22], [0.50, 0.18, 0.95]],
-  [[0.08, 0.65, 0.72], [0.18, 0.32, 1.0]],
-  [[0.22, 0.38, 1.0], [0.62, 0.28, 1.0]],
-  [[1.0, 0.48, 0.16], [1.0, 0.14, 0.20]],
+  [[0.80, 0.30, 0.34], [0.50, 0.32, 0.70]],
+  [[0.25, 0.55, 0.60], [0.30, 0.40, 0.80]],
+  [[0.34, 0.45, 0.85], [0.55, 0.42, 0.80]],
+  [[0.85, 0.55, 0.35], [0.80, 0.32, 0.34]],
 ];
 
+/** Stars drawn per quality level. The catalogue is sorted, so a lower level drops the faintest. */
+const STAR_COUNTS = [14000, 28000, 48000] as const;
+/** A star whose peak brightness (scene-referred) passes this shows the rays of the aperture. */
+const STAR_RAYS_FROM = 3;
+// The galactic plane is the same from every system, tilted against the systems' reference plane.
+const GAL_N = new Vector3(0.42, 0.84, 0.34).normalize();
+const GAL_C = new Vector3(0.84, -0.42, 0).normalize();
+
 /**
- * The background of space. The sky of a system is baked into a cube map once; each frame a textured
- * box is drawn with the individually visible stars evaluated on top. The same cube map feeds
+ * The star catalogue: direction and colour times brightness of every star, sorted from the
+ * brightest. It is the same from every system, because even the nearest of these stars is far away
+ * compared with a jump between systems; only the stars of the game's own systems move (see
+ * `setNeighbours`). Four stars in ten are anywhere, the rest crowd the galactic band and its core.
+ * For every star there are about three of the next fainter magnitude, as in a real sky.
+ */
+function starCatalogue(count: number): { position: Float32Array; color: Float32Array } {
+  const rnd = seededRandom(0x5ca1ab1e);
+  const e2 = new Vector3().crossVectors(GAL_N, GAL_C);
+  const dir = new Vector3();
+  const stars: { x: number; y: number; z: number; r: number; g: number; b: number; peak: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    if (rnd() < 0.42) {
+      const z = rnd() * 2 - 1, a = rnd() * Math.PI * 2, r = Math.sqrt(1 - z * z);
+      dir.set(r * Math.cos(a), z, r * Math.sin(a));
+    } else {
+      let phi = 0, toCore = 0;
+      do {
+        phi = (rnd() * 2 - 1) * Math.PI;
+        toCore = Math.exp(-(phi * phi) / 1.44);
+      } while (rnd() > 0.3 + 0.7 * toCore);
+      const beta = (rnd() + rnd() + rnd() - 1.5) * 0.19 * (0.7 + 0.6 * toCore);
+      const cb = Math.cos(beta);
+      dir.set(0, 0, 0).addScaledVector(GAL_C, cb * Math.cos(phi)).addScaledVector(e2, cb * Math.sin(phi)).addScaledVector(GAL_N, Math.sin(beta));
+    }
+    const flux = Math.min(1800, Math.pow(1 - rnd(), -1 / 1.2));
+    const peak = 0.05 * Math.pow(flux, 0.72);
+    const t = rnd();
+    const kelvin = (t < 0.10 ? 3300 : t < 0.30 ? 4400 : t < 0.58 ? 5900 : t < 0.86 ? 8200 : 14000) * (0.88 + 0.24 * rnd());
+    const k = kelvinToLinear(kelvin);
+    // The colours of stars are faint to the eye: tinted white, not red and blue.
+    stars.push({ x: dir.x, y: dir.y, z: dir.z, r: (0.45 + 0.55 * k[0]) * peak, g: (0.45 + 0.55 * k[1]) * peak, b: (0.45 + 0.55 * k[2]) * peak, peak });
+  }
+  stars.sort((a, b) => b.peak - a.peak);
+  const position = new Float32Array(count * 3), color = new Float32Array(count * 3);
+  stars.forEach((st, i) => {
+    position[i * 3] = st.x; position[i * 3 + 1] = st.y; position[i * 3 + 2] = st.z;
+    color[i * 3] = st.r; color[i * 3 + 1] = st.g; color[i * 3 + 2] = st.b;
+  });
+  return { position, color };
+}
+
+/**
+ * The background of space: the diffuse glow of the galaxy, baked into a cube map once, and over it
+ * the stars as points of light and the stars of the other known systems. The same cube map feeds
  * reflections (prefiltered) and the black hole's lensing.
  */
 export class Sky {
-  /** Sky box and neighbour stars; lives in the celestial scene, centred on the camera. */
+  /** Sky box, stars and neighbour stars; lives in the celestial scene, centred on the camera. */
   readonly group = new Group();
   /** Prefiltered environment map of the current sky. */
   envMap: Texture | null = null;
@@ -172,6 +227,9 @@ export class Sky {
   private readonly skyMat: ShaderMaterial;
   private readonly bakeMat: ShaderMaterial;
   private readonly bakeScene = new Scene();
+  private readonly starGeo = new BufferGeometry();
+  private readonly starMat: ShaderMaterial;
+  private readonly starBakeMat: ShaderMaterial;
   private readonly neighbourMat: ShaderMaterial;
   private readonly neighbourBakeMat: ShaderMaterial;
   private neighbourGeo: BufferGeometry | null = null;
@@ -183,11 +241,9 @@ export class Sky {
   private key = '';
 
   constructor() {
-    const galN = new Vector3(0.42, 0.84, 0.34).normalize();
-    const seed = new Vector3();
     this.skyMat = new ShaderMaterial({
       vertexShader: DIR_VERT, fragmentShader: SKY_FRAG,
-      uniforms: { uSky: { value: null }, uSeed: { value: seed }, uGalN: { value: galN }, uSigma: { value: 0.001 } },
+      uniforms: { uSky: { value: null } },
       side: BackSide, depthTest: false, depthWrite: false,
     });
     const sky = new Mesh(this.box, this.skyMat);
@@ -199,12 +255,8 @@ export class Sky {
     this.bakeMat = new ShaderMaterial({
       vertexShader: DIR_VERT, fragmentShader: BAKE_FRAG,
       uniforms: {
-        uSeed: { value: seed },
-        // The galactic plane is the same from every system, tilted against the systems' reference plane.
-        uGalN: { value: galN },
-        uGalC: { value: new Vector3(0.84, -0.42, 0).normalize() },
-        uSigma: { value: 0.001 },
-        uDustFreq: { value: 300 },
+        uGalN: { value: GAL_N },
+        uGalC: { value: GAL_C },
         uNebDir: { value: vecs() },
         uNebCol: { value: vecs() },
         uNebCol2: { value: vecs() },
@@ -215,6 +267,25 @@ export class Sky {
     const bakeBox = new Mesh(this.box, this.bakeMat);
     bakeBox.frustumCulled = false;
     this.bakeScene.add(bakeBox);
+    this.setNebulae();
+
+    const catalogue = starCatalogue(STAR_COUNTS[2]);
+    this.starGeo.setAttribute('position', new BufferAttribute(catalogue.position, 3));
+    this.starGeo.setAttribute('color', new BufferAttribute(catalogue.color, 3));
+    const star = (lum: number): ShaderMaterial => new ShaderMaterial({
+      vertexShader: STAR_VERT, fragmentShader: STAR_FRAG,
+      // In the bake the stars are plain discs a texel wide, without rays.
+      uniforms: { uPx: { value: 1 }, uHot: { value: lum ? 1e9 : STAR_RAYS_FROM }, uLum: { value: lum } },
+      blending: AdditiveBlending, transparent: true, depthTest: false, depthWrite: false,
+    });
+    this.starMat = star(0);
+    this.starBakeMat = star(1);
+    for (const [parent, mat] of [[this.group, this.starMat], [this.bakeScene, this.starBakeMat]] as const) {
+      const points = new Points(this.starGeo, mat);
+      points.frustumCulled = false;
+      points.renderOrder = -999;
+      parent.add(points);
+    }
 
     const neighbour = (lum: number): ShaderMaterial => new ShaderMaterial({
       vertexShader: NEIGHBOUR_VERT, fragmentShader: NEIGHBOUR_FRAG,
@@ -253,8 +324,7 @@ export class Sky {
       });
       this.cubeCam = new CubeCamera(0.1, 10, this.cubeRT);
     }
-    const texel = Math.PI / 2 / size;
-    this.setSeed(system.id, texel);
+    this.starGeo.setDrawRange(0, STAR_COUNTS[quality as 0 | 1 | 2] ?? STAR_COUNTS[2]);
     this.setNeighbours(system, galaxy);
     // In the bake a neighbour star covers a few texels of a 90 degree face.
     (this.neighbourBakeMat.uniforms.uHalf!.value as Vector2).set(10 / size, 10 / size);
@@ -268,18 +338,17 @@ export class Sky {
     this.envMap = this.envRT.texture;
   }
 
-  /** Per-frame values: star sharpness and the pixel size of neighbour stars follow the view. */
+  /** Per-frame values: the pixel size of the stars follows the view. */
   frame(params: ViewParams): void {
-    this.skyMat.uniforms.uSigma!.value = params.pixAngle * 0.85;
+    // A larger picture shows finer stars, but not in full proportion: they must stay wider than a pixel.
+    this.starMat.uniforms.uPx!.value = Math.max(0.85, Math.sqrt(params.height / 1080));
     (this.neighbourMat.uniforms.uHalf!.value as Vector2).set(14 / params.width, 14 / params.height);
   }
 
-  private setSeed(id: string, texel: number): void {
-    const rnd = seededRandom(hashString(id));
+  /** Places the nebulae: few, small and pale, and like the stars the same from every system. */
+  private setNebulae(): void {
+    const rnd = seededRandom(0x0eb01a);
     const u = this.bakeMat.uniforms;
-    (u.uSeed!.value as Vector3).set(rnd(), rnd(), rnd());
-    u.uSigma!.value = texel * 0.8;
-    u.uDustFreq!.value = 0.42 / texel;
     const dirs = u.uNebDir!.value as Vector3[];
     const cols = u.uNebCol!.value as Vector3[];
     const cols2 = u.uNebCol2!.value as Vector3[];
@@ -290,11 +359,11 @@ export class Sky {
       const pair = NEBULA_PALETTE[Math.floor(rnd() * NEBULA_PALETTE.length)]!;
       cols[i]!.set(pair[0]![0], pair[0]![1], pair[0]![2]);
       cols2[i]!.set(pair[1]![0], pair[1]![1], pair[1]![2]);
-      const size = 0.30 + rnd() * 0.50;
-      // The first nebula is the system's landmark; the others stay faint.
-      const strength = i === 0 ? 0.16 + rnd() * 0.16 : 0.03 + rnd() * rnd() * 0.14;
-      // x: cosine of the angular radius, y: strength, z: noise frequency, w: noise offset.
-      pars[i]!.set(Math.cos(size), strength, 2.0 + rnd() * 2.2, rnd() * 40);
+      const size = 0.09 + rnd() * 0.17;
+      // The first is a landmark one can find again; the others are barely there.
+      const strength = i === 0 ? 0.07 + rnd() * 0.04 : 0.012 + rnd() * rnd() * 0.04;
+      // x: cosine of the angular radius, y: strength, z: noise frequency (finer for a smaller patch), w: noise offset.
+      pars[i]!.set(Math.cos(size), strength, (2.0 + rnd() * 2.2) * (0.55 / size), rnd() * 40);
     }
   }
 
@@ -345,6 +414,9 @@ export class Sky {
     this.envRT?.dispose();
     this.pmrem?.dispose();
     this.neighbourGeo?.dispose();
+    this.starGeo.dispose();
+    this.starMat.dispose();
+    this.starBakeMat.dispose();
     this.box.dispose();
     this.skyMat.dispose();
     this.bakeMat.dispose();

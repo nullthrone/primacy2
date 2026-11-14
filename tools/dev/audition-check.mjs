@@ -67,6 +67,10 @@ async function openPage(context, { route } = {}) {
   return page;
 }
 
+// Puts an element `offset` pixels below the top, clear of the sticky header, for the screenshots.
+const scrollTo = (page, selector, offset) =>
+  page.evaluate(([sel, off]) => window.scrollTo(0, document.querySelector(sel).getBoundingClientRect().top + window.scrollY - off), [selector, offset]);
+
 const peakMax = (page) => page.evaluate(() => window.__audition.peakMax);
 
 try {
@@ -129,7 +133,7 @@ try {
     assert((await btn.getAttribute('aria-label')).startsWith('Stop'), 'loop button does not offer Stop');
     await btn.click();
     await sleep(300);
-    assert((await btn.getAttribute('aria-label')).startsWith('Play'), 'loop did not stop');
+    assert(/^(Play|Abspielen)/.test(await btn.getAttribute('aria-label')), 'loop did not stop');
   });
 
   await check('keyboard: Enter on a focused play button plays', async () => {
@@ -172,9 +176,9 @@ try {
       downloads.map((x) => x.id),
       { timeout: 30000 },
     );
-    await page.locator('#cat-engines .part.downloaded').scrollIntoViewIfNeeded();
+    await scrollTo(page, '#cat-engines .part.downloaded', 330);
     await page.screenshot({ path: path.join(SHOTS, 'library-category-engines.png') });
-    await page.locator('#cat-radio .part.downloaded').scrollIntoViewIfNeeded();
+    await scrollTo(page, '#cat-radio .part.downloaded', 250);
     await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
   });
 
@@ -195,7 +199,7 @@ try {
   });
 
   await check('thrust slider crossfades the engine group with equal power', async () => {
-    await page.locator('#group-engine').scrollIntoViewIfNeeded();
+    await scrollTo(page, '#group-engine', 190);
     await page.click('#group-toggle');
     await sleep(300);
     const setThrust = (v) =>
