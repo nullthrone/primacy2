@@ -10,9 +10,10 @@
  *   exhaust.ts     engine plumes and attitude jets
  *   glints.ts      lamps and far-away objects as points of light
  *   landing.ts     landing lights, and the height of things above the ground
+ *   surface.ts     plating and rock grain, made in the shader
  */
 import { HULLS, STRUCTURES } from '@primacy2/shared';
-import { Group, Vector2, type Object3D, type WebGLRenderer } from 'three';
+import { Group, Quaternion, Vector2, Vector3, type Object3D, type WebGLRenderer } from 'three';
 import type { FrameView, Lighting } from '../../../contracts.ts';
 import type { Part } from '../part.ts';
 import { sunVisibility, wrap } from '../util.ts';
@@ -21,21 +22,31 @@ import { Fleet } from './craft.ts';
 import { Exhaust } from './exhaust.ts';
 import { Glints } from './glints.ts';
 import { LandingLight } from './landing.ts';
-import { SunRig } from './lights.ts';
+import { CabinGlow, SunRig } from './lights.ts';
 import { ModelLibrary } from './models.ts';
 import { Structures } from './structures.ts';
+import { setSurfaceQuality } from './surface.ts';
 
 /** Shadow map edge by quality level; 0 means no shadows. */
 const SHADOW_MAP = [0, 1024, 2048] as const;
 /** The cockpit model reaches about two metres from the pilot's eye. */
 const COCKPIT_REACH = 2.2;
+/**
+ * Ambient light of the cabin itself, neutral: what its lit strips and displays scatter around
+ * between its walls. With the glow of the instruments (`CabinGlow`) it makes the cabin readable
+ * when no sunlight reaches it, and it is a small fraction of what the sun gives.
+ */
+const CABIN_FILL = 0.14;
+
+const sunIn = new Vector3();
+const turnBack = new Quaternion();
 
 export function createObjects(): Part {
   const root = new Group();
   const cockpitRoot = new Group();
   const lib = new ModelLibrary();
   const sun = new SunRig(root);
-  const cabinSun = new SunRig(cockpitRoot, 0.06);
+  const cabinSun = new SunRig(cockpitRoot, CABIN_FILL);
   const exhaust = new Exhaust();
   const glints = new Glints();
   const fleet = new Fleet(lib, exhaust, glints);
@@ -46,6 +57,8 @@ export function createObjects(): Part {
   const cabin = new Group();
   let cabinModel: Object3D | null = null;
   cabin.visible = false;
+  // In the scene from the start: the lamps only show while the cabin does.
+  void new CabinGlow(cabin);
   root.add(structures.group, rocks.group, fleet.group, exhaust.mesh, glints.points);
   cockpitRoot.add(cabin);
 
@@ -94,6 +107,7 @@ export function createObjects(): Part {
       light = lit;
 
       lib.materials.setEnv(light.envMap);
+      setSurfaceQuality(quality);
       exhaust.begin(wrap(view.clock, 600), quality);
       glints.begin(light);
       structures.update(view, light, light.sunDir, pxPerRad);
@@ -134,6 +148,9 @@ export function createObjects(): Part {
       if (inCockpit) {
         const q = view.camera.rot;
         cabin.quaternion.set(q[0], q[1], q[2], q[3]);
+        // Where the sun stands as the pilot sees it decides how much of it comes in through the canopy.
+        sunIn.set(light.sunDir[0], light.sunDir[1], light.sunDir[2]).applyQuaternion(turnBack.copy(cabin.quaternion).invert());
+        cabinSun.bounce = CabinGlow.bounce(light.sunIntensity, sunIn.x, sunIn.y, sunIn.z);
       }
       cabinSun.update(light, 0, 0, 0, inCockpit ? COCKPIT_REACH : 0, COCKPIT_REACH * 3, Math.min(map, 1024), view.dt);
     },

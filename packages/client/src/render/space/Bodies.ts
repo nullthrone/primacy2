@@ -83,6 +83,7 @@ class PlanetVisual implements Visual {
       uRing: { value: new Vector4(rings ? rings.inner / def.radius : 0, rings ? rings.outer / def.radius : 0, rings ? (rings.seed % 977) * 0.37 : 0, rings ? 1 : 0) },
       uRingN: { value: new Vector3(axis[0], axis[1], axis[2]) },
       uAtmoColor: { value: new Vector3(atmoColor[0], atmoColor[1], atmoColor[2]) }, uAtmo: { value: this.atmoStrength },
+      uNear: { value: 0 },
     };
     const seed = seedFloat(def.seed);
     const par = new Vector4();
@@ -102,6 +103,7 @@ class PlanetVisual implements Visual {
       uniforms: {
         ...this.shared, uRot: { value: new Matrix3() }, uBase: { value: new Vector3(base[0], base[1], base[2]) },
         uSeed: { value: seed }, uOct: { value: 6 }, uTime: { value: 0 }, uCloudPhase: { value: 0 }, uPar: { value: par },
+        uFine: { value: 1 },
         uFar: { value: null }, uBake: { value: 0 }, uGroundSun: { value: new Vector3() }, uGroundAmb: { value: new Vector3() },
       },
       ...NO_DEPTH,
@@ -159,6 +161,9 @@ class PlanetVisual implements Visual {
     s.uRadius!.value = radius;
     s.uPix!.value = params.pixAngle;
     s.uFade!.value = fade;
+    // 0 from afar, 1 in low orbit: cloud shadows and the band of air at the limb take their
+    // true, small scale only where there is room on screen to show it.
+    s.uNear!.value = 1 - smoothstep(1.25, 2.6, body.dist / def.radius);
 
     // The star that lights this body, with its flux compressed so the outer system stays readable.
     const star = dominantStar(frame.bodies, body.rel);
@@ -179,6 +184,9 @@ class PlanetVisual implements Visual {
       const u = this.material.uniforms;
       bodyRotation(def, frame.time, u.uRot!.value as Matrix3);
       u.uOct!.value = octaves(px, params.quality);
+      // Detail finer than those octaves follows the size of a pixel on the surface (see
+      // 'fineNoise' in the shader). The lowest quality has none, the middle one stops an octave early.
+      u.uFine!.value = params.quality === 0 ? 0 : params.quality === 1 ? 1.6 : 1;
       u.uTime!.value = params.clock;
       // A slow angle for cloud drift and zonal sway, wrapped in float64 so it never jumps.
       u.uCloudPhase!.value = (frame.clock * 0.0015) % (Math.PI * 2);

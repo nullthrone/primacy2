@@ -269,7 +269,7 @@ void surfPlates(vec2 q, vec2 size, vec2 pix, float wrap, uint seed, int cuts,
   uint h = surfMix((uint(int(col)) * 0x85ebca6bu) ^ hr);
   vec2 lo = vec2(0.0);
   vec2 hi = vec2(1.0);
-  float w = smoothstep(2.0, 5.0, min(size.x / pix.x, size.y / pix.y));
+  float w = smoothstep(3.0, 8.0, min(size.x / pix.x, size.y / pix.y));
   show = vec4(w);
   thin = vec4(1.0);
   look = (vec4(float(h & 255u), float((h >> 8) & 255u), float((h >> 16) & 255u), float(h >> 24)) / 255.0 - 0.5) * w;
@@ -281,14 +281,14 @@ void surfPlates(vec2 q, vec2 size, vec2 pix, float wrap, uint seed, int cuts,
     uint hc = surfMix(h ^ 0x68bc21ebu);
     float ra = float(hc & 0xffffu) / 65536.0;
     float rb = float(hc >> 16) / 65536.0;
-    if (i > 1 && rb > 0.7) break;
+    if (i > 0 && rb > 0.66) break;
     bool alongU = span.x * (0.75 + 0.5 * fract(rb * 7.0)) > span.y;
     float t = 0.32 + 0.36 * ra;
     float child = min(t, 1.0 - t) * (alongU ? span.x / pix.x : span.y / pix.y);
-    w = min(w, smoothstep(2.0, 5.0, child));
+    w = min(w, smoothstep(3.0, 8.0, child));
     if (w <= 0.0) break;
-    slim *= 0.8;
-    amp *= 0.72;
+    slim *= 0.82;
+    amp *= 0.66;
     uint side;
     if (alongU) {
       float c = mix(lo.x, hi.x, t);
@@ -400,44 +400,50 @@ vec3 surfGrad = vec3(0.0);
   vec4 sRound = vec4(surfEdge(sDist.x, sWide, sPix.x), surfEdge(sDist.y, sWide, sPix.y),
                      surfEdge(sDist.z, sWide, sPix.x), surfEdge(sDist.w, sWide, sPix.y)) * sShow;
   float sRelief = uSurfB.w;
-  surfGrad = (sU * (sRound.x - sRound.z + sLook.z * 0.07) + sV * (sRound.y - sRound.w + sLook.w * 0.07)) * sRelief;
+  surfGrad = (sU * (sRound.x - sRound.z + sLook.z * 0.1) + sV * (sRound.y - sRound.w + sLook.w * 0.1)) * sRelief;
 
   // Stains wider than a plate, mottling within one, and grain.
   vec3 sC = SURF_TURN * sP / sB;
   vec4 sStain = texture(uSurfNoise, sC * 0.09 + fract(uSurfA.z * 0.137));
   vec4 sMottle = texture(uSurfNoise, sC * 0.72 + 0.37);
   float sWear = uSurfB.z;
-  float sTone = sLook.x * uSurfB.x * 2.0 + ((sStain.a - 0.5) * 0.36 + (sMottle.a - 0.5) * 0.2) * sWear;
-  surfRough = sLook.y * uSurfB.y * 2.0 + (sStain.a - 0.5) * 0.3 * sWear + sJoint * 0.2;
-  surfGrad += ((sMottle.rgb - 0.5) * SURF_TURN) * (0.1 * sRelief);
+  // Most plates are nearly alike; a few stand out, as replaced ones do.
+  float sOdd = clamp(sLook.x, -1.0, 1.0);
+  float sTone = (sOdd * 0.4 + sOdd * abs(sOdd) * 2.2) * uSurfB.x
+    + ((sStain.a - 0.5) * 0.4 + (sMottle.a - 0.5) * 0.18) * sWear;
+  surfRough = sLook.y * uSurfB.y * 2.0 + ((sStain.a - 0.5) * 0.55 + (sMottle.a - 0.5) * 0.25) * sWear + sJoint * 0.2;
+  surfGrad += ((sMottle.rgb - 0.5) * SURF_TURN) * (0.22 * sRelief);
   if (uSurfQ > 0.5) {
     vec4 sGrain = texture(uSurfNoise, sC * 5.76 + 0.71);
-    surfGrad += ((sGrain.rgb - 0.5) * SURF_TURN) * (0.16 * sRelief);
-    surfRough += (sGrain.a - 0.5) * 0.12;
-    sTone += (sGrain.a - 0.5) * 0.06 * sWear;
+    surfGrad += ((sGrain.rgb - 0.5) * SURF_TURN) * (0.4 * sRelief);
+    surfRough += (sGrain.a - 0.5) * 0.2;
+    sTone += (sGrain.a - 0.5) * 0.07 * sWear;
   }
-  float sGrime = sDirt * clamp(0.5 + (sMottle.a - 0.5) * 3.0, 0.0, 1.0) * 0.22 * sWear;
+  float sGrime = sDirt * clamp(0.5 + (sMottle.a - 0.5) * 3.0, 0.0, 1.0) * 0.16 * sWear;
   // Far away the joints are gone; what they took from the mean stays.
-  float sFar = 1.0 - smoothstep(2.0, 5.0, min(sSize.x / sPix.x, sSize.y / sPix.y));
-  diffuseColor.rgb *= max(0.0, 1.0 + sTone) * (1.0 - uSurfC.y * sJoint) * (1.0 - sGrime) * (1.0 - 0.03 * sFar);
+  float sFar = 1.0 - smoothstep(3.0, 8.0, min(sSize.x / sPix.x, sSize.y / sPix.y));
+  diffuseColor.rgb *= max(0.0, 1.0 + sTone) * (1.0 - uSurfC.y * sJoint) * (1.0 - sGrime) * (1.0 - 0.02 * sFar);
 }`;
 
 const ROCK_PARS = /* glsl */ `
-// One pit per cell of a grid in space, a ball that stays inside its cell; where the ball cuts the
-// surface there is a bowl. Returns the gradient of the bowl (xyz) and how deep inside it lies (w).
-vec4 surfPit(vec3 p, float cell, float pix) {
+// Pits: a grid in space, and in less than half of its cells a ball that stays inside its cell.
+// Where a ball cuts the surface there is a bowl, its outline bent by "warp". Returns the gradient
+// of the bowl (xyz) and how deep inside it the point lies (w).
+vec4 surfPit(vec3 p, float cell, float pix, float warp) {
   vec3 c = p / cell;
   vec3 ic = floor(c);
   uint h = surfMix(uint(int(ic.x)) * 0x9e3779b1u ^ surfMix(uint(int(ic.y)) * 0x85ebca6bu ^ surfMix(uint(int(ic.z)))));
-  vec3 mid = 0.3 + 0.4 * vec3(float(h & 1023u), float((h >> 10) & 1023u), float((h >> 20) & 1023u)) / 1023.0;
-  float rad = 0.12 + 0.16 * float(h >> 30) / 3.0;
+  if ((h >> 28) > 6u) return vec4(0.0);
+  vec3 mid = 0.32 + 0.36 * vec3(float(h & 511u), float((h >> 9) & 511u), float((h >> 18) & 511u)) / 511.0;
+  float size = float((h >> 27) & 1u) * 0.5 + float(h & 127u) / 254.0;
+  float rad = 0.08 + 0.2 * size * size;
   vec3 d = c - ic - mid;
-  float dd = dot(d, d) / (rad * rad);
-  float fade = smoothstep(1.5, 4.0, rad * cell / pix);
+  float dd = dot(d, d) / (rad * rad) * (1.0 + warp);
+  float fade = smoothstep(2.0, 5.0, rad * cell / pix);
   if (dd >= 1.0 || fade <= 0.0) return vec4(0.0);
-  // A bowl with a soft rim: the slope is steepest two thirds of the way out.
+  // A shallow bowl with a soft rim: the slope is steepest half way out.
   float wall = dd * (1.0 - dd) * 4.0;
-  return vec4(d / (rad * sqrt(max(dd, 1e-4))) * (0.9 * wall * fade), (1.0 - dd) * fade);
+  return vec4(d / (rad * sqrt(max(dd, 1e-4))) * (0.8 * wall * fade), (1.0 - dd) * fade);
 }`;
 
 const ROCK_COLOR = /* glsl */ `
@@ -453,29 +459,33 @@ float surfScale = 1.0;
   surfScale = length(dFdx(vViewPosition)) / max(length(sDx), 1e-9);
   vec3 sC = SURF_TURN * sP;
   float sTone = 0.0;
-  int sOctaves = uSurfQ > 1.5 ? 4 : uSurfQ > 0.5 ? 3 : 2;
+  float sWarp = 0.0;
+  int sReads = uSurfQ > 1.5 ? 4 : uSurfQ > 0.5 ? 3 : 2;
   float sFreq = 0.3;
-  float sAmp = 0.5;
-  float sSlope = 0.5;
-  for (int i = 0; i < sOctaves; i++) {
-    // Past the point where the finest grain of this reading is smaller than a pixel there is nothing left to read.
-    if (sFreq * sPix > 0.5) break;
+  float sAmp = 1.0;
+  float sSlope = 2.2;
+  for (int i = 0; i < sReads; i++) {
+    // Once the coarsest grain of a reading is smaller than a pixel there is nothing left in it.
+    if (sFreq * sPix > 0.12) break;
     vec4 n = texture(uSurfNoise, sC * sFreq + float(i) * 0.37);
     sTone += (n.a - 0.5) * sAmp;
     surfGrad += ((n.rgb - 0.5) * SURF_TURN) * sSlope;
+    if (i == 1) sWarp = (n.a - 0.5) * 2.4;
     sFreq *= 8.0;
-    sAmp *= 0.62;
-    sSlope *= 0.9;
+    sAmp *= 0.6;
+    sSlope *= 1.15;
   }
-  vec4 sPit = surfPit(sP, 0.11, sPix);
+  vec4 sPit = surfPit(sP, 0.26, sPix, sWarp);
+  vec4 sSmall = surfPit(sP + 3.7, 0.085, sPix, sWarp);
+  sPit = vec4(sPit.xyz + sSmall.xyz, max(sPit.w, sSmall.w));
   if (uSurfQ > 0.5) {
-    vec4 fine = surfPit(sP + 3.7, 0.034, sPix);
-    sPit = vec4(sPit.xyz + fine.xyz, max(sPit.w, fine.w));
+    sSmall = surfPit(sP + 9.1, 0.027, sPix, sWarp);
+    sPit = vec4(sPit.xyz + sSmall.xyz, max(sPit.w, sSmall.w));
   }
   surfGrad += sPit.xyz;
   // Dust lies in the pits.
-  diffuseColor.rgb *= max(0.0, 1.0 + sTone * 1.1) * (1.0 - 0.3 * sPit.w);
-  surfRough = sTone * 0.1;
+  diffuseColor.rgb *= max(0.0, 1.0 + sTone * 1.3) * (1.0 - 0.3 * sPit.w);
+  surfRough = sTone * 0.15;
 }`;
 
 const ROUGH_MAIN = /* glsl */ `
@@ -534,18 +544,21 @@ export function surfaceFor(name: string, key: string, radius: number): SurfaceSp
   const seed = hashKey(key);
   if (name.startsWith('cockpit_')) {
     // Close to the eye: small satin panels with seams a couple of millimetres wide.
-    return { kind: 'hull', block: 0.6, polar: 0, seed, joint: 0.0013, tone: 0.05, rough: 0.07, wear: 0.3, relief: 0.5, levels: 4, dark: 0.55 };
+    return { kind: 'hull', block: 0.6, polar: 0, seed, joint: 0.0013, tone: 0.05, rough: 0.05, wear: 0.12, relief: 0.5, levels: 4, dark: 0.55 };
   }
   if (!name.startsWith('hull_')) return null;
-  const block = 0.9 * Math.pow(Math.max(radius, 1), 0.4);
+  // Rings around the axis for what is built around one; plates of a station are larger for its size than a ship's.
+  const polar = key.startsWith('station_') || key === 'gate';
+  const large = polar || radius > 100;
+  const block = (large ? 1.6 : 1.05) * Math.pow(Math.max(radius, 1), 0.4);
   const base: SurfaceSpec = {
-    kind: 'hull', block, polar: key.startsWith('station_') || key === 'gate' ? 1 : 0, seed,
-    joint: block * 0.006, tone: 0.09, rough: 0.12, wear: 1, relief: 1, levels: block > 6 ? 7 : 5, dark: 0.6,
+    kind: 'hull', block, polar: polar ? 1 : 0, seed,
+    joint: block * 0.0035, tone: 0.07, rough: 0.12, wear: 1, relief: 1, levels: large ? 7 : 4, dark: 0.45,
   };
   // Paint in the signal colours keeps its colour; dark plating shows its plates in the gloss.
-  if (name.startsWith('hull_accent')) return { ...base, tone: 0.03, rough: 0.08, wear: 0.4 };
-  if (name.startsWith('hull_dark')) return { ...base, tone: 0.2, rough: 0.16, dark: 0.5 };
-  if (name.startsWith('hull_secondary')) return { ...base, tone: 0.13, rough: 0.14 };
+  if (name.startsWith('hull_accent')) return { ...base, tone: 0.025, rough: 0.08, wear: 0.4 };
+  if (name.startsWith('hull_dark')) return { ...base, tone: 0.16, rough: 0.16 };
+  if (name.startsWith('hull_secondary')) return { ...base, tone: 0.1, rough: 0.14 };
   return base;
 }
 

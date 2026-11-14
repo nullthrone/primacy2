@@ -101,12 +101,16 @@ function tune(m: MeshStandardMaterial, cockpit: boolean): void {
   if (n === 'cockpit_frame') {
     m.color.multiplyScalar(2.6);
     m.metalness = 0.2;
-    m.roughness = 0.52;
+    m.roughness = 0.64;
   } else if (n === 'cockpit_panel') {
     m.color.multiplyScalar(1.7);
     m.metalness = 0.12;
-    m.roughness = 0.6;
-  } else if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) m.metalness *= 0.4;
+    m.roughness = 0.72;
+  } else if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) {
+    m.metalness *= 0.4;
+    // Light paint in full sun burns out to white and takes the plating with it; a little off white leaves room.
+    if (n.startsWith('hull_primary')) m.color.multiplyScalar(0.86);
+  }
   else if (n.startsWith('hull_secondary')) m.metalness *= 0.6;
   else if (n.startsWith('emissive')) {
     m.color.multiplyScalar(n === 'emissive_engine' ? 0.03 : 0.12);
