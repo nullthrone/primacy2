@@ -1,0 +1,50 @@
+{
+  "summary": "Synthesis library, build script, six engine levels, cabin ambience, silent running and cabin_ir are built. All nine sounds pass every rule in the build output (cabin_ir without the CLAP rule, see deviations). Tests are green (15). Full build went into assets/audio/render and its manifest validates against the contract.",
+  "built": [
+    "tools/audio/synth/{core,hull,room,levels,wavio,registry,rules}.py, __init__.py, README.md",
+    "tools/audio/synth/cat_engines.py (6 sounds), cat_cabin.py (3 sounds)",
+    "tools/audio/synth/tests/test_synth.py (15 unittest tests)",
+    "tools/audio/build.py with --only --category --out --no-clap --describe --manifest-only, manifest assembly from per-sound JSON, contract validation, selection.json downloads (schema guessed)"
+  ],
+  "sounds": [
+    {"id": "engine_main_t000", "pass": true, "recipe": "Two beating machine tones (47 and 71 Hz series) through the shared hull modes with a trace of shared plasma noise.", "seen": "Energy only below about 170 Hz in steady lines, -38.0 LUFS, loop seam ratio 0.5, swing 5.5 dB.", "doubt": "Describing model called it a fan motor; may sound too thin and tonal for an engine idle."},
+    {"id": "engine_main_t025", "pass": true, "recipe": "Same tones and noise seeds, more flow noise through more hull modes, slight roughness.", "seen": "Same lines as idle plus broadband 30-200 Hz fill, -32.0 LUFS.", "doubt": "Fan motor according to the describing model."},
+    {"id": "engine_main_t050", "pass": true, "recipe": "Same hull and seeds, flow noise now dominant, tones about 7 percent higher, moderate roughness.", "seen": "Hull modes at 71, 118 and 163 Hz stand out, fill up to 400 Hz, -27.0 LUFS.", "doubt": "Described as a motorboat idling; the intended spaceship character is a judgement for the owner's ear."},
+    {"id": "engine_main_t075", "pass": true, "recipe": "Stronger flow, deeper flutter and saturation, pitch up about 11 percent.", "seen": "Wider 100-500 Hz energy, no rattles yet, -23.0 LUFS.", "doubt": "Described as a car engine idling; the neg list of the category contains a car engine."},
+    {"id": "engine_main_t100", "pass": true, "recipe": "Full roughness and saturation, pitch up 15 percent, a few rattles (activity 0.43 of the pool) at 1 to 4 kHz.", "seen": "Dense rumble below 400 Hz, rattle spots at 1-4 kHz about 35 dB down, high share 0.0, -20.0 LUFS.", "doubt": "Describing model called it ambient synth music."},
+    {"id": "engine_main_boost", "pass": true, "recipe": "Beyond full thrust: maximum roughness, three more percent pitch, all rattles of the pool.", "seen": "Same body as full thrust, about 12 rattles over 8 s between 1 and 3.5 kHz, true peak -3.5 dBFS, -17.0 LUFS.", "doubt": "Rattles may be too regular and too many for a deliberate now-and-then; describing model heard a repeated melody."},
+    {"id": "cabin_ambience_loop", "pass": true, "recipe": "Stereo fan air noise, blade-pass partials, faint motor whine and 100 Hz transformer hum, five thermal ticks, all through the cabin impulse response circularly.", "seen": "Quiet band 80-1300 Hz with a boxy swell near 250 Hz, nothing above 2 kHz but faint tick dots, -45.0 LUFS, swing 4.0 dB.", "doubt": "Ticks are only about 6 dB above the high-frequency floor and nearly invisible in the picture: they may be inaudible. Describing model said car engine idling."},
+    {"id": "silent_running_loop", "pass": true, "recipe": "100 Hz transformer hum with odd harmonics and a faint pink floor, four thermal ticks, through the cabin.", "seen": "Hum lines at 100 and 300 Hz over a very low floor, -55.0 LUFS, ticks about 12 dB above the high-frequency floor.", "doubt": "Rule swing limit was raised to 12 dB for this loop (measured 2.3 dB, so it was not needed); describing model said engine idling."},
+    {"id": "cabin_ir", "pass": true, "recipe": "Image-source reflections of a 2.2 x 1.6 x 1.4 m box (first at 3.6 ms), dense decorrelated tail of 0.3 s with a resonance near 250 Hz, direct impulse at sample 0.", "seen": "Stereo, waveform decays within about 0.15 s, spectrogram energy concentrated at 200-400 Hz and gone by 0.3 s, ear correlation 0.15.", "doubt": "CLAP margin is -0.038 (an impulse response is not a sound to compare); not counted as a failure."}
+  ],
+  "verified": [
+    "Ran the unittest suite: 15 tests OK (determinism, no seam, level targets, ceiling for all registered sounds, registry refusals, cabin IR shape, helper smoke tests)",
+    "Built all nine sounds into assets/audio/render with CLAP and the describing model; build output says pass for all nine with the CLAP margins listed in the manifest",
+    "Rebuilt two sounds in a second process and compared sha256 of the WAV files: identical",
+    "manifest.json of assets/audio/render validates against the contract (the build's own validator; it also lists the other agents' sounds that were in the folder, 59 in all, no placeholder flag)",
+    "Looked at the spectrogram PNGs of all nine sounds (the silent running and ambience pictures after the final tick change)",
+    "Band-energy table of the six engine files: low bands vary smoothly with thrust, rattles first appear at full thrust"
+  ],
+  "notVerified": [
+    "Nothing was listened to; every judgement is from measurements and pictures",
+    "Crossfading of the six engine files was checked only through band shares and pitch peaks, not by an actual crossfade render",
+    "The Whisper rule for radio is not implemented (radio category)",
+    "selection.json handling follows a guessed schema; it was not run against a real file",
+    "The loop level swing limit of 6 dB is my own reading of the design rule, not a number from SOUND_DESIGN.md",
+    "Helpers hull_blow, thump, rattles in non-periodic mode and transformer_tone are only smoke-tested; their sound has not been judged"
+  ],
+  "deviations": [
+    "cabin_ir: CLAP margin is recorded but not counted as a failure; an impulse response is a convolver input",
+    "cabin_ir is listed with dry false so the page does not convolve it with itself",
+    "cabin_ir level is -3 dBFS peak in the file (not specified in the brief)",
+    "silent_running_loop is registered with swing_max 12 dB",
+    "The describing model's answers (fan motor, motorboat, car engine, ambient music) do not name a spaceship engine; recorded in the manifest and not treated as failures per SOUND_DESIGN.md",
+    "Categories with no stand-in or other builds are not in the manifest; the missing ids are written to missing.json next to it instead of into the manifest"
+  ],
+  "openIssues": [
+    "The engine character is tonal at idle and may need ear judgement; the describing model hears fan or motorboat",
+    "Cabin ticks are quiet; raise the factor in cat_cabin.py (5.0 and 6.0) if they cannot be heard",
+    "CATEGORY_DEFAULTS and the LEVELS entries not named in the brief (shield hits, breaker, touchdown names) are provisional until their category owners confirm them"
+  ],
+  "forNextAgent": "Write tools/audio/synth/cat_<category>.py (the build imports every cat_*.py automatically; a broken one only reports an import error). Inside: `from . import register, ...` then `@register(\"<id from sounds.json>\") def f(ctx): return float_array` with exactly ctx.n samples, shape (n,) or (n,2) when sounds.json has channels 2; ctx.spec is the sounds.json entry, ctx.params its params, ctx.rng(salt) a generator fixed by the id; use seeded(\"family/name\") for noise a family shares. Never normalise: add the id to LEVELS in synth/levels.py (loops LUFS, one-shots true peak) or it falls back to provisional CATEGORY_DEFAULTS. Loops: use periodic_noise, freq_filter, through_hull(periodic=True), snap_freq/sine/machine_tone, periodic_lfo/slow_wander so they close; pointwise nonlinearities keep periodicity. Structure sounds: excitation -> through_hull -> structure_lowpass, rattles only when strong; a one-shot must start within 5 ms and end in silence (fade_edges). Cabin sounds: apply_cabin(dry)[:, 0] for mono. Build: .venv-audio/Scripts/python.exe tools/audio/build.py --only id --no-clap, then open <out>/<category>/<id>.png; drop --no-clap for the CLAP margin and add --describe for the Qwen answer (slow, loads once). Pitfalls: a --no-clap rebuild overwrites the earlier CLAP result in that sound's JSON; rules are in synth/rules.py and the cabin switch rules (centroid 800-5000 Hz, not longer than listed) apply to switches one-shots of 0.5 s or less; hull rings 2 s at 37 Hz so short files must fade their end; tests: .venv-audio/Scripts/python.exe -m unittest discover -s tools/audio/synth/tests. The register() decorator raises on an unknown or duplicate id, so importing two files that register the same id fails."
+}

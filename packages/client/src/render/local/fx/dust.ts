@@ -118,7 +118,8 @@ export class Dust {
     }
     const speed = Math.hypot(vx, vy, vz);
 
-    // Cruise and fold have their own streaks in the final pass; the dust steps aside for them.
+    // Cruise has its own streaks, drawn behind everything near (render/post/Cruise.ts), and fold
+    // its tunnel in the final pass; the dust steps aside for them.
     const want = view.fx.cruise > 0 || view.fx.fold > 0 ? 0 : 1;
     this.level = damp(this.level, want, 4, f.dt);
     this.mesh.visible = this.level > 0.01;

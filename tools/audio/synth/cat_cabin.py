@@ -50,7 +50,7 @@ def cabin_ambience(ctx):
     bed = (1.0 * air + 0.55 * blades + 0.015 * whine + 0.22 * hum) * drift[:, None]
     bed = normalize_rms(bed)
     ticks = thermal_ticks(n, 5, seeded("cabin/ticks/ambience"))
-    dry = bed + 3.5 * ticks
+    dry = bed + 5.0 * ticks
     return apply_cabin(dry, periodic=True)
 
 
@@ -63,7 +63,7 @@ def silent_running(ctx):
     bed = normalize_rms(hum) * 1.0 + 0.45 * normalize_rms(noise)
     bed = normalize_rms(bed)
     ticks = thermal_ticks(n, 4, seeded("cabin/ticks/silent"), min_gap_s=2.0)
-    dry = bed + 4.5 * ticks
+    dry = bed + 6.0 * ticks
     return apply_cabin(dry, periodic=True)
 
 

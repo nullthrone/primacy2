@@ -145,4 +145,5 @@ def hull_blow(n: int, strength: float = 0.5, rng=None, sharp: float = 1.0, ring:
         r = rattles(n, act, rng, per_second=6.0, periodic=False)
         env = burst_env(n, 4.0, 0.15 + 0.6 * strength)
         y = y + 0.06 * act * rms(y[: int(0.3 * SR)]) * r * env * 8
-    return fade_edges(y, 0.0, 10.0)
+    # the hull rings longer than a short file: let the end fade over the last quarter
+    return fade_edges(y, 0.0, min(250.0, 0.25 * 1000.0 * n / SR))

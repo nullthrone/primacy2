@@ -254,11 +254,13 @@ export class PadNav {
     this.repeat = step.repeat;
     if (!a && !b && !lb && !rb && !step.fire) return;
 
+    // The first press after the focus was lost only shows where it is; it must not click anything.
+    const fresh = !(this.current && focusables(c).includes(this.current));
     const cur = this.resolve(c);
-    if (!cur) return;
+    if (!cur || fresh) return;
     if (b) return this.back(c, cur);
     if (lb || rb) return this.tab(c, rb ? 1 : -1);
-    if (a) return this.activate(c, cur);
+    if (a) return this.activate(cur);
     if (step.fire && dir) this.move(c, cur, dir, step.repeat.count);
   }
 
@@ -321,7 +323,7 @@ export class PadNav {
     if (i >= 0) this.set(list[i]!);
   }
 
-  private activate(c: HTMLElement, cur: HTMLElement): void {
+  private activate(cur: HTMLElement): void {
     if (isTextLike(cur)) {
       if (document.activeElement === cur) cur.blur();
       else cur.focus();
@@ -331,9 +333,8 @@ export class PadNav {
       setValue(cur, cur.options[(cur.selectedIndex + 1) % cur.options.length]!.value);
       return;
     }
-    cur.click();
     // A click may rebuild the screen; the next frame re-resolves the focus if the element is gone.
-    void c;
+    cur.click();
   }
 
   private back(c: HTMLElement, cur: HTMLElement): void {

@@ -285,3 +285,9 @@
 .meter { position: relative; flex: 0 0 9em; height: 0.7em; background: rgba(127, 233, 255, 0.08); border: 1px solid var(--line); }
 .meter::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
 .meter i { position: absolute; top: 0; bottom: 0; background: var(--cyan); }
+
+/* Controller navigation: a mark of our own, because :focus-visible does not follow script focus reliably. */
+[data-device="pad"] #ui .padfocus { outline: 2px solid var(--amber); outline-offset: 2px; box-shadow: 0 0 12px rgba(255, 179, 71, 0.45); }
+.sys-pick { display: flex; flex-direction: column; gap: 0.3em; }
+.sys-pick h4 { font-size: 0.8em; color: var(--dim); }
+#ui .sys-list { max-height: 14em; }

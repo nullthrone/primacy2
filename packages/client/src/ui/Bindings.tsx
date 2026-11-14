@@ -45,7 +45,10 @@ export function Bindings({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     store.padCapturing.value = listening !== null;
     if (!listening) return;
-    const before = read();
+    // The press that started the assignment (A on the Assign button) is still down for a moment.
+    // Wait until every button is up, so that press is not taken as the modifier of a chord.
+    let before: PadSnapshot[] | null = null;
+    const armedAt = performance.now();
     let pending: { dev: string; n: number } | null = null;
     let raf = 0;
     const onKey = (e: KeyboardEvent): void => {
@@ -57,6 +60,15 @@ export function Bindings({ onBack }: { onBack: () => void }) {
     window.addEventListener('keydown', onKey, true);
     const step = (): void => {
       const now = read();
+      if (before === null) {
+        const held = now.some((p) => p.buttons.some((b) => b.pressed));
+        // A button that never comes up (a stuck trigger) must not block the assignment for ever.
+        if (held && performance.now() - armedAt < 1500) {
+          raf = requestAnimationFrame(step);
+          return;
+        }
+        before = now;
+      }
       if (listening.kind === 'action') {
         const r = captureProgress(before, now, pending);
         pending = r.pending;
@@ -98,7 +110,7 @@ export function Bindings({ onBack }: { onBack: () => void }) {
     <div class="bindings">
       <div class="row between">
         <h3>{t('pad.title')}</h3>
-        <button type="button" onClick={onBack}>{t('pad.back')}</button>
+        <button type="button" data-padback onClick={onBack}>{t('pad.back')}</button>
       </div>
 
       <h4>{t('pad.devices')}</h4>

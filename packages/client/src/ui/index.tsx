@@ -10,6 +10,7 @@ import { store } from '../state/store.ts';
 import { Hud } from './Hud.tsx';
 import { ContactsPanel, GalaxyMap, NavPanel } from './Maps.tsx';
 import { PauseMenu, StartScreen } from './Menu.tsx';
+import { startPadNav } from './padnav.ts';
 import { Station } from './Station.tsx';
 
 function App({ api, audio }: { api: GameApi; audio: GameAudio }) {
@@ -48,4 +49,5 @@ function App({ api, audio }: { api: GameApi; audio: GameAudio }) {
 
 export function mountUi(root: HTMLElement, api: GameApi, audio: GameAudio): void {
   render(<App api={api} audio={audio} />, root);
+  startPadNav();
 }

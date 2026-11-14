@@ -9,7 +9,7 @@ import {
 import type { GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { store } from '../state/store.ts';
-import { STAR_COLORS, fmtDistance } from './format.ts';
+import { STAR_COLORS, bindKey, fmtDistance } from './format.ts';
 import { TIER_COLOR, isTier, jumpForecast, tierLabel } from './trade.ts';
 
 function PanelHeader({ title }: { title: string }) {
@@ -254,6 +254,10 @@ export function GalaxyMap({ api }: { api: GameApi }) {
     if (best) setSelected(best);
   };
 
+  // Systems in reach first, nearest first; the list is capped so it stays a short list.
+  const nearby = here
+    ? [...all].sort((a, b) => v3.dist(here.pos, a.sys.pos) - v3.dist(here.pos, b.sys.pos)).slice(0, 40)
+    : [];
   const dist = sel && here ? v3.dist(here.pos, sel.sys.pos) : 0;
   const fuel = sel && stats ? foldFuelCost(dist, stats) : Infinity;
   const abroad = sel !== null && sel.sector.id !== self;
@@ -289,6 +293,21 @@ export function GalaxyMap({ api }: { api: GameApi }) {
         />
         <aside>
           <div class="dim">{t('map.range', { ly: fmt(range, 1) })}</div>
+          {/* The same choice as clicking a star on the canvas, for a controller or the keyboard. */}
+          {nearby.length > 0 && (
+            <div class="sys-pick" data-padstart>
+              <h4>{t('map.systems')}</h4>
+              <div class="scroll list sys-list">
+                {nearby.map((a) => (
+                  <button key={a.sys.id} type="button" class={a.sys.id === selected ? 'on' : ''} onClick={() => setSelected(a.sys.id)}>
+                    <span>{a.sys.name}</span>
+                    <span class="dim">{a.sys.starClass}</span>
+                    <span class="num">{here ? `${fmt(v3.dist(here.pos, a.sys.pos), 1)} ${t('map.ly')}` : ''}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {store.foldTarget.value && (
             <div>{t('map.destination')}: <b>{all.find((a) => a.sys.id === store.foldTarget.value)?.sys.name ?? '?'}</b></div>
           )}
@@ -316,7 +335,7 @@ export function GalaxyMap({ api }: { api: GameApi }) {
                 </>
               )}
             </div>
-          ) : <p class="dim">{t('map.help')}</p>}
+          ) : <p class="dim">{t(store.device.value === 'pad' ? 'map.helpPad' : 'map.help')}</p>}
           {galaxy && (
             <div class="sectors">
               <h4>{t('map.sectors')}</h4>
@@ -359,8 +378,8 @@ export function NavPanel({ api }: { api: GameApi }) {
   return (
     <div class="panel narrow">
       <PanelHeader title={`${t('map.system')}: ${view.system.name}`} />
-      <p class="dim">{t('map.navHelp')}</p>
-      <div class="scroll list">
+      <p class="dim">{t('map.navHelp', { key: bindKey('cruise') })}</p>
+      <div class="scroll list" data-padstart>
         {nav !== null && <button onClick={() => api.setNav(null)}>{t('map.clearNav')}</button>}
         {sites.map((s) => (
           <button key={s.def.id} class={s.def.id === nav ? 'on' : ''} onClick={() => choose(s.def.id)}>
@@ -387,7 +406,7 @@ export function ContactsPanel({ api }: { api: GameApi }) {
     <div class="panel narrow">
       <PanelHeader title={t('map.contacts')} />
       {contacts.length === 0 && <p class="dim">{t('map.noContacts')}</p>}
-      <div class="scroll list">
+      <div class="scroll list" data-padstart>
         {contacts.map((c) => (
           <button
             key={c.id} class={c.id === store.targetId.value ? 'on' : ''} disabled={c.info.kind !== EntityKind.Ship}

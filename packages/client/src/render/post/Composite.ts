@@ -4,20 +4,20 @@ import type { FrameFx } from '../../contracts.ts';
 import { FULLSCREEN_VERT, type FullscreenPass } from './fullscreen.ts';
 
 // Final pass: screen-space flight effects, bloom, filmic tone mapping, sRGB encoding and dither.
+// Everything here lies over the finished frame, the cockpit included. What belongs behind the
+// cockpit and behind other objects (the streaks of cruise flight) is drawn earlier, see Cruise.ts.
 const FRAG = /* glsl */ `
 uniform sampler2D tScene;
 uniform sampler2D tBloom;
 uniform vec2 uRes;
 uniform float uTime;
 uniform float uBloom;
-uniform float uCruise;
 uniform float uCharge;
 uniform float uChargeKind;
 uniform float uFold;
 uniform float uDilation;
 uniform float uHeat;
 uniform float uHit;
-uniform int uTaps;
 varying vec2 vUv;
 
 float h21(vec2 p) {
@@ -48,28 +48,6 @@ vec3 aces(vec3 x) {
 }
 
 vec3 sceneAt(vec2 uv) { return texture2D(tScene, clamp(uv, 0.0005, 0.9995)).rgb; }
-
-// Thin radial lines rushing outward from the centre: dust passing at cruise speed.
-float speedLines(vec2 pc, float rad, float t) {
-  float ang = atan(pc.y, pc.x) / 6.2831853 + 0.5;
-  float acc = 0.0;
-  for (int k = 0; k < 2; k++) {
-    float count = k == 0 ? 110.0 : 190.0;
-    float fa = ang * count;
-    float id = floor(fa);
-    float h = h21(vec2(id, 3.0 + float(k) * 7.0));
-    float h2 = h21(vec2(id, 19.0 + float(k) * 5.0));
-    if (h2 < 0.6) continue;
-    float life = fract(h + t * (0.35 + h2 * 0.9));
-    float head = 0.14 + life * life * 1.2;
-    float len = (0.02 + 0.22 * life) * (0.3 + uCruise);
-    float along = smoothstep(head - len, head, rad) * (1.0 - smoothstep(head, head + 0.01, rad));
-    float across = abs(fract(fa) - 0.5) * rad * 6.2831853 / count;
-    float line = 1.0 - smoothstep(0.0, 0.0007 + 0.0009 * life, across);
-    acc += along * line * (0.15 + life) * 0.6;
-  }
-  return acc;
-}
 
 // Fold tunnel: streaked walls flowing past the viewer toward a bright exit point.
 vec3 tunnel(vec2 pc, float rad, float t) {
@@ -118,36 +96,13 @@ void main() {
   float foldCharge = uChargeKind > 1.5 ? uCharge : 0.0;
   uv -= c * 0.10 * foldCharge * foldCharge * exp(-rad * 2.5);
 
-  vec3 col;
-  if (uCruise > 0.002) {
-    // Radial blur: everything smears along lines through the centre, more toward the edge.
-    float len = uCruise * 0.20 * smoothstep(0.03, 0.8, rad);
-    float jitter = h21(gl_FragCoord.xy + fract(uTime) * 61.0);
-    vec3 acc = vec3(0.0);
-    float wsum = 0.0;
-    for (int i = 0; i < 16; i++) {
-      if (i >= uTaps) break;
-      float f = (float(i) + jitter) / float(uTaps);
-      float w = 1.0 - 0.75 * f;
-      acc += sceneAt(uv - c * len * f) * w;
-      wsum += w;
-    }
-    col = acc / wsum;
-  } else {
-    col = sceneAt(uv);
-  }
+  vec3 col = sceneAt(uv);
   if (uHit > 0.01) {
     // Chromatic split on impact.
     col.r = mix(col.r, sceneAt(uv + c * 0.02 * uHit).r, 0.8);
     col.b = mix(col.b, sceneAt(uv - c * 0.02 * uHit).b, 0.8);
   }
   col += texture2D(tBloom, uv).rgb * uBloom;
-
-  if (uCruise > 0.002) {
-    col *= mix(vec3(1.0), vec3(0.86, 0.96, 1.22), uCruise * 0.6);
-    col += vec3(0.55, 0.75, 1.3) * speedLines(pc, rad, uTime) * uCruise;
-    col += vec3(0.25, 0.45, 1.0) * uCruise * 0.05 * exp(-rad * rad * 14.0);
-  }
 
   if (uCharge > 0.002) {
     float pulse = 0.85 + 0.15 * sin(uTime * (6.0 + 10.0 * uCharge));
@@ -203,14 +158,12 @@ export class Composite {
       uRes: { value: new Vector2(1, 1) },
       uTime: { value: 0 },
       uBloom: { value: 0 },
-      uCruise: { value: 0 },
       uCharge: { value: 0 },
       uChargeKind: { value: 0 },
       uFold: { value: 0 },
       uDilation: { value: 1 },
       uHeat: { value: 0 },
       uHit: { value: 0 },
-      uTaps: { value: 12 },
     },
     depthTest: false,
     depthWrite: false,
@@ -219,7 +172,7 @@ export class Composite {
 
   render(
     renderer: WebGLRenderer, pass: FullscreenPass, scene: Texture, bloom: Texture | null,
-    fx: FrameFx, clock: number, width: number, height: number, quality: number,
+    fx: FrameFx, clock: number, width: number, height: number,
   ): void {
     const u = this.material.uniforms;
     u.tScene!.value = scene;
@@ -227,14 +180,12 @@ export class Composite {
     u.uBloom!.value = bloom ? 0.22 : 0;
     (u.uRes!.value as Vector2).set(width, height);
     u.uTime!.value = clock % 3600;
-    u.uCruise!.value = Math.min(1, Math.max(0, fx.cruise));
     u.uCharge!.value = Math.min(1, Math.max(0, fx.charge));
     u.uChargeKind!.value = fx.chargeKind;
     u.uFold!.value = Math.min(1, Math.max(0, fx.fold));
     u.uDilation!.value = fx.dilation;
     u.uHeat!.value = fx.heat;
     u.uHit!.value = Math.min(1, Math.max(0, fx.hitFlash));
-    u.uTaps!.value = quality === 0 ? 6 : quality === 1 ? 10 : 16;
     pass.render(renderer, this.material, null);
   }
 

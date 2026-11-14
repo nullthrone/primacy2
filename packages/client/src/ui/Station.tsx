@@ -224,7 +224,7 @@ export function Station({ api }: { api: GameApi }) {
           <button class="primary" onClick={() => void run({ k: 'undock' })}>{t(isBase ? 'station.launch' : 'station.undock')}</button>
         </div>
       </header>
-      <nav class="tabs">
+      <nav class="tabs" data-padstart>
         {tabs.map((x) => <button key={x} class={x === active ? 'on' : ''} onClick={() => setTab(x)}>{t(`station.${x}` as StringKey)}</button>)}
       </nav>
       {error && <div class="bad">{error}</div>}

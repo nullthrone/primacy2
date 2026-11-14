@@ -108,3 +108,21 @@ class CabinTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HelpersSmokeTest(unittest.TestCase):
+    """The helpers other categories build on must at least run and behave."""
+
+    def test_hull_blow_starts_soft_and_ends_silent(self):
+        n = 48000
+        y = synth.hull_blow(n, 0.8, "blow")
+        self.assertEqual(y.shape, (n,))
+        self.assertLess(abs(y[0]), 0.01 * np.abs(y).max())
+        self.assertLess(np.abs(y[-480:]).max(), 1e-6 + 1e-3 * np.abs(y).max())
+        self.assertLess(synth.rattles(n, 0.0, "r", periodic=False).std(), 1e-12)
+
+    def test_transformer_and_machine_tone_are_periodic(self):
+        n = 96000
+        for y in (synth.transformer_tone(n, 100.0, 0.7, "t"), synth.machine_tone(n, 50.0, rng="m")):
+            self.assertLess(abs(y[0] - np.roll(y, 1)[0]), 5 * np.percentile(np.abs(np.diff(y)), 99))
+            self.assertLess(abs(y.mean()), 0.05)
