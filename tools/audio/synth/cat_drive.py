@@ -375,11 +375,11 @@ def weapon_pulse_fire(ctx):
     ref = rms(snap[: int(0.05 * SR)])
     upper = np.array([0.0, 0.0, 0.4, 0.6, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
     ring = _blow_ring(n, "pulse/pulse", 0.35, 700.0, upper)
-    # the transformer buzz while the capacitor empties: mains harmonics with a growl, 120 ms
+    # the transformer buzz while the capacitor empties: mains harmonics with a growl, 50 ms and far below the snap (a longer or louder buzz is heard as a beep)
     buzz = transformer_tone(n, 120.0, 1.0, seeded("pulse/buzz"))
-    env = np.minimum(1.0, t / 0.006) * np.clip((0.12 - t) / 0.06, 0, 1)
+    env = np.minimum(1.0, t / 0.006) * np.clip((0.05 - t) / 0.05, 0, 1)
     buzz = through_hull(buzz * env, sharp=0.15, dry=1.5)
-    y = snap + 0.8 * ref * ring / max(rms(ring[: int(0.05 * SR)]), 1e-9)         + 1.1 * ref * buzz / max(rms(buzz[: int(0.12 * SR)]), 1e-9)
+    y = snap + 0.8 * ref * ring / max(rms(ring[: int(0.05 * SR)]), 1e-9)         + 0.25 * ref * buzz / max(rms(buzz[: int(0.05 * SR)]), 1e-9)
     y = structure_lowpass(y, fc=800.0)
     rat = rattles(n, 0.6, seeded("pulse/rattle"), per_second=14.0, periodic=False) * burst_env(n, 2.0, 0.08)
     y = y + 0.03 * rms(y[: int(0.1 * SR)]) * 6 * rat

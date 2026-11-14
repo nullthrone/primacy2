@@ -9,6 +9,8 @@ import { FULLSCREEN_VERT, type FullscreenPass } from './fullscreen.ts';
 const FRAG = /* glsl */ `
 uniform sampler2D tScene;
 uniform sampler2D tBloom;
+uniform sampler2D tDepth;
+uniform float uDepthDebug;
 uniform vec2 uRes;
 uniform float uTime;
 uniform float uBloom;
@@ -139,6 +141,10 @@ void main() {
   }
 
   col *= 1.0 - 0.16 * rad * rad;
+  if (uDepthDebug > 0.5) {
+    float z = texture2D(tDepth, vUv).r;
+    col = mix(col * 0.3, z < 0.1 ? vec3(1.0, 0.1, 0.1) : z < 1.0 ? vec3(0.1, 1.0, 0.1) : vec3(0.0, 0.0, 0.3), 0.7);
+  }
   col = aces(max(col, 0.0));
   col = mix(col * 12.92, 1.055 * pow(col, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, col));
   // Triangular dither hides banding in dark gradients.
@@ -155,6 +161,8 @@ export class Composite {
     uniforms: {
       tScene: { value: null },
       tBloom: { value: null },
+      tDepth: { value: null },
+      uDepthDebug: { value: import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).get('depth') === '1' ? 1 : 0 },
       uRes: { value: new Vector2(1, 1) },
       uTime: { value: 0 },
       uBloom: { value: 0 },
@@ -171,11 +179,12 @@ export class Composite {
   });
 
   render(
-    renderer: WebGLRenderer, pass: FullscreenPass, scene: Texture, bloom: Texture | null,
+    renderer: WebGLRenderer, pass: FullscreenPass, scene: Texture, depth: Texture | null, bloom: Texture | null,
     fx: FrameFx, clock: number, width: number, height: number,
   ): void {
     const u = this.material.uniforms;
     u.tScene!.value = scene;
+    u.tDepth!.value = depth;
     u.tBloom!.value = bloom ?? scene;
     u.uBloom!.value = bloom ? 0.22 : 0;
     (u.uRes!.value as Vector2).set(width, height);

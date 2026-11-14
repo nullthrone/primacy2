@@ -1,10 +1,12 @@
 /**
  * The space renderer. It owns the WebGL renderer and the frame: sky and celestial bodies are drawn
- * first, then the local scene and the cockpit (each with a fresh depth buffer) into one HDR target,
+ * first, then the local scene and the cockpit (each in its own part of the depth buffer) into one HDR target,
  * which is bloomed, tone mapped and finished with the flight effects in a final pass. In cruise the
  * sky takes a detour through a target of its own, where it is smeared into streaks.
  */
-import { HalfFloatType, LinearFilter, NoToneMapping, PerspectiveCamera, Scene, WebGLRenderTarget, WebGLRenderer } from 'three';
+import {
+  DepthTexture, HalfFloatType, LinearFilter, NoToneMapping, PerspectiveCamera, Scene, WebGLRenderTarget, WebGLRenderer,
+} from 'three';
 import type { FrameView, GameRenderer, GraphicsSettings, LocalLayer } from '../contracts.ts';
 import { Bloom } from './post/Bloom.ts';
 import { Composite } from './post/Composite.ts';
@@ -18,6 +20,22 @@ import type { SpaceFrame, ViewParams } from './space/types.ts';
 
 export function createRenderer(canvas: HTMLCanvasElement): GameRenderer {
   return new SpaceRenderer(canvas);
+}
+
+/**
+ * The cockpit is drawn into the front part of the depth buffer and the local scene into the rest.
+ * So the cockpit always covers the scene, and when the frame is done the buffer still says where
+ * either of them is: the final pass reads it to tell whether a light source is covered.
+ */
+const COCKPIT_DEPTH = 0.1;
+
+/** Squeezes what `cam` draws into the window-depth range `from`..`to` (the whole buffer is 0..1). */
+function sliceDepth(cam: PerspectiveCamera, from: number, to: number): void {
+  // Window depth is (z / w + 1) / 2, so the slice is a mix of the z and w rows of the projection.
+  const e = cam.projectionMatrix.elements;
+  const s = to - from, o = from + to - 1;
+  for (let c = 0; c < 16; c += 4) e[c + 2] = s * e[c + 2]! + o * e[c + 3]!;
+  cam.projectionMatrixInverse.copy(cam.projectionMatrix).invert();
 }
 
 class SpaceRenderer implements GameRenderer {
@@ -54,6 +72,8 @@ class SpaceRenderer implements GameRenderer {
     this.renderer.toneMapping = NoToneMapping;
     this.sky.group.renderOrder = -1000;
     this.spaceScene.add(this.sky.group, this.bodies.group);
+    sliceDepth(this.localCam, COCKPIT_DEPTH, 1);
+    sliceDepth(this.cockpitCam, 0, COCKPIT_DEPTH);
     this.resize(canvas.clientWidth || canvas.width || 2, canvas.clientHeight || canvas.height || 2, 1);
   }
 
@@ -86,6 +106,7 @@ class SpaceRenderer implements GameRenderer {
       this.target?.dispose();
       this.target = new WebGLRenderTarget(this.width, this.height, {
         type: HalfFloatType, minFilter: LinearFilter, magFilter: LinearFilter, depthBuffer: true, samples,
+        depthTexture: new DepthTexture(this.width, this.height),
       });
       this.targetSamples = samples;
     }
@@ -100,7 +121,8 @@ class SpaceRenderer implements GameRenderer {
     return this.skyTarget;
   }
 
-  private aimCamera(cam: PerspectiveCamera, frame: SpaceFrame): void {
+  /** Turns `cam` like the frame's camera; what it draws lands in the window-depth range `from`..`to`. */
+  private aimCamera(cam: PerspectiveCamera, frame: SpaceFrame, from = 0, to = 1): void {
     const q = frame.camera.rot;
     cam.quaternion.set(q[0], q[1], q[2], q[3]);
     const aspect = this.width / this.height;
@@ -108,6 +130,7 @@ class SpaceRenderer implements GameRenderer {
       cam.fov = frame.camera.fov;
       cam.aspect = aspect;
       cam.updateProjectionMatrix();
+      if (from !== 0 || to !== 1) sliceDepth(cam, from, to);
     }
   }
 
@@ -157,16 +180,15 @@ class SpaceRenderer implements GameRenderer {
       r.render(this.spaceScene, this.spaceCam);
     }
     if (local) {
-      this.aimCamera(this.localCam, frame);
-      this.aimCamera(this.cockpitCam, frame);
-      r.clearDepth();
+      // Nothing above writes depth, and the two scenes share the buffer (see COCKPIT_DEPTH).
+      this.aimCamera(this.localCam, frame, COCKPIT_DEPTH, 1);
+      this.aimCamera(this.cockpitCam, frame, 0, COCKPIT_DEPTH);
       r.render(local.scene, this.localCam);
-      r.clearDepth();
       r.render(local.cockpit, this.cockpitCam);
     }
 
     const bloom = frame.graphics.bloom ? this.bloom.render(r, this.pass, target.texture, this.width, this.height) : null;
-    this.composite.render(r, this.pass, target.texture, bloom, frame.fx, frame.clock, this.width, this.height);
+    this.composite.render(r, this.pass, target.texture, target.depthTexture, bloom, frame.fx, frame.clock, this.width, this.height);
   }
 
   dispose(): void {
