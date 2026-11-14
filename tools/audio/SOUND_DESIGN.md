@@ -25,6 +25,32 @@ heard reaches the ear by one of four paths. Each sound belongs to exactly one (`
 - **radio**: voices and signal tones from the radio loudspeaker: band-limited (300 to 3,400 Hz),
   slightly overdriven, with squelch noise at the ends of a transmission.
 
+- **energy**: the ship's high-energy systems discharging: the shield taking a hit, the fold drive
+  tearing space open. Added on 2026-11-14 after the owner heard the first set: these must sound
+  energetic, hissing and rushing, not like a dull blow ("as if someone knocked on a salad bowl").
+  They are bright, broad and alive: a surge of noise that swells within milliseconds, hisses and
+  tears; electrical crackle and arcing in uneven bursts; a rushing swell and release; and a low
+  body underneath that gives weight. Nothing rings like struck metal, and no steady pitch stands
+  out. Still hard science fiction: no "pew", no synthesiser sweep.
+
+### Space
+
+The owner found the first set "all very mono". Sound in the cabin has width and places:
+
+- Enveloping sounds are files with two channels: every loop of the structure path (engines,
+  thruster burn, scraping, regolith, cruise, fold tunnel, beam, mining laser) and every energy
+  sound. They are made as mid and side: the mid is the sound as it was approved in mono, the side
+  is more material of the same kind (the same excitation with other seeds through the same hull)
+  with nothing below 150 Hz, and left is mid plus side, right is mid minus side. So the bass stays
+  in the middle, the mono sum is exactly the approved sound, and the two ears get what two places
+  in a shaking cabin would get.
+- Point events stay files with one channel, because they have a place: a hit comes from a side, a
+  thruster sits somewhere on the hull, the alarm loudspeaker hangs ahead on the left. `place` in
+  the sound list gives the direction in degrees (0 ahead, 90 right, -90 left, 180 behind), or
+  `event` when the game knows it (the side a hit came from). The player, which is the audition
+  page now and the game later, puts the sound there and sends everything through the cabin's
+  two-channel impulse response, which makes the room.
+
 Alarms come from the cabin loudspeaker (`path` cabin). Model: aircraft cockpit warnings. Each one
 is recognised within 300 ms, differs from every other in rhythm and contour (not only in pitch),
 and can be borne for a minute. No sirens from films, no toy beeps.
@@ -73,6 +99,13 @@ By path:
   envelope pattern different from the others (the measuring tool prints the envelope). Rendered
   dry, as the loudspeaker gives them out.
 - sensor: rendered dry; soft attack (no click), nothing above 6 kHz, level well below the alarms.
+- energy: at least 30 % of the energy above 1 kHz and at least 8 % above 4 kHz (it hisses), at
+  least 10 % below 250 Hz (it has weight), and no single spectral peak that holds more than 15 %
+  of the energy (no pitch stands out). Two channels.
+- two channels (structure loops and energy sounds): the correlation between left and right over
+  the file lies between 0.3 and 0.9; below 150 Hz the channels are equal (correlation above
+  0.98); the levels of left and right differ by less than 1.5 dB; and the mono sum passes every
+  rule of the sound's path by itself.
 - radio: nothing below 250 Hz or above 3.8 kHz after the filter; a spoken line must still be
   transcribed correctly by Whisper after the filter (word error rate at most 15 % against the
   unfiltered transcript).
@@ -145,7 +178,34 @@ baked in: `dry` is false. Loudspeaker sounds (alarms, sensor signals, radio) and
 are dry: the audition page, and later the game, puts them into the cabin with `cabin_ir`. The
 optional top-level field `"placeholder": true` marks a manifest of stand-in sounds.
 
+Three more fields serve the listening rounds. `hash` is the first twelve hex digits of the
+SHA-256 of the sound file: the audition page stores it with each rating and marks a sound as
+"changed since your rating" when it differs. `place` is copied from the sound list (see Space).
+`cue`, where the sound list has it, is the time in seconds at which the next sound of a chain
+starts (the cruise charge carries a tail after its cue).
+
 `kind` is `loop`, `oneshot` or `ir` (an impulse response for the cabin reverb). `source` is
 `synth` or `download`; downloaded files chosen for listening appear in the same list with their
 licence (`CC0 1.0`, `Public domain (NASA)`) and a `file` path that starts with `../downloads/`.
 Paths are relative to `assets/audio/render/`.
+
+## 4. Listening rounds
+
+The owner judges; what he says overrides the rules above, and the rules are changed to match.
+
+### Round 1, 2026-11-14 (20 of 114 rated, ratings in `assets/audio/ratings.json`)
+
+- Approved as they are (five stars or "fits"): engine idle, cruise charge, cruise engage, cruise
+  loop, fold charge, fold tunnel, cabin at rest, silent running, the missile warning. Their
+  character must not change; the move to two channels keeps the approved sound as the mono sum.
+- Cruise charge: "should be a little longer toward the end". It now carries a tail after its cue.
+- Shield hits, all three: wrong. "It should sound energetic. This sounds as if someone knocked on
+  a salad bowl." They moved to the new energy path.
+- Fold jump and fold exit: wrong. "Should sound energetic, hissing, rushing, not like a dull
+  blow." Energy path as well.
+- Shields-down alarm: wrong. "Sounds like a railway station announcement instead of a critical
+  state." Redesigned as a harsh falling warning.
+- General: "The sounds all sound very mono. Can the sound engine be tuned more toward stereo and
+  spatial sound?" See the section Space.
+- Downloads: the Kenney low boom (`k_hit_lowboom_0`) fits; `k_land_plate_medium_0`,
+  `k_land_metal_light_3`, `k_computer_noise_1` and the NASA file `n_dinks_donks` are wrong.

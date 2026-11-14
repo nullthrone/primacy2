@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "savedAt": "2026-11-14T13:50:18.311Z",
+  "manifest": {
+    "placeholder": false,
+    "count": 114
+  },
+  "ratings": {
+    "engine_main_t000": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:39:55.090Z"
+    },
+    "impact_shield_light": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Es sollte energetisch klingen. Das hier klingt eher als ob jemand auf eine Salatschüssel klopft. Das gleiche gilt für die anderen Schildtreffer",
+      "at": "2026-11-14T13:41:24.644Z"
+    },
+    "impact_shield_medium": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:41:28.424Z"
+    },
+    "impact_shield_heavy": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:41:29.114Z"
+    },
+    "k_hit_lowboom_0": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:41:44.993Z"
+    },
+    "k_land_plate_medium_0": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:42:08.551Z"
+    },
+    "k_land_metal_light_3": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:42:09.090Z"
+    },
+    "alarm_shields_down": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Klingt wie eine Bahnhofsansage statt wie ein kritischer Zustand...",
+      "at": "2026-11-14T13:43:08.027Z"
+    },
+    "alarm_missile": {
+      "stars": 4,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:43:11.478Z"
+    },
+    "cruise_charge": {
+      "stars": 4,
+      "verdict": "fits",
+      "note": "Sollte nach hinten raus etwas länger sein",
+      "at": "2026-11-14T13:44:02.045Z"
+    },
+    "cruise_engage": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:44:10.184Z"
+    },
+    "cruise_loop": {
+      "stars": 5,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T13:44:13.926Z"
+    },
+    "fold_charge": {
+      "stars": 5,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T13:44:35.018Z"
+    },
+    "fold_jump": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:12.174Z"
+    },
+    "fold_tunnel_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:15.999Z"
+    },
+    "fold_exit": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:29.522Z"
+    },
+    "cabin_ambience_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:36.873Z"
+    },
+    "silent_running_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:42.319Z"
+    },
+    "k_computer_noise_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:45:58.472Z"
+    },
+    "n_dinks_donks": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:46:09.237Z"
+    }
+  },
+  "scenes": {},
+  "general": "Die Töne klingen alle sehr mono, haben wir die Chance, die Tonengine etwas mehr auf Stereo-/Raumklang zu tunen?"
+}

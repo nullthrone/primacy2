@@ -129,17 +129,19 @@ vec3 gSunStep;
 vec2 gSunPix;
 Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); }
 // Detail finer than fbm() gives a planet seen whole: octaves of gradient noise from 'freq' cycles
-// per unit of 'q' upward, each counted only as far as a pixel of 'foot' units resolves it (not
-// at all below three pixels per cycle, fully from eight). So detail grows on approach without
+// per unit of 'q' upward (FINE per body radius is the coarsest that a planet filling a quarter
+// of a 900 pixel high view does not show yet), each counted only as far as a pixel of 'foot' units resolves it (not
+// at all below three pixels per cycle, fully from seven). So detail grows on approach without
 // ever flickering, and a planet seen from afar gets none and looks as it always did.
 // Each octave has 'gain' times the weight of the one before.
 // x: the sum, y: its billowed form (rounded cells with creases between), z: a sum that falls off
 // like terrain height; all around zero, x and y with a spread near one. w: how much shows at all.
+#define FINE 200.0
 vec4 fineNoise(vec3 q, float freq, float foot, float gain) {
   vec3 sum = vec3(0.0);
   float first = 0.0, a = 1.0, b = 1.0;
   for (int j = 0; j < 6; j++) {
-    float w = 1.0 - smoothstep(0.125, 0.30, foot * freq);
+    float w = 1.0 - smoothstep(0.15, 0.36, foot * freq);
     if (w <= 0.0) break;
     if (j == 0) first = w;
     float g = gnoise(q * freq + float(j) * vec3(7.3, 3.1, 5.9) + uSeed);
@@ -321,15 +323,19 @@ vec2 cloudDeck(float cover, vec4 f, float patchy) {
   // Close up, the soft edge of a front is a field of cells and wisps: the fine structure opens
   // and closes the cloud wherever it is neither clear sky nor a closed deck.
   float open = smoothstep(-0.10, 0.04, cover) * (1.0 - smoothstep(0.12, 0.36, cover));
-  float a = clamp(soft + open * patchy * (0.30 * f.x + 0.34 * f.y), 0.0, 1.0);
+  float a = clamp(soft + open * patchy * (0.26 * f.x + 0.32 * f.y), 0.0, 1.0);
   // The tops rise toward the middle of a front, and every cell is a rounded hump on them.
   float h = (clamp(cover * 1.5, 0.0, 0.75) + 0.14 * f.y) * smoothstep(0.0, 0.5, a);
   return vec2(a, h);
 }
-// Roughness of the sea inside the sun's glint, around one: calm and ruffled water in swirls.
-float seaRough(vec3 nb) {
-  float r = 1.0 + 1.1 * fbm(nb * 31.0 + gWarp * 4.0 + uSeed, 3);
-  return clamp(r + 0.15 * fineNoise(nb, 150.0, gSlant, 0.7).x, 0.5, 1.8);
+// The sea inside the sun's glint. x: its roughness, around one, with calm water lying in slicks
+// between ruffled water; y: the glitter of the waves, around one.
+vec2 seaRough(vec3 nb) {
+  float n = fbm(nb * 31.0 + gWarp * 4.0 + uSeed, 3);
+  float r = 1.15 + 0.5 * n - 0.5 * smoothstep(0.02, 0.10, n);
+  // Trains of waves, finer across than along.
+  vec4 f = fineNoise(vec3(nb.x, nb.y * 2.5, nb.z), FINE, gSlant * 2.5, 0.8);
+  return vec2(clamp(r + 0.1 * f.x, 0.5, 1.8), clamp(1.0 + 0.4 * f.x, 0.3, 2.2));
 }
 float hfield(vec3 nb) {
   vec3 p = nb * 1.45 + seedOff();
@@ -350,12 +356,12 @@ Surf surface(vec3 nb, vec3 sunB) {
   vec3 cdx = dFdx(cd), cdy = dFdy(cd);
   vec2 coverPix = vec2(dFdx(cover), dFdy(cover));
   float cfoot = uFine > 0.0 ? uFine * max(length(cdx), length(cdy)) : 1e3;
-  bool fineCloud = cover > -0.10 && cfoot * 150.0 < 0.30;
+  bool fineCloud = cover > -0.10 && cfoot * FINE < 0.36;
   vec4 cf = vec4(0.0);
   float patchy = 1.0;
   if (fineCloud) {
-    cf = fineNoise(cd, 150.0, cfoot, 0.8);
-    patchy = 0.45 + 0.75 * smoothstep(-0.25, 0.25, gnoise(cd * 55.0 + uSeed));
+    cf = fineNoise(cd, FINE, cfoot, 0.8);
+    patchy = 0.15 + 1.1 * smoothstep(-0.25, 0.25, gnoise(cd * 55.0 + uSeed));
   }
   vec2 deck = cloudDeck(cover, cf, patchy);
   float cl = deck.x;
@@ -370,7 +376,7 @@ Surf surface(vec3 nb, vec3 sunB) {
     vec3 cs;
     float coverSun = cloudCover(normalize(nb + sunB * mix(0.02, 0.003, uNear)), cs);
     vec4 fs = vec4(0.0);
-    if (fineCloud) fs = fineNoise(cs, 150.0, cfoot * 1.6, 0.8);
+    if (fineCloud) fs = fineNoise(cs, FINE, cfoot * 1.6, 0.8);
     vec2 deckSun = cloudDeck(coverSun, fs, patchy);
     s.cloudShadow = deckSun.x;
     s.cloudSunH = deckSun.y;
@@ -378,7 +384,7 @@ Surf surface(vec3 nb, vec3 sunB) {
     if (fineCloud && cl > 0.0 && gNear > 0.0) {
       vec3 cdSun = cd + cdx * gSunPix.x + cdy * gSunPix.y;
       float coverStep = cover + dot(coverPix, gSunPix);
-      s.cloudRise = cloudDeck(coverStep, fineNoise(cdSun, 150.0, cfoot, 0.8), patchy).y - deck.y;
+      s.cloudRise = cloudDeck(coverStep, fineNoise(cdSun, FINE, cfoot, 0.8), patchy).y - deck.y;
     }
   }
   vec3 p = nb * 1.45 + seedOff();
@@ -392,7 +398,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   float rise = max(base - sea, 0.0);
   vec4 f = vec4(0.0);
   bool fineLand = base > sea - 0.03 && cl < 0.999;
-  if (fineLand) f = fineNoise(nb, 150.0, gSlant, 0.7);
+  if (fineLand) f = fineNoise(nb, FINE, gSlant, 0.7);
   float cont = base + 0.003 * f.x;
   // Coast and beach are as narrow as the pixel allows: wide from afar, a line from low orbit.
   float coast = clamp(gSlant * 9.0, 0.0015, 0.016);
@@ -432,7 +438,7 @@ Surf surface(vec3 nb, vec3 sunB) {
     if (f.w > 0.0 && geo > -0.2) {
       // Fine relief, rugged in the mountains and gentle on the plains, lit from one more sample.
       float rough = 0.0008 + 0.006 * mount;
-      s.fineRise = land * rough * (fineNoise(nb + gSunStep, 150.0, gSlant, 0.7).z - f.z);
+      s.fineRise = land * rough * (fineNoise(nb + gSunStep, FINE, gSlant, 0.7).z - f.z);
     }
     if (geo < 0.02) {
       float pop = smoothstep(0.42, 0.62, 0.5 + fbm(p * 5.0 + 40.0, lo)) * smoothstep(0.25, 0.5, temp) * (1.0 - smoothstep(0.3, 0.6, mount));
@@ -547,9 +553,10 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
     // sparkle. A rougher sea spreads the sparkle wider and thinner, so calm water is bright in
     // the middle of the patch and dark at its edge; the light that grazes the sea reflects best.
     if (gNear > 0.0 && pow(nh, 45.0) > 0.004) {
-      float r = seaRough(nb);
+      vec2 sea = seaRough(nb);
+      float r2 = sea.x * sea.x;
       float graze = 1.0 + 2.0 * pow(1.0 - max(dot(-d, hv), 0.0), 3.0);
-      float sparkle = 0.15 * graze * pow(nh, 150.0 / (r * r)) / (r * r);
+      float sparkle = 0.22 * graze * sea.y * pow(nh, 200.0 / r2) / r2;
       sp = mix(sp, 1.1 * pow(nh, 1600.0) + 0.05 * pow(nh, 18.0) + sparkle, gNear);
     }
 #endif
