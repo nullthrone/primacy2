@@ -41,7 +41,7 @@ import type { CameraMode, CmdReply, EntityView, FrameView, GameApi, GameRenderer
 import { Input } from '../input/Input.ts';
 import { ConnectError, Connection, normalizeServerUrl, type Welcome } from '../net/Connection.ts';
 import { importIdentity, loadIdentity } from '../net/identity.ts';
-import { AHEAD_COS, PLACE_LIST_MS, listPlaces, placeAhead, stepPlace } from '../state/places.ts';
+import { AHEAD_COS, PLACE_LIST_MS, aheadChoice, listPlaces, placeAhead, stepPlace } from '../state/places.ts';
 import { store, updateSettings, type BindAction, type Contact, type Panel } from '../state/store.ts';
 import { chaseCamera, frameUp, liftAboveGround, rotToSystem, sceneryView, surfaceView, toSystem, viewFrame, type ViewFrame } from './surface.ts';
 
@@ -786,13 +786,8 @@ class GameImpl implements Game {
   }
 
   /**
-   * Takes whatever is closest to the nose. A ship, or a wreck or cargo pod to work on, comes first
-   * and is locked; missiles are skipped. A place becomes the navigation target only while none of
-   * those lies in the cone ahead: with one there the press belongs to it, and the place the pilot
-   * has chosen stays (the owner's decision of 2026-11-14, so that a press in a fight never replaces
-   * the destination). With nothing new ahead, the lock steps on to the next ship in range, so that
-   * this one control reaches every ship (a standard pad has no button left for stepping through
-   * ships).
+   * Takes whatever is closest to the nose: a ship, or a wreck or cargo pod to work on (missiles
+   * are skipped), or else a place. What a press does with them is the rule in `aheadChoice`.
    */
   private targetAhead(): void {
     const v = this.view;
@@ -810,13 +805,12 @@ class GameImpl implements Game {
         best = e.id;
       }
     }
-    if (best !== null) {
-      if (best !== store.targetId.value) return this.setTarget(best);
-    } else {
-      const place = placeAhead(v, v.self.rel, fwd, AHEAD_COS);
-      if (place && place.id !== store.navAnchor.value) return this.setNav(place.id);
-    }
-    if (store.contacts.value.some((c) => c.info.kind === EntityKind.Ship)) this.cycleTarget(1);
+    const place = placeAhead(v, v.self.rel, fwd, AHEAD_COS);
+    const shipsInRange = store.contacts.value.some((c) => c.info.kind === EntityKind.Ship);
+    const choice = aheadChoice(best, place?.id ?? null, store.targetId.value, store.navAnchor.value, shipsInRange);
+    if (choice.do === 'lock') this.setTarget(choice.id);
+    else if (choice.do === 'place') this.setNav(choice.id);
+    else if (choice.do === 'nextShip') this.cycleTarget(1);
   }
 
   setNav(anchorId: number | null): void {

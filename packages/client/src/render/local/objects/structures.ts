@@ -36,6 +36,7 @@ import type { FrameView, Lighting } from '../../../contracts.ts';
 import { TAU, clamp, clamp01, damp, groundAlbedo, smooth, wrap } from '../util.ts';
 import type { Glints } from './glints.ts';
 import { isEmissive, type Model, type ModelLibrary } from './models.ts';
+import { patchShader } from './surface.ts';
 
 /** A structure is drawn as its model above this projected radius in pixels, as a point below. */
 const MODEL_ABOVE_PX = 2;
@@ -206,7 +207,7 @@ void main() {
  * white disc; that reflection is taken out here (`MATTE`).
  */
 function dustLit(m: MeshStandardMaterial): void {
-  m.onBeforeCompile = (shader) => {
+  patchShader(m, 'regolith', (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <lights_physical_pars_fragment>',
       ShaderChunk.lights_physical_pars_fragment.replace(
@@ -214,8 +215,7 @@ function dustLit(m: MeshStandardMaterial): void {
         'vec3 irradiance = mix( dotNL, min( 2.0 * dotNL / ( dotNL + saturate( dot( geometryNormal, geometryViewDir ) ) + 0.02 ), 1.5 ), 0.3 ) * directLight.color;',
       ),
     ).replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>\n${MATTE}`);
-  };
-  m.customProgramCacheKey = () => 'regolith';
+  });
 }
 
 /**
@@ -239,13 +239,12 @@ const DUSTY_SHEEN = 0.12;
  */
 function dusty(m: MeshStandardMaterial): void {
   if (!/\sspecularF90;/.test(ShaderChunk.lights_physical_pars_fragment)) return;
-  m.onBeforeCompile = (shader) => {
+  patchShader(m, 'dusty', (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <lights_physical_fragment>',
       `#include <lights_physical_fragment>\nmaterial.specularF90 = min( material.specularF90, ${DUSTY_SHEEN} );`,
     );
-  };
-  m.customProgramCacheKey = () => 'dusty';
+  });
 }
 
 const REVEAL_FRAG = /* glsl */ `
@@ -255,7 +254,7 @@ if (uReveal < 0.999 && fract((atan(vRevealXZ.y, vRevealXZ.x) * 0.15915494 + 0.5)
 /** A copy of a ring material that only draws the part of the ring that has been built so far. */
 function revealMaterial(src: MeshStandardMaterial, reveal: { value: number }): MeshStandardMaterial {
   const m = src.clone();
-  m.onBeforeCompile = (shader) => {
+  patchShader(m, 'gate-reveal', (shader) => {
     shader.uniforms.uReveal = reveal;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec2 vRevealXZ;')
@@ -263,8 +262,7 @@ function revealMaterial(src: MeshStandardMaterial, reveal: { value: number }): M
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform float uReveal;\nvarying vec2 vRevealXZ;')
       .replace('#include <clipping_planes_fragment>', REVEAL_FRAG);
-  };
-  m.customProgramCacheKey = () => 'gate-reveal';
+  });
   return m;
 }
 

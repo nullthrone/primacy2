@@ -100,6 +100,26 @@ export function placeAhead(
   return best;
 }
 
+/** What a press of "target ahead" does. */
+export type AheadChoice = { do: 'lock'; id: number } | { do: 'place'; id: number } | { do: 'nextShip' } | { do: 'nothing' };
+
+/**
+ * The rule of "target ahead". `ship` is the ship, wreck or pod nearest to the nose within the
+ * cone ahead and `place` the place nearest to it there (null for none); `locked` and `chosen` are
+ * the ship lock and the chosen place as they stand.
+ *
+ * - A ship in the cone is locked, unless it is locked already.
+ * - A place is taken only while no ship is in the cone, and only if it is not chosen already. The
+ *   owner decided this on 2026-11-14: a press in a fight must never replace the destination.
+ * - With nothing new ahead the lock steps on to the next ship in range, if there is one, so that
+ *   this one control reaches every ship.
+ */
+export function aheadChoice(ship: number | null, place: number | null, locked: number | null, chosen: number | null, shipsInRange: boolean): AheadChoice {
+  if (ship !== null && ship !== locked) return { do: 'lock', id: ship };
+  if (ship === null && place !== null && place !== chosen) return { do: 'place', id: place };
+  return shipsInRange ? { do: 'nextShip' } : { do: 'nothing' };
+}
+
 /** The direction a ship with orientation `rot` points in, system axes. */
 export function noseOf(rot: Readonly<Quat>): Vec3 {
   return quat.rotate(rot as Quat, [0, 0, -1]);

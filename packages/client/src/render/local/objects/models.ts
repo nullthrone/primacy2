@@ -20,6 +20,7 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { modelUrl } from '../assets.ts';
 import { LAMP_FORE } from '../util.ts';
+import { assignSurface, disposeSurfaces, installSurface, type SurfaceSpec } from './surface.ts';
 
 /** Every lit material of the part, so the sky reflection reaches all of them, clones included. */
 export class MaterialRegistry {
@@ -36,6 +37,8 @@ export class MaterialRegistry {
     // The renderer tone-maps once, in its final pass.
     m.toneMapped = false;
     m.envMap = this.env;
+    // A clone brings the note of its surface along, but not the shader that draws it.
+    installSurface(m);
     return m;
   }
 
@@ -89,11 +92,21 @@ const SOOT = new Color(0.035, 0.03, 0.027);
  * Adapts the plain values the models are exported with to how they are lit here. Under a black
  * sky a metal has nothing to reflect but the sun's highlight, so painted hull plating is treated
  * as mostly paint; lamps get a dark housing, so one that is switched off does not shine in
- * sunlight; and the accent strips are taken down from signage to running lights.
+ * sunlight; and the accent strips are taken down from signage to running lights. The cockpit is
+ * exported nearly black and half metal, which answers no light at all: it becomes a dark satin
+ * composite that the glow of its own instruments can show.
  */
 function tune(m: MeshStandardMaterial, cockpit: boolean): void {
   const n = m.name;
-  if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) m.metalness *= 0.4;
+  if (n === 'cockpit_frame') {
+    m.color.multiplyScalar(2.6);
+    m.metalness = 0.2;
+    m.roughness = 0.52;
+  } else if (n === 'cockpit_panel') {
+    m.color.multiplyScalar(1.7);
+    m.metalness = 0.12;
+    m.roughness = 0.6;
+  } else if (n.startsWith('hull_primary') || n.startsWith('hull_accent')) m.metalness *= 0.4;
   else if (n.startsWith('hull_secondary')) m.metalness *= 0.6;
   else if (n.startsWith('emissive')) {
     m.color.multiplyScalar(n === 'emissive_engine' ? 0.03 : 0.12);
@@ -170,6 +183,7 @@ export class ModelLibrary {
     const lamps: Vector3[] = [];
     const glow: Mesh[] = [];
     const solid: Mesh[] = [];
+    const fresh: MeshStandardMaterial[] = [];
     let albedoSum = 0;
     let albedoWeight = 0;
 
@@ -178,7 +192,10 @@ export class ModelLibrary {
       if (mesh.isMesh) {
         const mat = mesh.material as MeshStandardMaterial;
         this.geometries.add(mesh.geometry);
-        if (mat.isMeshStandardMaterial && !this.materials.has(mat)) tune(this.materials.add(mat), key.startsWith('cockpit'));
+        if (mat.isMeshStandardMaterial && !this.materials.has(mat)) {
+          tune(this.materials.add(mat), key.startsWith('cockpit'));
+          fresh.push(mat);
+        }
         const emissive = isEmissive(mat);
         mesh.castShadow = !emissive && mat.name !== 'portal';
         mesh.receiveShadow = !emissive && mat.name !== 'portal';
@@ -198,6 +215,8 @@ export class ModelLibrary {
 
     const box = new Box3().setFromObject(template);
     const radius = box.isEmpty() ? 1 : Math.max(box.min.length(), box.max.length());
+    // Plating and rock grain are scaled to the size of the model, which is only known now.
+    if (!isStandIn) for (const mat of fresh) assignSurface(mat, key, radius);
     const engines = nozzles(enginePos, glow, radius);
     const jets = key.startsWith('ship_') && !isStandIn ? attitudeJets(solid, box) : [];
     const chin = key.startsWith('ship_') && !isStandIn ? lampMount(solid, box) : null;
@@ -230,6 +249,9 @@ export class ModelLibrary {
       }
       m.roughness = 0.94;
       m.envMapIntensity = 0.3;
+      // Scorched: the stains of the plating are much heavier.
+      const surface = (m.userData as { surface?: SurfaceSpec }).surface;
+      if (surface) surface.wear = 2;
       this.wrecks.set(src, m);
       this.materials.add(m);
     }
@@ -240,6 +262,7 @@ export class ModelLibrary {
     for (const g of this.geometries) g.dispose();
     this.geometries.clear();
     this.materials.dispose();
+    disposeSurfaces();
     this.models.clear();
     this.wrecks.clear();
   }

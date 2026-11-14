@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BodyDef, SiteDef, SiteKind, Vec3 } from '@primacy2/shared';
 import type { BodyView, SiteView } from '../contracts.ts';
-import { findPlace, isDock, isLandmark, listPlaces, listWindow, placeAhead, stepPlace } from './places.ts';
+import { aheadChoice, findPlace, isDock, isLandmark, listPlaces, listWindow, placeAhead, stepPlace } from './places.ts';
 
 const site = (id: number, kind: SiteKind, rel: Vec3, name = `${kind} ${id}`): SiteView => ({
   def: { id, kind, name } as SiteDef, rel, dist: Math.hypot(...rel),
@@ -93,6 +93,37 @@ describe('the place ahead of the nose', () => {
   it('looks from the ship, not from the camera', () => {
     // From far out on +x the gate lies back toward -x.
     expect(placeAhead(view, [9e9, 0, 0], [-1, 0, 0], Math.cos(0.01))?.id).toBe(1002);
+  });
+});
+
+describe('what "target ahead" does', () => {
+  const SHIP = 7;
+  const OTHER = 8;
+  const STATION = 1001;
+  const HOME = 1005;
+
+  it('locks the ship in the cone, whatever place lies there too', () => {
+    expect(aheadChoice(SHIP, STATION, null, null, true)).toEqual({ do: 'lock', id: SHIP });
+    expect(aheadChoice(SHIP, STATION, OTHER, HOME, true)).toEqual({ do: 'lock', id: SHIP });
+  });
+
+  it('never takes a place while a ship is in the cone: the chosen place stays', () => {
+    // Pressed again on the ship that is locked already, with a station behind it.
+    expect(aheadChoice(SHIP, STATION, SHIP, HOME, true)).toEqual({ do: 'nextShip' });
+    expect(aheadChoice(SHIP, STATION, SHIP, null, true)).toEqual({ do: 'nextShip' });
+    // A wreck is locked and no ship is in range to step on to: nothing happens.
+    expect(aheadChoice(SHIP, STATION, SHIP, HOME, false)).toEqual({ do: 'nothing' });
+  });
+
+  it('takes the place the nose points at while no ship is in the cone', () => {
+    expect(aheadChoice(null, STATION, null, null, false)).toEqual({ do: 'place', id: STATION });
+    expect(aheadChoice(null, STATION, OTHER, HOME, true)).toEqual({ do: 'place', id: STATION });
+  });
+
+  it('steps on to the next ship when nothing new lies ahead', () => {
+    expect(aheadChoice(null, STATION, null, STATION, true)).toEqual({ do: 'nextShip' });
+    expect(aheadChoice(null, null, null, null, true)).toEqual({ do: 'nextShip' });
+    expect(aheadChoice(null, null, OTHER, HOME, false)).toEqual({ do: 'nothing' });
   });
 });
 

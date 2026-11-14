@@ -130,8 +130,8 @@ its panel show. Choosing one never drops the other.
   up or down by how far the place lies above or below the plane, at most 0.4 of the radius.
   Straight above or below, where there is no bearing, a mark keeps the one it had. It only shows;
   nothing on it can be chosen.
-- "Target ahead" (`targetAhead` in `game/Game.ts`) looks in a cone of about 26 degrees around the
-  nose. A ship, wreck or pod in it is locked. A place is taken only while none of those is in the
+- "Target ahead" (`targetAhead` in `game/Game.ts`, its rule is `aheadChoice` in `state/places.ts`)
+  looks in a cone of about 26 degrees around the nose. A ship, wreck or pod in it is locked. A place is taken only while none of those is in the
   cone, so that a press in a fight never replaces the chosen place. With nothing new ahead the
   lock steps on to the next ship in range.
 - The closing speed is the part of the ship's own velocity that points at the target (minus that
