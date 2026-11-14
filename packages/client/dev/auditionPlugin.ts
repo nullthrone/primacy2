@@ -7,6 +7,10 @@ import type { Plugin } from 'vite';
 // Registered with apply: 'serve' so that none of this reaches the built game.
 
 const MAX_BODY = 1024 * 1024;
+// The file written is indented, so a small body can grow a lot; this caps what lands on disk.
+const MAX_WRITTEN = 2 * MAX_BODY;
+// Past this many bytes a client is cut off: draining a stream that never ends would keep the server busy for ever.
+const HARD_LIMIT = 8 * MAX_BODY;
 
 const TYPES: Record<string, string> = {
   '.wav': 'audio/wav',
@@ -31,11 +35,14 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
     let size = 0;
     req.on('data', (c: Buffer) => {
       size += c.length;
-      // Past the limit the rest is read and dropped, so that the 413 can still be answered on this connection.
+      // Past the limit the rest is read and dropped, so that the 413 can still be answered on this connection;
+      // past the hard limit the connection is cut instead.
       if (size <= MAX_BODY) chunks.push(c);
+      else if (size > HARD_LIMIT) req.destroy();
     });
     req.on('end', () => (size > MAX_BODY ? reject(new Error('too large')) : resolve(Buffer.concat(chunks))));
     req.on('error', reject);
+    req.on('close', () => reject(new Error('too large')));
   });
 }
 
@@ -43,6 +50,18 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 function inside(dir: string, child: string): boolean {
   const rel = path.relative(dir, child);
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+/**
+ * A page of another origin (any other local web app, any site the owner visits meanwhile) must neither read the
+ * sounds nor overwrite the ratings. Browsers always name the origin or the fetch site; curl and the check's raw
+ * probes send neither and are let through.
+ */
+function crossOrigin(req: IncomingMessage): boolean {
+  const origin = req.headers.origin;
+  const site = req.headers['sec-fetch-site'];
+  if (origin !== undefined && origin !== `http://${req.headers.host}`) return true;
+  return typeof site === 'string' && site !== 'same-origin' && site !== 'none';
 }
 
 export function auditionPlugin(): Plugin {
@@ -73,7 +92,23 @@ export function auditionPlugin(): Plugin {
             return;
           }
 
+          if (crossOrigin(req)) {
+            send(res, 403, 'cross-origin request refused');
+            return;
+          }
+
           if (req.method === 'PUT' && pathname === '/ratings') {
+            // A form post from another site cannot set this type without a preflight, which this server never answers.
+            if (!String(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {
+              send(res, 415, 'content type must be application/json');
+              return;
+            }
+            const declared = Number(req.headers['content-length']);
+            if (Number.isFinite(declared) && declared > HARD_LIMIT) {
+              res.setHeader('Connection', 'close');
+              send(res, 413, 'body larger than 1 MB');
+              return;
+            }
             let parsed: unknown;
             try {
               parsed = JSON.parse((await readBody(req)).toString('utf-8'));
@@ -86,8 +121,21 @@ export function auditionPlugin(): Plugin {
               send(res, 400, 'body must be a JSON object');
               return;
             }
+            const text = JSON.stringify(parsed, null, 2) + '\n';
+            if (Buffer.byteLength(text) > MAX_WRITTEN) {
+              send(res, 413, 'ratings larger than 2 MB once written');
+              return;
+            }
             await fs.mkdir(path.dirname(ratingsFile), { recursive: true });
-            await fs.writeFile(ratingsFile, JSON.stringify(parsed, null, 2) + '\n', 'utf-8');
+            // Written beside the file and renamed over it, so that a crash never leaves half a ratings file.
+            const tmp = `${ratingsFile}.${process.pid}.tmp`;
+            try {
+              await fs.writeFile(tmp, text, 'utf-8');
+              await fs.rename(tmp, ratingsFile);
+            } catch (e) {
+              await fs.rm(tmp, { force: true });
+              throw e;
+            }
             send(res, 200, '{"ok":true}', TYPES['.json']);
             return;
           }

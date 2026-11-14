@@ -52,6 +52,19 @@ const rawStatus = (p) =>
     }).on('error', reject);
   });
 
+// A raw request with any method, headers and body; answers { status, text }. Without an Origin header, like curl.
+const rawRequest = (method, p, headers = {}, body) =>
+  new Promise((resolve, reject) => {
+    const u = new URL(ORIGIN);
+    const req = http.request({ host: u.hostname, port: u.port, path: p, method, headers }, (res) => {
+      const parts = [];
+      res.on('data', (c) => parts.push(c));
+      res.on('end', () => resolve({ status: res.statusCode, text: Buffer.concat(parts).toString('utf-8') }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hadRatings = existsSync(RATINGS);
 if (hadRatings) copyFileSync(RATINGS, BACKUP);
@@ -107,7 +120,7 @@ try {
   await check('server refuses paths outside render/downloads, oversized and malformed bodies', async () => {
     const before = errors.length;
     const r = await page.evaluate(async () => {
-      const put = (body) => fetch('/audio-lib/ratings', { method: 'PUT', body }).then((x) => x.status);
+      const put = (body) => fetch('/audio-lib/ratings', { method: 'PUT', body, headers: { 'Content-Type': 'application/json' } }).then((x) => x.status);
       return {
         big: await put('{"a":"' + 'x'.repeat(1100 * 1024) + '"}'),
         bad: await put('not json'),
@@ -121,6 +134,29 @@ try {
     assert(r.up === 403 && r.enc === 403 && r.dir === 403, `traversal not refused: ${JSON.stringify(r)}`);
     assert(r.big === 413, `oversized body gave ${r.big}`);
     assert(r.bad === 400, `malformed body gave ${r.bad}`);
+  });
+
+  await check('server refuses other origins, a wrong content type and a body that grows past the cap, and keeps the ratings file', async () => {
+    const other = { Origin: 'http://localhost:1' };
+    const json = { 'Content-Type': 'application/json' };
+    const snapshot = () => (existsSync(RATINGS) ? readFileSync(RATINGS) : null);
+    const before = snapshot();
+    const r = {};
+    r.getOther = (await rawRequest('GET', '/audio-lib/render/manifest.json', other)).status;
+    r.getSite = (await rawRequest('GET', '/audio-lib/render/manifest.json', { 'Sec-Fetch-Site': 'cross-site' })).status;
+    r.putOther = (await rawRequest('PUT', '/audio-lib/ratings', { ...other, ...json }, '{"version":1,"ratings":{"x":1}}')).status;
+    r.text = (await rawRequest('PUT', '/audio-lib/ratings', { 'Content-Type': 'text/plain' }, '{"version":1,"ratings":{"x":1}}')).status;
+    // Under 1 MB as sent, far over 2 MB once written with indentation.
+    r.grows = (await rawRequest('PUT', '/audio-lib/ratings', json, JSON.stringify({ version: 1, junk: new Array(400000).fill(1) }))).status;
+    // No Origin (curl) and a same-origin Origin must still work.
+    r.curl = (await rawRequest('GET', '/audio-lib/render/manifest.json')).status;
+    r.same = (await rawRequest('GET', '/audio-lib/render/manifest.json', { Origin: ORIGIN, 'Sec-Fetch-Site': 'same-origin' })).status;
+    const after = snapshot();
+    assert(r.getOther === 403 && r.getSite === 403 && r.putOther === 403, `other origin not refused: ${JSON.stringify(r)}`);
+    assert(r.text === 415, `text/plain gave ${r.text}`);
+    assert(r.grows === 413, `a body that expands beyond the cap gave ${r.grows}`);
+    assert(r.curl === 200 && r.same === 200, `requests without or with the own origin were refused: ${JSON.stringify(r)}`);
+    assert((before === null && after === null) || (before !== null && after !== null && before.equals(after)), 'a refused request changed the ratings file');
   });
 
   await check('a one-shot gives a signal', async () => {
