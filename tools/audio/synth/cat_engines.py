@@ -4,11 +4,16 @@ All six share the hull modes and the same noise (seeded by family, not by sound 
 excitation changes with thrust: the level and roughness grow a lot, the pitch of the pumps only
 a little (about 15 % from idle to full), more hull modes ring, and at the top a few rattles.
 That is what lets the files crossfade without a jump.
+
+Two channels (SOUND_DESIGN.md, section Space): the mid is the engine exactly as the owner approved
+it, the side is the same engine made from other noise seeds (the same hull and pumps, only other
+phases), with nothing below 150 Hz, and it grows with thrust. The six files share the side seeds
+just as they share the mid seeds, so the crossfade between levels stays even.
 """
 import numpy as np
 
 from . import (N_MODES, SR, freq_filter, machine_tone, normalize_rms, periodic_lfo, periodic_noise, rattles, register,
-               rms, seeded, slow_wander, structure_lowpass, through_hull)
+               rms, mid_side, seeded, slow_wander, structure_lowpass, through_hull)
 
 PUMP_HZ = 47.0       # reactor coolant pump; only its upper harmonics are used, 47 Hz itself is sub-bass
 REACTOR_HZ = 71.0    # plasma feed
@@ -25,9 +30,11 @@ def mode_gains(t: float) -> np.ndarray:
     return np.clip((t - 0.075 * k) / 0.7 + 0.5, 0.0, 1.0) * MODE_WEIGHT
 
 
-def render_engine(n: int, t: float) -> np.ndarray:
-    """One engine setting; t is thrust from 0 (idle) to 1.4 (boost). Mono, any scale."""
-    s = lambda name: seeded("engine_main/" + name)
+def render_engine(n: int, t: float, seed_family: str = "engine_main") -> np.ndarray:
+    """One engine setting; t is thrust from 0 (idle) to 1.4 (boost). Mono, any scale. The seed
+    family chooses the noise: the default is the approved engine, another one gives the same
+    engine with other phases (used for the side channel)."""
+    s = lambda name: seeded(seed_family + "/" + name)
     pitch = 1.0 + 0.15 * min(t, 1.0) + 0.03 * max(t - 1.0, 0.0) / 0.4
 
     # steady plasma flow: the same noise at every setting, shaped by the hull. Most of the sound
@@ -69,10 +76,24 @@ def render_engine(n: int, t: float) -> np.ndarray:
     return y - y.mean()  # modulation of slow noise leaves a trace of offset
 
 
+def side_ratio(t: float) -> float:
+    """RMS of the side against the RMS of the mid. At idle the two channels still differ a little
+    (correlation about 0.83), at full thrust and boost clearly more (about 0.5 and 0.4). It is
+    bounded by the rule that the correlation of the two channels stays between 0.3 and 0.9."""
+    return 0.30 + 0.27 * min(t, 1.4)
+
+
+def render_engine_stereo(n: int, t: float) -> np.ndarray:
+    mid = render_engine(n, t)
+    side = render_engine(n, t, "engine_main_side")
+    return mid_side(mid, side, periodic=True, ratio=side_ratio(t))
+
+
 def _make(sound_id):
     @register(sound_id)
     def _render(ctx):
-        return render_engine(ctx.n, float(ctx.params["thrust"]))
+        t = float(ctx.params["thrust"])
+        return render_engine_stereo(ctx.n, t) if ctx.channels == 2 else render_engine(ctx.n, t)
     return _render
 
 

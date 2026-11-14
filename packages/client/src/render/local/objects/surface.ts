@@ -484,7 +484,7 @@ float surfScale = 1.0;
   }
   surfGrad += sPit.xyz;
   // Dust lies in the pits.
-  diffuseColor.rgb *= max(0.0, 1.0 + sTone * 1.3) * (1.0 - 0.3 * sPit.w);
+  diffuseColor.rgb *= max(0.0, 1.0 + sTone * 1.3) * (1.0 - 0.38 * sPit.w);
   surfRough = sTone * 0.15;
 }`;
 
@@ -553,7 +553,7 @@ export function surfaceFor(name: string, key: string, radius: number): SurfaceSp
   const block = (large ? 1.6 : 1.05) * Math.pow(Math.max(radius, 1), 0.4);
   const base: SurfaceSpec = {
     kind: 'hull', block, polar: polar ? 1 : 0, seed,
-    joint: block * 0.0035, tone: 0.07, rough: 0.12, wear: 1, relief: 1, levels: large ? 5 : 4, dark: 0.45,
+    joint: block * (large ? 0.0035 : 0.0045), tone: 0.07, rough: 0.12, wear: 1, relief: 1, levels: large ? 5 : 4, dark: 0.45,
   };
   // Paint in the signal colours keeps its colour; dark plating shows its plates in the gloss.
   if (name.startsWith('hull_accent')) return { ...base, tone: 0.025, rough: 0.08, wear: 0.4 };

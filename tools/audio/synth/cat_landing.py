@@ -7,7 +7,7 @@ import numpy as np
 
 from . import (LEVELS, SR, bandpass, highpass, lowpass, burst_env, fade_edges, machine_tone, normalize_rms, periodic_lfo, rise, thump,
                periodic_noise, rattles, register, rms, seeded, slow_wander, structure_lowpass,
-               through_hull, MODES)
+               through_hull, MODES, freq_filter, mid_side)
 from .cat_impacts import blow, creak, no_dc, rattle_run, ring_events
 
 LEVELS.update({
@@ -173,10 +173,30 @@ def _wrapped_times(rng, count, n, wander, floor=0.15):
     return np.searchsorted(cdf, rng.uniform(0, 1, count)) / n * (n / SR)
 
 
-@register("ground_scrape_loop")
-def ground_scrape_loop(ctx):
-    n = ctx.n
-    s = lambda name: seeded("ground_scrape/" + name)
+def _pans(family, count, spread):
+    """One position per event, from hard left (-spread) to hard right (+spread): where on the
+    hull that stone or grain hits. Its own seed, so that it never disturbs the approved events."""
+    return seeded(family + "/pan").uniform(-spread, spread, count)
+
+
+def _scrape_events(n, fam, pan=None):
+    """The stones catching under the skid. With pan, every stone is scaled by its position."""
+    s = lambda name: seeded(fam + "/" + name)
+    rng = s("stones")
+    count = 26
+    times = _wrapped_times(rng, count, n, slow_wander(n, s("dens"), 0.15, 1.0), 0.25)
+    amps = np.exp(rng.normal(-0.3, 0.4, count))
+    freqs = rng.choice(MODES[4:9, 0], count) * rng.uniform(0.98, 1.02, count)
+    t60s = rng.uniform(0.07, 0.20, count)
+    if pan is not None:
+        amps = amps * pan
+    return ring_events(n, times, amps, freqs, t60s, attack_ms=2.0, periodic=True, glide=-0.06)
+
+
+def _scrape_body(n, fam):
+    """The grinding and the gravel of the scrape (everything but the stones) from one seed family,
+    before the low-pass: returns (grinding, gravel)."""
+    s = lambda name: seeded(fam + "/" + name)
     # the grinding: low brown noise, gated by an irregular grit envelope (no fixed rate)
     grind = periodic_noise(n, "pink", s("grind"), lo=100, hi=520)
     gate = periodic_noise(n, "white", s("gate"), lo=1.5, hi=45)
@@ -187,23 +207,43 @@ def ground_scrape_loop(ctx):
     flow = normalize_rms(flatten(through_hull(flow, periodic=True, sharp=0.25, gains=np.where(MODES[:, 0] < 100, 0.25, 1.0), dry=0.7), 0.8))
     # gravel under the skid: finer grit above the hull modes
     grit = periodic_noise(n, "pink", s("grit"), lo=150, hi=900) * np.minimum(gate, 3.0) * load
-    # stones catching: sparse hull thunks at uneven times, a few to a dozen per second
-    rng = s("stones")
-    count = 26
-    times = _wrapped_times(rng, count, n, slow_wander(n, s("dens"), 0.15, 1.0), 0.25)
-    amps = np.exp(rng.normal(-0.3, 0.4, count))
-    freqs = rng.choice(MODES[4:9, 0], count) * rng.uniform(0.98, 1.02, count)
-    t60s = rng.uniform(0.07, 0.20, count)
-    stones = ring_events(n, times, amps, freqs, t60s, attack_ms=2.0, periodic=True, glide=-0.06)
-    y = 1.0 * flow + 0.5 * normalize_rms(grit) + 0.2 * normalize_rms(stones)
+    return flow, grit
+
+
+def _scrape_finish(n, y, fam):
     y = structure_lowpass(y, periodic=True)
-    y = y + 0.04 * rms(y) * rattles(n, 0.7, s("rattle"), per_second=3.0, periodic=True) * 3
+    y = y + 0.04 * rms(y) * rattles(n, 0.7, seeded(fam + "/rattle"), per_second=3.0, periodic=True) * 3
     return y - y.mean()
 
 
-@register("dust_patter_loop")
-def dust_patter_loop(ctx):
+# RMS of the continuous side against the mid: about 0.5, correlation of the channels near 0.6
+SCRAPE_SIDE_RATIO = 0.5
+SCRAPE_PAN = 0.8
+
+
+@register("ground_scrape_loop")
+def ground_scrape_loop(ctx):
     n = ctx.n
+    flow, grit = _scrape_body(n, "ground_scrape")
+    stones = _scrape_events(n, "ground_scrape")
+    # stones catching: sparse hull thunks at uneven times, a few to a dozen per second
+    y = 1.0 * flow + 0.5 * normalize_rms(grit) + 0.2 * normalize_rms(stones)
+    mid = _scrape_finish(n, y, "ground_scrape")
+    if ctx.channels != 2:
+        return mid
+    # two channels: the grinding and gravel again from other seeds, and the very same stones at
+    # the same times, each one weighted by where it hits (left or right of the middle), so that
+    # (left + right) / 2 stays the approved scrape
+    flow_s, grit_s = _scrape_body(n, "ground_scrape_side")
+    cont = _scrape_finish(n, 1.0 * flow_s + 0.5 * normalize_rms(grit_s), "ground_scrape_side")
+    cont = freq_filter(cont, lo=170.0, order=12)
+    cont = cont * (SCRAPE_SIDE_RATIO * rms(mid) / max(rms(cont), 1e-12))
+    pan = _pans("ground_scrape", 26, SCRAPE_PAN)
+    placed = structure_lowpass(0.2 * _scrape_events(n, "ground_scrape", pan) / max(rms(stones), 1e-12), periodic=True)
+    return mid_side(mid, cont + placed, periodic=True)
+
+
+def _dust_events(n, pan=None):
     s = lambda name: seeded("dust_patter/" + name)
     rng = s("grains")
     count = 2400
@@ -212,11 +252,34 @@ def dust_patter_loop(ctx):
     amps = np.minimum(np.exp(rng.normal(-1.0, 0.6, count)), 1.2)
     freqs = rng.uniform(150, 440, count)
     t60s = rng.uniform(0.008, 0.028, count)
-    y = ring_events(n, times, amps, freqs, t60s, attack_ms=0.5, periodic=True)
-    # a few larger pebbles make a duller knock
     kb = rng.choice(count, 18, replace=False)
-    y += ring_events(n, times[kb] + 0.0004, amps[kb] * 0.7, rng.uniform(130, 210, 18),
+    ps, pp = (np.ones(count), np.ones(18)) if pan is None else (pan[:count], pan[count:])
+    y = ring_events(n, times, amps * ps, freqs, t60s, attack_ms=0.5, periodic=True)
+    # a few larger pebbles make a duller knock
+    y += ring_events(n, times[kb] + 0.0004, amps[kb] * 0.7 * pp, rng.uniform(130, 210, 18),
                      rng.uniform(0.04, 0.09, 18), attack_ms=1.5, periodic=True)
+    return y
+
+
+def _dust_rattles(n, y, fam):
     y = structure_lowpass(y, periodic=True)
-    y = y + 0.03 * rms(y) * rattles(n, 0.6, s("rattle"), per_second=5.0, periodic=True) * 4
+    y = y + 0.03 * rms(y) * rattles(n, 0.6, seeded(fam + "/rattle"), per_second=5.0, periodic=True) * 4
     return y - y.mean()
+
+
+DUST_PAN = 0.9
+
+
+@register("dust_patter_loop")
+def dust_patter_loop(ctx):
+    n = ctx.n
+    mid = _dust_events(n)
+    mid = _dust_rattles(n, mid, "dust_patter")
+    if ctx.channels != 2:
+        return mid
+    # two channels: the same grains and pebbles at the same times, each weighted by where it falls
+    # (left or right of the middle); the sum of both ears is the approved patter
+    pan = _pans("dust_patter", 2400 + 18, DUST_PAN)
+    side = _dust_events(n, pan)
+    side = structure_lowpass(side, periodic=True)  # the side loses its bass in mid_side
+    return mid_side(mid, side, periodic=True)

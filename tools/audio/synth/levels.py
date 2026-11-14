@@ -113,13 +113,18 @@ def lufs(x: np.ndarray) -> float:
     return float(v)
 
 
-def set_level(x: np.ndarray, mode: str, target: float, ceiling_db: float = CEILING_DB):
+def set_level(x: np.ndarray, mode: str, target: float, ceiling_db: float = CEILING_DB,
+              mono_sum: bool = False):
     """Scale x to the target. Returns (y, info). If the target would put the true peak above
     the ceiling, the gain is reduced to meet the ceiling and info["limited"] is True (the
-    build then shows the loudness it actually reached)."""
+    build then shows the loudness it actually reached).
+    With mono_sum a two-channel x is measured as (left + right) / 2 in loudness mode; the true
+    peak and the ceiling always look at both channels."""
     x = np.asarray(x, dtype=np.float64)
     if mode == "lufs":
-        gain_db = target - lufs(x)
+        # a two-channel sound is set by its mono sum (the approved sound), so that the side
+        # signal adds width and never changes the level that was approved
+        gain_db = target - lufs(x.mean(axis=1) if mono_sum and x.ndim == 2 else x)
     elif mode == "peak":
         gain_db = target - true_peak_db(x)
     else:

@@ -100,6 +100,13 @@ def register(sound_id: str, swing_max: float | None = None):
     return deco
 
 
+def is_mid_side(spec: dict) -> bool:
+    """True for the sounds that are made as mid and side (SOUND_DESIGN.md section Space): two
+    channels on the structure or energy path. Their level is set on the mono sum, and they are
+    written with shared dither."""
+    return int(spec.get("channels", 1)) == 2 and spec["path"] in ("structure", "energy") and spec["kind"] != "ir"
+
+
 def load_categories() -> list[str]:
     """Import every synth/cat_*.py so that their renderers register. Returns import errors."""
     errors = []
@@ -133,4 +140,4 @@ def render(sound_id: str):
     x = render_dry(sound_id)
     spec = load_spec()["sounds"][sound_id]
     mode, value = target_for(sound_id, spec["category"], spec["kind"])
-    return set_level(x, mode, value)
+    return set_level(x, mode, value, mono_sum=is_mid_side(spec))

@@ -79,7 +79,53 @@ Level and output
 - `to_int16(x, seed)`, `write_wav(path, x, dither_seed)` 16-bit, 48 kHz, TPDF dither.
 
 Registry
-- `register(id, swing_max=None)`, `REGISTRY`, `render(id)` (to level), `render_dry(id)`, `load_spec()`, `load_categories()`, `Ctx` (`id`, `spec`, `n`, `channels`, `kind`, `params`, `rng()`).
+- `register(id, swing_max=None)`, `REGISTRY`, `render(id)` (to level), `render_dry(id)`, `load_spec()`, `load_categories()`, `Ctx` (`id`, `spec`, `n`, `channels`, `kind`, `params`, `rng()`), `is_mid_side(spec)`.
+
+Two channels: `mid_side(mid, side, periodic, ratio)`, `SIDE_LOW_HZ`.
+
+## Two channels
+
+Sounds with `"channels": 2` on the structure or energy path are made as mid and side
+(SOUND_DESIGN.md, section Space). The renderer returns shape `(n, 2)`.
+
+```python
+from . import mid_side
+mid = render_the_approved_mono_sound(ctx.n)               # unchanged
+side = render_the_same_kind_with_other_seeds(ctx.n)       # e.g. the same function, another seed family
+return mid_side(mid, side, periodic=True, ratio=0.5)      # loops: periodic=True; one-shots: False
+```
+
+- `mid_side(mid, side, periodic=True, ratio=None)` takes the bass out of the side (nothing below
+  150 Hz: a steep high-pass with its corner at 170 Hz, circular for loops, causal for one-shots) and
+  returns `[mid + side, mid - side]`. `(left + right) / 2` is exactly `mid`. `ratio` sets the RMS of
+  the side as a fraction of the RMS of the mid; the power ratio is its square, and for independent
+  signals the correlation of the two channels is `(1 - ratio**2) / (1 + ratio**2)`. The rule wants
+  0.3 to 0.9, so a ratio between about 0.3 and 0.73.
+- Single events (stones, grains) can sit at different places: keep the same events in the mid and
+  put them into the side weighted by a position from -1 (left) to +1 (right); see `cat_landing.py`.
+- Level: for these sounds the build sets the loudness on the mono sum, `(L + R) / 2`
+  (`set_level(..., mono_sum=True)`, chosen by `is_mid_side(spec)`), so the side adds width and
+  leaves the approved level alone. The true peak and the ceiling look at both channels. The LUFS
+  of the file itself is higher (about 3.5 dB for a ratio of 0.3 and more for wider sounds);
+  `checks.lufsMono` is the number the table below refers to.
+- Dither: such files are written with the same dither in both channels, so that the mono sum
+  differs from the old mono file only by sample rounding (below -60 dB for everything made so far).
+- Measuring: `listen/measure.py` gives, for two channels, `stereo.corr` (left against right over
+  the file), `stereo.corrLow` (the same below 150 Hz), `stereo.levelDiffDb` and `stereo.monoRmsDb`,
+  and it measures the spectral numbers (shares, centroid, peaks, `peakShare`, the share of the
+  strongest spectral peak) on the mono sum. `peakShare` and `stereo` are copied into `checks`.
+- Rules (`rules.py`): for the structure and energy path with two channels, correlation between 0.3 and
+  0.9 (`stereo-correlation`), equal bass (`stereo-bass-correlation`, above 0.98), left and right within
+  1.5 dB (`stereo-level-diff`), and the path rules are applied to the mono sum. The energy path itself:
+  `energy-high-share` (30 % above 1 kHz), `energy-air-share` (8 % above 4 kHz), `energy-weight` (10 %
+  below 250 Hz), `energy-peak` (no spectral peak with more than 15 %).
+- The cabin's own two-channel sounds (ambience, `cabin_ir`) are not mid and side and are not held to these rules.
+
+## Manifest fields added by the build
+
+`hash` (first twelve hex digits of the SHA-256 of the file), `place` and `cue` (copied from
+sounds.json where the entry has them), and `channels` (from sounds.json). A JSON written by an
+older build is completed with these when the manifest is assembled.
 
 ## Level table
 
@@ -88,7 +134,7 @@ Loops are set by integrated loudness (LUFS), one-shots by true peak (dBFS); the 
 | sound | target |
 |---|---|
 | cabin at rest / silent running | -45 / -55 LUFS |
-| engine idle, 1/4, 1/2, 3/4, full, boost | -38, -32, -27, -23, -20, -17 LUFS |
+| engine idle, 1/4, 1/2, 3/4, full, boost (mono sum) | -38, -32, -27, -23, -20, -17 LUFS |
 | cruise loop / fold tunnel | -24 / -34 LUFS |
 | clicks, console keys, toggles | -16 dBFS peak |
 | relays, breaker | -14 dBFS peak |
@@ -101,6 +147,10 @@ Loops are set by integrated loudness (LUFS), one-shots by true peak (dBFS); the 
 | cabin_ir (file only) | -3 dBFS peak |
 
 ## How the engines are made (a pattern for loops)
+
+Two channels: the mid is exactly this engine; the side is the same engine from other seeds
+(`seeded("engine_main_side/...")`), without bass, with `side_ratio(t)` growing from 0.30 at idle to
+0.68 at boost.
 
 One engine at six settings: the same hull modes and the same noise seeds (`seeded("engine_main/...")`),
 only the excitation changes with thrust. Steady noise goes through the hull (circular, so it

@@ -254,13 +254,63 @@ def loop_check(data: np.ndarray, sr: int) -> dict:
     return out
 
 
+def peak_share(f: np.ndarray, p: np.ndarray, half_width: int = 2) -> tuple[float, float | None]:
+    """Share of the energy held by the single strongest spectral peak: the power within
+    +-half_width bins of the strongest bin (the main lobe of the Hann window), over the total.
+    Returns (share, hz). Noise gives a few per cent; a steady tone gives most of the energy."""
+    if p.size == 0 or p.sum() <= 0:
+        return 0.0, None
+    k = int(np.argmax(p))
+    lo, hi = max(0, k - half_width), min(p.size, k + half_width + 1)
+    return float(p[lo:hi].sum() / p.sum()), float(f[k])
+
+
+STEREO_SPLIT_HZ = 150.0
+
+
+def stereo_stats(data: np.ndarray, sr: int) -> dict:
+    """How two channels relate: the numbers behind the rules for two channels (SOUND_DESIGN.md 2).
+
+    corr: correlation of left and right over the file; corrLow: the same with everything
+    above 150 Hz removed (below it the channels should be equal); levelDiffDb: |level of left - right| in
+    dB (RMS); monoRmsDb: level of the mono sum (L+R)/2 against full scale."""
+    x = data.astype(np.float64)
+    if x.shape[1] != 2:
+        return {}
+    left, right = x[:, 0] - x[:, 0].mean(), x[:, 1] - x[:, 1].mean()
+
+    def corr(a, b):
+        den = np.sqrt((a * a).sum() * (b * b).sum())
+        return float((a * b).sum() / den) if den > 0 else 1.0
+
+    f = np.fft.rfftfreq(x.shape[0], 1.0 / sr)
+    g = (f < STEREO_SPLIT_HZ).astype(np.float64)  # a sharp split: "below 150 Hz" means below 150 Hz
+    lo_l = np.fft.irfft(np.fft.rfft(left) * g, x.shape[0])
+    lo_r = np.fft.irfft(np.fft.rfft(right) * g, x.shape[0])
+    pl, pr = float((left * left).mean()), float((right * right).mean())
+    diff = abs(pow_db(pl) - pow_db(pr)) if pl > 0 and pr > 0 else 0.0
+    mono = 0.5 * (x[:, 0] + x[:, 1])
+    return {
+        "corr": round(corr(left, right), 4),
+        "corrLow": round(corr(lo_l, lo_r), 4),
+        "levelDiffDb": round(diff, 3),
+        "monoRmsDb": round(amp_db(float(np.sqrt((mono * mono).mean()))), 2),
+    }
+
+
 def analyse(data: np.ndarray, sr: int, loop: bool = False) -> dict:
+    """Measure a file. For two channels the file's own numbers (peak, clipping, DC, loudness, loop
+    seam) describe the file, and the spectral numbers (shares, centroid, peaks, fundamental,
+    peakShare) describe the mono sum (L+R)/2, which the rules treat as the sound itself; the
+    left-right relations are under "stereo"."""
     n, ch = data.shape
+    stereo = stereo_stats(data, sr) if ch == 2 else {}
+    spec_data = data.astype(np.float64).mean(axis=1, keepdims=True) if ch == 2 else data
     peak = float(np.abs(data).max()) if data.size else 0.0
     tp = true_peak(data)
     rms = float(np.sqrt((data.astype(np.float64) ** 2).mean())) if data.size else 0.0
     lufs, lufs_note = loudness_lufs(data, sr)
-    f, p = mean_psd(data, sr)
+    f, p = mean_psd(spec_data, sr)
     tot = p.sum()
     centroid = float((f * p).sum() / tot) if tot > 0 else None
     shares = band_shares(f, p)
@@ -284,6 +334,12 @@ def analyse(data: np.ndarray, sr: int, loop: bool = False) -> dict:
         "fundamentalHz": f0,
         "envelope": envelope(data, sr),
     }
+    res["peakShare"], res["peakShareHz"] = peak_share(f, p)
+    res["peakShare"] = round(res["peakShare"], 4)
+    if stereo:
+        res["stereo"] = stereo
+        mono_lufs, _ = loudness_lufs(spec_data, sr)
+        res["lufsMono"] = None if mono_lufs is None else round(mono_lufs, 2)
     if lufs_note:
         res["lufsNote"] = lufs_note
     if loop:
@@ -373,6 +429,12 @@ def format_text(name: str, r: dict) -> str:
         % (_fmt(e["onsetMs"], " ms"), _fmt(e["attackMs"], " ms"), _fmt(e["fall60Ms"], " ms"), e["lastTenMsDb"]),
         "  env [%s] %d ms/char" % (e["printed"], e["printedMsPerChar"]),
     ]
+    lines.append("  strongest peak holds %.1f%% of the energy (%s)" % (r["peakShare"] * 100, _fmt(r["peakShareHz"], " Hz")))
+    if "stereo" in r:
+        st = r["stereo"]
+        lines.append("  two channels: corr %.3f, corr below 150 Hz %.3f, L/R level difference %.2f dB, mono sum %.1f dBFS rms, "
+                     "mono LUFS %s (spectral numbers above are of the mono sum)"
+                     % (st["corr"], st["corrLow"], st["levelDiffDb"], st["monoRmsDb"], _fmt(r.get("lufsMono"))))
     if "lufsNote" in r:
         lines.append("  note: " + r["lufsNote"])
     if "loop" in r:

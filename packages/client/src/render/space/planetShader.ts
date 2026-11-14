@@ -111,6 +111,8 @@ struct Surf {
   float cloudRise;
   float cloudH;
   float cloudSunH;
+  // Light on a deck of cloud that has relief of its own (the giants), around one.
+  float shade;
 };
 // Low-frequency warp of the current pixel, shared between the surface and its height field.
 vec3 gWarp;
@@ -127,10 +129,10 @@ float gNear;
 // it: the step on the unit sphere and the same step in pixels on screen.
 vec3 gSunStep;
 vec2 gSunPix;
-Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); }
+Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0); }
 // Detail finer than fbm() gives a planet seen whole: octaves of gradient noise from 'freq' cycles
-// per unit of 'q' upward (FINE per body radius is the coarsest that a planet filling a quarter
-// of a 900 pixel high view does not show yet), each counted only as far as a pixel of 'foot' units resolves it (not
+// per unit of 'q' upward (FINE per body radius is the first one a planet does not show yet
+// while its disc is 700 pixels across), each counted only as far as a pixel of 'foot' units resolves it (not
 // at all below three pixels per cycle, fully from seven). So detail grows on approach without
 // ever flickering, and a planet seen from afar gets none and looks as it always did.
 // Each octave has 'gain' times the weight of the one before.
@@ -475,7 +477,30 @@ Surf surface(vec3 nb, vec3 sunB) {
   float b1 = sin(v * 3.14159);
   float b2 = sin(v * 1.37 + uSeed * 2.0);
   float b3 = sin(v * 5.2 + 1.0 + uSeed);
-  float zone = clamp(0.5 + 0.42 * b1 + 0.2 * b3 + (t3 * 0.6 + t4 * 0.45) * contrast, 0.0, 1.0);
+  // Close up there is fine structure in the deck: laid out along the bands and bent by two slow
+  // swirls into filaments and curls. Its relief shows where the sun stands low over it, and the
+  // turbulence between the bands stands out more than a planet seen whole could show.
+  float fine = 0.0;
+  vec2 curl = vec2(0.0);
+  float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * FINE);
+  if (reach > 0.0) {
+    vec3 wq = vec3(nr.x * 34.0, lat * 60.0, nr.z * 34.0) + so;
+    curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.02 * reach);
+  }
+  vec3 east = vec3(-nr.z, 0.0, nr.x);
+  vec3 q = vec3(nr.x, lat * 1.8, nr.z) + east * curl.x + cross(nr, east) * curl.y;
+  vec3 qx = dFdx(q), qy = dFdy(q);
+  float qfoot = uFine > 0.0 ? uFine * max(length(qx), length(qy)) : 1e3;
+  if (qfoot * FINE < 0.36) {
+    vec4 f = fineNoise(q, FINE, qfoot, 0.75);
+    fine = 0.6 * f.x + 0.3 * f.y;
+    if (gNear > 0.0 && dot(nb, sunB) > -0.1) {
+      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.75);
+      s.shade = clamp(1.0 - 0.5 * gNear * (0.6 * fSun.x + 0.3 * fSun.y - fine), 0.75, 1.2);
+    }
+  }
+  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.09 * (0.4 + 0.6 * contrast) * fine;
+  float zone = clamp(0.5 + 0.42 * b1 + 0.2 * b3 + turb, 0.0, 1.0);
   zone = mix(zone, smoothstep(0.15, 0.85, zone), 0.6);
   float luma = dot(uBase, vec3(0.3333));
   float warm = clamp((uBase.r - uBase.b) * 3.0 + 0.5, 0.0, 1.0);
@@ -490,7 +515,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   float spot = smoothstep(0.26, 0.12, sd) * uPar.z;
   if (spot > 0.0) {
     float swirl = fbm(rotY(nr, (0.3 - sd) * 9.0) * 9.0 + so, lo);
-    col = mix(col, mix(mix(cAlt, uBase * vec3(1.25, 0.55, 0.35), warm), cLight, clamp(0.5 + swirl, 0.0, 1.0)), spot * 0.85);
+    col = mix(col, mix(mix(cAlt, uBase * vec3(1.25, 0.55, 0.35), warm), cLight, clamp(0.5 + swirl + 0.12 * fine, 0.0, 1.0)), spot * 0.85);
   }
   col = mix(col, uBase * vec3(0.55, 0.62, 0.75), smoothstep(0.72, 0.98, abs(lat)) * 0.6);
   s.albedo = col;
@@ -542,7 +567,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   float wrap = max(mix(ndl, geo, 0.5) + 0.08, 0.0) / 1.08;
   float light = mix(lambert, wrap, uAtmo * 0.6);
   vec3 sun = uSun * ringShadow(n);
-  vec3 col = s.albedo * sun * light;
+  vec3 col = s.albedo * sun * (light * s.shade);
   col *= mix(1.0, pow(ndv, 0.45), s.limb);
   if (s.spec > 0.0) {
     vec3 hv = normalize(uSunDir - d);
@@ -578,9 +603,12 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   col += s.night * vec3(1.0, 0.58, 0.22) * 1.6 * (1.0 - s.cloud) * smoothstep(0.02, -0.14, geo);
   if (uAtmo > 0.0) {
     // Haze over the disc: thicker toward the limb, tinted orange along the terminator.
-    float rim = pow(1.0 - ndv, 3.0);
+    // Close up it keeps nearer to the horizon, takes more of what lies behind it, and the air
+    // seen edge-on along the horizon itself is a thin pale line.
+    float rim = pow(1.0 - ndv, 3.0 + 1.5 * uNear);
     float day = smoothstep(-0.10, 0.28, geo);
-    col = col * (1.0 - uAtmo * 0.35 * rim) + uAtmoColor * sun * uAtmo * day * (0.06 + 0.75 * rim);
+    col = col * (1.0 - uAtmo * (0.35 + 0.35 * uNear) * rim) + uAtmoColor * sun * uAtmo * day * (0.06 + 0.75 * rim);
+    col += mix(uAtmoColor, vec3(1.0), 0.35) * sun * (uAtmo * day * uNear * 0.30 * exp(-ndv * 16.0));
     col += vec3(1.0, 0.36, 0.12) * sun * uAtmo * 0.10 * exp(-geo * geo / 0.008) * (0.25 + rim);
   }
   col += s.emission;
@@ -623,6 +651,7 @@ uniform float uAtmo;
 uniform vec3 uSunDir;
 uniform vec3 uSun;
 uniform float uFade;
+uniform float uNear;
 varying vec3 vWorld;
 void main() {
   vec3 d = normalize(vWorld);
@@ -633,12 +662,18 @@ void main() {
   // Height of the ray's closest approach above the surface, 0..1 across the shell.
   float a = (h - uRadius) / (uAtmoR - uRadius);
   if (a >= 1.0) discard;
-  float dens = exp(-max(a, 0.0) * 5.5) * (1.0 - smoothstep(0.55, 1.0, a));
+  float top = 1.0 - smoothstep(0.55, 1.0, a);
+  float dens = exp(-max(a, 0.0) * 5.5) * top;
+  // From low orbit the air is a thin bright band on the horizon, with only a faint and deeper
+  // blue above it: the soft glow that suits a planet seen whole would stand far too high here.
+  float band = exp(-max(a, 0.0) * 26.0);
+  dens = mix(dens, 1.25 * band + 0.20 * exp(-max(a, 0.0) * 6.0) * top, uNear);
   vec3 nc = -perp / max(h, 1e-9);
   float sun = dot(nc, uSunDir);
   float lit = smoothstep(-0.30, 0.25, sun);
   float fwd = pow(max(dot(d, uSunDir), 0.0), 5.0);
   vec3 col = uAtmoColor * (0.9 + 2.2 * fwd);
+  col = mix(col, mix(uAtmoColor * vec3(0.55, 0.78, 1.15), mix(uAtmoColor, vec3(1.0), 0.35), band) * (0.9 + 2.2 * fwd), uNear);
   col = mix(vec3(1.0, 0.42, 0.18) * (0.8 + 2.0 * fwd), col, smoothstep(-0.15, 0.25, sun));
   gl_FragColor = vec4(col * uSun * dens * lit * uAtmo * uFade, 1.0);
 }

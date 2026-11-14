@@ -7,7 +7,8 @@ only the strength parameters change.
 
 Helpers local to this file that could move into the library later: `ring_events` (decaying sines
 at given times), `no_dc`, `blow` (a complete blow on the structure), `creak` (stick-slip groan),
-`hull_ring`, `rattle_run` (a run of uneven noise knocks).
+`hull_ring`, `rattle_run` (a run of uneven noise knocks), and for the energy path (shield hits,
+fold jump and exit) `crackle_lr`, `hiss_lr`, `growl`, `body_scale`, `soft_limit`.
 """
 import numpy as np
 
@@ -54,7 +55,7 @@ def no_dc(y):
     from scipy.signal import lfilter
 
     r = np.exp(-2 * np.pi * 6.0 / SR)
-    return lfilter([(1 + r) / 2, -(1 + r) / 2], [1.0, -r], y)
+    return lfilter([(1 + r) / 2, -(1 + r) / 2], [1.0, -r], y, axis=0)
 
 
 # The hull modes below 100 Hz only cost headroom on small loudspeakers; a heavy blow is heard
@@ -189,59 +190,209 @@ for _sid in HULL:
     _make_hull(_sid)
 
 
+# --------------------------------------------------------------------------- energy toolkit
+# The energy path (SOUND_DESIGN.md section 1): the ship's high-energy systems discharging. Nothing
+# here goes through the hull modes. Four layers, all in two channels (left, right):
+#   crackle  very short bursts of band noise at random times and places (electrical arcing)
+#   hiss     band noise that is there within milliseconds, whose band slides, torn by a flutter
+#   body     the generator growl and a soft low push, in the middle (below 150 Hz both ears are equal)
+#   (fold sounds add a broad crack; see cat_drive)
+# These helpers are shared with cat_drive (fold jump and fold exit).
+
+HISS_BANDS = 800.0 * 2.0 ** (np.arange(15) / 4.0)    # 800 Hz to 9 kHz in quarter octaves
+HISS_TILT = (HISS_BANDS / 1000.0) ** 0.25            # a little more at the top: it hisses, not rumbles
+
+
+def _sos_band(lo, hi, order=2):
+    from scipy.signal import butter
+
+    return butter(order, [lo, min(hi, 0.45 * SR)], "band", fs=SR, output="sos")
+
+
+def _band_bank(white):
+    """White noise through the hiss bands, each band at unit RMS: shape (bands, n)."""
+    from scipy.signal import sosfilt
+
+    out = np.empty((HISS_BANDS.size, white.size))
+    for k, f in enumerate(HISS_BANDS):
+        b = sosfilt(_sos_band(f * 2 ** -0.125, f * 2 ** 0.125), white)
+        out[k] = b / max(rms(b), 1e-12)
+    return out
+
+
+def flutter_gain(n, rng, lo=30.0, hi=90.0, depth=0.8):
+    """An irregular tearing of the level, 30 to 90 Hz: noise limited to that band, never a tone."""
+    x = bandpass(rng.standard_normal(n + 2048), lo, hi, 2)[2048:]
+    return x / max(rms(x), 1e-12) * depth
+
+
+def hiss_lr(n, tag, env, fc, sigma, rho, depth=0.8, shared_flutter=0.35):
+    """Band noise in two channels. `env` (level), `fc` (centre of the band in Hz) and `sigma` (width
+    of the band in octaves) are arrays over time; `rho` (0 to 1, array or number) is the share of the
+    noise that both ears hear alike: the rest is different on the left and on the right.
+    Unit power at env 1, so the caller sets levels by env alone."""
+    rng = lambda name: seeded(tag + "/hiss-" + name)
+    wc, wl, wr = (rng(k).standard_normal(n) for k in ("c", "l", "r"))
+    lg = np.log2(HISS_BANDS)[:, None]
+    w = np.exp(-0.5 * ((lg - np.log2(np.maximum(fc, 300.0))[None, :]) / np.maximum(sigma, 0.2)[None, :]) ** 2)
+    w = w * HISS_TILT[:, None]
+    w = w / np.sqrt(np.maximum((w ** 2).sum(axis=0), 1e-12))[None, :]
+    mix = [(w * _band_bank(x)).sum(axis=0) for x in (wc, wl, wr)]
+    rho = np.broadcast_to(np.asarray(rho, dtype=np.float64), (n,))
+    fc_ = flutter_gain(n, rng("fl-c"), depth=1.0)
+    out = np.empty((n, 2))
+    for ch, (own, fl) in enumerate(((mix[1], "fl-l"), (mix[2], "fl-r"))):
+        x = np.sqrt(rho) * mix[0] + np.sqrt(1.0 - rho) * own
+        f = np.sqrt(shared_flutter) * fc_ + np.sqrt(1.0 - shared_flutter) * flutter_gain(n, rng(fl), depth=1.0)
+        m = np.clip(1.0 + depth * f, 0.0, 4.0)
+        out[:, ch] = x * m / max(rms(m), 1e-12) * env
+    return out
+
+
+def pan_gains(p):
+    """Constant-power gains for a place p from -1 (left) to 1 (right)."""
+    th = (np.clip(p, -1.0, 1.0) + 1.0) * np.pi / 4.0
+    return np.cos(th), np.sin(th)
+
+
+def crackle_lr(n, rng, rate, amp_decay_s, amp_sigma=1.0, lo=1000.0, hi=8000.0, dur_ms=(0.5, 4.0), first_at=0.0):
+    """Electrical arcing: very short bursts of band noise (0.5 to 4 ms), each with its own band
+    between lo and hi and its own strength (a few strong, many weak; log-normal), thrown at random
+    times by a process whose rate `rate` (an array of events per second over time) falls from
+    hundreds a second to single ones. Every burst sits at its own place between left and right;
+    the places are chosen so that neither ear gets more of the strong ones than the other.
+    Returns (n, 2). A first burst at `first_at` makes the sound start at once."""
+    from scipy.signal import sosfilt
+
+    r = np.asarray(rate, dtype=np.float64)
+    rmax = float(r.max())
+    times, t = [], first_at
+    times.append(first_at)
+    while True:
+        t += rng.exponential(1.0 / rmax)
+        if t >= n / SR - 0.012:
+            break
+        if rng.uniform() < r[int(t * SR)] / rmax:
+            times.append(t)
+    times = np.array(times)
+    k = times.size
+    amps = np.exp(rng.normal(0.0, amp_sigma, k))
+    amps = np.minimum(amps, 5.0) * (0.25 + 0.75 * np.exp(-times / amp_decay_s))
+    amps[0] = max(amps[0], 2.0)
+    durs = np.exp(rng.uniform(np.log(dur_ms[0]), np.log(dur_ms[1]), k)) / 1000.0
+    centres = np.exp(rng.uniform(np.log(lo * 1.3), np.log(hi * 0.8), k))
+    widths = rng.uniform(0.35, 0.7, k)               # half-width in octaves
+    places = rng.uniform(0.15, 1.0, k)
+    out = np.zeros((n, 2))
+    el = er = 1e-9
+    for i in range(k):
+        m = max(8, int(durs[i] * SR))
+        c = centres[i]
+        sos = _sos_band(max(lo, c * 2.0 ** -widths[i]), min(hi, c * 2.0 ** widths[i]))
+        x = sosfilt(sos, rng.standard_normal(m + 64))[64:]
+        x = x * burst_env(m, 0.08, 0.85 * m / SR)
+        x = x / max(np.max(np.abs(x)), 1e-9) * amps[i]
+        # the side that has had less of the energy so far gets this one
+        side = 1.0 if el > er else -1.0
+        gl, gr = pan_gains(side * places[i])
+        el += (gl * amps[i]) ** 2
+        er += (gr * amps[i]) ** 2
+        i0 = int(times[i] * SR)
+        j = min(m, n - i0)
+        out[i0:i0 + j, 0] += gl * x[:j]
+        out[i0:i0 + j, 1] += gr * x[:j]
+    return out
+
+
+def growl(n, f0, sag, t_sag, rec, load, seed):
+    """The generator growl: 100 Hz with odd harmonics, overdriven and rough, its pitch sagging
+    under load and climbing back. Returns a mono array of unit RMS at the start."""
+    t = np.arange(n) / SR
+    s_ = np.where(t < t_sag, np.sin(0.5 * np.pi * t / t_sag), np.exp(-(t - t_sag) / rec))
+    f = f0 * (1.0 - sag * s_)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    pr = seeded(seed + "/phase")
+    harm = ((1, 1.0), (3, 0.8), (5, 0.4), (7, 0.15), (9, 0.05))
+    tone = sum(w * np.sin(k * ph + pr.uniform(0, 6.28)) for k, w in harm)
+    tone = np.tanh(1.4 * tone / max(rms(tone), 1e-9))      # overdriven: rougher, more odd harmonics
+    g = bandpass(seeded(seed + "/am").standard_normal(n), 20, 40, 2)
+    g /= max(3 * rms(g), 1e-9)
+    am = np.clip(1.0 + 0.9 * load * g + 0.25 * load * np.sin(2 * np.pi * 30.0 * t), 0.0, None)
+    y = tone * am
+    return y / max(rms(y[: int(0.2 * SR)]), 1e-9)
+
+
+def share(x, lo, hi):
+    """Share of the energy between lo and hi Hz of a mono array."""
+    p = np.abs(np.fft.rfft(x)) ** 2
+    f = np.fft.rfftfreq(x.size, 1.0 / SR)
+    return float(p[(f >= lo) & (f < hi)].sum() / max(p.sum(), 1e-30))
+
+
+def body_scale(body, rest, wanted):
+    """Gain for `body` so that it holds `wanted` (0 to 1) of the energy of body plus rest (mono mixes)."""
+    eb, er = float(np.sum(body ** 2)), float(np.sum(rest ** 2))
+    return float(np.sqrt(wanted / (1.0 - wanted) * er / max(eb, 1e-30)))
+
+
+def lr_from(mono):
+    return np.stack([mono, mono], axis=1)
+
+
+def soft_limit(y, knee):
+    """Tames the few strongest sparks so that the level the build sets is not decided by one burst."""
+    return knee * np.tanh(y / knee)
+
+
 # --------------------------------------------------------------------------- shield hits
 
 SHIELD = {
-    # surge level, pitch sag (fraction), time to the bottom of the sag (s), recovery time constant (s),
-    # thump level, crackle level
-    "impact_shield_light": dict(load=0.45, sag=0.06, t_sag=0.04, rec=0.25, thump=0.3, crackle=0.5),
-    "impact_shield_medium": dict(load=0.75, sag=0.16, t_sag=0.08, rec=0.35, thump=0.45, crackle=0.8),
-    "impact_shield_heavy": dict(load=1.0, sag=0.30, t_sag=0.15, rec=0.45, thump=0.6, crackle=1.0),
+    # hiss: decay t60 (s), time constant of the band sliding down (s); crackle: rate at the hit and
+    # at the end (per second), time constant of the thinning (s); body: sag (fraction), time to the
+    # bottom of the sag, recovery (s), push level, share of the energy
+    "impact_shield_light": dict(t60=0.40, tau_s=0.09, c_peak=520.0, c_floor=8.0, c_tau=0.07, load=0.45,
+                                sag=0.06, t_sag=0.04, rec=0.25, push=0.7, body=0.16, body_t60=0.30),
+    "impact_shield_medium": dict(t60=0.80, tau_s=0.16, c_peak=700.0, c_floor=6.0, c_tau=0.13, load=0.75,
+                                 sag=0.16, t_sag=0.08, rec=0.35, push=0.9, body=0.19, body_t60=0.60),
+    "impact_shield_heavy": dict(t60=1.45, tau_s=0.34, c_peak=950.0, c_floor=5.0, c_tau=0.30, load=1.0,
+                                sag=0.30, t_sag=0.15, rec=0.45, push=1.1, body=0.22, body_t60=1.10),
 }
-# odd harmonics of a 100 Hz generator: the third and fifth carry the sound (a machine heard through
-# the housing); the fundamental alone would read as a beep and lies under 125 Hz
-HARM = ((1, 0.6), (3, 1.0), (5, 0.5), (7, 0.18), (9, 0.06))
+
+
+def shield_hit(n, p):
+    """One shield hit, two channels, before the level is set. The three strengths share their seeds
+    ("impact_shield/..."): one event at three strengths, not three events."""
+    t = np.arange(n) / SR
+    a = int(0.004 * SR)
+    # hiss: there within 4 ms, then a double-slope decay (a hard first flare, a longer sizzle)
+    env = np.exp(-6.9078 * t / p["t60"]) * 0.75 + 0.25 * np.exp(-6.9078 * t / (0.4 * p["t60"]))
+    env[:a] *= rise(a)
+    fc = 800.0 + 6700.0 * np.exp(-t / p["tau_s"])
+    sigma = 0.95 + 1.4 * np.exp(-t / 0.02)
+    hs = hiss_lr(n, "impact_shield", env, fc, sigma, rho=0.35, depth=0.8)
+    # crackle: dense at the hit, single sparks at the end
+    rate = p["c_floor"] + p["c_peak"] * np.exp(-t / p["c_tau"])
+    cr = crackle_lr(n, seeded("impact_shield/crackle"), rate, amp_decay_s=1.5 * p["c_tau"] + 0.1)
+    w = slice(0, int(0.15 * SR))
+    cr *= 0.85 * rms(hs[w]) / max(rms(cr[w]), 1e-12)
+    # body: the growl with its sag and a soft low push, in the middle
+    g = growl(n, 100.0, p["sag"], p["t_sag"], p["rec"], p["load"], "impact_shield")
+    genv = np.minimum(1.0, t / 0.005) * np.exp(-6.9078 * t / p["body_t60"])
+    push = thump(n, 120.0, 70.0, 6.0, 0.08 + 0.1 * p["load"], 0.05)
+    push = push / max(rms(push[w]), 1e-9)
+    body = g * genv + p["push"] * push
+    body = lowpass(highpass(body, 40.0, 2), 1100.0, 4)
+    rest = 0.5 * (hs[:, 0] + hs[:, 1]) + 0.5 * (cr[:, 0] + cr[:, 1])
+    body = body * body_scale(body, rest, p["body"])
+    y = hs + cr + lr_from(body)
+    y = soft_limit(y, 3.2 * rms(y[w]))
+    return no_dc(fade_edges(y, 0.0, 0.2 * 1000.0 * n / SR))
 
 
 def _make_shield(sid):
     @register(sid)
     def _render(ctx):
-        n = ctx.n
-        p = SHIELD[sid]
-        t = np.arange(n) / SR
-        # pitch: falls to the bottom within t_sag, then climbs back with the recovery constant
-        s_ = np.where(t < p["t_sag"], np.sin(0.5 * np.pi * t / p["t_sag"]),
-                      np.exp(-(t - p["t_sag"]) / p["rec"]))
-        f = 100.0 * (1.0 - p["sag"] * s_)
-        ph = 2 * np.pi * np.cumsum(f) / SR
-        pr = seeded("impact_shield/phase")
-        tone = sum(w * np.sin(k * ph + pr.uniform(0, 6.28)) for k, w in HARM)
-        tone = np.tanh(1.4 * tone / max(rms(tone), 1e-9))  # overdriven: rougher, more odd harmonics
-        # uneven amplitude at 20 to 40 Hz: the generator labouring
-        g = bandpass(seeded("impact_shield/am").standard_normal(n), 20, 40, 2)
-        g /= max(3 * rms(g), 1e-9)
-        load = p["load"] * (0.4 + 0.6 * s_)
-        am = np.clip(1.0 + 0.9 * load * g + 0.25 * load * np.sin(2 * np.pi * 30.0 * t), 0.0, None)
-        env = rise(int(0.005 * SR))
-        env = np.concatenate([env, np.ones(n - env.size)]) * (0.55 + 0.45 * np.exp(-t / (0.5 * p["rec"] + 0.15)))
-        env = env * exp_decay(n, 2.2 * n / SR)
-        y = tone * am * env
-        # noise in the sidebands: grit that follows the load
-        sb = bandpass(seeded("impact_shield/grit").standard_normal(n), 150, 900, 2)
-        y = y / max(rms(y[: int(0.2 * SR)]), 1e-9) + 0.45 * load * sb / max(rms(sb), 1e-9) * am * env
-        # crackle: band noise between 300 Hz and 1.2 kHz in the first 100 ms, in uneven sparks
-        cr = np.zeros(n)
-        cm = int(0.1 * SR)
-        rr = seeded("impact_shield/crackle")
-        cr[rr.integers(0, cm, 40)] = rr.standard_normal(40)
-        cr = bandpass(cr, 300, 1200, 2)
-        cr[:cm] *= np.linspace(1.0, 0.0, cm) ** 1.2
-        cr[cm:] = 0.0
-        y = y + p["crackle"] * 1.6 * cr / max(rms(cr[:cm]), 1e-9) * rms(y[: int(0.2 * SR)]) * 0.55
-        body = thump(n, 130, 85, 4.0, 0.07 + 0.08 * p["load"], 0.04)
-        y = y + p["thump"] * 1.2 * body / max(rms(body[: int(0.2 * SR)]), 1e-9) * rms(y[: int(0.2 * SR)])
-        y = lowpass(highpass(y, 35.0, 2), 1300.0, 6)
-        return no_dc(fade_edges(y, 0.0, 0.35 * 1000.0 * n / SR))
+        return shield_hit(ctx.n, SHIELD[sid])
     return _render
 
 

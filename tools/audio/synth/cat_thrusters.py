@@ -7,7 +7,7 @@ import numpy as np
 
 from . import (LEVELS, SR, bandpass, burst_env, fade_edges, machine_tone, normalize_rms, periodic_lfo,
                periodic_noise, rattles, register, rms, seeded, slow_wander, structure_lowpass,
-               through_hull, MODES, freq_filter)
+               through_hull, MODES, freq_filter, mid_side)
 from .cat_impacts import blow, creak, no_dc, ring_events
 
 LEVELS.update({"thruster_burn_loop": ("lufs", -30.0)})  # provisional; pulses are in the core table
@@ -34,10 +34,10 @@ for _sid in THRUSTERS:
     _make_pulse(_sid)
 
 
-@register("thruster_burn_loop")
-def thruster_burn_loop(ctx):
-    n = ctx.n
-    s = lambda name: seeded("thruster_burn/" + name)
+def render_burn(n, family="thruster_burn"):
+    """The burn as one channel. The default family is the approved mono sound; another family
+    gives the same burn from other noise phases (the side channel)."""
+    s = lambda name: seeded(family + "/" + name)
     # gas through the nozzle: muffled hiss, only what the hull lets through
     hiss = periodic_noise(n, "pink", s("hiss"), lo=160, hi=1000)
     hiss = hiss * (1.0 + 0.18 * slow_wander(n, s("hiss_wander"), 1.0, 7.0))
@@ -55,3 +55,14 @@ def thruster_burn_loop(ctx):
     return y - y.mean()
 
 
+# RMS of the side against the mid: correlation of the channels about 0.6
+BURN_SIDE_RATIO = 0.5
+
+
+@register("thruster_burn_loop")
+def thruster_burn_loop(ctx):
+    mid = render_burn(ctx.n)
+    if ctx.channels != 2:
+        return mid
+    # two channels (SOUND_DESIGN.md, section Space): the same burn from other seeds, nothing below 150 Hz
+    return mid_side(mid, render_burn(ctx.n, "thruster_burn_side"), periodic=True, ratio=BURN_SIDE_RATIO)

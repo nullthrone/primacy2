@@ -10,6 +10,7 @@ files in <out>, so several people can build their own categories into one folder
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -50,13 +51,19 @@ def _json_default(o):
     raise TypeError(type(o))
 
 
+def file_hash(path: Path) -> str:
+    """First twelve hex digits of the SHA-256 of the file: the audition page stores it with a
+    rating and marks the sound as changed when it differs."""
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()[:12]
+
+
 def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) -> dict:
     spec = synth.load_spec()
     s = spec["sounds"][sound_id]
     entry = synth.REGISTRY[sound_id]
     x, level = synth.render(sound_id)
     wav = out / s["category"] / (sound_id + ".wav")
-    synth.write_wav(wav, x, dither_seed=sound_id)
+    synth.write_wav(wav, x, dither_seed=sound_id, shared_dither=synth.is_mid_side(s))
     data, sr = common.load_audio(wav)
     an = measure.analyse(data, sr, loop=s["kind"] == "loop")
     failed = rules.check(s, data, an, entry.swing_max, sound_id=sound_id)
@@ -90,6 +97,10 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
     checks["pass"] = not failed
     if hints:
         checks["hints"] = hints
+    checks["peakShare"] = an["peakShare"]
+    if "stereo" in an:
+        checks["stereo"] = an["stereo"]
+        checks["lufsMono"] = an["lufsMono"]
     checks["midShare"] = round(rules.energy_share(data, 125, 1000), 3)
     checks["subShare"] = round(rules.energy_share(data, 0, 60), 3)
 
@@ -100,14 +111,14 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
         "spectrogram": "%s/%s.png" % (s["category"], sound_id),
         "category": s["category"], "kind": s["kind"], "path": s["path"],
     }
-    for k in ("family", "params"):
+    for k in ("family", "params", "place", "cue"):  # place and cue as they are in sounds.json (section 3)
         if k in s:
             manifest_entry[k] = s[k]
     manifest_entry.update({
         "en": s["en"], "de": s["de"], "intent": s["intent"],
         "source": "synth", "licence": LICENCE,
-        "duration": round(data.shape[0] / sr, 4), "channels": data.shape[1], "gain": 1.0,
-        "dry": dry, "checks": checks,
+        "duration": round(data.shape[0] / sr, 4), "channels": int(s.get("channels", 1)), "gain": 1.0,
+        "dry": dry, "hash": file_hash(wav), "checks": checks,
     })
     record = {"manifest": manifest_entry, "measure": an}
     _atomic_write(wav.with_suffix(".json"), json.dumps(record, indent=1, default=_json_default))
@@ -148,7 +159,7 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 "path": it.get("path", "structure"), "en": it.get("en", sid), "de": it.get("de", sid),
                 "intent": it.get("intent", ""), "source": "download", "licence": it.get("licence", "unknown"),
                 "duration": it.get("duration", 0), "channels": it.get("channels", 1), "gain": 1.0,
-                "dry": True, "checks": {"pass": True, "failed": []},
+                "dry": True, "hash": file_hash(path), "checks": {"pass": True, "failed": []},
             })
         except Exception as e:
             print("  selection entry skipped (%s): %s" % (type(e).__name__, e))
@@ -165,7 +176,15 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
         except Exception:
             continue
         if isinstance(rec, dict) and "manifest" in rec and (p.with_suffix(".wav")).is_file():
-            sounds.append(rec["manifest"])
+            m = rec["manifest"]
+            # a JSON written by an older build lacks what the contract added later: fill it from
+            # the file and from sounds.json, so that a partial rebuild still gives a valid manifest
+            if "hash" not in m:
+                m["hash"] = file_hash(p.with_suffix(".wav"))
+            for k in ("place", "cue"):
+                if k not in m and k in spec["sounds"].get(m["id"], {}):
+                    m[k] = spec["sounds"][m["id"]][k]
+            sounds.append(m)
     sounds.sort(key=lambda e: order.get(e["id"], 10_000))
     sounds += _excerpt_downloads(out, measure_mod, common)
     used = {s["category"] for s in sounds}
@@ -178,7 +197,7 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
 
 
 REQUIRED = ("id", "file", "spectrogram", "category", "kind", "path", "en", "de", "intent", "source",
-            "licence", "duration", "channels", "gain", "dry", "checks")
+            "licence", "duration", "channels", "gain", "dry", "hash", "checks")
 
 
 def validate_manifest(manifest: dict, out: Path) -> list[str]:
@@ -206,6 +225,8 @@ def validate_manifest(manifest: dict, out: Path) -> list[str]:
             bad.append("%s: file %s not found" % (name, s["file"]))
         if s.get("source") == "synth" and s.get("spectrogram") and not (out / s["spectrogram"]).is_file():
             bad.append("%s: spectrogram not found" % name)
+        if s.get("hash") and not (isinstance(s["hash"], str) and len(s["hash"]) == 12):
+            bad.append("%s: hash is not twelve hex digits" % name)
         c = s.get("checks", {})
         for k in ("pass", "failed", "peakDb", "lufs", "lowShare", "highShare"):
             if s.get("source") == "synth" and k not in c:

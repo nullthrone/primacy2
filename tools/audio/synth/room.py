@@ -92,3 +92,27 @@ def apply_cabin(x: np.ndarray, ir: np.ndarray | None = None, wet: float = 1.0, p
 
             out[:, ch] = fftconvolve(x[:, ch], h[:, ch])[:n]
     return out
+
+
+SIDE_LOW_HZ = 150.0     # below this the two ears hear the same thing: bass has no direction in a small cabin
+SIDE_CORNER_HZ = 170.0  # the side's high-pass corner: a little above 150 Hz, so that what is left below 150 Hz is tiny
+
+
+def mid_side(mid: np.ndarray, side: np.ndarray, periodic: bool = True, ratio: float | None = None) -> np.ndarray:
+    """Two channels from a mid and a side signal (SOUND_DESIGN.md, section Space).
+
+    left = mid + side and right = mid - side, so (left + right) / 2 is exactly `mid`, the sound as
+    it was approved in mono. The side loses everything below 150 Hz first (a steep high-pass with its corner at 170 Hz), which
+    keeps the bass in the middle. periodic=True filters circularly (a loop stays a loop), False
+    uses a causal filter (a one-shot). `ratio`, if given, sets the RMS of the filtered side to
+    that fraction of the RMS of the mid; the power ratio is its square. Returns shape (n, 2)."""
+    from .core import freq_filter, highpass, rms
+
+    mid = np.asarray(mid, dtype=np.float64)
+    side = np.asarray(side, dtype=np.float64)
+    if mid.shape != side.shape or mid.ndim != 1:
+        raise ValueError("mid and side must be mono arrays of the same length")
+    side = freq_filter(side, lo=SIDE_CORNER_HZ, order=12) if periodic else highpass(side, SIDE_CORNER_HZ, 8)
+    if ratio is not None:
+        side = side * (ratio * rms(mid) / max(rms(side), 1e-12))
+    return np.stack([mid + side, mid - side], axis=1)
