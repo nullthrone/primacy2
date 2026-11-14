@@ -281,13 +281,10 @@ class Engine {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     this.volume.gain.setTargetAtTime(this.opts.volume, now, 0.02);
-    const cabinOn = this.opts.cabin && this.irLoaded.value;
-    const room = this.opts.room;
-    // A loudspeaker in the cabin is mostly the room: a little direct sound stays so that it keeps its edge.
-    this.dryDirect.gain.setTargetAtTime(cabinOn ? 1 - (1 - DRY_DIRECT_FLOOR) * room : 1, now, 0.03);
-    this.dryWet.gain.setTargetAtTime(cabinOn ? room : 0, now, 0.03);
-    // Sounds with the cabin baked in are heard in the seat already; a small send only gives them width, not a second reverb.
-    this.bakedSend.gain.setTargetAtTime(cabinOn ? BAKED_SEND * room : 0, now, 0.03);
+    const sends = this.sendLevels();
+    this.dryDirect.gain.setTargetAtTime(sends.dryDirect, now, 0.03);
+    this.dryWet.gain.setTargetAtTime(sends.dryWet, now, 0.03);
+    this.bakedSend.gain.setTargetAtTime(sends.bakedSend, now, 0.03);
     this.monoMix.channelCount = this.stage.value === 'mono' ? 1 : 2;
     this.monoMix.channelCountMode = this.stage.value === 'mono' ? 'explicit' : 'max';
     this.volume.disconnect();
@@ -310,10 +307,19 @@ class Engine {
     this.applyOptions();
     for (const p of this.placements) p.rebuild();
   }
-  /** Current send levels, so that a test can read the room without listening. */
+  /**
+   * The levels the room sends are set to (also read by the tests). A loudspeaker in the cabin is mostly the room, so
+   * a dry sound keeps only a little direct level; a sound with the cabin baked in is heard in the seat already, so a
+   * small send only gives it width, not a second reverb.
+   */
   sendLevels(): { dryDirect: number; dryWet: number; bakedSend: number } {
-    if (!this.ctx) return { dryDirect: 0, dryWet: 0, bakedSend: 0 };
-    return { dryDirect: this.dryDirect.gain.value, dryWet: this.dryWet.gain.value, bakedSend: this.bakedSend.gain.value };
+    const cabinOn = this.opts.cabin && this.irLoaded.value;
+    const room = this.opts.room;
+    return {
+      dryDirect: cabinOn ? 1 - (1 - DRY_DIRECT_FLOOR) * room : 1,
+      dryWet: cabinOn ? room : 0,
+      bakedSend: cabinOn ? BAKED_SEND * room : 0,
+    };
   }
   setCabin(on: boolean): void {
     this.opts.cabin = on;

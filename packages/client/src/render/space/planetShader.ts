@@ -270,12 +270,13 @@ Surf surface(vec3 nb, vec3 sunB) {
   // Close up: the ripples of the dune fields, drawn out the way the dunes run, lit from one more
   // sample toward the sun. (A body with a baked map shows its real terrain at this range instead.)
   float geo = dot(nb, sunB);
-  vec3 along = vec3(1.0, 2.6, 1.0);
-  vec4 f = fineNoise(nb * along, FINE, gSlant * 2.6, 0.7);
+  vec3 along = vec3(1.0, 1.7, 1.0);
+  vec4 f = fineNoise(nb * along, FINE, gSlant * 1.7, 0.7);
   if (f.w > 0.0) {
-    s.albedo *= clamp(1.0 + 0.07 * f.x - 0.04 * f.y, 0.6, 1.4);
-    float soft = 1.0 - 0.7 * rock;
-    if (geo > -0.2) s.fineRise = 0.0022 * soft * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 2.6, 0.7).z - f.z);
+    // Sand lies in fields between barer ground; rock carries almost none.
+    float sand = (0.35 + 0.65 * smoothstep(0.45, 0.75, dunes)) * (1.0 - 0.7 * rock);
+    s.albedo *= clamp(1.0 + sand * (0.05 * f.x - 0.03 * f.y), 0.6, 1.4);
+    if (geo > -0.2) s.fineRise = 0.0016 * sand * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 1.7, 0.7).z - f.z);
   }
   if (geo < -0.35) s.bump = 0.0;
 #endif
@@ -308,8 +309,8 @@ Surf surface(vec3 nb, vec3 sunB) {
     // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between
     // them, and hairline cracks wherever the crust is hot.
     float seams = smoothstep(0.60, 0.80, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
-    float hair = smoothstep(-0.55, -1.05, f.y) * smoothstep(0.03, 0.35, heat);
-    heat = clamp(heat * mix(1.0, 0.22 + 1.05 * seams, gNear) + 0.4 * hair * gNear, 0.0, 1.0);
+    float hair = smoothstep(-0.65, -1.10, f.y) * smoothstep(0.05, 0.40, heat);
+    heat = clamp(heat * mix(1.0, 0.22 + 1.05 * seams, gNear) + 0.3 * hair * gNear, 0.0, 1.0);
   }
   float crust = fbm(p * 6.0, uOct);
   s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);
@@ -321,7 +322,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   s.emission = glow * heat * heat * flick * 1.1;
   s.height = crust * 0.25 + plates * 0.15 - (crack * 0.9 + fine * 0.45) * 0.4;
   // The relief shows on sunlit crust only: not under the glow, not in the night.
-  s.bump = heat < 0.55 && geo > -0.35 ? 1.2 : 0.0;
+  s.bump = heat < 0.8 && geo > -0.35 ? 1.2 : 0.0;
   return s;
 }
 #elif TYPE == 3

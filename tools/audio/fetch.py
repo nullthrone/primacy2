@@ -255,16 +255,20 @@ def verify(entry):
     problems = []
     if entry['archive']:
         known = set()
-        with zipfile.ZipFile(path) as zf:
-            for info, rel in safe_members(zf):
-                known.add(rel)
-                target = os.path.join(d, *rel.split('/'))
-                if not os.path.isfile(target):
-                    problems.append('not unpacked: ' + rel)
-                elif os.path.getsize(target) != info.file_size:
-                    problems.append('unpacked size differs: ' + rel)
-                elif crc32_of(target) != info.CRC:  # a same-size replacement is caught here
-                    problems.append('unpacked content differs: ' + rel)
+        try:
+            with zipfile.ZipFile(path) as zf:
+                for info, rel in safe_members(zf):
+                    known.add(rel)
+                    target = os.path.join(d, *rel.split('/'))
+                    if not os.path.isfile(target):
+                        problems.append('not unpacked: ' + rel)
+                    elif os.path.getsize(target) != info.file_size:
+                        problems.append('unpacked size differs: ' + rel)
+                    elif crc32_of(target) != info.CRC:  # a same-size replacement is caught here
+                        problems.append('unpacked content differs: ' + rel)
+        except (RuntimeError, zipfile.BadZipFile) as exc:
+            # A hostile archive is a problem to report, not a crash of the whole check.
+            return problems + ['unusable archive: %s' % exc]
         if not known:
             problems.append('the archive has no file that may be extracted')
         # An audio file that is not in the archive would otherwise get a licence row in CREDITS.md.
@@ -366,13 +370,20 @@ def run_credits(data):
     for s in data.get('sources', []):
         out += ['### ' + s['name'], '']
         out += [s['terms'], '']
-    out += ['## Files', '', '| File | Source | Licence | Size | Credit |', '|---|---|---|---|---|']
+    out += ['## Files', '',
+            'Notes: "speech" means an identifiable voice (title or page says so), "probable" means the title suggests one; the',
+            'marks were not made by listening. Both are test material only and not to be shipped without a separate decision.',
+            '', '| File | Source | Licence | Size | Credit | Notes |', '|---|---|---|---|---|---|']
     rows = 0
     for e in entries:
+        mark = e.get('speech', 'none')
+        notes = [] if mark == 'none' else ['SPEECH' if mark == 'speech' else 'probable speech']
+        if e.get('restriction'):
+            notes.append(e['restriction'])
         for rel in files_of(e):
             path = os.path.join(DEST, *rel.split('/'))
             src = e['pageUrl'] if e['archive'] else e['url']
-            out.append('| %s | %s | %s | %s | %s |' % (cell(rel), cell(src), cell(e['licence']), fmt_size(os.path.getsize(path)), cell(e['credit'])))
+            out.append('| %s | %s | %s | %s | %s | %s |' % (cell(rel), cell(src), cell(e['licence']), fmt_size(os.path.getsize(path)), cell(e['credit']), cell('; '.join(notes))))
             rows += 1
     out += ['', '%d files from %d downloads.' % (rows, len(entries)), '', '## Licence evidence per download', '']
     for e in entries:

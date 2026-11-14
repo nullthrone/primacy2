@@ -426,13 +426,20 @@ def _crack_lr(n, at_s, peak, seed):
     return out * peak / max(np.max(np.abs(out)), 1e-12)
 
 
-def _push(n, at_s, f_hi, f_lo, t60, seed_drive=2.0):
-    """The low push under the crack: a sine falling from f_hi to f_lo, driven a little so that its
-    odd harmonics (150 to 250 Hz) carry it on small loudspeakers. Mono, so it sits in the middle."""
+def _push(n, at_s, f_hi, f_lo, t60, seed, drive=3.0, jitter=0.3):
+    """The low push under the crack: a sine falling from f_hi to f_lo, its pitch shaken by a
+    random wander (so that no pitch stands out), driven a little so that its odd harmonics (150 to
+    250 Hz) carry it on small loudspeakers. Mono, so it sits in the middle."""
     i0 = int(at_s * SR)
+    m = n - i0
+    t = np.arange(m) / SR
+    f = f_lo + (f_hi - f_lo) * np.exp(-t / 0.12)
+    wob = bandpass(seeded(seed).standard_normal(m + 1024), 3.0, 25.0, 2)[1024:]
+    wob = wob / max(3.0 * rms(wob), 1e-9)
+    ph = 2 * np.pi * np.cumsum(f * (1.0 + jitter * wob)) / SR
+    th = np.sin(ph) * burst_env(m, 3.0, t60)
     out = np.zeros(n)
-    th = thump(n - i0, f_hi, f_lo, 3.0, t60, 0.12)
-    out[i0:] = np.tanh(seed_drive * th) / np.tanh(seed_drive)
+    out[i0:] = np.tanh(drive * th) / np.tanh(drive)
     return out
 
 
@@ -493,7 +500,8 @@ def fold_jump(ctx):
     tau = np.maximum(t - tc, 0.0)
     pre = t < tc
     env = np.where(pre, 10.0 ** ((-30.0 + 28.0 * u ** 1.6) / 20.0),
-                   0.8 * (0.62 * np.exp(-6.9078 * tau / 1.9) + 0.38 * np.exp(-6.9078 * tau / 0.8)))
+                   0.8 * (0.42 * np.exp(-6.9078 * tau / 2.2) + 0.36 * np.exp(-6.9078 * tau / 1.0)
+                          + 0.22 * np.exp(-6.9078 * tau / 0.35)))
     fc = np.where(pre, 900.0 * (8500.0 / 900.0) ** (u ** 1.2), 700.0 + 7800.0 * np.exp(-tau / 0.55))
     sigma = np.where(pre, 0.8 + 0.8 * u, 1.0 + 0.6 * np.exp(-tau / 0.6))
     rho = np.where(pre, 0.55, 0.05 + 0.5 * np.exp(-tau / 0.45))   # the image widens as it streams away
@@ -505,9 +513,9 @@ def fold_jump(ctx):
     cr *= 0.8 * rms(hs[w]) / max(rms(cr[w]), 1e-12)
     cr = soft_limit(cr, 4.0 * rms(cr[w]))
     crack = _crack_lr(n, tc, 5.8 * rms(hs[w]), "fold_jump/crack")
-    push = _push(n, tc, 90.0, 50.0, 0.4)
+    push = _push(n, tc, 90.0, 50.0, 0.4, "fold_jump/push")
     rest = 0.5 * (hs[:, 0] + hs[:, 1] + cr[:, 0] + cr[:, 1] + crack[:, 0] + crack[:, 1])
-    push = push * body_scale(push, rest, 0.28)
+    push = push * body_scale(push, rest, 0.20)
     y = hs + cr + crack + lr_from(push)
 
     # what carries the chain: the charge's pressure at the start, the tunnel's drone at the end
@@ -515,7 +523,7 @@ def fold_jump(ctx):
     bridge = _charge_bridge(n) * _charge_end_level(LEVELS["fold_charge"][1]) / g_j
     bridge = bridge * (0.5 + 0.5 * np.cos(np.pi * np.clip(t / 0.45, 0.0, 1.0)))
     drone = _seg(_tunnel_pair(), -n / SR, n) * _drone_gain(true_peak_db(y), LEVELS["fold_jump"][1]) \
-        * _smooth(np.clip((t - 1.1) / 1.6, 0.0, 1.0))[:, None]
+        * _smooth(np.clip((t - 1.5) / 1.4, 0.0, 1.0))[:, None]
     y = y + lr_from(bridge) + drone
     return _close(y - y.mean(axis=0), 0.0)
 
@@ -544,9 +552,9 @@ def fold_exit(ctx):
     cr *= 0.85 * rms(hs[w]) / max(rms(cr[w]), 1e-12)
     cr = soft_limit(cr, 4.0 * rms(cr[w]))
     crack = _crack_lr(n, tc, 5.4 * rms(hs[w]), "fold_exit/crack")
-    push = _push(n, tc, 80.0, 50.0, 0.3)
+    push = _push(n, tc, 80.0, 50.0, 0.3, "fold_exit/push")
     rest = 0.5 * (hs[:, 0] + hs[:, 1] + cr[:, 0] + cr[:, 1] + crack[:, 0] + crack[:, 1])
-    push = push * body_scale(push, rest, 0.25)
+    push = push * body_scale(push, rest, 0.18)
     y = hs + cr + crack + lr_from(push)
 
     # the hull ticks as the pressure goes: short rings of the upper hull modes, each at its own place
@@ -643,15 +651,25 @@ def weapon_cannon_fire(ctx):
     return _close(y - y.mean(), 0.0)
 
 
-@register("weapon_beam_loop")
-def weapon_beam_loop(ctx):
-    n = ctx.n
-    s = lambda name: seeded("beam/" + name)
-    hum = transformer_tone(n, 150.0, 0.7, s("hum"))
+# The weapon loops in two channels: the mid is the approved mono loop; the side is the same recipe
+# with other seeds and the humming tones moved one hertz up (three bins of the 3 s loop, so they are
+# orthogonal to the mid's tones). The side has nothing below 150 Hz (mid_side). Correlation about 0.6.
+WEAPON_SIDE_RATIO = 0.5
+
+
+def _weapon_side(x):
+    """The hums sit close above 150 Hz, where the side's own filter (mid_side) is not yet steep enough
+    to keep both ears equal: the side loses everything below 185 Hz first."""
+    return freq_filter(x, lo=185.0, order=8)
+
+
+def _beam(n, tag, df=0.0):
+    s = lambda name: seeded(tag + "/" + name)
+    hum = transformer_tone(n, 150.0 + df, 0.7, s("hum"))
     hum = hum * (1.0 + 0.3 * slow_wander(n, s("hum-level"), 0.3, 2.5))   # never a steady line
-    pump = machine_tone(n, 59.0, (3, 4, 5), (1.0, 0.6, 0.35), beat_hz=0.67, flutter_hz=3.0, flutter=0.008,
+    pump = machine_tone(n, 59.0 + df, (3, 4, 5), (1.0, 0.6, 0.35), beat_hz=0.67, flutter_hz=3.0, flutter=0.008,
                         beat_depth=0.5, rng=s("pump"))
-    whir = machine_tone(n, 187.0, (1, 2), (1.0, 0.4), beat_hz=1.0, flutter_hz=7.0, flutter=0.01,
+    whir = machine_tone(n, 187.0 + df, (1, 2), (1.0, 0.4), beat_hz=1.0, flutter_hz=7.0, flutter=0.01,
                         beat_depth=0.4, rng=s("whir"))
     flow = periodic_noise(n, "pink", s("flow"), lo=110, hi=700)   # the coolant flow: not only pure lines
     y = 1.4 * normalize_rms(hum) + 0.4 * normalize_rms(pump) + 0.5 * normalize_rms(whir) + 0.5 * flow
@@ -661,12 +679,16 @@ def weapon_beam_loop(ctx):
     return y - y.mean()
 
 
-@register("mining_laser_loop")
-def mining_laser_loop(ctx):
+@register("weapon_beam_loop")
+def weapon_beam_loop(ctx):
     n = ctx.n
-    s = lambda name: seeded("mining/" + name)
-    hum = transformer_tone(n, 180.0, 0.35, s("hum"))
-    pump = machine_tone(n, 83.0, (2, 3, 4), (1.0, 0.6, 0.4), beat_hz=0.67, flutter_hz=3.0, flutter=0.008,
+    return mid_side(_beam(n, "beam"), _weapon_side(_beam(n, "beam-side", 1.0)), periodic=True, ratio=WEAPON_SIDE_RATIO)
+
+
+def _mining(n, tag, df=0.0):
+    s = lambda name: seeded(tag + "/" + name)
+    hum = transformer_tone(n, 180.0 + df, 0.35, s("hum"))
+    pump = machine_tone(n, 83.0 + df, (2, 3, 4), (1.0, 0.6, 0.4), beat_hz=0.67, flutter_hz=3.0, flutter=0.008,
                         beat_depth=0.15, rng=s("pump"))
     flow = periodic_noise(n, "pink", s("flow"), lo=120, hi=700)    # the cutting head's air and grit
     y = normalize_rms(hum) + 0.4 * normalize_rms(pump) + 0.35 * flow
@@ -674,6 +696,13 @@ def mining_laser_loop(ctx):
     y = y * (1.0 + 0.15 * periodic_lfo(n, 1.0, 0.25))     # the slow pulse, one per second
     y = _shape(y, periodic=True, hp=70.0, fc=750.0)
     return y - y.mean()
+
+
+@register("mining_laser_loop")
+def mining_laser_loop(ctx):
+    n = ctx.n
+    return mid_side(_mining(n, "mining"), _weapon_side(_mining(n, "mining-side", 1.0)), periodic=True,
+                    ratio=WEAPON_SIDE_RATIO)
 
 
 @register("missile_launch")

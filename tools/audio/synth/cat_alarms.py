@@ -2,7 +2,7 @@
 
 Model is an aircraft cockpit warning: a few harmonics with soft edges, band-limited like a small
 speaker. The six differ in rhythm and contour, not only in pitch: a slow two-tone (heat), five
-fast pulses (missile), three falling notes once (shields), one chime and a long pause (fuel),
+fast pulses (missile), three hard falling sweeps and a fading buzz once (shields), one chime and a long pause (fuel),
 two heavy buzzer pulses (hull), a rising double chime once (master caution).
 
 The helpers `phase_of`, `voice`, `gate` and `speaker` are reused by cat_sensors.py; they belong
@@ -79,13 +79,39 @@ def alarm_missile(n):
 
 
 def alarm_shields_down(n):
-    """Three notes falling (880, 660, 495 Hz), each rounder and quieter, dying away once."""
+    """Critical, not a chime: three quick harsh sweeps falling in pitch (1,400 Hz down to 700 Hz,
+    0.28 s each, odd harmonics, overdriven and torn by a 90 Hz flutter), short gaps, then a low rough
+    buzz of half a second near 420 Hz that fades. The owner heard the first version as a railway
+    station announcement; this one has no note to hum. Each sweep has a hard edge and loses a
+    third of its level on the way down, so the envelope (three hard blows, then a long fade)
+    differs from every other alarm."""
+    t = np.arange(n) / SR
+    odd = ((1.0, 1.0), (3.0, 0.5), (5.0, 0.22))
     y = np.zeros(n)
-    for k, (f, level) in enumerate(((880.0, 1.0), (660.0, 0.8), (495.0, 0.65))):
-        s = k * 0.38
-        tone = voice(np.full(n, f), (1.0, 0.4, 0.15))
-        y += level * tone * gate(n, s, 0.34 if k < 2 else 0.9, 14, 40 if k < 2 else 600)
-    return speaker(y)
+    for k, level in enumerate((1.0, 0.95, 0.9)):
+        s0 = 0.34 * k                                            # starts at once: within 5 ms
+        u = np.clip((t - s0) / 0.28, 0.0, 1.0)
+        f = 1400.0 * 0.5 ** u                                    # an octave down within each sweep
+        ph = phase_of(f)
+        tone = sum(a * np.sin(r * ph + 0.7 * j) for j, (r, a) in enumerate(odd))
+        tone = np.tanh(1.8 * tone) * (0.65 + 0.35 * np.sin(2 * np.pi * 90.0 * t + k))
+        y += level * tone * gate(n, s0, 0.28, 3, 14) * (1.0 - 0.35 * u)
+    # the buzz: 420 Hz with odd harmonics up to 4.6 kHz, rough, fading over about half a second
+    f = 420.0 * (1.0 + 0.012 * np.sin(2 * np.pi * 7.0 * t))
+    ph = phase_of(f)
+    buzz = sum(a * np.sin(r * ph + 0.9 * j) for j, (r, a) in enumerate(((1, 1.0), (3, 0.8), (5, 0.55), (7, 0.35),
+                                                                     (9, 0.2), (11, 0.1))))
+    # roughness from band-limited noise (30 to 90 Hz), not from a steady flutter, whose sidebands
+    # would sit below 400 Hz and read as the fundamental
+    rough = freq_filter(seeded("alarm_shields_down/rough").standard_normal(n), lo=30.0, hi=90.0, order=2)
+    rough = rough / (3.0 * np.std(rough))
+    buzz = np.tanh(1.6 * buzz) * np.clip(0.75 + 0.35 * rough, 0.2, 1.4)
+    e = np.exp(-6.9078 * np.maximum(t - 1.04, 0.0) / 0.5)
+    y += 0.8 * buzz * gate(n, 1.04, 0.5, 8, 40) * e / np.maximum(e[int(1.04 * SR)], 1e-9)
+    # the odd harmonics of the top of the sweeps reach 7 kHz: a steep low-pass after the roughening
+    y = freq_filter(speaker(y), hi=3800.0, order=6)
+    y[-int(0.05 * SR):] *= rise(int(0.05 * SR))[::-1]            # a one-shot ends in silence
+    return y
 
 
 def alarm_fuel_low(n):
