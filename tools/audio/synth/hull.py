@@ -74,47 +74,61 @@ def structure_lowpass(x: np.ndarray, periodic: bool = False, fc: float = 650.0, 
 
 def rattles(n: int, activity: float, rng=None, per_second: float = 3.0, periodic: bool = True,
             lo: float = 1200.0, hi: float = 3500.0) -> np.ndarray:
-    """Short rattles of cabin fittings, 1 to 4 kHz, sparse. About unit RMS at activity 1.
+    """Rattles of cabin fittings, 1 to 4 kHz, sparse. About unit RMS at activity 1.
 
-    A fixed pool of events (positions, pitches, thresholds) comes from the rng; `activity`
+    A rattle is a fast run of 5 to 15 small knocks of band-limited noise at uneven times (they
+    bunch up like a loose part settling), never a pitched ping, and no two runs are alike.
+    `per_second` is the number of runs per second at full activity.
+
+    A fixed pool of runs (positions, thresholds, every knock) comes from the rng; `activity`
     from 0 to 1 decides which of them sound and how strongly, so a weaker setting is a subset
-    of a stronger one (needed when levels of one engine crossfade). With periodic=True a tail
+    of a stronger one (needed when levels of one engine crossfade). With periodic=True a run
     that reaches past the end wraps around to the start."""
     rng = _gen(rng)
     count = max(1, int(per_second * n / SR))
     pos = rng.integers(0, n, count)
     thr = rng.uniform(0.0, 1.0, count)
     amp = rng.uniform(0.4, 1.0, count)
-    f1 = rng.uniform(lo, 0.7 * hi, count)
-    f2 = np.minimum(f1 * rng.uniform(1.2, 1.5, count), 4000.0)  # nothing above 4 kHz
-    t60 = rng.uniform(0.02, 0.07, count)
-    length = int(0.2 * SR)
-    t = np.arange(length) / SR
-    out = np.zeros(n)
+    runs = []  # (start sample, waveform, threshold) for every run of the pool
     for i in range(count):
-        gain = float(np.clip((activity - thr[i]) / 0.25, 0.0, 1.0))
-        if gain <= 0:
-            continue
-        ph = rng.uniform(0, 2 * np.pi, 2)
-        env = np.exp(-6.9078 * t / t60[i]) * rise(length)[::-1] ** 0.5
-        env[: int(0.0008 * SR)] *= rise(int(0.0008 * SR))
-        ev = env * (np.sin(2 * np.pi * f1[i] * t + ph[0]) + 0.6 * np.sin(2 * np.pi * f2[i] * t + ph[1]))
-        seg = gain * amp[i] * ev
-        idx = pos[i] + np.arange(length)
-        if periodic:
-            np.add.at(out, idx % n, seg)
-        else:
-            keep = idx < n
-            np.add.at(out, idx[keep], seg[keep])
-    r = rms(out)
+        knocks = int(rng.integers(5, 16))
+        gap = rng.uniform(0.012, 0.040)          # first gap in seconds
+        t_at = 0.0
+        fc = rng.uniform(1.2 * lo, 0.8 * hi)     # this run's own pitch region
+        wave = np.zeros(int(0.45 * SR))
+        for k in range(knocks):
+            dur = int(rng.uniform(0.002, 0.009) * SR)
+            kn = bandpass(rng.standard_normal(dur + 64), fc / rng.uniform(1.15, 1.5),
+                          min(fc * rng.uniform(1.15, 1.5), 4000.0), 2)[64:]
+            kn = kn * np.exp(-6.9078 * np.arange(dur) / (0.6 * dur))
+            kn[: max(1, int(0.0005 * SR))] *= rise(max(1, int(0.0005 * SR)))
+            a = rng.uniform(0.25, 1.0) * 0.93 ** k
+            s0 = int(t_at * SR)
+            if s0 + dur >= wave.size:
+                break
+            wave[s0:s0 + dur] += a * kn / max(rms(kn), 1e-9)
+            t_at += gap
+            gap *= rng.uniform(0.72, 1.12)       # loosely bouncing: gaps tend to shrink, never even
+        runs.append((int(pos[i]), amp[i] * wave, thr[i]))
+
+    def place(gains):
+        out = np.zeros(n)
+        for (p, w, _), g in zip(runs, gains):
+            if g <= 0:
+                continue
+            idx = p + np.arange(w.size)
+            if periodic:
+                np.add.at(out, idx % n, g * w)
+            else:
+                keep = idx < n
+                np.add.at(out, idx[keep], g * w[keep])
+        return out
+
+    gains = np.clip((activity - thr) / 0.25, 0.0, 1.0)
+    out = place(gains)
     # normalise by the full pool so that levels stay comparable between activities
-    return out / max(_pool_rms(count, n, amp, t60), 1e-9) if r > 0 else out
-
-
-def _pool_rms(count: int, n: int, amp, t60) -> float:
-    # energy of one event is about amp^2 * t60 * SR / 13.8 * (1 + 0.36) / 2; spread over n
-    e = np.sum(amp**2 * t60 * SR / 13.8 * 1.36 / 2.0)
-    return float(np.sqrt(e / n))
+    full = rms(place(np.ones(count))) if gains.any() else 0.0
+    return out / max(full, 1e-9) if gains.any() else out
 
 
 def thump(n: int, f_start: float = 90.0, f_end: float = 45.0, attack_ms: float = 3.0,

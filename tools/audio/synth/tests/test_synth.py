@@ -126,3 +126,38 @@ class HelpersSmokeTest(unittest.TestCase):
         for y in (synth.transformer_tone(n, 100.0, 0.7, "t"), synth.machine_tone(n, 50.0, rng="m")):
             self.assertLess(abs(y[0] - np.roll(y, 1)[0]), 5 * np.percentile(np.abs(np.diff(y)), 99))
             self.assertLess(abs(y.mean()), 0.05)
+
+
+class StructureRulesTest(unittest.TestCase):
+    """The energy-distribution rule for structure sounds and the CLAP hint (SOUND_DESIGN.md 2 and 3)."""
+
+    SPEC = {"kind": "oneshot", "path": "structure", "category": "impacts", "duration": 1.0}
+    AN = {"sampleRate": 48000, "truePeakDb": -3.0, "clippedSamples": 0, "dcOffset": 0.0,
+          "lowShare": 0.95, "highShare": 0.0}
+
+    def _tone(self, f):
+        t = np.arange(48000) / 48000.0
+        x = np.sin(2 * np.pi * f * t) * 0.3
+        x[:200] *= np.linspace(0, 1, 200)
+        x[-4000:] *= np.linspace(1, 0, 4000) ** 4
+        return x[:, None]
+
+    def test_deep_throb_fails_and_mid_weight_passes(self):
+        from synth import rules
+
+        self.assertIn("structure-mid-share", rules.check(self.SPEC, self._tone(40.0), self.AN))
+        self.assertIn("structure-sub-share", rules.check(self.SPEC, self._tone(40.0), self.AN))
+        self.assertEqual(rules.check(self.SPEC, self._tone(200.0), self.AN), [])
+
+    def test_fold_sounds_are_allowed_more_pressure(self):
+        from synth import rules
+
+        mix = 0.4 * self._tone(40.0) + 0.5 * self._tone(200.0)  # about 39 % below 60 Hz
+        self.assertEqual(rules.check(self.SPEC, mix, self.AN, sound_id="fold_jump"), [])
+        low = 1.0 * self._tone(40.0) + 0.8 * self._tone(200.0)  # about 60 % low
+        self.assertEqual(rules.check(self.SPEC, low, self.AN, sound_id="fold_jump"), ["structure-sub-share"])
+
+    def test_clap_margin_is_a_hint_in_the_build(self):
+        src = (Path(__file__).resolve().parents[2] / "build.py").read_text(encoding="utf-8")
+        self.assertIn('hints.append("clap-margin")', src)
+        self.assertNotIn('failed.append("clap-margin")', src)

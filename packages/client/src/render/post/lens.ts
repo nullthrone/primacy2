@@ -117,14 +117,15 @@ vec3 lensLight(vec2 frag, vec4 pos, vec3 col) {
   // Veil: tight and bright at the disc, with a long faint skirt.
   float veil = (0.030 / (1.0 + 120.0 * x * x) + 0.006 / (1.0 + 6.0 * x * x)) * (1.0 - smoothstep(1.2, 3.0, x));
 
-  // Ring: blue inside, red outside, made of fine radial fibres.
+  // Ring: a pale band, bluish on its inner edge and reddish on its outer one, made of fine radial fibres.
   float fa = (atan(d.y, d.x) / 6.2831853 + 0.5) * 240.0;
-  float fibres = 0.55 + 0.45 * mix(h21(vec2(floor(fa), 71.0)), h21(vec2(floor(fa) + 1.0, 71.0)), fract(fa));
-  vec3 rr = (x - 0.64 * LENS_WAVE) / 0.055;
-  vec3 ring = exp(-rr * rr) * 0.0045 * fibres;
+  float fibres = 0.6 + 0.4 * mix(h21(vec2(floor(fa), 71.0)), h21(vec2(floor(fa) + 1.0, 71.0)), fract(fa));
+  vec3 rr = (x - 0.62 * mix(vec3(1.0), LENS_WAVE, 0.4)) / 0.075;
+  vec3 ring = exp(-rr * rr) * 0.0011 * fibres;
 
+  // Rays: they reach farther from a brighter source; a wide disc drowns them.
   vec3 rays;
-  float len = 2.6 * size;
+  float len = 150.0 * px + 1.6 * size;
   if (uLensKind == 0) {
     rays = lensRay(d, disc, len, px, 0.72) + 0.85 * lensRay(d, disc, len, px, 1.7672) + 0.92 * lensRay(d, disc, len, px, 2.8144);
   } else if (uLensKind == 1) {
@@ -132,7 +133,11 @@ vec3 lensLight(vec2 frag, vec4 pos, vec3 col) {
   } else {
     rays = lensNeedles(d, r, disc, len, px);
   }
-  return col * (uLensGain.x * veil + uLensGain.y * ring + uLensGain.z * rays);
+  rays /= 1.0 + disc / (40.0 * px);
+
+  // Over the disc of a resolved star the lens only adds a thin veil, so its surface stays readable.
+  float inside = mix(0.07, 1.0, smoothstep(disc * 0.85, disc, r));
+  return col * inside * (uLensGain.x * veil + uLensGain.y * ring + uLensGain.z * rays);
 }
 
 vec3 lensGlare(vec2 frag) {

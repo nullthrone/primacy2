@@ -22,9 +22,21 @@ def energy_share(x: np.ndarray, lo: float, hi: float) -> float:
     return float(p[(f >= lo) & (f < hi)].sum() / tot) if tot > 0 else 0.0
 
 
-def check(spec: dict, data: np.ndarray, an: dict, swing_max: float | None = None) -> list[str]:
-    """data is the file as read back, shape (n, channels); an is measure.analyse(data, sr, loop)."""
+# Structure sounds must keep working on headphones and small loudspeakers: enough energy where
+# those play (125 Hz to 1 kHz), not too much where they do not (below 60 Hz). The fold sounds are
+# pressure by intent, so their limits are looser.
+MID_SHARE_MIN, LOW60_SHARE_MAX = 0.35, 0.25
+PRESSURE_SOUNDS = {"fold_jump", "fold_tunnel_loop"}
+PRESSURE_MID_SHARE_MIN, PRESSURE_LOW60_SHARE_MAX = 0.20, 0.40
+
+
+def check(spec: dict, data: np.ndarray, an: dict, swing_max: float | None = None,
+          sound_id: str | None = None) -> list[str]:
+    """data is the file as read back, shape (n, channels); an is measure.analyse(data, sr, loop).
+
+    Returns the names of the hard rules that failed. The CLAP margin is a hint and not checked here."""
     bad = []
+    sound_id = sound_id or spec.get("id")
     kind, path, cat = spec["kind"], spec["path"], spec["category"]
     n, ch = data.shape
     if an["sampleRate"] != SR:
@@ -56,6 +68,13 @@ def check(spec: dict, data: np.ndarray, an: dict, swing_max: float | None = None
             bad.append("structure-low-share")
         if an["highShare"] > 0.02:
             bad.append("structure-high-share")
+        pressure = sound_id in PRESSURE_SOUNDS
+        mid_min = PRESSURE_MID_SHARE_MIN if pressure else MID_SHARE_MIN
+        low60_max = PRESSURE_LOW60_SHARE_MAX if pressure else LOW60_SHARE_MAX
+        if energy_share(data, 125, 1000) < mid_min:
+            bad.append("structure-mid-share")
+        if energy_share(data, 0, 60) > low60_max:
+            bad.append("structure-sub-share")
     if cat == "switches" and kind == "oneshot" and spec["duration"] <= 0.5:
         if n / SR > spec["duration"] + 1e-6:
             bad.append("switch-too-long")

@@ -17,6 +17,8 @@ export interface SoundChecks {
   lowShare?: number;
   highShare?: number;
   clap?: { best: string; margin: number };
+  /** Soft warnings that do not fail the sound, for example "clap-margin". */
+  hints?: string[];
   described?: string;
 }
 

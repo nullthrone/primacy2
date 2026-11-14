@@ -57,6 +57,16 @@ All sounds:
 By path:
 
 - structure: at least 85 % of the energy below 500 Hz, at most 2 % above 4 kHz.
+- structure, so that the sound survives headphones and small loudspeakers that play no deep bass
+  (a phone with a controller is a way to play): at least 35 % of the energy between 125 Hz and
+  1 kHz and at most 25 % below 60 Hz. The fold jump and the fold tunnel are meant as pressure and
+  need only 20 % and may have 40 %. Deep rumble is carried by its harmonics and by the hull modes
+  above 100 Hz, not by content that only a subwoofer plays. (Added on 2026-11-14 after the first
+  set came out with nearly all energy below 150 Hz.)
+- No steady pure tone stands alone for the whole length of a loop: a whine or a hum drifts a
+  little in pitch and level and is never a ruler-straight line in the spectrogram.
+- A rattle is a fast run of several small uneven knocks of noise, never a pitched ping, and no
+  two rattles in a file are alike.
 - cabin (switches, relays): shorter than the list's duration, spectral centre between 800 Hz and
   5 kHz, and audibly in a small room (the cabin reverb is applied in the render).
 - alarms: fundamental between 400 Hz and 1.6 kHz, no energy peak above 5 kHz, each alarm's
@@ -124,6 +134,10 @@ same files with `.venv-audio/Scripts/python.exe tools/audio/build.py`.
   }]
 }
 ```
+
+In `checks`, `failed` lists only the hard rules (levels, clipping, start and end, seam, energy
+shares, band rules) and `pass` is true when it is empty. The CLAP comparison is a hint, not a
+rule: a sound whose margin is negative carries `"hints": ["clap-margin"]` and still passes.
 
 Every sound entry also carries `"dry": true` or `false`. Structure sounds and the cabin's own
 sounds (switches, relays, ambience) are rendered as they are heard in the seat, with the cabin

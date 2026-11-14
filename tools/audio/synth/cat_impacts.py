@@ -7,11 +7,11 @@ only the strength parameters change.
 
 Helpers local to this file that could move into the library later: `ring_events` (decaying sines
 at given times), `no_dc`, `blow` (a complete blow on the structure), `creak` (stick-slip groan),
-`hum` (a transformer hum with a gliding pitch).
+`hull_ring`, `rattle_run` (a run of uneven noise knocks).
 """
 import numpy as np
 
-from . import (LEVELS, MODES, SR, bandpass, burst_env, exp_decay, fade_edges, freq_filter, lowpass,
+from . import (LEVELS, MODES, SR, bandpass, burst_env, exp_decay, fade_edges, freq_filter, highpass, lowpass,
                machine_tone, normalize_rms, periodic_lfo, periodic_noise, rattles, register, rise, rms,
                seeded, slow_wander, structure_lowpass, thump, through_hull, white_noise)
 
@@ -57,42 +57,80 @@ def no_dc(y):
     return lfilter([(1 + r) / 2, -(1 + r) / 2], [1.0, -r], y)
 
 
+# The hull modes below 100 Hz only cost headroom on small loudspeakers; a heavy blow is heard
+# through the modes between 100 and 400 Hz. So the low modes ring short and quiet, the upper ones
+# ring longer than the sub-bass (the rule of SOUND_DESIGN.md section 2).
+LOW_MODE = MODES[:, 0] < 100.0
+
+
+def hull_ring(n, family, level, sharp=1.0, t0=0.0):
+    """The whole hull struck at once: every mode starts together, the upper ones carry on."""
+    gains = np.where(LOW_MODE, 0.3, 1.0)
+    t60 = np.where(LOW_MODE, 0.3, MODES[:, 2] * 1.3) * sharp
+    ph = seeded(family + "/mode_phase").uniform(0, 6.283, len(MODES))
+    return level * ring_events(n, np.full(len(MODES), t0), MODES[:, 1] * gains, MODES[:, 0], t60,
+                               attack_ms=2.0, phases=ph)
+
+
+def knock_noise(m, rng, lo, hi, attack_ms, t60):
+    """A burst of band noise of m samples: one small knock of metal or a valve."""
+    x = bandpass(rng.standard_normal(m + 256), lo, hi, 2)[256:]
+    return x * burst_env(m, attack_ms, t60)
+
+
+def rattle_run(n, t0, count, span_ms, peak, rng, lo=1200.0, hi=3200.0):
+    """A rattle of fittings: several small uneven knocks of noise in a short run (never a pitched
+    ping). Each knock has its own band, length and level, so no two runs are alike."""
+    out = np.zeros(n)
+    gaps = rng.uniform(0.4, 1.6, count)
+    times = t0 + np.cumsum(gaps) / gaps.sum() * span_ms / 1000.0
+    for tm, g in zip(times, np.exp(rng.normal(-0.4, 0.5, count))):
+        i0 = int(tm * SR)
+        m = int(rng.uniform(0.004, 0.011) * SR)
+        if i0 + m >= n:
+            continue
+        c = rng.uniform(lo, hi * 0.8)
+        k = knock_noise(m, rng, c * 0.7, min(c * 1.5, 3900.0), 0.4, rng.uniform(0.003, 0.008))
+        out[i0:i0 + m] += g * k / max(np.max(np.abs(k)), 1e-9)
+    return peak * out / max(np.max(np.abs(out)), 1e-9)
+
+
 def blow(n, family, *, f_start, f_end, glide_s=0.06, thump_t60=0.15, attack_ms=3.0, ring=0.7,
-         ring_sharp=1.0, gains=None, modes=0.0, tick=0.0, tick_delay_ms=0.0, rattle=0.0, rattle_rng=None,
-         delay_ms=0.0):
-    """One blow on the structure, before the level is set. The exciting noise is the family's."""
+         ring_sharp=1.0, body=0.6, contact=0.0, tick=0.0, tick_delay_ms=0.0, rattle=0.0,
+         rattle_rng=None, delay_ms=0.0, fc=650.0):
+    """One blow on the structure, before the level is set.
+
+    The weight sits in the hull modes above 100 Hz (`ring`) and in a thump that falls from f_start
+    to f_end (`body`). `contact` is the level of the first moment of metal on metal (20 to 40 ms of
+    band noise between 400 Hz and 1.5 kHz) against the peak of the rest; `tick` is the small valve
+    knock of a thruster at tick_delay_ms. `rattle` (0 to 1) is how many runs of loose fittings
+    follow. Sub-30 Hz content is removed: it only costs headroom."""
     s = lambda name: seeded(family + "/" + name)
-    m = min(n, int(0.012 * SR))
-    pulse = np.zeros(n)
-    pulse[:m] = burst_env(m, 2.5, 0.008) * s("pulse").standard_normal(m)
-    pulse = lowpass(pulse, 500, 2)
-    ringing = through_hull(pulse, sharp=ring_sharp, gains=gains)
-    body = thump(n, f_start, f_end, attack_ms, thump_t60, glide_s)
-    scale = rms(body[: int(0.2 * SR)]) / max(rms(ringing[: int(0.2 * SR)]), 1e-9)
-    y = body + ring * 0.7 * scale * ringing
-    if modes > 0:
-        # the whole hull is struck at once: every mode starts at the table level, so the low ones
-        # (37 to 89 Hz) carry on for a second or more behind the thump
-        y = y + modes * ring_events(n, np.zeros(len(MODES)), MODES[:, 1], MODES[:, 0],
-                                    MODES[:, 2] * ring_sharp, attack_ms=3.0,
-                                    phases=seeded(family + "/mode_phase").uniform(0, 6.283, len(MODES)))
+    tb = thump(n, f_start, f_end, attack_ms, thump_t60, glide_s)
+    modes = hull_ring(n, family, 1.0, ring_sharp)
+    k = rms(tb[: int(0.2 * SR)]) / max(rms(modes[: int(0.2 * SR)]), 1e-9)
+    y = body * tb + ring * 0.7 * k * modes
     d = int(delay_ms * SR / 1000.0)
     if d:
         y = np.concatenate([np.zeros(d), y[:-d]])
+    y = lowpass(highpass(y, 32.0, 2), fc, 6)
+    pk = float(np.max(np.abs(y)))
+    if contact > 0:
+        m = int(0.03 * SR)
+        c = knock_noise(m, s("contact"), 400.0, 1500.0, 0.8, 0.014)
+        y[:m] += contact * pk * c / max(np.max(np.abs(c)), 1e-9)
     if tick > 0:
-        # a valve or latch: a dull knock of a few ms, not a click (nothing above 700 Hz)
-        k = np.zeros(n)
-        mk = int(0.02 * SR)
-        kn = lowpass(s("tick").standard_normal(mk) * burst_env(mk, 1.2, 0.006), 700, 2)
-        k[:mk] = kn
-        k = np.roll(k, int(tick_delay_ms * SR / 1000.0))
-        y = y + tick * rms(y[: int(0.2 * SR)]) * k / max(rms(kn), 1e-9) * 0.5
-    y = structure_lowpass(y, periodic=False)
-    if rattle > 0:
-        r = rattles(n, 1.0, rattle_rng if rattle_rng is not None else s("rattle"), per_second=7.0,
-                    periodic=False)
-        env = burst_env(n, 4.0, 0.15 + 0.5 * rattle)
-        y = y + 0.05 * rattle * rms(y[: int(0.3 * SR)]) * r * env * 8
+        m = int(0.004 * SR)
+        c = knock_noise(m, s("tick"), 500.0, 1600.0, 0.3, 0.0025)
+        i0 = int(tick_delay_ms * SR / 1000.0)
+        y[i0:i0 + m] += tick * pk * c / max(np.max(np.abs(c)), 1e-9)
+    runs = int(round(rattle * 3.5))
+    if runs:
+        rng = rattle_rng if rattle_rng is not None else s("rattle")
+        for i in range(runs):
+            t0 = 0.03 + 0.07 * i + float(rng.uniform(0.0, 0.06)) + 0.05 * i * i
+            y += rattle_run(n, t0, int(rng.integers(5, 10)), float(rng.uniform(45, 110)),
+                            pk * 0.07 * rattle * 0.8 ** i, rng)
     return y
 
 
@@ -120,27 +158,17 @@ def creak(n, t0, dur, f_lo, f_hi, level, rng, rate=(28.0, 62.0), partials=(1.0, 
     return out
 
 
-def hum(n, f0, drop_env, load_env, rng, harmonics=(1, 3, 5, 7, 9), growl_hz=(15.0, 160.0)):
-    """Mains hum whose pitch follows f0 * (1 - drop_env): odd harmonics that grow with load, and a
-    growl (band-limited noise modulating the amplitude). One-shot version of transformer_tone."""
-    f = f0 * (1.0 - drop_env)
-    ph = 2 * np.pi * np.cumsum(f) / SR
-    y = np.zeros(n)
-    for k in harmonics:
-        y += k ** -(1.5 - 1.1 * load_env) * np.sin(k * ph + rng.uniform(0, 6.28))
-    g = bandpass(rng.standard_normal(n), *growl_hz, order=2)
-    g /= max(3 * rms(g), 1e-9)
-    return y * (1.0 + 1.3 * load_env * g)
-
-
 # --------------------------------------------------------------------------- hull hits
 
-# strength 0..1: thump pitch and length, ringing level, rattles. One event at three strengths.
+# One event at three strengths: a low boom (thump), the hull modes between 100 and 400 Hz ringing
+# on, a contact transient of metal, and from the medium hit on, rattles of fittings.
 HULL = {
-    "impact_hull_light": dict(f_start=88, f_end=48, thump_t60=0.12, ring=0.8, ring_sharp=0.7, modes=0.15, rattle=0.0),
-    "impact_hull_medium": dict(f_start=100, f_end=50, thump_t60=0.22, ring=1.5, ring_sharp=0.9, modes=0.35, rattle=0.5),
-    "impact_hull_heavy": dict(f_start=112, f_end=44, thump_t60=0.40, ring=2.0, ring_sharp=1.0, modes=0.8, rattle=1.0,
-                              glide_s=0.09),
+    "impact_hull_light": dict(f_start=165, f_end=92, thump_t60=0.12, ring=1.1, ring_sharp=0.6, body=0.55,
+                              contact=0.25, rattle=0.0),
+    "impact_hull_medium": dict(f_start=175, f_end=88, thump_t60=0.2, ring=1.4, ring_sharp=0.8, body=0.6,
+                               contact=0.25, rattle=0.5),
+    "impact_hull_heavy": dict(f_start=190, f_end=82, thump_t60=0.34, ring=1.6, ring_sharp=1.0, body=0.7,
+                              contact=0.25, rattle=1.0, glide_s=0.08),
 }
 
 
@@ -152,8 +180,7 @@ def _make_hull(sid):
         if sid == "impact_hull_heavy":
             # the strained metal complains after the slam
             rng = ctx.rng("groan")
-            y = y + 0.35 * rms(y[: int(0.3 * SR)]) * creak(n, 1.5, 0.9, 52.0, 79.0, 1.0, rng, rate=(24, 48))
-        y = structure_lowpass(y, periodic=False)
+            y = y + 0.35 * rms(y[: int(0.3 * SR)]) * creak(n, 1.5, 0.9, 105.0, 150.0, 1.0, rng, rate=(24, 48))
         return no_dc(fade_edges(y, 0.0, min(400.0, 0.3 * 1000.0 * n / SR)))
     return _render
 
@@ -165,11 +192,15 @@ for _sid in HULL:
 # --------------------------------------------------------------------------- shield hits
 
 SHIELD = {
-    # level of the surge, pitch sag (fraction), time of the sag, recovery time constant (s), thump
-    "impact_shield_light": dict(load=0.45, sag=0.04, t_sag=0.02, rec=0.12, thump=0.35, f0=100.0),
-    "impact_shield_medium": dict(load=0.75, sag=0.12, t_sag=0.04, rec=0.30, thump=0.5, f0=100.0),
-    "impact_shield_heavy": dict(load=1.0, sag=0.34, t_sag=0.10, rec=0.65, thump=0.7, f0=100.0),
+    # surge level, pitch sag (fraction), time to the bottom of the sag (s), recovery time constant (s),
+    # thump level, crackle level
+    "impact_shield_light": dict(load=0.45, sag=0.06, t_sag=0.04, rec=0.25, thump=0.3, crackle=0.5),
+    "impact_shield_medium": dict(load=0.75, sag=0.16, t_sag=0.08, rec=0.35, thump=0.45, crackle=0.8),
+    "impact_shield_heavy": dict(load=1.0, sag=0.30, t_sag=0.15, rec=0.45, thump=0.6, crackle=1.0),
 }
+# odd harmonics of a 100 Hz generator: the third and fifth carry the sound (a machine heard through
+# the housing); the fundamental alone would read as a beep and lies under 125 Hz
+HARM = ((1, 0.6), (3, 1.0), (5, 0.5), (7, 0.18), (9, 0.06))
 
 
 def _make_shield(sid):
@@ -177,25 +208,39 @@ def _make_shield(sid):
     def _render(ctx):
         n = ctx.n
         p = SHIELD[sid]
-        rng = seeded("impact_shield/hum")
         t = np.arange(n) / SR
-        # surge: a fast rise (5 ms), a sag of level and pitch, then a slow recovery
-        up = rise(int(0.005 * SR))
-        env = np.concatenate([up, np.ones(n - up.size)])
-        sag = np.where(t < p["t_sag"], t / p["t_sag"], np.exp(-(t - p["t_sag"]) / p["rec"]))
-        pitch_drop = p["sag"] * sag
-        load = p["load"] * (0.35 + 0.65 * sag)
-        h = hum(n, p["f0"], pitch_drop, load, seeded("impact_shield/growl"))
-        level_env = env * (0.55 + 0.45 * np.exp(-t / (0.5 * p["rec"] + 0.15))) * exp_decay(n, 2.2 * n / SR)
-        y = h * level_env
-        # a hum is driven in the metal of the housing, not rung by it: very short hull, mostly direct
-        # a coarse electrical buzz under the hum: noise that follows the load (a hum alone reads as a beep)
-        buzz = bandpass(seeded("impact_shield/buzz").standard_normal(n), 40, 320, 2)
-        y = y / max(rms(y[: int(0.2 * SR)]), 1e-9) + 0.9 * load * buzz / max(rms(buzz), 1e-9) * level_env
-        y = through_hull(y, sharp=0.1, dry=1.0)
-        body = thump(n, 74, 46, 4.0, 0.08 + 0.1 * p["load"], 0.05)
-        y = y / max(rms(y[: int(0.2 * SR)]), 1e-9) + p["thump"] * 1.5 * body / max(rms(body[: int(0.2 * SR)]), 1e-9)
-        y = structure_lowpass(y, periodic=False)
+        # pitch: falls to the bottom within t_sag, then climbs back with the recovery constant
+        s_ = np.where(t < p["t_sag"], np.sin(0.5 * np.pi * t / p["t_sag"]),
+                      np.exp(-(t - p["t_sag"]) / p["rec"]))
+        f = 100.0 * (1.0 - p["sag"] * s_)
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        pr = seeded("impact_shield/phase")
+        tone = sum(w * np.sin(k * ph + pr.uniform(0, 6.28)) for k, w in HARM)
+        tone = np.tanh(1.4 * tone / max(rms(tone), 1e-9))  # overdriven: rougher, more odd harmonics
+        # uneven amplitude at 20 to 40 Hz: the generator labouring
+        g = bandpass(seeded("impact_shield/am").standard_normal(n), 20, 40, 2)
+        g /= max(3 * rms(g), 1e-9)
+        load = p["load"] * (0.4 + 0.6 * s_)
+        am = np.clip(1.0 + 0.9 * load * g + 0.25 * load * np.sin(2 * np.pi * 30.0 * t), 0.0, None)
+        env = rise(int(0.005 * SR))
+        env = np.concatenate([env, np.ones(n - env.size)]) * (0.55 + 0.45 * np.exp(-t / (0.5 * p["rec"] + 0.15)))
+        env = env * exp_decay(n, 2.2 * n / SR)
+        y = tone * am * env
+        # noise in the sidebands: grit that follows the load
+        sb = bandpass(seeded("impact_shield/grit").standard_normal(n), 150, 900, 2)
+        y = y / max(rms(y[: int(0.2 * SR)]), 1e-9) + 0.45 * load * sb / max(rms(sb), 1e-9) * am * env
+        # crackle: band noise between 300 Hz and 1.2 kHz in the first 100 ms, in uneven sparks
+        cr = np.zeros(n)
+        cm = int(0.1 * SR)
+        rr = seeded("impact_shield/crackle")
+        cr[rr.integers(0, cm, 40)] = rr.standard_normal(40)
+        cr = bandpass(cr, 300, 1200, 2)
+        cr[:cm] *= np.linspace(1.0, 0.0, cm) ** 1.2
+        cr[cm:] = 0.0
+        y = y + p["crackle"] * 1.6 * cr / max(rms(cr[:cm]), 1e-9) * rms(y[: int(0.2 * SR)]) * 0.55
+        body = thump(n, 130, 85, 4.0, 0.07 + 0.08 * p["load"], 0.04)
+        y = y + p["thump"] * 1.2 * body / max(rms(body[: int(0.2 * SR)]), 1e-9) * rms(y[: int(0.2 * SR)])
+        y = lowpass(highpass(y, 35.0, 2), 1300.0, 6)
         return no_dc(fade_edges(y, 0.0, 0.35 * 1000.0 * n / SR))
     return _render
 
@@ -212,15 +257,15 @@ def hull_stress_groan(ctx):
     rng = ctx.rng()
     y = np.zeros(n)
     # a long low groan and shorter creaks, like a pressure hull going deep
-    y += creak(n, 0.05, 2.2, 47.0, 64.0, 1.0, rng, rate=(14, 30), partials=(1.0, 1.9))
-    y += 0.7 * creak(n, 0.9, 1.6, 83.0, 118.0, 1.0, rng, rate=(18, 40), partials=(1.0, 2.1))
-    for t0, d, lo, hi, lv in ((0.35, 0.35, 190, 240, 0.30), (1.7, 0.28, 150, 215, 0.34),
-                              (2.45, 0.5, 120, 170, 0.45), (3.0, 0.3, 230, 300, 0.2)):
+    y += creak(n, 0.05, 2.2, 125.0, 165.0, 1.0, rng, rate=(14, 30), partials=(1.0, 1.9))
+    y += 0.8 * creak(n, 0.9, 1.6, 185.0, 255.0, 1.0, rng, rate=(18, 40), partials=(1.0, 2.1))
+    for t0, d, lo, hi, lv in ((0.35, 0.35, 190, 240, 0.40), (1.7, 0.28, 150, 215, 0.44),
+                              (2.45, 0.5, 120, 170, 0.55), (3.0, 0.3, 230, 300, 0.3)):
         y += lv * creak(n, t0, d, lo, hi, 1.0, rng, rate=(30, 70))
     # the file begins with a small knock of metal taking up the load, so it starts within 5 ms
-    y += 0.5 * ring_events(n, [0.0004], [1.0], [118.0], [0.18], attack_ms=1.0)
-    y = through_hull(y, sharp=0.5, dry=1.0)
-    y = structure_lowpass(y, periodic=False)
+    y += 0.5 * ring_events(n, [0.0004], [1.0], [182.0], [0.25], attack_ms=1.0)
+    y = through_hull(y, sharp=0.5, gains=np.where(LOW_MODE, 0.3, 1.0), dry=1.0)
+    y = lowpass(highpass(y, 40.0, 2), 650.0, 6)
     return no_dc(fade_edges(y, 0.0, 600.0))
 
 
@@ -235,19 +280,19 @@ def debris_patter(ctx):
     times = -0.85 * np.log(1 - u * (1 - np.exp(-(dur - 0.15) / 0.85)))
     times[0] = 0.0003
     amps = np.exp(rng.normal(-0.9, 0.7, count)) * np.exp(-times / 1.6)
-    freqs = rng.uniform(160, 560, count)
+    freqs = rng.uniform(170, 430, count)
     t60s = rng.uniform(0.007, 0.03, count) * (1 + 3 * (amps > 0.7))
     y = ring_events(n, times, amps, freqs, t60s, attack_ms=0.8)
     # now and then a bigger piece: a dull thump, not a ring
     big = np.flatnonzero(amps > np.quantile(amps, 0.93))
     for i in big:
         s0 = int(times[i] * SR)
-        seg = thump(min(n - s0, int(0.25 * SR)), 85, 52, 3.0, 0.07, 0.04) * 1.6 * amps[i]
+        seg = thump(min(n - s0, int(0.25 * SR)), 170, 110, 3.0, 0.07, 0.04) * 1.2 * amps[i]
         y[s0:s0 + seg.size] += seg
-    y = structure_lowpass(y, periodic=False)
-    # fittings rattle where it is dense
-    r = rattles(n, 0.6, ctx.rng("rattle"), per_second=5.0, periodic=False)
-    y = y + 0.05 * rms(y[: int(0.5 * SR)]) * 8 * r * burst_env(n, 20.0, 1.0)
+    y = lowpass(highpass(y, 60.0, 2), 700.0, 6)
+    # fittings rattle where it is dense: runs of small uneven knocks, never a ping
+    rr = ctx.rng("rattle")
+    for t0 in (0.12, 0.31, 0.62, 1.05):
+        y += rattle_run(n, t0, int(rr.integers(5, 9)), float(rr.uniform(60, 140)),
+                        0.08 * np.max(np.abs(y)) * np.exp(-t0 / 1.4), rr)
     return no_dc(fade_edges(y, 0.0, 500.0))
-
-

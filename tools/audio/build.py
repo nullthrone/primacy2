@@ -59,7 +59,8 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
     synth.write_wav(wav, x, dither_seed=sound_id)
     data, sr = common.load_audio(wav)
     an = measure.analyse(data, sr, loop=s["kind"] == "loop")
-    failed = rules.check(s, data, an, entry.swing_max)
+    failed = rules.check(s, data, an, entry.swing_max, sound_id=sound_id)
+    hints: list[str] = []
     png = wav.with_suffix(".png")
     measure.write_png(png, sound_id, data, sr, an)
 
@@ -81,11 +82,16 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
                           "bestNeg": j.get("bestNeg")}
         # an impulse response is a tool for the convolver, not a sound anyone hears by itself:
         # its CLAP margin is recorded but does not decide pass or fail
+        # the CLAP margin is only a hint (SOUND_DESIGN.md section 3): it never fails a sound
         if j.get("margin") is not None and j["margin"] <= 0 and s["kind"] != "ir":
-            failed.append("clap-margin")
+            hints.append("clap-margin")
     if describe_fn is not None:
         checks["described"] = describe_fn(wav)
     checks["pass"] = not failed
+    if hints:
+        checks["hints"] = hints
+    checks["midShare"] = round(rules.energy_share(data, 125, 1000), 3)
+    checks["subShare"] = round(rules.energy_share(data, 0, 60), 3)
 
     dry = s["category"] in rules.DRY_CATEGORIES
     manifest_entry = {
@@ -271,6 +277,9 @@ def main(argv=None) -> int:
             c = e["checks"]
             clap_txt = "clap %+.3f" % c["clap"]["margin"] if c.get("clap") and c["clap"].get("margin") is not None else "clap -"
             verdict = "pass" if c["pass"] else "FAIL " + ",".join(c["failed"])
+            if c.get("hints"):
+                verdict += " (hint: %s)" % ",".join(c["hints"])
+            verdict += " mid %.2f sub %.2f" % (c["midShare"], c["subShare"])
             lf = "  limited" if c["level"]["limited"] else ""
             print("%-24s %-34s %s  %6.1f LUFS  tp %5.1f dB%s" % (
                 sid, verdict, clap_txt, c["lufs"] if c["lufs"] is not None else float("nan"), c["peakDb"], lf))
