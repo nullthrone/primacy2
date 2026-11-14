@@ -1387,6 +1387,70 @@ try {
       }
     }
 
+    // Finding things from the HUD, without a panel: O and L step through the places, U lets go,
+    // and "target ahead" takes the place the nose points at. Failed checks are recorded and the
+    // targets are cleared either way, so the later steps still run.
+    {
+      const fail = (msg) => problems.push(`places: ${msg}`);
+      const now = () => page.evaluate(() => {
+        const v = window.primacy2.game.view;
+        const s = v.sites.find((x) => x.def.id === v.navAnchor);
+        const b = v.bodies.find((x) => x.def.id === v.navAnchor);
+        return { id: v.navAnchor, kind: s?.def.kind ?? b?.def.kind ?? null, name: s?.def.name ?? b?.def.name ?? null, target: v.targetId };
+      });
+      const lines = await page.innerText('.hud .sys-lines').catch(() => '');
+      if (!/PLACES/.test(lines) || !/Docks \d/.test(lines) || !/CONTACTS/.test(lines)) fail(`the HUD does not say what the system holds: ${JSON.stringify(lines)}`);
+      await page.keyboard.press('KeyO');
+      const listed = await page.waitForSelector('.hud .place-list', { timeout: 3000 }).then(() => true, () => false);
+      const first = await now();
+      if (!listed || !['station', 'outpost', 'base'].includes(first.kind)) fail(`O did not open the list and choose a place to dock: ${JSON.stringify(first)}, list ${listed}`);
+      const named = await page.innerText('.hud .panel-mini.place .big').catch(() => '');
+      if (named.trim() !== first.name) fail(`the place panel shows ${JSON.stringify(named)} for ${JSON.stringify(first.name)}`);
+      await page.keyboard.press('KeyO');
+      await page.waitForTimeout(150);
+      const second = await now();
+      if (second.id === null || second.id === first.id) fail(`a second O did not step on: ${JSON.stringify(second)}`);
+      await page.keyboard.press('KeyL');
+      await page.waitForTimeout(150);
+      if ((await now()).id !== first.id) fail(`L did not step back to ${first.name}: ${JSON.stringify(await now())}`);
+      await shot('03c-places');
+
+      // Turn the nose at the chosen place, let go of it, and take it again with "target ahead".
+      let held = 0;
+      for (let i = 0; i < 300 && held < 5; i++) {
+        const off = await page.evaluate((id) => {
+          const g = window.primacy2.game;
+          const s = g.view.sites.find((x) => x.def.id === id) ?? g.view.bodies.find((x) => x.def.id === id);
+          if (!s) return null;
+          const p = g.project(s.rel);
+          if (p.behind) { g.input.addMouse(60, 0); return Infinity; }
+          const ex = p.x - window.innerWidth / 2, ey = p.y - window.innerHeight / 2;
+          g.input.addMouse(ex * 0.2, ey * 0.2);
+          return Math.hypot(ex, ey);
+        }, first.id);
+        held = off !== null && off < 60 ? held + 1 : 0;
+        await page.waitForTimeout(100);
+      }
+      if (held < 5) fail(`could not turn the nose at ${first.name}`);
+      await page.keyboard.press('KeyU');
+      await page.keyboard.press('KeyU');
+      await page.waitForTimeout(200);
+      const cleared = await now();
+      if (cleared.id !== null || cleared.target !== null) fail(`U twice did not let go of the ship and the place: ${JSON.stringify(cleared)}`);
+      // A ship in the cone ahead is locked first; the second press then takes the place behind it.
+      let ahead = cleared;
+      for (let i = 0; i < 2 && ahead.id === null; i++) {
+        await page.keyboard.press('KeyY');
+        await page.waitForTimeout(200);
+        ahead = await now();
+      }
+      if (held >= 5 && ahead.id !== first.id) fail(`"target ahead" did not take the place the nose points at (${first.name}): ${JSON.stringify(ahead)}`);
+      else if (held >= 5) console.log(`places: ok, O/L step, U lets go, "target ahead" took ${first.name}${ahead.target !== null ? ' after a ship in the same cone' : ''}`);
+      await page.keyboard.press('KeyU');
+      await page.keyboard.press('KeyU');
+      await page.waitForTimeout(200);
+    }
+
     await page.keyboard.press('KeyV');
     await page.waitForTimeout(800);
     await shot('04-chase');

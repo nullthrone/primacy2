@@ -1,7 +1,7 @@
 /** Unit formatting for the interface. */
 import { AU, C } from '@primacy2/shared';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
-import { isPadCode, padButtonName, padCodeLabel } from '../input/gamepad.ts';
+import { isPadCode, padButtonName, padCodeLabel, padCodeShort, type PadStyle } from '../input/gamepad.ts';
 import { store, type BindAction } from '../state/store.ts';
 
 const KEY_GLYPHS: Record<string, string> = { ArrowLeft: '←', ArrowUp: '↑', ArrowRight: '→', ArrowDown: '↓' };
@@ -19,19 +19,29 @@ export function keyName(code: string): string {
   return KEY_GLYPHS[code] ?? (named ? t(named) : code);
 }
 
+/** The control to name for an action, with `padLabel` making the text for a pad code. */
+function bindLabel(action: BindAction, padLabel: (code: string, style: PadStyle) => string): string {
+  const codes = store.settings.value.bindings[action] ?? [];
+  const pad = codes.find(isPadCode);
+  if (store.device.value === 'pad' && pad) return padLabel(pad, store.padStyle.value);
+  const keys = codes.filter((c) => !isPadCode(c));
+  const code = keys.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? keys[0];
+  if (code) return keyName(code);
+  return pad ? padLabel(pad, store.padStyle.value) : '–';
+}
+
 /**
  * The control to name in a hint for an action. With a pad as the device last used it is the pad's
  * label (A on an Xbox pad, Cross on a PlayStation pad, "Y + A" for a chord); otherwise the first
  * keyboard binding, or else the first binding.
  */
 export function bindKey(action: BindAction): string {
-  const codes = store.settings.value.bindings[action] ?? [];
-  const pad = codes.find(isPadCode);
-  if (store.device.value === 'pad' && pad) return padCodeLabel(pad, store.padStyle.value);
-  const keys = codes.filter((c) => !isPadCode(c));
-  const code = keys.find((c) => !/^(Mouse|Wheel)/.test(c)) ?? keys[0];
-  if (code) return keyName(code);
-  return pad ? padCodeLabel(pad, store.padStyle.value) : '–';
+  return bindLabel(action, padCodeLabel);
+}
+
+/** As `bindKey`, for a key cap on the HUD, where room is tight: a pad's label in its short form ("Y+D←"). */
+export function bindKeyShort(action: BindAction): string {
+  return bindLabel(action, padCodeShort);
 }
 
 /** Whether an action has a control on the device in use: a pad code for a pad, anything else otherwise. */
@@ -39,17 +49,6 @@ export function hasBinding(action: BindAction): boolean {
   const codes = store.settings.value.bindings[action] ?? [];
   const pad = store.device.value === 'pad';
   return codes.some((c) => isPadCode(c) === pad);
-}
-
-/** The names of the controls that the HUD key line mentions, for the device in use. */
-export function keyParams(): Record<string, string> {
-  return {
-    cruise: bindKey('cruise'), fold: bindKey('fold'), map: bindKey('galaxyMap'), nav: bindKey('systemMap'),
-    dock: bindKey('dock'), camera: bindKey('camera'), assist: bindKey('flightAssist'),
-    shields: bindKey('powerShields'), engines: bindKey('powerEngines'), weapons: bindKey('powerWeapons'),
-    reset: bindKey('powerReset'), silent: bindKey('silentRunning'), menu: bindKey('menu'),
-    up: bindKey('thrustUp'), down: bindKey('thrustDown'), key: bindKey('thrustUp'),
-  };
 }
 
 /** Button names for the pad help lines, by the style of the pad in use. */

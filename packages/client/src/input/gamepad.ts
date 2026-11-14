@@ -163,6 +163,24 @@ export function padCodeLabel(code: string, style: PadStyle): string {
   return padAxisName(c.axis, c.dir);
 }
 
+const SHORT_NAMES: Record<string, string> = { 'D-pad up': 'D↑', 'D-pad down': 'D↓', 'D-pad left': 'D←', 'D-pad right': 'D→' };
+
+/**
+ * A binding code as a short label for tight places on the HUD: the D-pad is a D with an arrow and a
+ * chord has no spaces ("Y+D←" where `padCodeLabel` says "Y + D-pad left").
+ */
+export function padCodeShort(code: string, style: PadStyle): string {
+  const c = parsePadCode(code);
+  if (!c) return code;
+  const name = (n: number): string => {
+    const full = padButtonName(n, style);
+    return SHORT_NAMES[full] ?? full;
+  };
+  if (c.kind === 'button') return name(c.n);
+  if (c.kind === 'chord') return `${name(c.m)}+${name(c.n)}`;
+  return padAxisName(c.axis, c.dir);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Defaults
 

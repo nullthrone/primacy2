@@ -8,11 +8,11 @@ import type { FrameView } from '../contracts.ts';
 import { t, type StringKey } from '../i18n/index.ts';
 import { PLACE_LIST_MS, findPlace, listPlaces, listWindow, type PlaceEntry } from '../state/places.ts';
 import { store, type BindAction } from '../state/store.ts';
-import { bindKey, fmtDistance, fmtDuration, fmtSpeed, hasBinding } from './format.ts';
+import { bindKeyShort, fmtDistance, fmtDuration, fmtSpeed, hasBinding } from './format.ts';
 import { arrival, declutter, edgeMark, pullClear, type Box, type CompassDot, type EdgeMark } from './orient.ts';
 
-/** Rows of the list of places that are shown at once. */
-const LIST_ROWS = 8;
+/** Rows of the list of places that are shown at once, by the height of the view: a low view has room for fewer. */
+const listRows = (h: number): number => (h >= 640 ? 8 : h >= 480 ? 5 : 3);
 /** A closing speed below this reads as standing still, m/s. */
 const RATE_SHOWN = 0.5;
 
@@ -152,7 +152,7 @@ export function PlacePanel({ place, behind, closing }: { place: PlaceEntry; behi
 }
 
 function Keycap({ action }: { action: BindAction }) {
-  return <span class="keycap">{bindKey(action)}</span>;
+  return <span class="keycap">{bindKeyShort(action)}</span>;
 }
 
 /** "Docks 4 · Gates 1": the kinds that occur, each with its count. */
@@ -204,7 +204,7 @@ export function PlaceList({ view, now }: { view: FrameView; now: number }) {
   const rows = open.ids.map((id) => findPlace(view, id)).filter((p): p is PlaceEntry => p !== null);
   if (rows.length === 0) return null;
   const selected = rows.findIndex((p) => p.id === view.navAnchor);
-  const { start, count } = listWindow(rows.length, selected, LIST_ROWS);
+  const { start, count } = listWindow(rows.length, selected, listRows(window.innerHeight));
   const below = rows.length - start - count;
   return (
     <div class="place-list">

@@ -73,7 +73,8 @@
 
 /* Panels */
 .backdrop { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(2, 5, 10, 0.55); }
-.panel { background: var(--glass); border: 1px solid var(--line); padding: 1.2em 1.4em; display: flex; flex-direction: column; gap: 0.8em; max-height: 90vh; backdrop-filter: blur(6px); }
+/* A panel that is taller than a low view (a phone held sideways) scrolls inside itself. */
+.panel { background: var(--glass); border: 1px solid var(--line); padding: 1.2em 1.4em; display: flex; flex-direction: column; gap: 0.8em; max-height: 90vh; overflow: auto; backdrop-filter: blur(6px); }
 .panel.wide { width: min(70em, 94vw); }
 .panel.narrow { width: min(36em, 94vw); }
 .panel header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1em; border-bottom: 1px solid var(--line); padding-bottom: 0.6em; }
@@ -244,8 +245,12 @@
 .customs-report .notice-head { color: var(--amber); }
 .customs-line { display: flex; gap: 1em; color: var(--amber); font-size: 0.9em; letter-spacing: 0.1em; }
 #ui button.capture { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); font-size: 1.2em; background: var(--glass); }
-/* The key line wraps inside the corner: in one line it ran under the mode line of the centre block (German at 1280 px). */
-.keys { position: absolute; right: 2vw; bottom: 2vh; max-width: 30vw; text-align: right; text-wrap: balance; font-size: 0.82em; color: var(--dim); }
+/* The controls worth naming, in the corner: a key cap and a word each, in two columns, so that a
+   controller's longer names ("Y+View") read as well as single keys. */
+.keys { position: absolute; right: 2vw; bottom: 2vh; font-size: 0.82em; color: var(--dim); text-align: right; }
+.keys-grid { display: grid; grid-template-columns: auto auto; justify-content: end; column-gap: 1.2em; row-gap: 0.25em; text-align: left; }
+.key-item { white-space: nowrap; }
+.keys-note { margin-bottom: 0.3em; }
 .overlay-text { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1em; align-items: center; justify-content: center; pointer-events: none; }
 .overlay-text h2 { font-size: 2.2em; color: var(--cyan); letter-spacing: 0.2em; }
 .overlay-text.dead { background: rgba(30, 0, 8, 0.45); }
@@ -259,6 +264,8 @@
 @keyframes pulse { 50% { opacity: 0.45; } }
 @keyframes heat-rise { to { background-position-x: 0.8em; } }
 @media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
+/* A narrow view has no room for full-width status bars beside the power display and the speed readout. */
+@media (max-width: 900px) { .hud-left { width: 11em; } .hud-power { left: calc(2vw + 12.2em); } .pip-key { display: none; } }
 @media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .map-body aside { max-height: none; } .settings { grid-template-columns: 1fr; } .customs { grid-template-columns: 1fr; } }
 
 /* Controller binding screen */
@@ -349,7 +356,7 @@
 /* The station screen keeps one size on every tab: the window is as tall as the view allows, and
    what a tab holds scrolls inside it. `#ui .scroll` caps other lists by the height of the view; here
    the window itself is the cap. */
-.panel.station { height: min(52em, 90vh); }
+.panel.station { box-sizing: border-box; height: min(56em, 94vh); max-height: none; }
 .panel.station > .scroll, .panel.station > .stack { flex: 1 1 0; min-height: 0; overflow: auto; }
 #ui .panel.station > .scroll { max-height: none; }
 .panel.station > .customs { flex: 0 1 auto; min-height: 0; max-height: 38%; overflow: auto; }

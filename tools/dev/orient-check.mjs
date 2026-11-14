@@ -30,6 +30,8 @@ const check = (ok, what) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`);
   if (!ok) problems.push(what);
 };
+/** Something measured that is reported and not required. */
+const note = (what) => console.log(`note ${what}`);
 
 const server = await createServer({ root: 'packages/client', configFile: 'packages/client/vite.config.ts', logLevel: 'error', server: { port: 5190 } });
 await server.listen();
@@ -191,7 +193,7 @@ try {
   // ---------------------------------------------------------------------------------------------
   // Near the ground the centre block is at its widest: the compass and the arrows keep clear.
   {
-    const page = await open('scene=surface&lang=de&alt=400&nav=1000&target=11');
+    const page = await open('scene=surface&lang=de&alt=400&info=0&nav=1000&target=11');
     await page.waitForTimeout(300);
     check((await count(page, '.ground')) === 1 && (await count(page, '.compass')) === 1, 'over the ground the instruments and the compass are both shown');
     const o = await overlaps(page);
@@ -205,7 +207,12 @@ try {
   {
     const page = await open('scene=orient&lang=de&device=pad&nav=1003');
     const caps = await texts(page, '.sys-lines .keycap');
-    check(caps.includes('D-pad left') && caps.includes('D-pad right') && caps.includes('D-pad up') && caps.includes('Y + Menu') && caps.includes('Y + LB'), `with a pad the lines name its buttons: ${caps.join(' | ')}`);
+    check(['D←', 'D→', 'D↑', 'Y+Menu', 'Y+LB'].every((k) => caps.includes(k)), `with a pad the lines name its buttons, in the short form: ${caps.join(' | ')}`);
+    const power = await texts(page, '.hud-power .pip-key');
+    check(power.join(' ') === 'Y+D← Y+D↑ Y+D→', `the power rows name the pad chords in the short form: ${power.join(' ')}`);
+    const corner = await texts(page, '.keys .key-item');
+    check(corner.length === 8 && corner.includes('View Reiseflug') && corner.includes('Y+A andocken'), `the corner names eight controls, a key cap and a word each: ${corner.join(' | ')}`);
+    check((await overlaps(page)).length === 0, 'with a pad nothing lies over anything else at this size');
     const o = await overlaps(page);
     check(o.length === 0, `with pad hints nothing lies over anything else${o.length ? `: ${o.join('; ')}` : ''}`);
     await shot(page, '06-pad-hints-de');
@@ -213,8 +220,27 @@ try {
   }
 
   // ---------------------------------------------------------------------------------------------
+  // A phone held sideways, played with a controller. The HUD has no layout of its own for that
+  // size yet, so what lies over what is reported and not required; panels must fit and scroll.
+  for (const scene of ['scene=orient&nav=1003&target=11&list=1', 'scene=surface&alt=400&info=0&nav=1000']) {
+    const page = await open(`${scene}&lang=de&device=pad`, [844, 390]);
+    await page.waitForTimeout(300);
+    const o = await overlaps(page);
+    note(`844 x 390 with a pad (${scene.split('&')[0]}): ${o.length ? o.join('; ') : 'nothing lies over anything else'}`);
+    await shot(page, `08-phone-${scene.split('&')[0].split('=')[1]}-de`);
+    if (scene.startsWith('scene=orient')) {
+      await page.evaluate(() => { window.__store.panel.value = 'menu'; });
+      await page.waitForSelector('.backdrop .panel');
+      const fits = await page.$eval('.backdrop .panel', (n) => { const r = n.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight && n.scrollHeight >= n.clientHeight; });
+      check(fits, 'the pause menu lies inside an 844 x 390 view and scrolls inside itself');
+      await shot(page, '08-phone-pause-de');
+    }
+    await page.close();
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // The station screen: one rectangle on every tab.
-  for (const [lang, size, cmd] of [['de', [W, H], ''], ['en', [W, H], 'fail'], ['de', [1920, 1080], ''], ['de', [1024, 768], 'fail']]) {
+  for (const [lang, size, cmd] of [['de', [W, H], ''], ['en', [W, H], 'fail'], ['de', [1920, 1080], ''], ['de', [1024, 768], 'fail'], ['en', [844, 390], '']]) {
     const page = await open(`scene=station&lang=${lang}&panel=station${cmd ? `&cmd=${cmd}` : ''}`, size);
     await page.waitForSelector('.panel.station');
     const rect = () => page.$eval('.panel.station', (n) => { const r = n.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((x) => Math.round(x * 10) / 10).join(' '); });

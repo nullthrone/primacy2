@@ -254,6 +254,30 @@ async function flight(page) {
   console.log('energy', JSON.stringify(energy));
   check(shots > 0, `RT fires the primary weapon (${shots} shot events)`);
 
+  // The D-pad chooses places: right steps on, left steps back, down lets go; the hints name it.
+  const navId = () => page.evaluate(() => window.primacy2.game.view?.navAnchor ?? null);
+  await tap(page, B.Down);
+  await tap(page, B.Down);
+  await sleep(200);
+  check((await navId()) === null, 'D-pad down leaves nothing chosen');
+  await tap(page, B.Right);
+  await sleep(300);
+  const place1 = await navId();
+  check(place1 !== null && (await page.locator('.hud .place-list').count()) === 1, `D-pad right chooses a place and opens the list (${place1})`);
+  await tap(page, B.Right);
+  await sleep(300);
+  const place2 = await navId();
+  check(place2 !== null && place2 !== place1, `a second press steps on (${place2})`);
+  await tap(page, B.Left);
+  await sleep(300);
+  check((await navId()) === place1, 'D-pad left steps back');
+  const caps = await page.$$eval('.hud .sys-lines .keycap', (ns) => ns.map((n) => n.textContent.trim()));
+  check(['D←', 'D→', 'D↑'].every((k) => caps.includes(k)), `the system lines name the D-pad (${caps.join(' | ')})`);
+  await shot(page, 'xbox-04b-places');
+  await tap(page, B.Down);
+  await sleep(300);
+  check((await navId()) === null, 'D-pad down lets go of the place');
+
   // Y + RB changes the camera.
   const cam = () => page.evaluate(() => JSON.parse(localStorage.getItem('primacy2.settings') ?? '{}').camera ?? 'cockpit');
   const c0 = await cam();

@@ -10,8 +10,8 @@ import {
 import type { EntityView, FrameView, GameApi } from '../contracts.ts';
 import { fmt, t, type StringKey } from '../i18n/index.ts';
 import { findPlace, isLandmark } from '../state/places.ts';
-import { store, type Notice } from '../state/store.ts';
-import { bindKey, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed, keyParams } from './format.ts';
+import { store, type BindAction, type Notice } from '../state/store.ts';
+import { bindKey, bindKeyShort, fmtDistance, fmtDuration, fmtHeight, fmtRate, fmtSpeed } from './format.ts';
 import { baseDropHere, landingCues, landingNear, liftBalance, noticeKey, type LandingCue } from './landing.ts';
 import { Compass, EdgeArrows, PlaceList, PlacePanel, RateLines, SystemLines, type CompassMark, type EdgeItem } from './Orient.tsx';
 import { closingSpeed, compassDot } from './orient.ts';
@@ -357,8 +357,18 @@ function flightHud(view: FrameView, api: GameApi) {
   // A ship that stands on the ground is in no danger from it; there the same words stand calmly under the state.
   if (heavy && !landed) warnings.push(gravityText);
 
-  const keys: StringKey = landed ? 'hud.keysLanded'
-    : ground && view.mode === FlightMode.Normal && ground.height < LANDING_HINT_HEIGHT ? 'hud.keysLanding' : 'hud.keys';
+  // The controls worth naming right now, each as a key cap with a word: on the ground, close
+  // above it, or in flight. Power has its controls beside the pips and the lists beside the
+  // system lines, so neither is repeated here.
+  const landing = !landed && ground !== null && view.mode === FlightMode.Normal && ground.height < LANDING_HINT_HEIGHT;
+  const keys: [BindAction, StringKey][] = landed
+    ? [['thrustUp', 'keys.liftOff'], ['dock', 'keys.dockBase'], ['galaxyMap', 'keys.map'], ['camera', 'keys.camera'], ['menu', 'keys.menu']]
+    : landing
+      ? [['thrustDown', 'keys.descend'], ['thrustUp', 'keys.climb'], ['dock', 'keys.dockBase']]
+      : [
+        ['cruise', 'keys.cruise'], ['fold', 'keys.fold'], ['galaxyMap', 'keys.map'], ['dock', 'keys.dock'],
+        ['camera', 'keys.camera'], ['flightAssist', 'keys.assist'], ['silentRunning', 'keys.silent'], ['menu', 'keys.menu'],
+      ];
 
   return (
     <>
@@ -377,9 +387,9 @@ function flightHud(view: FrameView, api: GameApi) {
 
       {/* Five rows that line up with the five bars: power beside shield, hull and energy, the heat readout beside heat. */}
       <div class="hud-block hud-power">
-        <PipRow label={t('hud.pipSys')} value={pips.sys} hint={bindKey('powerShields')} />
-        <PipRow label={t('hud.pipEng')} value={pips.eng} hint={bindKey('powerEngines')} />
-        <PipRow label={t('hud.pipWep')} value={pips.wep} hint={bindKey('powerWeapons')} />
+        <PipRow label={t('hud.pipSys')} value={pips.sys} hint={bindKeyShort('powerShields')} />
+        <PipRow label={t('hud.pipEng')} value={pips.eng} hint={bindKeyShort('powerEngines')} />
+        <PipRow label={t('hud.pipWep')} value={pips.wep} hint={bindKeyShort('powerWeapons')} />
         <div class={`side-row heat-row ${hot ? 'hot' : silent ? 'rising' : ''}`}>
           <span class="num">{fmt(Math.min(heat, 9.99) * 100)} %</span>
           {silent && <span class="silent-tag">{t('hud.silent')}</span>}
@@ -460,7 +470,12 @@ function flightHud(view: FrameView, api: GameApi) {
       {!store.pointerLocked.value && store.device.value !== 'pad' && store.panel.value === null && (
         <button class="capture" onClick={() => api.capturePointer()}>{t('hud.capture')}</button>
       )}
-      <div class="keys">{t(keys, keyParams())}</div>
+      <div class="keys">
+        {landing && <div class="keys-note">{t('keys.landingNote')}</div>}
+        <div class="keys-grid">
+          {keys.map(([action, label]) => <span class="key-item" key={action}><span class="keycap">{bindKeyShort(action)}</span> {t(label)}</span>)}
+        </div>
+      </div>
     </>
   );
 }
