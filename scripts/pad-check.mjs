@@ -83,7 +83,7 @@ async function tap(page, n, ms = 170) {
   await setButton(page, n, false);
   await sleep(120);
 }
-const B = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, View: 8, Menu: 9, Up: 12, Down: 13, Left: 14, Right: 15, Guide: 16 };
+const B = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, View: 8, Menu: 9, L3: 10, R3: 11, Up: 12, Down: 13, Left: 14, Right: 15, Guide: 16 };
 
 const focus = (page) => page.evaluate(() => {
   const e = document.querySelector('.padfocus');
@@ -214,13 +214,34 @@ async function flight(page) {
   check(turning > 0.05, `right stick turns the ship (${turning.toFixed(3)} rad/s)`);
   check(after < Math.max(0.02, turning * 0.1), `the turn has stopped half a second after letting go (${after.toFixed(4)} rad/s afterwards, ${turning.toFixed(3)} while turning)`);
 
+  // Weapons are locked within 4 km of a station in secure space: fly out with stick and boost (L3).
+  await setAxis(page, 1, -1);
+  await setButton(page, B.L3, true);
+  let far = false;
+  try {
+    await waitFor(page, () => Math.hypot(...window.primacy2.game.view.self.state.pos) > 4300, null, 90_000);
+    far = true;
+  } catch { /* reported below */ }
+  await setButton(page, B.L3, false);
+  await setAxis(page, 1, 0);
+  check(far, 'left stick forward and L3 boost carry the ship out of the station weapon lock');
+
   // RT fires.
   await page.evaluate(() => {
     window.__shots = 0;
+    window.__energy = [];
+    window.__kinds = {};
     let last = null;
     const loop = () => {
       const v = window.primacy2.game.view;
-      if (v && v !== last) { last = v; for (const e of v.events) if (e.e === 'shot' && e.from === v.self?.id) window.__shots++; }
+      if (v && v !== last) {
+        last = v;
+        window.__energy.push(v.self?.state.energy ?? 0);
+        for (const e of v.events) {
+          window.__kinds[e.e] = (window.__kinds[e.e] ?? 0) + 1;
+          if (e.e === 'shot' && e.from === v.self?.id) window.__shots++;
+        }
+      }
       requestAnimationFrame(loop);
     };
     loop();
@@ -229,7 +250,8 @@ async function flight(page) {
   await sleep(1200);
   await setButton(page, B.RT, false);
   const shots = await page.evaluate(() => window.__shots);
-  if (shots === 0) console.log('diagnostics', JSON.stringify(await page.evaluate(() => { const v = window.primacy2.game.view; return { stats: Object.keys(v.self.stats), loadout: v.self.stats.weapons ?? null, state: Object.keys(v.self.state), active: window.primacy2.game.input.active(), mode: v.mode }; })));
+  const energy = await page.evaluate(() => ({ lo: Math.min(...window.__energy), hi: Math.max(...window.__energy), kinds: window.__kinds }));
+  console.log('energy', JSON.stringify(energy));
   check(shots > 0, `RT fires the primary weapon (${shots} shot events)`);
 
   // Y + RB changes the camera.

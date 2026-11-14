@@ -253,13 +253,13 @@ export class PadNav {
     const step = stepRepeat(this.repeat, dir, now);
     this.repeat = step.repeat;
     if (!a && !b && !lb && !rb && !step.fire) return;
-
+    // Back and the tab keys do not need to know where the focus is.
+    if (b) return this.back(c, this.current);
+    if (lb || rb) return this.tab(c, rb ? 1 : -1);
     // The first press after the focus was lost only shows where it is; it must not click anything.
     const fresh = !(this.current && focusables(c).includes(this.current));
     const cur = this.resolve(c);
     if (!cur || fresh) return;
-    if (b) return this.back(c, cur);
-    if (lb || rb) return this.tab(c, rb ? 1 : -1);
     if (a) return this.activate(cur);
     if (step.fire && dir) this.move(c, cur, dir, step.repeat.count);
   }
@@ -337,8 +337,8 @@ export class PadNav {
     cur.click();
   }
 
-  private back(c: HTMLElement, cur: HTMLElement): void {
-    if (isTextLike(cur) && document.activeElement === cur) {
+  private back(c: HTMLElement, cur: HTMLElement | null): void {
+    if (cur && isTextLike(cur) && document.activeElement === cur) {
       cur.blur();
       return;
     }
