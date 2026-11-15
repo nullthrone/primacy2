@@ -1,0 +1,1084 @@
+{
+ "dossiers": [
+  {
+   "key": "stable-audio",
+   "candidates": [
+    {
+     "name": "Stable Audio Open 1.0",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-open-1.0"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-tools",
+     "licence_code": "stable-audio-tools: MIT (GitHub API spdx MIT; raw LICENSE first line 'MIT License', https://raw.githubusercontent.com/Stability-AI/stable-audio-tools/main/LICENSE). PyPI stable-audio-tools 0.0.20 pins torch==2.7.1, Python >=3.10,<3.11.",
+     "licence_weights_or_files": "Card metadata (API + local README.md): license: other, license_name: stable-audio-community, license_link: LICENSE. Local LICENSE.md (read in full) first line: 'STABILITY AI COMMUNITY LICENSE AGREEMENT', 'Last Updated: July 5, 2024'. Card and file agree on the name; card prose adds 'For commercial use, please refer to https://stability.ai/license' and 'Commercial License: to use this model commercially, please refer to https://stability.ai/license'. TERMS: Sec.2 free for Research/Non-Commercial. Sec.3 Commercial Purpose (incl. 'creating, modifying, or distributing Your product or service') is licensed ONLY if 'You must register with Stability AI at (https://stability.ai/community-license)'; if You or Affiliates 'generate more than USD $1,000,000 in annual revenue ... any licenses granted to You under this Agreement shall terminate', then 'You must request a license from Stability AI at (https://stability.ai/enterprise), which Stability AI may grant ... in its sole discretion'. Sec.4a on distributing Materials or a product using any portion: give copy of agreement, keep Notice text 'This Stability AI Model is licensed under the Stability AI Community License, Copyright (c) Stability AI Ltd. All Rights Reserved', and 'prominently display \"Powered by Stability AI\"' on related website/UI/about/docs. Sec.4b: use incl. any output must follow the AUP (https://stability.ai/use-policy) and 'will not use the Stability AI Materials or Derivative Works, or any output or results ..., to create or improve any foundational generative AI model'. Sec.4c(iii): 'You own any outputs generated from the Models or Derivative Works to the extent permitted by applicable law.' Sec.5: Derivative Work = modifications, fine-tunes, LoRAs and any model 'based on or derived from the Model or the Model's output', 'but do not include the output of any Model'. Sec.4f: revocable; on termination delete Materials/Derivative Works. Sec.4c(iv): licence ends if You sue Stability over IP. Licence is revocable, not OSI-open; weights cannot be redistributed in the game without the Sec.4a duties. License page https://stability.ai/license read: Community = '<$1M annual revenue', 'Free'; the license page says revenue counts 'regardless of the source of that revenue'.",
+     "gated": "yes - gated: 'auto' in API (form: name, email, country, organisation, intended use, checkbox accepting licence + privacy policy). Agent cannot download. Local cache on the machine already holds README.md and LICENSE.md only (not weights).",
+     "training_data": "Makers state (card): 486,492 recordings, 472,618 from Freesound and 13,874 from Free Music Archive, 'All audio files are licensed under CC0, CC BY, or CC Sampling+'; attribution list at https://info.stability.ai/attributions (repo also holds freesound_dataset_attribution2.csv 50 MB). Music screened with PANNs tagger plus a content-detection company; copyrighted music removed. Paper (arXiv 2407.14358): 7,300 h; most common Freesound tags single-note, synthesizer, field-recording, drum, loop, ambient. T5-base text encoder is public pretrained (not trained by them). CC-BY clips mean attribution duty sits with the maker's dataset, not stated to bind output.",
+     "output_terms": "Sec.4c(iii): 'As between You and Stability AI, You own any outputs ... to the extent permitted by applicable law.' Outputs excluded from 'Derivative Works'. Binding conditions: AUP compliance, no use of outputs to build a new foundational model, registration if the use is commercial, revenue cap USD 1M applies to the licensee (not to the audio per se). Whether 'Powered by Stability AI' must appear when only generated WAVs (not the model) are shipped: not stated explicitly; Sec.4a(iii) is worded for distributing Materials 'or a product or service that uses any portion of them'. Owner/lawyer must decide.",
+     "what_it_makes": "Card: variable length up to 47 s, stereo, 44.1 kHz, text prompts; length set via seconds_total, seed settable (diffusers example uses manual_seed, steps 100-200, cfg 7). Shortest length: not read. Paper limits (arXiv 2407.14358 sec 6.1): struggles with prompts using connectors (and, followed, while, as, then...), cannot generate intelligible speech, music not competitive with state of the art. Card diffusers example prompt is 'The sound of a hammer hitting a wooden surface.'",
+     "params_and_size": "Parameter count: not read from card. HF API files: model.safetensors 4.85 GB (also model.ckpt 4.85 GB duplicate); diffusers layout: transformer 4.23 GB + text_encoder 0.44 GB + vae 0.62 GB; whole repo about 17 GB with duplicates (attribution CSVs 52 MB). VRAM figure: not read (paper appendix B not read). Card says runs with stable-audio-tools or diffusers; paper title text says 'can run on consumer-grade GPUs'.",
+     "weights_format": "safetensors (also .ckpt pickle duplicate, diffusers safetensors shards)",
+     "release_or_last_update": "created 2024-05-24, lastModified 2025-06-19",
+     "needs_trust_remote_code": "No - library_name stable-audio-tools; card examples use stable_audio_tools or diffusers StableAudioPipeline, no trust_remote_code mentioned",
+     "install": "pip stable-audio-tools 0.0.20: Python >=3.10,<3.11, torch==2.7.1, torchaudio==2.7.1, pinned old deps (PyWavelets==1.4.1, sentencepiece==0.1.99, importlib-resources==5.12.0, v-diffusion-pytorch, alias-free-torch). Windows support: not stated in what I read. Alternative: diffusers StableAudioPipeline (card).",
+     "quality_notes": "Makers: paper abstract says FDopenl3 results 'showcase its potential for high-quality stereo sound synthesis at 44.1kHz' and performance 'competitive with the state-of-the-art'. Independent users on short hard hits/low end: not read. Newer Stability model Stable Audio 3 small-sfx is the successor and was trained on more data (see its entry).",
+     "verdict": "unclear",
+     "verdict_reasons": "Licence is NOT free use: commercial use needs registration at stability.ai/community-license and ends at USD 1,000,000 annual revenue (any source, incl. affiliates), then enterprise licence at Stability's sole discretion; attribution notice and 'Powered by Stability AI' duties; AUP; repository gated (form + acceptance). Owner must decide. Technically fits 16 GB. Superseded by SA3 small-sfx for sound effects."
+    },
+    {
+     "name": "Stable Audio Open Small",
+     "kind": "text-to-audio model (fast, adversarially post-trained variant of Stable Audio Open)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-open-small"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-tools (MIT, see Open 1.0 entry)",
+     "licence_code": "MIT for stable-audio-tools (GitHub API; raw LICENSE first line 'MIT License').",
+     "licence_weights_or_files": "Card metadata via API: license: other, license_name: stability-ai-community, license_link: LICENSE; tags 'license:other'. The LICENSE file text and README.md were NOT readable (raw/main returned 'Access to model stabilityai/stable-audio-open-small is restricted ... Please log in'). File list shows LICENSE of 11,852 bytes, the same byte size as the Open 1.0 LICENSE.md and as the LICENSE.md in the SA3 repos, and the gate prompt links to the same Community License; but file text for this repo itself was not read, so it is not verified identical. If identical: same terms as quoted in the Open 1.0 entry (registration for commercial use, USD 1,000,000 revenue cap, attribution and 'Powered by Stability AI', AUP, no foundational-model training from outputs).",
+     "gated": "yes - gated: 'auto' (same form as 1.0: name, email, country, organisation, intended use, checkbox). Agent cannot download or read README/LICENSE.",
+     "training_data": "not read for this repo (README gated). Paper arXiv 2505.08175 abstract (read): adversarial post-training 'with a number of optimizations to Stable Audio Open'; dataset statement not read.",
+     "output_terms": "not read (licence text gated); presumably same Community License if identical - not verified.",
+     "what_it_makes": "Not read from card. arXiv 2505.08175 abstract: about 12 s of 44.1 kHz stereo audio in about 75 ms on an H100, about 7 s on a mobile edge device. Seed/length controls: not read.",
+     "params_and_size": "HF API: model.safetensors 1.68 GB (model.ckpt 1.68 GB, base_model.ckpt 1.68 GB); tflite-arm-path files about 1.4 GB. Parameter count not read. VRAM: not read.",
+     "weights_format": "safetensors plus ckpt (pickle) plus tflite",
+     "release_or_last_update": "created 2025-05-12, lastModified 2026-11-05",
+     "needs_trust_remote_code": "not read (README gated); library_name stable-audio-tools",
+     "install": "stable-audio-tools (pip 0.0.20, Python 3.10 only, torch 2.7.1). Windows: not read.",
+     "quality_notes": "Not read beyond the arXiv abstract (speed claim: 'the fastest text-to-audio model to our knowledge'). Independent notes on hard hits/low end: not read.",
+     "verdict": "unclear",
+     "verdict_reasons": "Gated (login/form), licence file not readable, and the licence it points to carries registration plus USD 1,000,000 revenue cap if same as Open 1.0. Owner must decide; would need an account to verify the text."
+    },
+    {
+     "name": "Stable Audio 3 Small-SFX (post-trained, fast, 50-step-free)",
+     "kind": "text-to-audio model, sound effects only (newer Stability model, successor of Open)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-3-small-sfx"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-3",
+     "licence_code": "MIT (GitHub API spdx MIT; raw LICENSE first line 'MIT License', 'Copyright (c) 2026 Stability AI', https://raw.githubusercontent.com/Stability-AI/stable-audio-3/main/LICENSE). pyproject: name stable-audio-3 0.1.0, Python >=3.10, torch==2.7.1, torchaudio==2.7.1, transformers>=5.8.0, uv-based install; PyPI package 'stable-audio-3' does not exist (404). README optional extras: ui (gradio 6.3.0), lora.",
+     "licence_weights_or_files": "Card metadata via API: license: other, license_name: stable-audio-community, license_link: LICENSE.md. Repo has LICENSE.md 11,852 bytes (same size as 1.0); the identical file in the ungated sibling small-sfx-base was diffed byte-for-byte equal to the Open 1.0 LICENSE.md, first line 'STABILITY AI COMMUNITY LICENSE AGREEMENT' (https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base/raw/main/LICENSE.md). This repo's own LICENSE.md and README were NOT readable (gated). Gate text adds a second layer: 'This model also includes components redistributed under the Gemma Terms of Use. By proceeding, you agree to those terms as well, including the use restrictions in Section 3.2.' LICENSE_GEMMA.md (read at sibling, Last modified April 1, 2026) Sec.3.1: redistributing Gemma or Model Derivatives needs the Sec.3.2 use restrictions as an enforceable provision in any governing agreement, copy of the agreement to recipients, modification notices, and a Notice file with 'Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms'; Sec.3.2 bans uses in the Gemma Prohibited Use Policy; Sec.3.3 'Google claims no rights in Outputs'; Gemma Terms are Google's custom licence, not OSI-open. The text encoder is t5gemma-b-b-ul2 (1.18 GB) bundled in the repo. Community License terms, if identical: registration for commercial use at stability.ai/community-license, licences terminate above USD 1,000,000 annual revenue (any source, incl. affiliates) -> enterprise licence at Stability's sole discretion, attribution Notice + 'Powered by Stability AI', AUP, no foundational-model training with outputs (quotes in Open 1.0 entry). Current https://stability.ai/license (read) lists 'Stable Audio 3.0' under the Community licence ('less than $1M in annual revenue', 'Free'), and the AUP page (https://stability.ai/use-policy) shows 'Effective: September 30, 2026'.",
+     "gated": "yes - gated: 'auto' in API (accept licence and Gemma terms). Agent cannot download. The non-gated base sibling exists (see next entry).",
+     "training_data": "Makers (arXiv 2605.17991, read via HTML; sibling card): 1,278,902 recordings: 806,284 licensed from AudioSparx and 472,618 from Freesound (266,324 CC-0, 194,840 CC-BY, 11,454 CC-Sampling+). Paper: all small models are first pre-trained on the AudioSparx + Freesound mix; for the final stage of pre-training, distillation warmup and post-training, small-sfx uses 'a higher-quality subset of Freesound' (small-music uses AudioSparx). AudioSparx licensing terms toward model users: not stated in what I read. Music screened with PANNs + content-detection company. Realism comes from licensed commercial SFX library (AudioSparx, in pre-training) plus Freesound field/foley recordings.",
+     "output_terms": "Same Community License Sec.4c(iii) if identical: 'You own any outputs ... to the extent permitted by applicable law'; Gemma Sec.3.3: Google claims no rights in Outputs. Conditions that still bind: AUP, no use of outputs to build a foundational model, registration for commercial use, revenue cap for the licensee. Not verified for this repo (file gated).",
+     "what_it_makes": "Sound effects only; stereo 44.1 kHz; max length 120 s (README table); variable-length generation, so short hits are not padded; text-to-audio, audio-to-audio editing and inpainting/continuation (e.g. 'transient editing in percussive sounds'); duration and cfg_scale/steps set in API; seed: not read. Paper recommends prefix 'TrackType: SFX,' in prompts for the Stable Audio 2.5/3 variants. Example prompt in sibling card: 'chugging train coming into station with horn', duration 7.",
+     "params_and_size": "README table: 433M (paper Table 1 says 459M DiT params) diffusion transformer, SAME-Small autoencoder 108M. HF API: model.safetensors 2.27 GB + t5gemma-b-b-ul2 1.18 GB + small files = 3.49 GB total. README performance table: peak VRAM 1.69 GB (5 s), 1.89 GB (30 s), 2.40 GB (120 s) on an H200; 'CPU' listed as hardware; 0.41-0.46 s per 5-30 s clip on an H200; Mac CPU 0.70 s (5 s). RTX 5080 speed: not read.",
+     "weights_format": "safetensors (model.safetensors) + model_config.json; ungated optimized repo also gives onnx, tflite, tensorRT sm_120 (Blackwell, RTX 50-series) engines",
+     "release_or_last_update": "created 2026-05-17, lastModified 2026-10-06",
+     "needs_trust_remote_code": "No mention in the sibling card; loads via stable_audio_3.StableAudioModel.from_pretrained('small-sfx') or stable_audio_tools get_pretrained_model",
+     "install": "git repo, uv sync; Python >=3.10; torch 2.7.1 (default index cu126 only on linux-x86_64; README says other CUDA variants cu118/cu126/cu128 by manual torch install first). Windows: README lists Windows only for the TFLite CPU path via PowerShell bootstrap (irm ... bootstrap.ps1 | iex); Windows for the CUDA path not stated. RTX 5080 (Blackwell) needs a torch build with sm_120 - torch 2.7.1 cu128 builds: not verified. Small model does not need Flash Attention (README says only Medium does).",
+     "quality_notes": "Makers (paper 2605.17991): sound-effects data isolated in small-sfx 'to mitigate interference and obtain improved perceptual quality'; adversarial post-training 'improve generation quality'. Paper SFX benchmark numbers and independent user reports on impacts/low end: not read. Makers' own limits list for SA3: not read.",
+     "verdict": "unclear",
+     "verdict_reasons": "Gated (form + acceptance, also Gemma terms with Google's use restrictions to be passed on); Community License needs registration for commercial use and ends at USD 1,000,000 annual revenue; owner must decide. Weights are the best-fit candidate for hits/machinery if he accepts the licence."
+    },
+    {
+     "name": "Stable Audio 3 Small-SFX Base (pre-trained, for fine-tuning)",
+     "kind": "text-to-audio model, sound effects (pre-post-training base checkpoint, readable without login)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-3 (MIT)",
+     "licence_code": "MIT, first line 'MIT License', https://raw.githubusercontent.com/Stability-AI/stable-audio-3/main/LICENSE",
+     "licence_weights_or_files": "Card metadata: license: other, license_name: stable-audio-community, license_link: LICENSE.md. LICENSE.md first line 'STABILITY AI COMMUNITY LICENSE AGREEMENT' (https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base/raw/main/LICENSE.md), byte-identical to the local Open 1.0 LICENSE.md I read in full (terms quoted in that entry: registration at stability.ai/community-license for commercial use; licences terminate above USD 1,000,000 annual revenue incl. Affiliates, regardless of source, then enterprise licence at Stability's sole discretion; Notice + 'Powered by Stability AI'; AUP; outputs owned by user; no foundational-model training with outputs; fine-tunes and LoRAs count as Derivative Works under the same licence). Card agrees with file but its prose says 'License: Stability AI Community License (https://stability.ai/license)' and 'For commercial use, please refer to https://stability.ai/license'. Card adds: T5Gemma 'is redistributed under the Gemma Terms of Use (LICENSE_GEMMA.md)'; NOTICE file reads 'Gemma is provided under and subject to the Gemma Terms of Use found at ai.google.dev/gemma/terms'. Gemma Terms Sec.3.1/3.2/3.3 as in previous entry.",
+     "gated": "no - API gated: false; README, LICENSE.md, NOTICE readable without login (acceptance of terms is still implied by use; registration duty remains).",
+     "training_data": "Card: 1,278,902 recordings, 806,284 licensed from AudioSparx and 472,618 from Freesound (CC-0, CC-BY, CC-Sampling+: 266,324 / 194,840 / 11,454); music screened with PANNs tagger and a content-detection company, flagged copyrighted content removed; Freesound list same as Stable Audio Open: https://info.stability.ai/attributions. AudioSparx licence scope toward downstream users: not stated.",
+     "output_terms": "As Community License Sec.4c(iii) 'You own any outputs ... to the extent permitted by applicable law' (outputs excluded from Derivative Works); AUP; no output use to build foundational models; Gemma Sec.3.3 'Google claims no rights in Outputs'. 'Powered by Stability AI' duty when shipping a product that 'uses any portion of' the Materials: whether it applies to bundled WAV outputs not stated.",
+     "what_it_makes": "Sound effects (card tag sound-effects); stereo 44.1 kHz; variable length up to 120 s (small family); text-to-audio, audio editing, inpainting; example uses generate_diffusion_cond_inpaint, 50 steps, cfg 7.0, sampler euler, prompt 'chugging train coming into station with horn', seconds_total 7. Card note: 'This is the base (pre-trained) model intended for fine-tuning'; post-trained sibling is the one for direct generation. Seed: not read.",
+     "params_and_size": "HF API: model.safetensors 2.27 GB, svd_bases.pt 1.27 GB, t5gemma 1.18 GB; total 4.76 GB. Params 433M DiT per README table (same family). VRAM about 1.7-2.4 GB per README table (small, H200, probably post-trained model; base-specific figure not read). Base model needs more steps (card example uses 50).",
+     "weights_format": "safetensors + svd_bases.pt (pickle .pt file) + tokenizer files",
+     "release_or_last_update": "created 2026-05-17, lastModified 2026-10-06",
+     "needs_trust_remote_code": "No mention in card; loaded by stable_audio_3 library or stable_audio_tools",
+     "install": "as the Small-SFX entry (uv sync, torch 2.7.1; Windows CUDA path not stated; sm_120 build not verified)",
+     "quality_notes": "Makers: base is pre-trained only, no adversarial post-training; they send users to small-sfx for direct generation. Quality of base on hits: not read.",
+     "verdict": "unclear",
+     "verdict_reasons": "Not gated and readable, but licence is the Community License: registration for commercial use, USD 1,000,000 revenue cap, attribution duties, plus Gemma Terms for the bundled T5Gemma encoder. Owner must decide. If accepted, this is the only SA3 SFX checkpoint an agent can fetch without login."
+    },
+    {
+     "name": "Stable Audio 3 Medium",
+     "kind": "text-to-audio model, music and sound effects in one model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-3-medium",
+      "https://huggingface.co/stabilityai/stable-audio-3-medium-base"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-3 (MIT)",
+     "licence_code": "MIT, first line 'MIT License' (raw LICENSE of repo).",
+     "licence_weights_or_files": "Card metadata (API): license: other, license_name: stable-audio-community, license_link: LICENSE.md. LICENSE.md 11,852 bytes (same size as the one I read; its own text not readable, gated). Same gate text with Gemma Terms Sec.3.2 acceptance. Same Community License terms if identical (registration, USD 1,000,000 cap, Powered by Stability AI, AUP).",
+     "gated": "yes - gated: 'auto' for stable-audio-3-medium (medium-base not checked).",
+     "training_data": "Makers (paper 2605.17991): medium and large trained on AudioSparx licensed audio (806,284 files: music, instruments, sound effects) plus Creative Commons Freesound recordings; medium handles music and SFX in a single model.",
+     "output_terms": "not read for this repo (gated); same Community License Sec.4c(iii) if identical.",
+     "what_it_makes": "Music and sound effects, stereo 44.1 kHz, up to 380 s (README table); paper Table 1 says 6 m 20 s. Use prefix 'TrackType: SFX,' for effects (paper). Seed/length: via API, not read in detail.",
+     "params_and_size": "1.4B DiT (README). HF API: model.safetensors 9.22 GB + t5gemma 1.18 GB, total 10.45 GB. README peak VRAM 5.07 GB (5 s) to 6.52 GB (380 s) on H200: fits 16 GB. Medium requires Flash Attention 2 (README); Windows wheel availability: not read (README example uses a Linux wheel).",
+     "weights_format": "safetensors",
+     "release_or_last_update": "created 2026-05-17, lastModified 2026-10-06",
+     "needs_trust_remote_code": "not read",
+     "install": "stable-audio-3 repo, uv sync + Flash Attention 2 (pre-built wheels listed for Linux only in README example); Windows: not stated",
+     "quality_notes": "Makers: GPU model; 'High Quality, Fast Inference'. Paper claims medium covers both domains in one model. SFX-specific benchmark and independent opinions on hard hits: not read.",
+     "verdict": "unclear",
+     "verdict_reasons": "Gated and Community License with registration and USD 1,000,000 revenue cap; plus Windows Flash Attention 2 requirement unverified. Owner must decide."
+    },
+    {
+     "name": "Stable Audio 3 Optimized (ONNX, TensorRT sm_120, TFLite, CPU builds)",
+     "kind": "deployment builds of the Stable Audio 3 small-music, small-sfx and medium models",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-3-optimized"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-3 (MIT; optimized/ folder with tflite bootstrap.ps1)",
+     "licence_code": "MIT (repo LICENSE)",
+     "licence_weights_or_files": "Card metadata: license: other, license_name: stable-audio-community, license_link: LICENSE.md. Repo contains LICENSE.md 11,852 bytes, LICENSE_GEMMA.md, NOTICE. Text of this repo's own LICENSE.md not read; same name and size as the verified sibling, so presumably the Community License (registration, USD 1,000,000 cap).",
+     "gated": "no - API gated: false (can be listed and downloaded without login)",
+     "training_data": "Same models as above (SA3 small-sfx: AudioSparx + Freesound mix, final stages Freesound subset). Makers' statement for this repo: not read.",
+     "output_terms": "not read for this repo; same Community License if identical.",
+     "what_it_makes": "Same as SA3 small-sfx (sa3-sm-sfx) and medium (sa3-m) models, in faster formats",
+     "params_and_size": "Whole repo 154.9 GB across many formats. Relevant to RTX 5080: tensorRT/sm_120/sa3-sm-sfx/dit_fp16.trt 0.92 GB and dit_fp32.trt 1.84 GB; sm_120 same-s decoders (legacy folder only); t5gemma_fp16.trt 0.62 GB; ONNX sa3-sm-sfx dit_fp16.onnx 0.92 GB. Note: no sm_120 same-s decoder outside legacy/ in the listing. Windows support for TensorRT engines: not read.",
+     "weights_format": "ONNX, TensorRT engines (.trt), TFLite, MLX npz, CPU .so/.bin (no pickle in listing beyond .npz)",
+     "release_or_last_update": "created 2026-05-18, lastModified 2026-10-30",
+     "needs_trust_remote_code": "not read",
+     "install": "tensorRT/README.md and tflite/README.md not read; TFLite bootstrap for Windows exists per main README",
+     "quality_notes": "not read",
+     "verdict": "unclear",
+     "verdict_reasons": "Ungated but the weights are the same Stability models under the Community License (registration, USD 1,000,000 cap) plus Gemma terms; own licence file not read. Owner must decide; settles only the packaging, not the licence question."
+    }
+   ],
+   "could_not_read": "stabilityai/stable-audio-open-small: README.md and LICENSE (login required, 'Access to model ... is restricted'). stabilityai/stable-audio-3-small-sfx, stable-audio-3-medium: README.md, LICENSE.md, NOTICE (gated, login required); only API metadata and file lists read. stabilityai/stable-audio-3-medium-base and stable-audio-3-small-music(-base): not opened. stabilityai/stable-audio-3-small: API error 'Invalid username or password' (repo does not exist by that name; the small models are small-music and small-sfx). Online copy of Open 1.0 LICENSE.md (gated; the local cache copy was read instead). stable-audio-3-optimized: its own README.md, LICENSE.md, tensorRT/README.md, tflite/README.md (not opened). Open 1.0 and SA3 card text on VRAM, parameter counts and minimum length (not stated in card/not opened); arXiv Stable Audio Open appendix B (VRAM) not read; SA3 paper SFX benchmark tables and its limitations section not extracted. Gemma Prohibited Use Policy (ai.google.dev/gemma/prohibited_use_policy) not opened. Full text of the Stability AUP (https://stability.ai/use-policy, effective September 30, 2026) read only the first 3,500 characters. https://info.stability.ai/attributions not opened. AudioSparx licence terms toward downstream users of trained models: not found. Independent user opinions on short hard hits and low end for any of these models: not read. PyPI 'stable-audio-3' package: 404 (not published). torch 2.7.1 compatibility with RTX 5080 (sm_120) and Windows CUDA install of the SA3 repo: not verified.\"",
+   "newer_or_missed": "Stability AI Stable Audio 3 family (created 2026-05-17, updated 2026-10-06): small-sfx and small-sfx-base (sound effects only, 433-459M DiT, about 2 GB weights, VRAM about 2 GB), small-music(-base), medium(-base) (1.4B, 10 GB). Large (2.7B) is API only, no weights. Ungated: small-sfx-base, stable-audio-3-optimized, SAME-S and SAME-L autoencoder repos (gate status of SAME not checked). Stable Audio 3 Optimized offers sm_120 TensorRT engines for RTX 50-series. Newest Stability audio items by lastModified: stable-audio-open-small (2026-11-05), stable-audio-3-optimized (2026-10-30), SAME-L/SAME-S (2026-10-06)."
+  },
+  {
+   "key": "moss-and-lm-based",
+   "candidates": [
+    {
+     "name": "MOSS-SoundEffect-v2.0 (OpenMOSS-Team, 1.3B DiT + flow matching)",
+     "kind": "text-to-audio model (text only, no video needed)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0"
+     ],
+     "code_repo_url": "https://github.com/OpenMOSS/MOSS-TTS (subfolder moss_soundeffect_v2)",
+     "licence_code": "Apache-2.0. GitHub API for OpenMOSS/MOSS-TTS gives apache-2.0; first line of https://raw.githubusercontent.com/OpenMOSS/MOSS-TTS/main/LICENSE is 'Apache License' (Version 2.0, January 2004). The moss_soundeffect_v2/pyproject.toml also says Apache-2.0. A separate LICENSE file inside moss_soundeffect_v2 gives 404.",
+     "licence_weights_or_files": "Card metadata (https://huggingface.co/api/models/OpenMOSS-Team/MOSS-SoundEffect-v2.0): license:apache-2.0. Card text states no extra terms. The HF repo has no LICENSE file (file list read), so there is no LICENSE first line to quote there. Main README (https://raw.githubusercontent.com/OpenMOSS/MOSS-TTS/main/README.md, section LICENSE) says: 'Models in MOSS-TTS Family are licensed under the Apache License 2.0.' Base text encoder Qwen/Qwen3-1.7B: license apache-2.0, not gated (API). VAE is a DAC (vae/config.json, 48 kHz, 128-dim), its own licence not stated in the repo; code dependency descript-audiotools==0.7.2 (licence not read). Card and GitHub agree; no non-commercial wording found.",
+     "gated": "no (gated=False in HF API)",
+     "training_data": "not stated. The v2 card and GitHub README do not name training data or its licences; they say only 'trained with both English and Chinese captions'. Sibling MOSS-Audio-Tokenizer card (v1 backbone, not v2): 'Trained on 3 million hours of diverse audio data' (speech, sound effects, music), sources not named.",
+     "output_terms": "not stated in the card or README; only the Apache-2.0 licence on the model applies. Nothing found on output ownership, attribution or restrictions.",
+     "what_it_makes": "Environmental, urban, creature, human-action sound effects and short musical/percussive clips from English or Chinese text prompts; 48 kHz; up to 30 s per call; duration set by 'seconds' (default 10); channel count not stated ((B, C, T) tensor); default 100 solver steps, cfg_scale 4.0, sigma_shift 5.0; seed not documented in what I read. Card names no mechanical or sci-fi categories.",
+     "params_and_size": "1.3B DiT (stated) plus Qwen3-1.7B text encoder plus DAC VAE. Files from HF API: 11.23 GB total (transformer 5.66, text_encoder 4.06, vae 1.49). Fits 16 GB in bf16 by size; no VRAM figure stated by makers (not read).",
+     "weights_format": "safetensors (transformer, text encoder) and a .pth VAE (vae_128d_48k.pth, 'Full model object, not a pure state_dict', per vae/config.json). The .pth is a pickle-style file.",
+     "verdict": "unclear",
+     "verdict_reasons": "Licence for code and weights is Apache-2.0, not gated, size fits 16 GB. Open points: (1) training data and its licences are not disclosed, so the owner must decide whether that is acceptable for shipping outputs; (2) no output terms stated; (3) the VAE is a .pth pickle file and DAC licence not read; (4) Windows: GitHub issue https://github.com/OpenMOSS/MOSS-TTS/issues/197 (open) reports a triton error on native Windows; the README says set TORCHDYNAMO_DISABLE=1 on Triton/TorchDynamo errors, scripts already do; run on Windows not confirmed; pyproject requires Python >=3.12, torch 2.9.0+cu128, numpy 1.26.4, transformers 4.57.1, diffusers 0.37.1. Whether it sounds good on hard impacts and machinery: no independent report read.",
+     "needs_trust_remote_code": "No for v2 (diffusers-style pipeline MossSoundEffectPipeline from the GitHub package; tag diffusers:MossSoundEffectPipeline). Needs cloning the GitHub repo.",
+     "install": "Clone OpenMOSS/MOSS-TTS, pip install -e \".[torch-cu128]\" inside moss_soundeffect_v2, in a separate env (README: not compatible with top-level MOSS-TTS env). Python >=3.12. Windows: not confirmed (see issue 197). Heavy: torch 2.9 cu128, gradio 6.11.0, torch.compile with Triton CUDA Graph (first call 'may take a few minutes').",
+     "hardware": "No VRAM or speed figure stated by makers (not read). Files total 11.23 GB, so weights fit 16 GB; RTX 5080 Blackwell with cu128 wheels not confirmed by me. CPU use not documented.",
+     "release_or_last_update": "HF lastModified 2026-05-26; GitHub repo pushed 2026-09-06",
+     "quality_notes": "Makers claim 'higher audio fidelity and more natural long-form environmental sound' than v1 (https://github.com/OpenMOSS/MOSS-TTS/blob/main/moss_soundeffect_v2/README.md). No independent listening reports, benchmarks or statements on short hard impacts or low-end found in what I read (not read)."
+    },
+    {
+     "name": "MOSS-SoundEffect v1 (OpenMOSS-Team, 8B MossTTSDelay)",
+     "kind": "text-to-audio model (autoregressive RVQ tokens)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect"
+     ],
+     "code_repo_url": "https://github.com/OpenMOSS/MOSS-TTS",
+     "licence_code": "Apache-2.0; first line of https://raw.githubusercontent.com/OpenMOSS/MOSS-TTS/main/LICENSE: 'Apache License' (Version 2.0, January 2004)",
+     "licence_weights_or_files": "Card metadata license:apache-2.0 (https://huggingface.co/api/models/OpenMOSS-Team/MOSS-SoundEffect). No LICENSE file in the HF repo. MOSS-TTS README LICENSE section: 'Models in MOSS-TTS Family are licensed under the Apache License 2.0.' Audio tokenizer OpenMOSS-Team/MOSS-Audio-Tokenizer: apache-2.0 (its card contains a leftover comment 'TODO: check and add license' above the Apache line). No extra terms. Metadata and text agree.",
+     "gated": "no",
+     "training_data": "not stated for the sound-effect model. Audio tokenizer card says trained on 3 million hours of speech, sound effects and music, sources not named.",
+     "output_terms": "not stated",
+     "what_it_makes": "Ambience and sound effects from text; v1 control is token count (1 s ≈ 12.5 tokens, max_new_tokens 4096 in example, so about 5.5 min cap in example); sample rate not read; recommended sampling temperature 1.5, top_p 0.6, top_k 50, repetition penalty 1.2.",
+     "params_and_size": "8B (stated); 16.73 GB on disk (4 safetensors shards, HF API) plus audio tokenizer",
+     "weights_format": "safetensors",
+     "verdict": "fail",
+     "verdict_reasons": "Rule 3: 16.73 GB of bf16 weights do not fit a 16 GB card with activations. GitHub issue 200 (https://github.com/OpenMOSS/MOSS-TTS/issues/200) measures the same 8B MossTTSDelay class at about 15.5 GB and out-of-memory on a 16 GB card (that report is on MOSS-TTS, not on the sound model). No quantised sound-effect build found (the GGUF repo is MOSS-TTS speech). Superseded by v2.0 by the same makers.",
+     "needs_trust_remote_code": "yes, tag custom_code (modeling_moss_tts.py in repo)",
+     "install": "Transformers 5.0.0, torch==2.9.1+cu128 pinned, Python 3.12, optional FlashAttention 2; Windows run reported failing on triton (issue 197)",
+     "hardware": "too large for 16 GB in bf16 (see reasons)",
+     "release_or_last_update": "HF lastModified 2026-03-13",
+     "quality_notes": "not read; makers say v2 targets higher fidelity than v1"
+    },
+    {
+     "name": "ThinkSound (FunAudioLLM, video/text/audio to audio)",
+     "kind": "video-to-audio model that also takes text; not text-only per card",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/FunAudioLLM/ThinkSound"
+     ],
+     "code_repo_url": "https://github.com/FunAudioLLM/ThinkSound",
+     "licence_code": "Apache-2.0 on paper, but the README (https://raw.githubusercontent.com/FunAudioLLM/ThinkSound/master/README.md) says: 'The code, models, and dataset are for research and educational purposes only. Commercial use is NOT permitted.' It also says the repo contains a fine-tuned VAE from Stable Audio Open under the Stability AI Community License: 'Commercial use and redistribution require prior permission from Stability AI.'",
+     "licence_weights_or_files": "HF card metadata license:apache-2.0; HF LICENSE.md first line is blank, then 'Apache License' (Version 2.0). The GitHub README adds the research-only, no-commercial-use term and the Stability AI term, which contradicts the tag.",
+     "gated": "no",
+     "training_data": "AudioCoT dataset (card and README); its source licences not read.",
+     "output_terms": "not stated beyond the no-commercial-use sentence",
+     "what_it_makes": "foley and sound from video, text or audio; length and format not read",
+     "params_and_size": "thinksound.ckpt 21.06 GB, thinksound_light.ckpt 5.73 GB, vae.ckpt 2.52 GB, synchformer 0.95 GB; 30.27 GB total",
+     "weights_format": ".ckpt (pickle) and .pth",
+     "verdict": "fail",
+     "verdict_reasons": "Rule 1: README forbids commercial use and the VAE needs Stability AI permission for redistribution.",
+     "needs_trust_remote_code": "not applicable (code repo with .ckpt files)",
+     "install": "Windows .bat scripts exist per README",
+     "hardware": "not read",
+     "release_or_last_update": "HF lastModified 2025-07-17",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "PrismAudio (FunAudioLLM, video-to-audio, text-to-audio tag)",
+     "kind": "video-to-audio model (needs video features), pipeline tag text-to-audio",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/FunAudioLLM/PrismAudio"
+     ],
+     "code_repo_url": "https://github.com/FunAudioLLM/ThinkSound/tree/prismaudio",
+     "licence_code": "Card says 'This project is released under the MIT License.' Repo licence file not read.",
+     "licence_weights_or_files": "Card metadata license:mit. Card text adds: 'The code, model weights, and datasets are intended for research and educational purposes only. Commercial use is not permitted without explicit authorization from the authors.' Tag and prose disagree. No LICENSE file in the HF repo (file list read).",
+     "gated": "no",
+     "training_data": "not stated in the card",
+     "output_terms": "not stated beyond the no-commercial-use sentence",
+     "what_it_makes": "audio for video; base models google/videoprism-large-f8r288 and google/t5gemma-l-l-ul2-it (their licences not read)",
+     "params_and_size": "6.17 GB (prismaudio.ckpt 2.7, vae.ckpt 2.52, synchformer 0.95)",
+     "weights_format": ".ckpt / .pth (pickle)",
+     "verdict": "fail",
+     "verdict_reasons": "Rule 1: card prose states research and education only, commercial use not permitted.",
+     "needs_trust_remote_code": "not applicable",
+     "install": "conda Python 3.10 plus a build script (Linux style); Windows not read",
+     "hardware": "not read",
+     "release_or_last_update": "HF lastModified 2026-05-31",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "OmniVAE T2AV (OpenMOSS-Team, joint text-to-audio-and-video)",
+     "kind": "text-to-audio+video generator (joint); no audio-only generation checkpoint in the public bundle ('T2AV-only')",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/OpenMOSS-Team/OmniVAE"
+     ],
+     "code_repo_url": "https://github.com/OpenMOSS/OmniVAE",
+     "licence_code": "Apache-2.0; first line of https://raw.githubusercontent.com/OpenMOSS/OmniVAE/main/LICENSE: 'Apache License' (Version 2.0)",
+     "licence_weights_or_files": "Card metadata license:apache-2.0. Card text: 'Some metric packages and third-party components retain their original licenses'; bundle includes third-party weights (Qwen3.5-0.8B-Base text encoder, imagebind, CLAP, etc.), their licences not read.",
+     "gated": "no",
+     "training_data": "not stated in the card (not read in the paper arxiv 2607.23855)",
+     "output_terms": "not stated",
+     "what_it_makes": "video with synchronised audio from text; sample rate and length not read",
+     "params_and_size": "95.57 GB repo; each generation package has a 4.07 GB audio DiT plus 4.06 GB video DiT plus 2.27 GB bridges; audio VAE 1.49 GB",
+     "weights_format": "safetensors and .pt",
+     "verdict": "unclear",
+     "verdict_reasons": "Built for joint audio-video; no audio-only text-to-sound path read; 16 GB fit, speed, Windows and training-data licences not read. Not a practical sound-effect tool as released.",
+     "needs_trust_remote_code": "not read",
+     "install": "GitHub code plus OMNIVAE_RELEASE_ROOT; details not read",
+     "hardware": "not read",
+     "release_or_last_update": "HF lastModified 2026-10-24; GitHub pushed 2026-11-15",
+     "quality_notes": "not read"
+    }
+   ],
+   "could_not_read": "Not found or not read: any LICENSE file inside the HF repo of MOSS-SoundEffect-v2.0 and MOSS-SoundEffect (none exists); moss_soundeffect_v2/LICENSE (404); training data statement for MOSS-SoundEffect v1 and v2 (none in card or README; GitHub docs/moss_sound_effect_model_card.md had no data section); makers' VRAM or speed figures for v2; independent quality reviews of MOSS-SoundEffect v2 on hard impacts and machinery (none read); DAC VAE and descript-audiotools licences; OmniVAE paper and third-party weight licences; PrismAudio repo LICENSE and base-model licences; ThinkSound hardware needs. Checked and found no sound-effect or non-speech audio generator: Qwen (only Qwen3-TTS speech, Qwen3-ASR), Kyutai (speech, translation, Moshi), Zyphra (ZONOS speech TTS, ZAC-1 speech codec), inclusionAI Ming-3.0-audio-flash/tiny (MIT; audio understanding and speech output only), Ming-UniAudio (speech editing), FunAudioLLM CosyVoice/Fun-ASR (speech). Their model cards were only partly read (Ming-3.0 card first 5000 characters, Ming-UniAudio by keyword search)."
+  },
+  {
+   "key": "tango-audioldm",
+   "candidates": [
+    {
+     "name": "TangoFlux",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/declare-lab/TangoFlux",
+      "https://huggingface.co/declare-lab/TangoFlux-base (listed, not read)"
+     ],
+     "code_repo_url": "https://github.com/declare-lab/TangoFlux",
+     "licence_code": "GitHub API: NOASSERTION (key 'other'). LICENSE.md (https://raw.githubusercontent.com/declare-lab/TangoFlux/main/LICENSE.md) first line: '# LICENSE', then 'This repository contains TangoFlux ... created for non-commercial, research-only purposes under the UK data copyright exemption'. Only the first ~20 lines were read; the Stability AI revenue/registration numbers were not read.",
+     "licence_weights_or_files": "HF card metadata has NO license tag (cardData: datasets WavCaps, CRPO; pipeline text-to-audio). Card prose (https://huggingface.co/declare-lab/TangoFlux/raw/main/README.md): 'The TangoFlux checkpoints are for non-commercial research use only', subject to Stable Audio Open's licence (Stability AI Community License), WavCaps licence and the original licences of each training dataset. LICENSE.md: 'only academic uses are permitted for data sourced from WavCaps'; 'Any commercial usage requires registering with Stability AI or obtaining a separate commercial license'. Card metadata and prose disagree (no tag vs. non-commercial).",
+     "gated": "no (gated=False)",
+     "training_data": "WavCaps (academic-only per LICENSE.md) plus datasets in cvssp/WavCaps and declare-lab/CRPO (synthetic preference data); card says each original dataset licence also applies. The UK data copyright exemption is cited as the basis.",
+     "output_terms": "Not stated separately; the non-commercial research-only restriction on the checkpoints is stated, so generated audio inherits that uncertainty. Not read further.",
+     "what_it_makes": "Sound effects/general audio, 44.1 kHz, up to 30 s, duration is a parameter, 25 steps default (50 recommended). Mono/stereo not read.",
+     "params_and_size": "Parameter count not read in the files I used. Files: tangoflux.safetensors 3.44 GB + vae.safetensors 0.62 GB = 4.06 GB total (HF API).",
+     "weights_format": "safetensors",
+     "needs_trust_remote_code": "not read",
+     "install": "pip install git+https://github.com/declare-lab/TangoFlux (card). PyPI 'tangoflux' 0.1.0 exists, requires_python not stated. Windows support not read.",
+     "hardware": "VRAM not stated in what I read; 4 GB of weights makes 16 GB likely sufficient, not confirmed. Card title claims 'Super Fast'; no seconds figure read.",
+     "release_or_last_update": "Created 2024-12-24, weights lastModified 2025-05-07; code repo last push 2026-01-28.",
+     "quality_notes": "Not read from independent users. Makers (card) claim faithful, fast generation with CLAP-ranked preference optimisation (CRPO); nothing read about short hard hits or low end.",
+     "verdict": "fail",
+     "verdict_reasons": "Makers state non-commercial, research-only use, WavCaps academic-only data, and Stability AI registration/commercial licence requirement. Breaks rule 1."
+    },
+    {
+     "name": "Tango 2 (declare-lab/tango2, also tango2-full and Tango 1)",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/declare-lab/tango2",
+      "https://huggingface.co/declare-lab/tango2-full",
+      "https://huggingface.co/declare-lab/tango"
+     ],
+     "code_repo_url": "https://github.com/declare-lab/tango",
+     "licence_code": "GitHub API: NOASSERTION. LICENSE at https://raw.githubusercontent.com/declare-lab/tango/master/LICENSE first line: '## Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International Public License' (code is NC and ND).",
+     "licence_weights_or_files": "HF card metadata tag license:cc-by-nc-sa-4.0 for tango2, tango2-full and tango (https://huggingface.co/declare-lab/tango2/raw/main/README.md line 2). No LICENSE file in the HF repo. Card and tag agree on non-commercial; the code repo is a different licence (CC-BY-NC-ND) than the weights (CC-BY-NC-SA).",
+     "gated": "no (gated=False)",
+     "training_data": "Card datasets: bjoernp/AudioCaps, declare-lab/audio_alpaca (about 15k preference triplets). Tango 2 was initialised from Tango-full-ft and aligned with DPO. Licences of the pre-training data (TangoPromptBank for tango-full) not read.",
+     "output_terms": "Not stated in what I read.",
+     "what_it_makes": "Sound effects/general audio, 16 kHz (card example writes samplerate=16000), about 10 s clips; length/seed settings not read.",
+     "params_and_size": "Parameter count not read. Files: pytorch_model_main.bin 4.83 GB + vae 0.44 GB + stft 0.01 GB = 5.28 GB.",
+     "weights_format": "pickle only (.bin), no safetensors",
+     "needs_trust_remote_code": "not read",
+     "install": "Repo-based install per card; PyPI package not read. Windows support not read.",
+     "hardware": "not read",
+     "release_or_last_update": "tango2 created 2024-04-13, lastModified 2026-01-17 (metadata only touch); newest declare-lab audio models: TangoFlux (2025-05), JAM-0.5 music (2025-08).",
+     "quality_notes": "Not read. 16 kHz output, which limits the high end.",
+     "verdict": "fail",
+     "verdict_reasons": "CC-BY-NC-SA-4.0 on weights, CC-BY-NC-ND-4.0 on code. Breaks rule 1."
+    },
+    {
+     "name": "AudioLDM 2 (cvssp/audioldm2 and audioldm2-large; also audioldm2-music)",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/cvssp/audioldm2",
+      "https://huggingface.co/cvssp/audioldm2-large",
+      "https://huggingface.co/cvssp/audioldm2-music"
+     ],
+     "code_repo_url": "https://github.com/haoheliu/AudioLDM2",
+     "licence_code": "GitHub API: NOASSERTION. LICENSE at https://raw.githubusercontent.com/haoheliu/AudioLDM2/main/LICENSE first line: 'Attribution-NonCommercial-ShareAlike 4.0 International'. (PyPI 'audioldm2' 0.1.0 declares 'MIT', which contradicts the repo LICENSE.)",
+     "licence_weights_or_files": "HF card metadata license:cc-by-nc-sa-4.0 on all three repos (https://huggingface.co/cvssp/audioldm2/raw/main/README.md line 2). No LICENSE file read in the HF repo. Tag and code licence agree.",
+     "gated": "no (gated=False)",
+     "training_data": "Paper (https://arxiv.org/html/2308.05734) lists AudioSet, WavCaps, AudioCaps, VGGSound, Free Music Archive, Million Song Dataset, LJSpeech, GigaSpeech. Card: 1150k hours for audioldm2 and audioldm2-large. Licence of each dataset not stated by makers.",
+     "output_terms": "Not stated in what I read.",
+     "what_it_makes": "Sound effects and general audio, 16 kHz (README: '16kHz improved AudioLDM model'); the repo's separate audioldm_48k checkpoint was not read in detail. Length and seed settable in the diffusers pipeline (card example) .",
+     "params_and_size": "Card: UNet 350M / total 1.1B (audioldm2), UNet 750M / total 1.5B (large). Files on HF: 8.96 GB (audioldm2, both .bin and .safetensors present) and 11.93 GB (large).",
+     "weights_format": "safetensors and pytorch .bin both present",
+     "needs_trust_remote_code": "no (diffusers AudioLDM2Pipeline per card)",
+     "install": "diffusers 0.43.0 on PyPI (Apache 2.0, python >=3.11) has AudioLDM2Pipeline; original repo wants conda python 3.8. Windows support not read.",
+     "hardware": "Card example uses torch_dtype=float16; VRAM not stated; 16 GB likely sufficient, not confirmed.",
+     "release_or_last_update": "Created 2023-08-21; HF lastModified 2024-04-16; code last push 2024-09-29.",
+     "quality_notes": "Not read from independent users. 16 kHz band limit.",
+     "verdict": "fail",
+     "verdict_reasons": "CC-BY-NC-SA-4.0 on weights and code, training on WavCaps/AudioSet etc. Breaks rule 1."
+    },
+    {
+     "name": "Make-An-Audio 2",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/ByteDance/Make-An-Audio-2"
+     ],
+     "code_repo_url": "https://github.com/bytedance/Make-An-Audio-2",
+     "licence_code": "MIT. https://raw.githubusercontent.com/bytedance/Make-An-Audio-2/master/LICENSE first line: 'MIT License' (Copyright (c) 2023 Bytedance Inc.). GitHub API: MIT.",
+     "licence_weights_or_files": "HF card metadata license:mit (https://huggingface.co/ByteDance/Make-An-Audio-2/raw/main/README.md). No LICENSE file in the HF repo (files: .gitattributes, README.md, maa2.ckpt). Card has no extra prose terms. Other parts needed: CLAP text encoder microsoft/msclap tag license ms-pl (not gated); BigVGAN vocoder weights only from a Google Drive link in the README (could not be fetched; licence not read; the code fork awei-6/BigVGAN LICENSE first line 'MIT License').",
+     "gated": "no for maa2.ckpt and msclap; vocoder is a Google Drive download (needs manual download)",
+     "training_data": "Paper (https://arxiv.org/html/2305.18474): AudioCaps train, WavCaps, AudioSet, Adobe Audition Sound Effects, Audiostock, ESC-50, FSD50K, MACS, Epidemic Sound, UrbanSound8K, WavText5Ks, TUT acoustic scene; 0.92 million pairs, about 3.7K hours; 16 kHz. WavCaps is academic-only per the TangoFlux LICENSE.md; Adobe, Audiostock and Epidemic Sound are commercial libraries. The makers say nothing about the licences of this data or whether MIT covers it. The README says the dataset cannot be shared for copyright reasons.",
+     "output_terms": "Not stated in what I read.",
+     "what_it_makes": "Sound effects/general audio, 16 kHz, up to 10 s in README example (--duration 10), variable length trained; scale (guidance) settable.",
+     "params_and_size": "Parameter count not read. maa2.ckpt 7.31 GB (HF API); plus BigVGAN and CLAP weights, sizes not read.",
+     "weights_format": "single .ckpt (pickle-based PyTorch checkpoint)",
+     "needs_trust_remote_code": "no (own repo code, not transformers remote code)",
+     "install": "Repo-only, no package. README: Python==3.9; requirements.txt pins pytorch==1.13.0 (cu113 index), transformers==4.26.0, pytorch-lightning==1.7.0, numpy<=1.23.5. Last push 2024-05-29. An RTX 5080 (Blackwell) needs a much newer CUDA/PyTorch than 1.13, so this stack would need porting; not tested. Windows support not read.",
+     "hardware": "not read",
+     "release_or_last_update": "HF created 2024-05-16, lastModified 2024-05-22; code last push 2024-05-29.",
+     "quality_notes": "Not read from independent users. Makers claim better temporal ordering of events; 16 kHz output.",
+     "verdict": "unclear",
+     "verdict_reasons": "Code and weights are MIT as read, not gated, but training data includes WavCaps (academic-only) and commercial libraries with no stated licence basis; vocoder weights licence and source not read; stack is 2023-era. The owner must decide whether MIT tag alone is enough given the data. Would be settled by a statement from ByteDance on data licensing and the BigVGAN checkpoint licence."
+    },
+    {
+     "name": "AudioGen medium (Meta AudioCraft)",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/facebook/audiogen-medium"
+     ],
+     "code_repo_url": "https://github.com/facebookresearch/audiocraft",
+     "licence_code": "MIT. https://raw.githubusercontent.com/facebookresearch/audiocraft/main/LICENSE first line: 'MIT License' (Copyright (c) Meta Platforms, Inc. and affiliates). GitHub API: MIT. PyPI audiocraft 1.3.0: MIT.",
+     "licence_weights_or_files": "HF card metadata license:cc-by-nc-4.0. https://raw.githubusercontent.com/facebookresearch/audiocraft/main/LICENSE_weights first line: 'Attribution-NonCommercial 4.0 International'. Model card (https://github.com/facebookresearch/audiocraft/blob/main/model_cards/AUDIOGEN_MODEL_CARD.md): 'Code is released under MIT, model weights are released under CC-BY-NC 4.0.' All agree: weights are non-commercial. Card also says it is for research and should not be used downstream without further investigation.",
+     "gated": "no (gated=False)",
+     "training_data": "Model card: subset of AudioSet, BBC sound effects, AudioCaps, Clotho v2, VGG-Sound, FSD50K, Free To Use Sounds, Sonniss Game Effects, WeSoundEffects, Paramount Motion Odeon Cinematic Sound Effects. Licensing terms of these not stated by makers (mix of licensed SFX libraries and research datasets).",
+     "output_terms": "Not stated beyond the CC-BY-NC-4.0 weights licence.",
+     "what_it_makes": "Sound effects/ambience, 16 kHz (EnCodec, 4 codebooks at 50 Hz), 10 s training length (v2), card example duration=5 settable; mono/stereo not read.",
+     "params_and_size": "Parameter count not read in what I used. state_dict.bin 3.68 GB + compression_state_dict.bin 0.24 GB = 3.91 GB.",
+     "weights_format": "pickle only (.bin)",
+     "needs_trust_remote_code": "no (audiocraft library)",
+     "install": "audiocraft 1.3.0 on PyPI, requires_python >=3.8; README: Python 3.9, PyTorch 2.1.0, xformers, ffmpeg. Windows support not read.",
+     "hardware": "not read",
+     "release_or_last_update": "Created 2023-07-26, weights lastModified 2024-03-12; code last push 2026-03-03.",
+     "quality_notes": "Notable: training data includes professional game/cinema SFX libraries (Sonniss, Paramount Odeon, BBC), which is where realism likely comes from. Independent user reports not read.",
+     "verdict": "fail",
+     "verdict_reasons": "Weights CC-BY-NC-4.0, stated in tag, LICENSE_weights and model card. Breaks rule 1."
+    },
+    {
+     "name": "MAGNeT audio (facebook/audio-magnet-medium, audio-magnet-small)",
+     "kind": "text-to-audio model",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/facebook/audio-magnet-medium",
+      "https://huggingface.co/facebook/audio-magnet-small"
+     ],
+     "code_repo_url": "https://github.com/facebookresearch/audiocraft",
+     "licence_code": "MIT. https://raw.githubusercontent.com/facebookresearch/audiocraft/main/LICENSE first line: 'MIT License'.",
+     "licence_weights_or_files": "HF card metadata license:cc-by-nc-4.0 for both repos; card line 87: 'Code is released under MIT, model weights are released under CC-BY-NC 4.0.' (https://huggingface.co/facebook/audio-magnet-medium/raw/main/README.md). LICENSE_weights: 'Attribution-NonCommercial 4.0 International'. All agree: non-commercial.",
+     "gated": "no (gated=False)",
+     "training_data": "Not read for the audio-magnet models specifically. The fetched card text (audio-magnet-medium README) lists Meta Music Initiative Sound Collection, Shutterstock music and Pond5 music, 16K hours, which reads like the music-model text; I did not confirm what the audio (SFX) variant was trained on.",
+     "output_terms": "Not stated beyond CC-BY-NC-4.0 weights.",
+     "what_it_makes": "Card text mentions 32 kHz EnCodec, 4 codebooks at 50 Hz, non-autoregressive masked transformer; sound-effects use is the audio variant's purpose per its name, length/seed settings not read.",
+     "params_and_size": "Parameter count not read. medium: 3.91 GB; small: 1.08 GB (HF API).",
+     "weights_format": "pickle only (.bin)",
+     "needs_trust_remote_code": "no (audiocraft library)",
+     "install": "audiocraft 1.3.0 (PyPI, MIT), README python 3.9 / torch 2.1.0. Windows support not read.",
+     "hardware": "not read",
+     "release_or_last_update": "Created 2024-01-10, lastModified 2024-01-16.",
+     "quality_notes": "Not read.",
+     "verdict": "fail",
+     "verdict_reasons": "Weights CC-BY-NC-4.0 in tag, card prose and LICENSE_weights. Breaks rule 1."
+    }
+   ],
+   "could_not_read": "Stability AI Community License text (the revenue cap and registration numbers); TangoFlux LICENSE.md past its first ~20 lines; the BigVGAN vocoder weights for Make-An-Audio 2 (Google Drive link, not fetched) and their licence; microsoft/msclap LICENSE file (only the ms-pl tag was read); training data and licences of Tango-full pre-training (TangoPromptBank); audio-magnet (SFX variant) training data (the fetched card text describes music data only); parameter counts, VRAM needs and Windows support for TangoFlux, Tango 2, AudioGen and MAGNeT; any independent user reports about short hard hits (impacts, machinery) for all models; TangoFlux-base and tango-af-ac-ft-ac repos (licence:other) were listed but not read; an official Tango 2 or AudioLDM 2 output-ownership statement; the audiogen-medium and audio-magnet LICENSE files inside the HF repos (none listed in the file list).",
+   "newer_or_missed": "declare-lab newest audio entries by lastModified: TangoFlux (2025-05-07) and JAM-0.5 (music, 2025-08-01, not read); no newer declare-lab text-to-audio SFX model found. Make-An-Audio-3 exists as AIGC-Audio/Make-An-Audio-3 on HF (no licence tag; not read). Other Make-An-Audio-2 repos: Text-to-Audio/Make-An-Audio-2 (not read). cvssp has an audioldm2-music repo (music only, same CC-BY-NC-SA-4.0 tag). The only candidate in this family with MIT-tagged code and weights is Make-An-Audio-2, but its training data licensing is unresolved."
+  },
+  {
+   "key": "foley-video",
+   "candidates": [
+    {
+     "name": "MMAudio (Sony/UIUC, CVPR 2025)",
+     "kind": "video-to-audio model that also does text-only generation (README: 'Simply omit the --video option for text-to-audio synthesis')",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/hkchengrex/MMAudio"
+     ],
+     "code_repo_url": "https://github.com/hkchengrex/MMAudio",
+     "licence_code": "MIT. LICENSE file (https://raw.githubusercontent.com/hkchengrex/MMAudio/main/LICENSE) first line: 'MIT License'; 'Copyright (c) 2024 Sony Research Inc.'",
+     "licence_weights_or_files": "HF card metadata (https://huggingface.co/api/models/hkchengrex/MMAudio) license: cc-by-nc-4.0. Card text (https://huggingface.co/hkchengrex/MMAudio/raw/main/README.md): 'checkpoints are licensed under CC BY-NC 4.0 and can be used for non-commercial purposes only'. GitHub README License section says the same. No LICENSE file in the HF repo. Tag and prose agree: non-commercial.",
+     "gated": "no (gated False)",
+     "training_data": "README (https://raw.githubusercontent.com/hkchengrex/MMAudio/main/README.md): trained on AudioSet, Freesound (via LAION-630k), VGGSound, AudioCaps, WavCaps, 'subject to specific licenses'; makers: 'We do not guarantee that the pre-trained models are suitable for commercial use.'",
+     "output_terms": "Not stated separately. The weights are CC-BY-NC, and the makers do not guarantee commercial suitability. Not read: any statement on output ownership.",
+     "what_it_makes": "Sound effects/ambience from video and/or text; 44.1 kHz (small_44k, medium_44k, large_44k_v2) or 16 kHz (small_16k); default and training length 8 s, other lengths 'could also work' but quality drops with large deviation; output .flac. Seed settable via demo.py options (not checked in detail). Known limits from README: sometimes speech-like sounds or music, struggles with unfamiliar concepts ('gunfires' but not 'RPG firing'). Mono/stereo not read.",
+     "params_and_size": "Parameter count not read. Weights on HF: weights/mmaudio_large_44k_v2.pth 4.12 GB, medium_44k 2.49 GB, small_44k 0.63 GB, plus ext_weights (synchformer 0.95 GB, v1-44.pth 1.22 GB). README: inference 'around 6GB of GPU memory (in 16-bit mode)'.",
+     "weights_format": "PyTorch .pth (pickle-based); no safetensors in the file list",
+     "verdict": "fail",
+     "verdict_reasons": "Weights CC-BY-NC 4.0 (non-commercial only) per card tag and card text; breaks rule 1. README says 'We have only tested this on Ubuntu'; Windows not stated. Runs in about 6 GB per README, so 16 GB is fine. Text-only supported.",
+     "install": "Not installed. README: Python 3.9+, PyTorch 2.5.1+, pip install -e . from git clone; 'only tested on Ubuntu'. Not on PyPI (not checked).",
+     "needs_trust_remote_code": "no (plain PyTorch repo, not transformers)",
+     "release_or_last_update": "HF created 2024-12-10, lastModified 2026-02-19; GitHub last push 2026-02-23",
+     "quality_notes": "HunyuanVideo-Foley card benchmark table (MovieGen-Audio-Bench) lists MMAudio MOS-Q 3.58, CLAP 0.35, DeSync 0.80, which is a maker-run comparison. No source read on short hard impacts or machinery."
+    },
+    {
+     "name": "ThinkSound (FunAudioLLM / Zhejiang Univ., NeurIPS 2025)",
+     "kind": "video-to-audio model driven by video, text and audio. Pure text-only generation is not documented: the README's batch usage needs .mp4 videos plus a CSV of text prompts, so the text-only claim is unconfirmed.",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/FunAudioLLM/ThinkSound"
+     ],
+     "code_repo_url": "https://github.com/FunAudioLLM/ThinkSound (redirects to QwenAudio/ThinkSound, default branch master, last push 2026-04-03)",
+     "licence_code": "README (https://raw.githubusercontent.com/QwenAudio/ThinkSound/master/README.md): 'This project is released under the Apache 2.0 License.' No LICENSE file at the repo root (raw URLs on main and master returned 404; the HF repo has LICENSE.md, first non-blank line 'Apache License', 'Version 2.0, January 2004').",
+     "licence_weights_or_files": "HF card metadata (https://huggingface.co/api/models/FunAudioLLM/ThinkSound) license: apache-2.0, and the HF card text adds no terms. GitHub README disagrees: 'The code, models, and dataset are for research and educational purposes only. Commercial use is NOT permitted.' and 'Commercial use and redistribution require prior permission from Stability AI' for the included fine-tuned Stable Audio Open VAE (Stability AI Community License, ./third_party/LICENSE_StabilityAI.md; its terms and revenue cap were not read). Tag and README disagree; the README adds a non-commercial term.",
+     "gated": "no (gated False)",
+     "training_data": "Not read on the card or README. The README names the AudioCoT dataset (https://huggingface.co/datasets/liuhuadai/AudioCoT) but does not list source licences. The VAE comes from Stable Audio Open (Stability AI).",
+     "output_terms": "Not stated. The README bars commercial use of code, models and dataset.",
+     "what_it_makes": "Foley/sound effects from video, text, audio (any2audio). Sample rate, length, stereo and seed control: not read.",
+     "params_and_size": "Parameter count not read. HF files: thinksound.ckpt 21.06 GB, thinksound_light.ckpt 5.73 GB, vae.ckpt 2.52 GB, synchformer_state_dict.pth 0.95 GB; total 30.27 GB.",
+     "weights_format": ".ckpt (PyTorch, pickle-based); no safetensors",
+     "verdict": "fail",
+     "verdict_reasons": "Repo README states commercial use is not permitted and that the included Stability VAE needs prior permission for commercial use and redistribution, which contradicts the Apache tag; breaks rule 1 and rule 2. Text-only generation is not shown in the README.",
+     "install": "Not installed. README: Python 3.10, conda, pip install thinksound, ffmpeg; Windows setup_windows.bat provided (2025.07.15 news). Newer sibling PrismAudio exists in the same repo, branch prismaudio.",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "HF created 2025-07-01, lastModified 2025-07-17",
+     "quality_notes": "HunyuanVideo-Foley card table (maker-run, MovieGen-Audio-Bench) lists ThinkSound MOS-Q 3.20, CLAP 0.20. No source read on short hard impacts."
+    },
+    {
+     "name": "HunyuanVideo-Foley and HunyuanVideo-Foley-XL (Tencent)",
+     "kind": "text-video-to-audio. Not text-only as shipped: infer.py takes video_path and prompt, and the README examples all need --single_video or a CSV with a video column. The HF pipeline_tag says text-to-audio, but no text-only mode is documented.",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/tencent/HunyuanVideo-Foley"
+     ],
+     "code_repo_url": "https://github.com/Tencent-Hunyuan/HunyuanVideo-Foley",
+     "licence_code": "GitHub API licence: NOASSERTION ('other'). LICENSE first line (https://raw.githubusercontent.com/Tencent-Hunyuan/HunyuanVideo-Foley/main/LICENSE): 'TENCENT HUNYUAN COMMUNITY LICENSE AGREEMENT'. Second line: 'THIS LICENSE AGREEMENT DOES NOT APPLY IN THE EUROPEAN UNION, UNITED KINGDOM AND SOUTH KOREA'.",
+     "licence_weights_or_files": "HF card metadata (https://huggingface.co/api/models/tencent/HunyuanVideo-Foley): license: other, license_name: tencent-hunyuan-community, extra_gated_eu_disallowed: true. HF LICENSE (https://huggingface.co/tencent/HunyuanVideo-Foley/raw/main/LICENSE) is the same text. Terms read: Territory = worldwide excluding EU, UK and South Korea; s.4 a licence from Tencent is needed if monthly active users exceed 100 million; s.5(b) no use of the works or Output to improve any other AI model; s.5(c) no use, reproduction or display of the works or Output outside the Territory; s.3 any redistribution only inside the Territory, with the licence copy and a Notice file; s.5(a) the use restrictions must be written into any agreement governing distribution; Acceptable Use Policy bans military use, use outside the Territory, and publishing machine-generated content without conspicuously labelling it as machine generated; s.6(d) 'Tencent claims no rights in Outputs'.",
+     "gated": "no technically (gated False; extra_gated_eu_disallowed true; the licence is accepted by use or download)",
+     "training_data": "Not read: card shows a data-pipeline diagram and says 'large-scale, high-quality text-video-audio datasets', with no named datasets or licences.",
+     "output_terms": "s.6(d): Tencent claims no rights in Output, but s.5(c) and the AUP bar use of Output outside the Territory (EU/UK/South Korea) and s.5(b) bars using Output to improve any other AI model. Release in an open-source game worldwide, including EU/UK, would break s.5(c).",
+     "what_it_makes": "Foley/sound effects at 48 kHz (card: 'Self-developed 48kHz audio VAE'); length follows the input video. Stereo/mono and seed: not read.",
+     "params_and_size": "Parameter count not read. HF files: hunyuanvideo_foley.pth 10.3 GB (XXL), hunyuanvideo_foley_xl.pth 5.85 GB, vae_128d_48k.pth 1.49 GB, synchformer_state_dict.pth 0.95 GB; total 18.59 GB. README VRAM: 20 GB XXL (12 GB with --enable_offload), 16 GB XL (8 GB with --enable_offload).",
+     "weights_format": ".pth (PyTorch, pickle-based); no safetensors",
+     "verdict": "fail",
+     "verdict_reasons": "The licence does not apply in the EU, UK or South Korea and bars use of the Output outside the Territory (s.5(c)), so it cannot be shipped in a game used worldwide or by a German owner. It also carries a 100M MAU clause and a bar on using Output to improve other AI models. Text-only generation is not documented. README: 'OS: Linux (primary support)'.",
+     "install": "Not installed. git clone + pip install -r requirements.txt; Python 3.8+, CUDA 12.4 or 11.8; Linux primary, Windows not stated.",
+     "needs_trust_remote_code": "no (own repo, not transformers)",
+     "release_or_last_update": "HF created 2025-08-21, lastModified 2025-09-29 (XL release 2025-09-29)",
+     "quality_notes": "Makers' own MovieGen-Audio-Bench table: HunyuanVideo-Foley MOS-Q 4.14, MMAudio 3.58, ThinkSound 3.20, FoleyCrafter 3.36 (maker-run, not independent). Nothing read about short hard impacts."
+    },
+    {
+     "name": "FoleyCrafter (Shanghai AI Lab / open-mmlab)",
+     "kind": "video-to-audio model on top of the text-to-audio model Auffusion. Not text-only: inference.py asserts a folder of .mp4 files ('input list is empty!') and the prompt is an optional extra.",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/ymzhang319/FoleyCrafter",
+      "https://huggingface.co/auffusion/auffusion-full-no-adapter (base model it downloads)"
+     ],
+     "code_repo_url": "https://github.com/open-mmlab/FoleyCrafter",
+     "licence_code": "Apache-2.0. LICENSE (https://raw.githubusercontent.com/open-mmlab/FoleyCrafter/main/LICENSE) first line: 'Apache License' ('Version 2.0, January 2004').",
+     "licence_weights_or_files": "FoleyCrafter HF card metadata license: apache-2.0 (the card text is only 31 bytes). The README says 'If you are using it for commercial purposes, please check the license of the Auffusion'. The base weights auffusion/auffusion-full-no-adapter, which the README tells you to download, are tagged license: cc-by-nc-sa-4.0 (https://huggingface.co/api/models/auffusion/auffusion-full-no-adapter). The GitHub licence of Auffusion code is NOASSERTION (not read further). Tag Apache and base model CC-BY-NC-SA disagree.",
+     "gated": "no (gated False; the Auffusion base is also not gated)",
+     "training_data": "Not read for FoleyCrafter. The base Auffusion card says the Full model was 'pre-trained on all datasets described in paper' (arXiv 2401.01044, not read) and the plain model on AudioCaps.",
+     "output_terms": "Not stated.",
+     "what_it_makes": "Sound for silent video, with optional text prompt, negative prompt and temporal-alignment mode. Auffusion is a spectrogram diffusion model with a vocoder. Sample rate, stereo and length: not read.",
+     "params_and_size": "Parameter count not read. HF FoleyCrafter files: temporal_adapter.ckpt 4.34 GB, timestamp_detector.pth.tar 0.38 GB, semantic_adapter.bin 0.09 GB, vocoder.pt 0.05 GB; total 4.86 GB, plus the Auffusion checkpoint (size not read).",
+     "weights_format": ".ckpt, .pth.tar, .bin, .pt (PyTorch, pickle-based); no safetensors for the adapters",
+     "verdict": "fail",
+     "verdict_reasons": "Needs the Auffusion base weights, which are CC-BY-NC-SA 4.0 (non-commercial, share-alike), breaking rule 1; the README itself warns about commercial use. No text-only mode in inference.py. Last HF update 2024-06-28, so it is the oldest of the four and was beaten by newer models in the makers' tables.",
+     "install": "Not installed. conda environment, git clone of the code and of the Auffusion checkpoint; versions and Windows not read.",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "HF created 2024-06-13, lastModified 2024-06-28; GitHub last push 2026-06-15",
+     "quality_notes": "HunyuanVideo-Foley card table lists FoleyCrafter MOS-Q 3.36, CLAP 0.14 (maker-run). Nothing read on impacts or machinery."
+    },
+    {
+     "name": "PrismAudio (FunAudioLLM, ThinkSound successor, ICLR 2026)",
+     "kind": "video-to-audio with the HF pipeline tag text-to-audio. Text-only use is not documented (the card calls it video-to-audio generation).",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/FunAudioLLM/PrismAudio"
+     ],
+     "code_repo_url": "https://github.com/FunAudioLLM/ThinkSound branch prismaudio (not read directly; the card points to it)",
+     "licence_code": "Card says 'released under the MIT License'; the code repo LICENSE on the prismaudio branch was not read.",
+     "licence_weights_or_files": "HF card metadata (https://huggingface.co/api/models/FunAudioLLM/PrismAudio): license: mit. Card text (https://huggingface.co/FunAudioLLM/PrismAudio/raw/main/README.md): 'The code, model weights, and datasets are intended for research and educational purposes only. Commercial use is not permitted without explicit authorization from the authors.' Base models listed: google/videoprism-large-f8r288 and google/t5gemma-l-l-ul2-it (their licences not read). Tag and prose disagree: the prose forbids commercial use. No LICENSE file in the HF repo.",
+     "gated": "no (gated False)",
+     "training_data": "Not read.",
+     "output_terms": "Not stated; commercial use barred in the card prose.",
+     "what_it_makes": "Video-to-audio sound with chain-of-thought planning. Sample rate, length, seed: not read.",
+     "params_and_size": "Not read. HF files: prismaudio.ckpt 2.7 GB, vae.ckpt 2.52 GB, synchformer_state_dict.pth 0.95 GB; total about 6.2 GB.",
+     "weights_format": ".ckpt / .pth (PyTorch, pickle-based)",
+     "verdict": "fail",
+     "verdict_reasons": "Card prose bars commercial use without authorization from the authors, contradicting the MIT tag; breaks rule 1. Text-only use not documented.",
+     "install": "Not installed. conda Python 3.10 plus scripts/PrismAudio/setup/build_env.sh (a shell script, so Linux-oriented; Windows not read).",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "HF lastModified 2026-05-31",
+     "quality_notes": "Not read."
+    }
+   ],
+   "could_not_read": "Parameter counts for all four models; training data for HunyuanVideo-Foley, ThinkSound, FoleyCrafter and PrismAudio; the text of Stability AI Community License (third_party/LICENSE_StabilityAI.md in ThinkSound) and its revenue cap; Auffusion code LICENSE and the Auffusion paper (arXiv 2401.01044) for its training data; the LICENSE on the PrismAudio code branch; google/videoprism and t5gemma licences; the Windows support, output sample rate, stereo and seed controls of ThinkSound, PrismAudio and FoleyCrafter; any independent (non-maker) quality reports on short hard impacts or machinery. Not found on GitHub: LICENSE file at the ThinkSound repo root (raw URLs on main and master returned 404; FunAudioLLM/ThinkSound redirects to QwenAudio/ThinkSound). No tencent entries matched foley/audio in the HF author list filter, and open-mmlab returned no HF models.",
+   "newer_or_missed": "Found newer: PrismAudio (FunAudioLLM, HF lastModified 2026-05-31, ThinkSound successor, entered above; fails on card prose). HunyuanVideo-Foley-XL (2025-09-29) is a smaller sibling inside the Hunyuan repo, covered in that entry. Author-list scans (hkchengrex, tencent, FunAudioLLM, open-mmlab, 40 newest each, filtered by audio/foley/sound/v2a keywords) showed no further video-to-audio models. Not checked, the lists were not read beyond these four makers: any other group's video-to-audio model released in 2026. Result for this family: all four named models plus PrismAudio fail rule 1, so none is usable for the shipped game audio."
+  },
+  {
+   "key": "others-2026",
+   "candidates": [
+    {
+     "name": "EzAudio (XL, L, ControlNet)",
+     "kind": "text-to-audio model (diffusion transformer, 24 kHz)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/OpenSound/EzAudio"
+     ],
+     "code_repo_url": "https://github.com/haidog-yaqub/EzAudio",
+     "licence_code": "MIT (GitHub API spdx MIT). LICENSE read at https://raw.githubusercontent.com/haidog-yaqub/EzAudio/main/LICENSE, first line: \"MIT License\" (Copyright (c) 2025 Jiarui Hai).",
+     "licence_weights_or_files": "HF card metadata at https://huggingface.co/api/models/OpenSound/EzAudio: license: mit. Card https://huggingface.co/OpenSound/EzAudio/raw/main/README.md repeats \"license: mit\", no extra terms in prose. No LICENSE file in the HF repo (raw/main/LICENSE returns 404). Dependency flan-t5-xl: apache-2.0 per HF tag. Tag and code licence agree.",
+     "gated": "no (gated: False)",
+     "training_data": "Per paper https://arxiv.org/html/2409.10819: waveform VAE trained on AudioSet; T2A model trained in three stages (masked pretraining, then full training on captions made by Auto-ACD, Qwen-Audio and GPT-4o-mini for AudioSet and VGGSound, CLAP-filtered; final fine-tune on AudioCaps). Source clips are YouTube-derived sets; no licence for the audio is stated by the makers. Captions partly produced with OpenAI GPT-4o-mini API (OpenAI terms not read).",
+     "output_terms": "Not stated in card, repo or LICENSE; MIT text only. No statement on ownership of generated audio.",
+     "what_it_makes": "Sound effects, ambience, foley from text; 24 kHz, latent 50 Hz; clip length from config not read (paper evaluates AudioCaps 10 s clips). Also inpainting/editing and an energy ControlNet (follows an amplitude envelope of a reference). Seed and length options: not read.",
+     "params_and_size": "EzAudio-XL 874M (paper table). HF files: ezaudio_s3_xl.pt 3,499,437,603 B; ezaudio_s3_l.pt 2,387,669,060 B; vae/1m.pt 183,037,614 B; controlnet s3_l_energy.pt 1,165,074,763 B. Also needs google/flan-t5-xl text encoder: safetensors 9,449,619,912 + 1,949,477,672 B (about 11.4 GB). Whole repo usedStorage 13,122,325,703 B.",
+     "weights_format": "PyTorch .pt checkpoints (pickle, not safetensors); no safetensors/onnx for the model itself",
+     "verdict": "unclear",
+     "verdict_reasons": "Code and weights are MIT and not gated, but the makers give no licence for the training audio (AudioSet/VGGSound from YouTube) and no output terms; owner must decide whether that is acceptable. Last update: HF 2026-09-21, GitHub last commit 2025-12-17. The README todo says stage1/stage2 checkpoints are still WIP.",
+     "install": "No PyPI package; git clone + pip install -r requirements.txt (unpinned: alias_free_torch, diffusers, einops, librosa, transformers, vector_quantize_pytorch, torchaudio, julius, accelerate and others). Python version and Windows support: not stated. Checkpoints auto-download from HF. Unpinned torch means a Blackwell-capable build can be chosen; not tested.",
+     "hardware": "VRAM need not stated. XL checkpoint is 3.5 GB plus flan-t5-xl 11.4 GB files, so 16 GB is likely tight for fp32 T5 but not stated; speed not stated; CPU not stated.",
+     "needs_trust_remote_code": "not read (code is a plain repo, not transformers remote code; loads .pt files, which are pickle)",
+     "release_or_last_update": "HF created 2024-10-18, last modified 2026-09-21; paper v2 2025-06-19",
+     "quality_notes": "Makers claim 'high-quality, natural-sounding sound effects' and 'realistic listening experiences' (HF card, project page https://haidog-yaqub.github.io/EzAudio-Page/ has a 'guess which is synthesized' demo). No independent report on short hard impacts or low end read. Training is on AudioSet-style clips, so weakness on clean, dry, sub-bass-heavy hits is likely but not confirmed by any source read."
+    },
+    {
+     "name": "SoundCTM-DiT (Sony, ICLR'25, full-band 44.1 kHz, 1-step or multi-step)",
+     "kind": "text-to-audio model (consistency-distilled diffusion transformer)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/koichisaito/soundctm_dit"
+     ],
+     "code_repo_url": "https://github.com/koichi-saito-sony/soundctm_dit_iclr",
+     "licence_code": "MIT. LICENSE at https://raw.githubusercontent.com/koichi-saito-sony/soundctm_dit_iclr/main/LICENSE, first line: \"MIT License\" (Copyright (c) 2025 Koichi Saito).",
+     "licence_weights_or_files": "HF metadata at https://huggingface.co/api/models/koichisaito/soundctm_dit: license: cc-by-4.0. Card https://huggingface.co/koichisaito/soundctm_dit/raw/main/README.md says only license: cc-by-4.0 in front matter, no prose terms. No LICENSE file read in the HF repo. CC-BY 4.0 needs attribution. Auxiliary files in the repo: LAION CLAP checkpoints (laion CLAP code: CC0-1.0 per GitHub API; the 630k-audioset-best.pt weights licence not read) and a gaussiandac VAE (licence not read).",
+     "gated": "no (gated: False)",
+     "training_data": "Card lists: ac_v1_iclr and ac_v2 trained on AudioCaps; as_ac_v2 on AudioSet plus AudioCaps (AudioSet captions from LAION-Audio-630K keyword-to-caption augmentation). README tells users to download AudioCaps via the AudioCaps repository (YouTube ids). Licence of the underlying YouTube audio: not stated by the makers. AudioCaps annotation repo: MIT (GitHub API).",
+     "output_terms": "Not stated.",
+     "what_it_makes": "Sound effects from text; output saved at 44100 Hz, fixed about 10.031 s (demo.py line 128: [:, :, :int(10.031*44100)]); channels not read. Flexible 1-step to multi-step sampling (demo.py --num_steps, --cfg, --nu); seed: not read. Length fixed by code.",
+     "params_and_size": "Parameters not stated. Student checkpoints ac_v2_ema_0999_030000.pt 4,844,466,606 B, as_ac_v2 same size, ac_v1_iclr 4,778,932,721 B; teacher checkpoints about 4.9-5.4 GB each (not needed for inference); CLAP 1,863,587,645 B and 2,352,471,003 B; VAE weights.pth 253,942,361 B.",
+     "weights_format": ".pt / .pth (pickle); no safetensors",
+     "verdict": "unclear",
+     "verdict_reasons": "Code MIT, weights CC-BY-4.0, not gated, but training audio (AudioCaps/AudioSet, YouTube) has no licence statement and the CLAP/VAE auxiliary weight licences were not read; attribution to Sony needed. Pinned install is torch==2.2.1 (setup.py), which predates RTX 5080 support; pins would need changing, untested. Last update: HF 2025-03-31, GitHub pushed 2025-03-31.",
+     "install": "pip install -e . from git clone, or Docker (docker/README.md, Dockerfile_train/Dockerfile_eval); setup.py pins torch==2.2.1, torchvision==0.17.1, torchaudio==2.2.1, numpy==1.26.2, plus laion-clap, descript-audio-codec, hear21passt from git; python_requires >=3.7. No PyPI release read. Windows support: not stated.",
+     "hardware": "VRAM and speed for inference not stated; training used 8x H100 80 GB (paper for the 16 kHz variant). 1-step generation is the advertised feature; actual speed not read.",
+     "needs_trust_remote_code": "not read (own repo code, no transformers remote code in demo as read)",
+     "release_or_last_update": "2025-03-31",
+     "quality_notes": "Sony paper abstract (https://arxiv.org/abs/2405.18503): 'promising 1-step and multi-step real-time sound generation'. Card names a full-band 44.1 kHz setting as 'minimum requirement for real-world sound creation'. Checkpoints are trained on AudioCaps only (ac_v*) or AudioSet+AudioCaps, so impacts and machinery are not a trained focus. No independent report on short hard hits read."
+    },
+    {
+     "name": "SoundCTM UNet 16 kHz (Sony)",
+     "kind": "text-to-audio model (consistency model, 16 kHz)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/Sony/soundctm"
+     ],
+     "code_repo_url": "https://github.com/sony/soundctm",
+     "licence_code": "MIT. LICENSE at https://raw.githubusercontent.com/sony/soundctm/main/LICENSE, first line: \"MIT License\" (Copyright (c) 2024 Sony Research Inc.).",
+     "licence_weights_or_files": "HF metadata: license: cc-by-4.0; card prose: 'Code is released under MIT, model weights are released under CC-BY 4.0'. BUT inference needs ckpt/audioldm-s-full.ckpt (VAE decoder + vocoder), which the Sony README links as required. AudioLDM upstream: GitHub haoheliu/AudioLDM LICENSE first line: \"Attribution-NonCommercial-ShareAlike 4.0 International\"; HF cvssp/audioldm-s-full-v2 tag: cc-by-nc-sa-4.0. Teacher weights are built on that stack. So the card's CC-BY claim and the NC-SA component disagree.",
+     "gated": "no (gated: False)",
+     "training_data": "AudioCaps (47,289 ten-second clips with captions, per paper https://arxiv.org/html/2405.18503); AudioCaps repo licence MIT. Licence of the YouTube audio: not stated.",
+     "output_terms": "Not stated.",
+     "what_it_makes": "Sound effects from text, 16 kHz (low for a game, no content above 8 kHz), 10 s clips; 1-step to multi-step.",
+     "params_and_size": "soundctm_ckpt ema 3,472,226,228 B; pytorch_model.bin 4,837,274,834 B; audioldm-s-full.ckpt 2,558,947,469 B; teacher 4,829,066,767 B.",
+     "weights_format": ".pt / .bin / .ckpt (pickle)",
+     "verdict": "fail",
+     "verdict_reasons": "Required AudioLDM-s-full VAE+vocoder checkpoint is CC-BY-NC-SA 4.0 (non-commercial, share-alike); also only 16 kHz. Superseded by SoundCTM-DiT above.",
+     "install": "Docker only per README (docker build -t soundctm .); requirements.txt pins old versions (numpy==1.23.5, transformers==4.36.2, mpi4py==3.1.5, gradio==3.42.0, wandb); Windows: not stated.",
+     "hardware": "not read",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "HF 2024-06-05; GitHub pushed 2025-03-31",
+     "quality_notes": "Not read beyond the paper's AudioCaps benchmark numbers."
+    },
+    {
+     "name": "AudioX family (AudioX, AudioX-Turbo, AudioX-MAF, AudioX-MAF-MMDiT, Audio-Omni)",
+     "kind": "text/video/audio-to-audio and music model (diffusion transformer, stable-audio-tools based)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/HKUSTAudio/AudioX",
+      "https://huggingface.co/HKUSTAudio/AudioX-Turbo",
+      "https://huggingface.co/HKUSTAudio/AudioX-MAF",
+      "https://huggingface.co/HKUSTAudio/AudioX-MAF-MMDiT",
+      "https://huggingface.co/HKUSTAudio/Audio-Omni"
+     ],
+     "code_repo_url": "https://github.com/ZeyueT/AudioX",
+     "licence_code": "Not read separately; HF repo ships stable_audio_tools code and a LICENSE file whose first line is \"Attribution-NonCommercial 4.0 International\" (https://huggingface.co/HKUSTAudio/AudioX/raw/main/LICENSE).",
+     "licence_weights_or_files": "All five repos: HF tag license: cc-by-nc-4.0. AudioX-Turbo card (raw/main/README.md line 153): 'released under CC-BY-NC 4.0' and line 155: 'The models are watermarked and are strictly for non-commercial use only.' Tag, LICENSE file and prose agree.",
+     "gated": "no (gated: False)",
+     "training_data": "not read (paper arXiv 2503.10522 not opened)",
+     "output_terms": "Non-commercial per card; models are watermarked (AudioX-Turbo card).",
+     "what_it_makes": "Audio and music from text, video, image; 10 s examples in card; sample rate not read",
+     "params_and_size": "AudioX model.ckpt 5,957,258,603 B; AudioX-Turbo audiox_turbo.ckpt 10,563,872,831 B; AudioX-MAF-MMDiT model.ckpt 10,843,616,882 B; Audio-Omni model.ckpt 22,220,882,720 B",
+     "weights_format": ".ckpt (pickle)",
+     "verdict": "fail",
+     "verdict_reasons": "CC-BY-NC 4.0 on weights, non-commercial only, outputs watermarked. Breaks rule 1.",
+     "install": "conda, python 3.8.20, pip install git+https://github.com/ZeyueT/AudioX.git (card); Windows: not stated",
+     "hardware": "not read",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "AudioX and Turbo 2026-06-17; MAF variants 2026-02-18; Audio-Omni 2026-06-17",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "Auffusion (auffusion, auffusion-full)",
+     "kind": "text-to-audio model (Stable-Diffusion-style latent diffusion on spectrograms, 16 kHz)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/auffusion/auffusion",
+      "https://huggingface.co/auffusion/auffusion-full"
+     ],
+     "code_repo_url": "not read",
+     "licence_code": "not read",
+     "licence_weights_or_files": "HF tag license: cc-by-nc-sa-4.0 on both repos (card front matter; https://huggingface.co/auffusion/auffusion/raw/main/README.md line 2). LICENSE file: none in file list.",
+     "gated": "no (gated: False)",
+     "training_data": "Card lists dataset AudioCaps for auffusion; auffusion-full 'pre-trained on all datasets described in paper' (paper not opened).",
+     "output_terms": "not stated; NC-SA applies to the model",
+     "what_it_makes": "Sound effects and other audio, card sample code writes 16 kHz",
+     "params_and_size": "unet diffusion_pytorch_model.bin 3,438,366,373 B; text encoder 492,306,077 B; vae 334,712,113 B; vocoder 54,808,625 B",
+     "weights_format": ".bin / .pt (pickle only)",
+     "verdict": "fail",
+     "verdict_reasons": "CC-BY-NC-SA 4.0 (non-commercial, share-alike); 16 kHz; last updated 2024-01-03.",
+     "install": "not read",
+     "hardware": "not read",
+     "needs_trust_remote_code": "not read",
+     "release_or_last_update": "2024-01-03",
+     "quality_notes": "not read"
+    }
+   ],
+   "could_not_read": "No separate Sony or SonyResearch model for sound effects beyond Sony/soundctm and koichisaito/soundctm_dit: HF org SonyResearch returned no models; HF org Sony lists soundctm as its only text-to-audio model (as of 2026-11-15); GitHub org SonyResearch not queried. Meta: facebook org has no new text-to-audio sound-effect model after AudioCraft's audiogen-medium (2024-03-12) and audio-magnet-small/medium (2024-01-16), which are AudioCraft and out of scope; facebook/sam-audio-* (2025-12-30) are sound separation, not generation, licence not read. NVIDIA: HF search 'fugatto' returned nothing and github.com/NVIDIA/fugatto returned Not Found, so no Fugatto weights found. Microsoft: no sound-effect model in the 40 newest repos or search. ElevenLabs, Adobe: no HF org read, no open weights found by HF search ('multifoley', 'movie-gen-audio' empty). Not read: AudioX paper (training data), AudioX/Auffusion code repo licences, Auffusion paper, EzAudio config for clip length and default steps, EzAudio and SoundCTM-DiT inference VRAM and speed, licence of LAION CLAP 630k weights and gaussiandac VAE, OpenAI terms for GPT-4o-mini captions, whether pickle .pt files from these repos load under torch weights_only on current torch.\",\"newer_or_missed\":\"Found in HF search but outside my family and not licence-read by me: stabilityai/stable-audio-3-small-sfx and -base (plus GGUF/MLX copies), OpenMOSS-Team/MOSS-SoundEffect and MOSS-SoundEffect-v2.0 (plus GGUF), mispeech/Dasheng-AudioGen and Dasheng-AudioGen-Multilingual, tencent/HunyuanVideo-Foley, ymzhang319/FoleyCrafter, SimianLuo/Diff-Foley, Lightricks LTX-2.3 Foley LoRA, stabilityai/stable-audio-open-1.0 and -small. Several of these look more current and sound-effect focused than the models above; other agents' families should cover them.\"}"
+  },
+  {
+   "key": "tools-audio-to-audio",
+   "candidates": [
+    {
+     "name": "AudioSR (haoheliu) - audio super-resolution (bandwidth extension to 48 kHz)",
+     "kind": "audio-to-audio tool (needs an input audio file; no text prompt; not text-to-audio)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/haoheliu/audiosr_basic",
+      "https://huggingface.co/haoheliu/audiosr_speech",
+      "https://pypi.org/project/audiosr/0.0.7/"
+     ],
+     "code_repo_url": "https://github.com/haoheliu/versatile_audio_super_resolution",
+     "licence_code": "MIT per GitHub API (spdx MIT) and PyPI classifier 'License :: OSI Approved :: MIT License'. LICENSE file https://raw.githubusercontent.com/haoheliu/versatile_audio_super_resolution/main/LICENSE first line: 'Copyright (c) 2012-2023 Scott Chacon and others' (MIT text follows; the copyright line looks copied from another project, wrong holder name).",
+     "licence_weights_or_files": "audiosr_basic: card metadata 'license: apache-2.0' (https://huggingface.co/api/models/haoheliu/audiosr_basic); card text is only the YAML header, no LICENSE file in repo, no prose terms. audiosr_speech: no licence in metadata, no card text, no LICENSE file (licence undeclared). Training data (below) includes datasets whose own terms are non-commercial, so the Apache tag may not cover the whole chain.",
+     "gated": "no (gated=False for both repos)",
+     "training_data": "Paper https://arxiv.org/html/2309.07314 'Training Datasets': MUSDB18-HQ, MoisesDB, MedleyDB, FreeSound, and OpenSLR speech; about 7000 hours, 48 kHz. Dataset terms read today: MUSDB18-HQ on Zenodo record 3338373 licence id 'other-nc'; MoisesDB README: 'distributed under ... CC BY-NC-SA 4.0'. MedleyDB, Freesound and OpenSLR per-file licences not read. The makers do not say that they cleared the licences.",
+     "output_terms": "not stated by makers (no output clause in code licence or card)",
+     "what_it_makes": "Takes a low-bandwidth recording and re-creates the missing high frequencies; outputs 48 kHz. Needs an input file (any type: music, speech, sound effects). It does not create new sounds. Usable only to brighten existing real recordings. README 'how_to_make_audiosr_work.md': fails on inputs with MP3-style cutoffs or strong noise/reverb; works best on clean low-pass-cut input. Seed and DDIM steps (default 50) settable; length not stated in what was read.",
+     "params_and_size": "parameter count not read; pytorch_model.bin 6.18 GB (basic) and 6.18 GB (speech) per HF API blobs; third-party LavaSR card says AudioSR is '~3gb+' and '< 1x realtime' (not verified)",
+     "weights_format": "pickle only (pytorch_model.bin); no safetensors in either repo",
+     "verdict": "unclear",
+     "verdict_reasons": "Code MIT and weights tagged Apache-2.0, not gated. But training data includes MUSDB18-HQ (other-nc) and MoisesDB (CC BY-NC-SA 4.0), and the makers state no clearance, so the owner must decide whether the Apache tag is enough. audiosr_speech has no licence declared. Install pins (numpy<=1.23.5, librosa==0.9.2, transformers==4.30.2, torch>=1.13) read on PyPI; whether they work with an RTX 5080 and Windows was not tested or read. VRAM need not read. Last model update 2024-02-03; code pushed 2025-08-27.",
+     "release_or_last_update": "weights 2024-02-03; PyPI audiosr 0.0.7 uploaded 2024-02-05; GitHub pushed 2025-08-27",
+     "install": "pip install audiosr==0.0.7 (README recommends Python 3.9 conda env; PyPI requires_python >=3.7); heavy pins: numpy<=1.23.5, librosa==0.9.2, transformers==4.30.2, torch>=1.13, gradio, phonemizer. Windows: README change log mentions a Windows error fix (2023-09-24); Windows with RTX 5080 not read.",
+     "needs_trust_remote_code": "not applicable (own package); weights are pickle (.bin), so loading runs torch pickle load",
+     "hardware": "VRAM need not read (not stated in README); runs on CPU possible but speed not stated; 6.18 GB file",
+     "quality_notes": "README states failure modes (cutoff patterns, noise, reverb). No source read about its effect on short hard impacts or low-end content; it adds high frequencies, not bass or attack."
+    },
+    {
+     "name": "LavaSR v2 (YatharthS) - bandwidth extension plus denoiser",
+     "kind": "audio-to-audio tool (needs an input audio file; speech-focused)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/YatharthS/LavaSR"
+     ],
+     "code_repo_url": "https://github.com/ysharma3501/LavaSR",
+     "licence_code": "Apache-2.0 per GitHub API; LICENSE file https://raw.githubusercontent.com/ysharma3501/LavaSR/main/LICENSE first line 'Apache License' (Version 2.0, January 2004)",
+     "licence_weights_or_files": "HF card metadata 'license: apache-2.0' (https://huggingface.co/api/models/YatharthS/LavaSR); card prose: 'The model and code are licensed under the Apache-2.0 license.' Consistent.",
+     "gated": "no (gated=False)",
+     "training_data": "GitHub README FAQ: 'starts off from a Vocos prior and trained with just 50k steps on VCTK dataset'; VCTK licence not read. README TODO: 'Release model trained on music and audio' (not done), so no non-speech training.",
+     "output_terms": "not stated",
+     "what_it_makes": "Input 8-48 kHz audio file, output 48 kHz; cleans and widens speech. Not a sound generator. Speech-only training means it is unlikely to help hull hits or machinery (inference, not measured).",
+     "params_and_size": "about 50 MB per card; HF files: enhancer/pytorch_model.bin 54 MB, enhancer_v2/pytorch_model.bin 56 MB; total 0.12 GB",
+     "weights_format": "pickle (pytorch_model.bin) only",
+     "verdict": "unclear",
+     "verdict_reasons": "Licences read are Apache-2.0 and the repo is not gated and tiny, but it is trained on speech only (VCTK, licence not read) and README says the music/audio model is not released. Not matched to the task.",
+     "release_or_last_update": "HF 2026-02-27; GitHub pushed 2026-06-19",
+     "install": "uv pip install git+https://github.com/ysharma3501/LavaSR.git (README); PyPI package 'lavasr' not found. Python version, Windows support not read.",
+     "needs_trust_remote_code": "not read",
+     "hardware": "README: 'over 60x realtime on CPU' and 800-5000x on GPU; VRAM not read",
+     "quality_notes": "Maker claims only (README, speech benchmarks). No independent source read."
+    },
+    {
+     "name": "RAVE (acids-ircam) - realtime variational autoencoder, timbre transfer, trainable on your own audio",
+     "kind": "audio-to-audio neural synthesis; needs a training dataset of your own recordings, then takes audio in and renders it in the learned timbre",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/Intelligent-Instruments-Lab/rave-models",
+      "https://acids-ircam.github.io/rave_models_download (listed in README, not read)",
+      "https://pypi.org/project/acids-rave/"
+     ],
+     "code_repo_url": "https://github.com/acids-ircam/RAVE",
+     "licence_code": "LICENSE https://raw.githubusercontent.com/acids-ircam/RAVE/master/LICENSE first line: 'Creative Commons Attribution-NonCommercial 4.0 International'. GitHub API reports NOASSERTION/'Other'.",
+     "licence_weights_or_files": "IIL rave-models card metadata 'license: cc-by-nc-4.0' (https://huggingface.co/api/models/Intelligent-Instruments-Lab/rave-models). Other pretrained models at the IRCAM download page: not read.",
+     "gated": "no (gated=False for rave-models)",
+     "training_data": "IIL card lists instrument/bird/voice/organ models; training data licences not read in what I fetched (card text read only to line 30). Not stated for the code repo.",
+     "output_terms": "not read; code README only asks to cite if used in a performance or installation",
+     "what_it_makes": "Learns a latent model from a folder of audio, then re-synthesizes input audio in that sound; 48 kHz models in IIL list. Needs input audio at inference and a dataset to train a custom model (README mentions a minimum GPU memory of 32 GB for the v2 config, 18 GB for discrete, 5 GB for the Raspberry Pi config).",
+     "params_and_size": "IIL models e.g. 67 MB, 138 MB, 42 MB torchscript (.ts); full checkpoints up to 897 MB; 33 files",
+     "weights_format": "torchscript .ts and Lightning .ckpt (pickle-based)",
+     "verdict": "fail",
+     "verdict_reasons": "Code is CC BY-NC 4.0 and pretrained IIL models are cc-by-nc-4.0: non-commercial terms break rule 1 for code and weights.",
+     "release_or_last_update": "GitHub pushed 2026-11-09; PyPI acids-rave 2.3.1 uploaded 2023-12-18; IIL models 2024-05-26",
+     "install": "PyPI acids-rave 2.3.1, requires Python >=3.9; Windows/RTX 5080 not read",
+     "needs_trust_remote_code": "not applicable",
+     "hardware": "README: v2 config minimum GPU memory 32 GB (would not fit 16 GB); lighter configs 5 GB-18 GB",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "DDSP (Magenta) - differentiable DSP library, timbre transfer, solo-instrument autoencoder",
+     "kind": "audio-to-audio neural synthesis library; input must be monophonic pitched audio (notebook: 'Audio should be monophonic (single instrument / voice)'); the model is driven by fundamental frequency and loudness",
+     "hf_repo_ids_or_urls": [
+      "gs://ddsp/models/timbre_transfer_colab/2021-07-08/ (listed via storage API: solo_flute_ckpt, solo_flute2_ckpt, solo_tenor_saxophone_ckpt, solo_trumpet_ckpt, solo_violin_ckpt; nothing downloaded)",
+      "https://pypi.org/project/ddsp/"
+     ],
+     "code_repo_url": "https://github.com/magenta/ddsp",
+     "licence_code": "Apache-2.0 per GitHub API; LICENSE https://raw.githubusercontent.com/magenta/ddsp/main/LICENSE first line 'Copyright 2019 Google LLC.' followed by 'Apache License'. PyPI ddsp 3.7.0 'Apache 2.0'. Notebook header: Apache License 2.0.",
+     "licence_weights_or_files": "Pretrained checkpoints in the gs://ddsp bucket: no licence stated in the repo README, the timbre_transfer notebook or the bucket listing: not read. Training data of the five checkpoints: not stated in what I read.",
+     "gated": "no (public bucket listing, no login; the repo is open)",
+     "training_data": "not stated for the shipped checkpoints (README and notebook read); you can train your own from your own recordings (train_autoencoder notebook)",
+     "output_terms": "not stated; code is Apache-2.0",
+     "what_it_makes": "Resynthesizes input as flute/sax/trumpet/violin (or own-trained timbre) at 16 kHz sample rate in the notebook (SAMPLE_RATE = 16000); pitched sounds only. Not suited to noise, impacts or machinery without a dataset of your own; a harmonic-plus-filtered-noise synth would still colour the sound.",
+     "params_and_size": "checkpoint sizes not read (bucket listing showed only folder markers)",
+     "weights_format": "TensorFlow checkpoints",
+     "verdict": "unclear",
+     "verdict_reasons": "Code Apache-2.0 and open, but the licence and training data of the pretrained checkpoints are not stated anywhere I read, and the code is pinned to old TensorFlow: ddsp 3.7.0 requires tensorflow<=2.11, numpy<1.24, librosa<=0.10 (PyPI). Whether TF 2.11 runs on an RTX 5080 on Windows was not read (TensorFlow install page fetch returned no text). Own-trained models would sidestep the checkpoint licence but need a dataset.",
+     "release_or_last_update": "GitHub pushed 2026-10-19; PyPI ddsp 3.7.0 uploaded 2023-05-25",
+     "install": "pip install ddsp==3.7.0; many old pins (tensorflow<=2.11, protobuf<=3.20, crepe, tensorflow-probability<=0.19); Python version requirement not read; Windows not read",
+     "needs_trust_remote_code": "not applicable",
+     "hardware": "not read",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "OpenAIR library (University of York) - impulse responses for convolution reverb, plus anechoic recordings",
+     "kind": "recording source (impulse responses of real spaces, convolved with existing sounds in ordinary DSP; no neural model)",
+     "hf_repo_ids_or_urls": [
+      "https://www.openair.hosted.york.ac.uk/ (live site not reachable from this machine: connection failed on https; read via Wayback snapshot 2026-07-17)",
+      "http://web.archive.org/web/20260717055911/https://www.openair.hosted.york.ac.uk/?page_id=36 (IR list)",
+      "http://web.archive.org/web/20260717055911/https://www.openair.hosted.york.ac.uk/?page_id=310 (Anechoic Data)"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (no code)",
+     "licence_weights_or_files": "Site About page: 'Most of the content on this site is released under Creative Commons licenses ... Information about the licensing of specific content can be found by scrolling to the bottom of that content's pages. ... Any one of the Creative Commons licenses can be chosen, or if necessary the user can choose to reserve all rights.' So it is per item. I read 12 IR pages (Genesis 6 Studio Live Room, Gill Heads Mine, Hoffmann Lime Kiln, Innocent Railway Tunnel, R1 Nuclear Reactor Hall, Slinky IR, T2 Hangar, Terry's Factory Warehouse, Terry's Typing Room, Troller's Gill, Virtual Membranes, Waveguide Web): each says 'This work is licensed under a Creative Commons Attribution 4.0 International License' and 'Attribute this work to: www.openairlib.net' (some add Audiolab, University of York and author names). Anechoic Data page: same CC BY 4.0, 'please attribute it to www.openairlib.net'. The other roughly 50 IR pages (about 60 listed) were NOT read, so their licences are unknown (could be CC BY-NC etc.). CC BY 4.0 text itself not read.",
+     "gated": "no (no login seen on the pages read; download buttons not followed)",
+     "training_data": "not applicable (measurements, not a trained model)",
+     "output_terms": "CC BY 4.0 attribution to www.openairlib.net (and named authors where listed) is the only condition seen on the 12 pages; sounds convolved with the IRs: not discussed on the pages read",
+     "what_it_makes": "Reverb of real spaces (reactor hall, hangar, warehouse, tunnel, mine, lime kiln) that can be applied to formula-made or recorded sounds; some IRs are formats with B-format/stereo/mono, file sizes not read. Needs an input sound; makes no new source sound. Anechoic collection (CC BY 4.0) includes starter pistol, bicycle horn, balloon, synthesised drums (names only, files not heard).",
+     "params_and_size": "IR file sizes not read",
+     "weights_format": "WAV/zip downloads per page (not followed); site also shows mp3 previews",
+     "verdict": "pass",
+     "verdict_reasons": "Only for the 12 IR pages named above: CC BY 4.0 with attribution, no NC or revenue cap seen, not gated, runs on any CPU (plain convolution). Scope is limited: live site unreachable, licence read from a Wayback copy dated 2026-07-17, other ~50 IRs unread, and attribution must be kept in the game's credits.",
+     "release_or_last_update": "Wayback snapshot 2026-07-17; page dates not shown",
+     "install": "none; any convolution reverb (not checked which)",
+     "needs_trust_remote_code": "not applicable",
+     "hardware": "CPU",
+     "quality_notes": "No source read on how convolution suits short hard hits; the T2 Hangar and R1 Reactor Hall pages are descriptions only."
+    },
+    {
+     "name": "Stable Audio Open 1.0 and Small (Stability AI) - text-to-audio with audio init (audio variation) in stable-audio-tools",
+     "kind": "text-to-audio model with init-audio variation (not read from a source today beyond tool names); relevant here only as a variation/inpainting mode",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-open-1.0",
+      "https://huggingface.co/stabilityai/stable-audio-open-small"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-tools",
+     "licence_code": "MIT per GitHub API; LICENSE https://raw.githubusercontent.com/Stability-AI/stable-audio-tools/main/LICENSE first line 'MIT License'",
+     "licence_weights_or_files": "Card metadata (API): 1.0 'license: other, license_name: stable-audio-community'; small 'license: other, license_name: stability-ai-community'. Both repos gated=auto with prompt 'By clicking \"Agree\", you agree to the License Agreement ... Privacy Policy'. LICENSE.md and README.md refused without login: licence text, revenue cap and registration terms NOT read.",
+     "gated": "yes (auto gated; login and accept terms required)",
+     "training_data": "not read (README gated); the 1.0 repo lists freesound_dataset_attribution2.csv (50 MB) per HF file list",
+     "output_terms": "not read (licence text refused)",
+     "what_it_makes": "not read from the card; stable-audio-tools README mentions model type 'diffusion_cond_inpaint'; init-audio mode not confirmed in what I read",
+     "params_and_size": "1.0: 15.68 GB all files (model.safetensors 4.85 GB, 2 copies of weights); small: 6.44 GB total (model.safetensors 1.68 GB)",
+     "weights_format": "safetensors and ckpt",
+     "verdict": "unclear",
+     "verdict_reasons": "Gated: an agent cannot download it. Licence text and any revenue cap not readable today; the owner must read the licence at the repository after logging in. Another family member probably covers this model; listed here only for its audio-variation mode.",
+     "release_or_last_update": "1.0: 2025-06-19; small: 2026-11-05; stable-audio-tools pushed 2026-11-01, PyPI 0.0.20 (Python >=3.10,<3.11)",
+     "install": "PyPI stable-audio-tools 0.0.20, requires Python >=3.10,<3.11",
+     "needs_trust_remote_code": "not read",
+     "hardware": "not read",
+     "quality_notes": "not read"
+    },
+    {
+     "name": "AudioLDM / AudioLDM 2 (cvssp) - text-to-audio with audio-to-audio style transfer",
+     "kind": "text-to-audio model; its audio-to-audio mode needs an input file",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/cvssp/audioldm2",
+      "https://huggingface.co/cvssp/audioldm2-large",
+      "https://huggingface.co/cvssp/audioldm-s-full-v2"
+     ],
+     "code_repo_url": "not read",
+     "licence_code": "not read",
+     "licence_weights_or_files": "Card metadata for all three: 'license: cc-by-nc-sa-4.0' (https://huggingface.co/api/models/cvssp/audioldm2); LICENSE file not read",
+     "gated": "no (gated=False)",
+     "training_data": "not read",
+     "output_terms": "not read",
+     "what_it_makes": "not read",
+     "params_and_size": "audioldm2 8.96 GB, audioldm2-large 11.93 GB, audioldm-s-full-v2 3.37 GB (all files)",
+     "weights_format": "safetensors and bin",
+     "verdict": "fail",
+     "verdict_reasons": "CC BY-NC-SA 4.0 in card metadata: non-commercial and share-alike break rule 1.",
+     "release_or_last_update": "2024-04-16",
+     "install": "not read",
+     "needs_trust_remote_code": "not read",
+     "hardware": "not read",
+     "quality_notes": "not read"
+    }
+   ],
+   "could_not_read": "1) OpenAIR live site (https://www.openair.hosted.york.ac.uk/ and https://openairlib.net): HTTPS connection failed from this machine; all OpenAIR facts come from a Wayback copy dated 2026-07-17; only 12 of about 60 IR pages were read (the full licence scan was too slow and was stopped). CC BY 4.0 legal text not read. 2) stabilityai/stable-audio-open-1.0 and -small: LICENSE.md and README.md refused (gated, login required): licence terms, revenue cap, training-data statement, init-audio mode not read. 3) RAVE pretrained model page https://acids-ircam.github.io/rave_models_download and IIL card text beyond line 30 (training data of the pretrained models) not read; RAVE paper not read. 4) DDSP pretrained checkpoint licence, training data and file sizes (bucket gs://ddsp), Python/Windows support, TensorFlow GPU support on RTX 5080 (tensorflow.org/install/pip returned no matching text): not read. 5) AudioSR: VRAM need, speed on a 5080, Windows and Blackwell compatibility of the pinned dependencies, the paper's PDF text (read via arXiv HTML only), licences of MedleyDB/Freesound/OpenSLR data, and the licence of audiosr_speech not read. 6) AudioLDM/AudioLDM 2: only HF API metadata read; code licence, card text, training data not read. 7) Resemble Enhance (resemble-ai/resemble-enhance): HF API returned 'Invalid username or password' (wrong repo id or hidden); not read. 8) FlashSR (YatharthS/FlashSR, Apache-2.0 tag, 2 MB, 16 to 48 kHz, speech-oriented) and LAION FlashSR (no licence metadata) only seen in listings; not checked further. 9) Neural audio effects (for example neural amp or effect models) and other audio-variation modes of open generators were not covered beyond what is listed.",
+   "newer_or_missed": "Newer than AudioSR seen in HF search (2026): LavaSR v2 (Apache-2.0 tag, speech-only, VCTK), FlashSR by YatharthS (Apache-2.0 tag, 2 MB, 16 to 48 kHz, speech upsampler), laion/FlashSR_One-step_Versatile_Audio_Super-resolution (no licence metadata, 3.32 GB, updated 2026-05-02; unread), aufklarer FlashSR-MLX (cc-by-nc-4.0, Apple MLX). Not checked: Resemble Enhance, Neutone/neural-effect plugins, other RAVE-like models with permissive licences (none seen). The OpenAIR library is the only item with a pass, and only for 12 named IR pages; none of the neural tools turns formula-made sounds into realistic sounds from text, they all need real input audio."
+  },
+  {
+   "key": "scout",
+   "candidates": [
+    {
+     "name": "Stable Audio 3 (small-sfx, medium; bases small-sfx-base, medium-base; autoencoder SAME)",
+     "kind": "text-to-audio model (also audio-to-audio editing and inpainting); small-sfx is sound-effects-only, medium does music and sounds",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/stabilityai/stable-audio-3-small-sfx",
+      "https://huggingface.co/stabilityai/stable-audio-3-medium",
+      "https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base",
+      "https://huggingface.co/stabilityai/stable-audio-3-medium-base",
+      "https://huggingface.co/stabilityai/stable-audio-3-optimized",
+      "https://huggingface.co/stabilityai/SAME-L"
+     ],
+     "code_repo_url": "https://github.com/Stability-AI/stable-audio-3",
+     "licence_code": "MIT. GitHub API spdx MIT; first line of https://raw.githubusercontent.com/Stability-AI/stable-audio-3/main/LICENSE is 'MIT License'. The code README's License section only says 'Please refer to the Stability AI Community License'.",
+     "licence_weights_or_files": "Card metadata on all repos read: license: other, license_name: stable-audio-community, license_link: LICENSE.md. First line of https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base/raw/main/LICENSE.md: 'STABILITY AI COMMUNITY LICENSE AGREEMENT' (last updated July 5, 2024); tag and file agree. Terms in the file: free for research and non-commercial use; for COMMERCIAL use 'You must register with Stability AI at https://stability.ai/community-license'; REVENUE CAP: if you or affiliates exceed USD 1,000,000 annual revenue (direct or indirect) 'any licenses granted to You under this Agreement shall terminate', and you must ask for an enterprise licence at stability.ai/enterprise, granted at Stability's sole discretion; on distributing the model or a derivative you must pass on the licence, keep a Notice text file and 'prominently display Powered by Stability AI' on website/UI/docs; use of model AND outputs must follow Stability's Acceptable Use Policy (stability.ai/use-policy, incorporated by reference); outputs and derivative works may not be used 'to create or improve any foundational generative AI model'; licence is revocable and terminates if you sue Stability over IP. Section 4(c)(iii): 'You own any outputs generated from the Models or Derivative Works to the extent permitted by applicable law'; outputs are excluded from the definition of Derivative Work. Text encoder t5gemma-b-b-ul2 is redistributed in the repos under the Gemma Terms of Use (LICENSE_GEMMA.md, last modified April 1, 2026; the gate text names its use restrictions in Section 3.2). The card also says 'For commercial use, please refer to https://stability.ai/license'. The gate text of small-sfx and medium links the Stable Audio Open 1.0 LICENSE.md, not the SA3 file.",
+     "gated": "Yes for small-sfx, medium (and small-music): API gated=auto, form asks name, email, country, organisation, intended use; raw README returned HTTP 401 without login. NOT gated (gated=False, readable): small-sfx-base, stable-audio-3-optimized, SAME-L, SAME-S. Base models are 'pre-trained, intended for fine-tuning', not the post-trained quality; medium-base gate not read.",
+     "training_data": "Stated on the card (small-sfx-base, read): 1,278,902 recordings; 806,284 licensed from AudioSparx and 472,618 from Freesound (266,324 CC-0, 194,840 CC-BY, 11,454 CC-Sampling+); music removed with a PANNs tagger plus a content-detection company check; same Freesound subset as Stable Audio Open (attributions at info.stability.ai/attributions). Paper abstract (arXiv 2605.17991): 'trained on licensed and Creative Commons data'. So realism comes from a large real-recording library; the CC-BY part carries attribution duties on the training data side, not read how Stability handles that for outputs.",
+     "output_terms": "You own outputs to the extent the law permits (Section 4(c)(iii)); outputs must comply with applicable law and the AUP; may not be used to train/improve a foundational generative AI model. No attribution duty on generated audio found in the text; 'Powered by Stability AI' display applies on distributing Stability AI Materials or a product using them. Whether shipping only the generated WAV files (not the model) triggers the Community Licence Section 3 registration/revenue cap: not stated in the text; owner or Stability must settle it.",
+     "what_it_makes": "Sound effects (small-sfx), music and sound (medium). Stereo, 44.1 kHz (README: SAME autoencoder, stereo, 44.1 kHz). Variable length, text prompt plus duration parameter (example duration=7, steps=50, cfg_scale=7.0); max length 120 s (small) and 380 s (medium). Also audio-to-audio editing, inpainting/continuation, LoRA fine-tuning (stackable). Seed control not read. Shortest length not read.",
+     "params_and_size": "small-sfx 433M params (README), 2.27 GB model + 1.18 GB T5Gemma text encoder = 3.49 GB; medium 1.4B params, 9.22 GB + 1.18 GB = 10.45 GB; small-sfx-base 4.76 GB incl. 1.27 GB svd_bases.pt. README peak VRAM (on H200): small 1.69 to 2.40 GB, medium 5.07 to 6.52 GB; speed small 0.41 s for 5 s of audio, medium 0.60 s for 5 s on H200 (README table). Small runs on CPU (README). Fits 16 GB easily.",
+     "weights_format": "safetensors (model.safetensors); optimized repo also has ONNX, TFLite, TensorRT (a sm_120 = Blackwell folder exists, matching the RTX 5080), MLX",
+     "verdict": "unclear",
+     "verdict_reasons": "Rule 1 broken in spirit but not by a plain no: Community Licence has a USD 1,000,000 annual revenue cap and a registration duty for commercial use (so by the owner's rule: 'unclear, owner must decide'); small-sfx and medium are gated (login + form) so an agent cannot download them; only the base models are ungated. Plus Gemma Terms on the text encoder, AUP, and a 'Powered by Stability AI' display duty on distribution. Rule 3 ok: small-sfx is 433M params. Install facts: no PyPI package named stable-audio-3 (pypi.org/pypi/stable-audio-3/json returned no info); install is uv sync from GitHub, default torch 2.7.1 with CUDA 12.6 and cu118/cu126/cu128 variants listed; medium needs Flash Attention 2 (not in the lockfile, pre-built wheels from a community repo for Linux listed, Windows route not read); small has a TFLite CPU route that the README says works on Windows. Python version not read. trust_remote_code: not used in the shown code. What would settle it: owner accepts the Community Licence terms (registration, USD 1M cap, attribution) or asks Stability whether shipping only generated files is covered.",
+     "needs_trust_remote_code": "No (own library stable_audio_3 / stable-audio-tools; no trust_remote_code in the card examples)",
+     "install": "uv sync from the GitHub repo (not on PyPI as far as pypi.org/pypi/stable-audio-3/json showed); Python version not read; torch 2.7.1 + CUDA 12.6 default (cu118/126/128 variants listed in README); medium additionally needs flash-attn 2; Windows support: README says the optimized TFLite route runs on macOS/Linux/Windows (PowerShell bootstrap script); main path with flash-attn on Windows not read",
+     "hardware": "small-sfx: about 1.7 to 2.4 GB VRAM, CPU possible (README). medium: about 5 to 6.5 GB VRAM on H200, GPU only. Both fit RTX 5080 16 GB. Speed numbers are for H200, nothing stated for RTX 5080.",
+     "quality_notes": "Makers: 'state-of-the-art', adversarial post-training for fidelity and prompt adherence, 44.1 kHz stereo; no independent listening reports about short hard impacts and low end were read today. The paper (arXiv 2605.17991) full text not read. Previous Stable Audio Open known weakness on punchy transients: not read today, so not stated.",
+     "release_or_last_update": "Created 2026-05-17; last modified 2026-10-06 (small-sfx, medium); optimized repo modified 2026-10-30; code repo pushed 2026-11-02; 878 GitHub stars; likes: medium 612, small-sfx 397"
+    },
+    {
+     "name": "Woosh (Sony AI): Woosh-Flow, Woosh-DFlow (text-to-audio), Woosh-VFlow, Woosh-DVFlow (video-to-audio)",
+     "kind": "text-to-audio and video-to-audio sound-effect model (T2A usable text-only)",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/drbaph/Woosh",
+      "https://huggingface.co/AEmotionStudio/woosh-models",
+      "https://github.com/SonyResearch/Woosh"
+     ],
+     "code_repo_url": "https://github.com/SonyResearch/Woosh",
+     "licence_code": "Conflicting. GitHub API says Apache-2.0 for the repo, but raw LICENSE on main returned 404 (URL https://raw.githubusercontent.com/SonyResearch/Woosh/main/LICENSE); the repo README says 'majority of the code ... MIT license', with the V2A models' code (adapted from MMAudio and MotionFormer) under Apache 2.0. The HF re-upload card says Code: Apache 2.0.",
+     "licence_weights_or_files": "Repo README (https://raw.githubusercontent.com/SonyResearch/Woosh/main/README.md): 'The open weights in the releases page are released under the CC-BY-NC license'. HF card tags of drbaph/Woosh and AEmotionStudio/woosh-models: license cc-by-nc-4.0 (both are third-party re-uploads; no official Sony AI HF repo found via author=SonyResearch search, which returned an empty list). Non-commercial.",
+     "gated": "No (re-uploads not gated; official weights are GitHub release files)",
+     "training_data": "README states only that the weights are 'trained on public datasets'; which datasets and their licences: not read. Non-commercial weights licence.",
+     "output_terms": "not read (non-commercial weights licence makes shipping in a game that may become commercial unsafe)",
+     "what_it_makes": "Sound effects; sample rate, channels, length: not read. Steps: Flow 50 steps CFG 4.5; DFlow distilled 4 steps CFG 1.0.",
+     "params_and_size": "Parameters not read; weights Flow 1.35 GB, DFlow 1.38 GB, AE 0.88 GB, text conditioner 1.43 GB, about 9.8 GB for the whole repo (HF API)",
+     "weights_format": "safetensors",
+     "verdict": "fail",
+     "verdict_reasons": "Weights are CC BY-NC 4.0: non-commercial, rule 1 broken. The arXiv ID given on the card (2502.07359) points to an unrelated neutron/gamma paper, so the paper link on the card is wrong.",
+     "needs_trust_remote_code": "not read",
+     "install": "uv sync --extra cuda from the GitHub repo; ComfyUI nodes exist (Saganaki22/ComfyUI-Woosh); Windows: not read",
+     "hardware": "Card says Flow about 8 to 12 GB VRAM, DFlow about 4 to 6 GB, with CPU offload 2 to 4 GB; fits 16 GB",
+     "quality_notes": "not read (no independent reports read)",
+     "release_or_last_update": "drbaph/Woosh created 2026-04-11, 40 likes; GitHub repo pushed 2026-09-11, 411 stars"
+    },
+    {
+     "name": "Dasheng-AudioGen (Xiaomi / mispeech)",
+     "kind": "text-to-audio model for mixed scenes (speech, music, sound effects, environment) from structured captions; only 18 likes, below the 100-like bar, listed because of its permissive licence",
+     "hf_repo_ids_or_urls": [
+      "https://huggingface.co/mispeech/Dasheng-AudioGen",
+      "https://huggingface.co/mispeech/Dasheng-AudioGen-Multilingual"
+     ],
+     "code_repo_url": "https://github.com/xiaomi-research/dasheng-audiogen",
+     "licence_code": "Apache-2.0 (GitHub API spdx apache-2.0; first line of https://raw.githubusercontent.com/xiaomi-research/dasheng-audiogen/main/LICENSE: 'Apache License')",
+     "licence_weights_or_files": "Card metadata license: apache-2.0 (https://huggingface.co/mispeech/Dasheng-AudioGen/raw/main/README.md); the card's License section says 'This project is released under the Apache License 2.0'. Tag and prose agree. No LICENSE file in the HF repo read.",
+     "gated": "No (gated=False)",
+     "training_data": "not stated on the card text read; paper abstract (arXiv 2605.27838) mentions structured multi-view captions but no dataset or licences; full paper not read",
+     "output_terms": "not read (card states no output terms)",
+     "what_it_makes": "Speech, music, sound effects and ambience in one scene from a prompt that must start with a caption tag; sample rate, channels, maximum length, seed: not read",
+     "params_and_size": "parameters not read; model.safetensors 8.74 GB (HF API)",
+     "weights_format": "safetensors (library transformers, custom code)",
+     "verdict": "unclear",
+     "verdict_reasons": "Licence is permissive on tag and prose, but training data and its licences are not stated, output terms not read, the model is aimed at mixed scenes with speech, and it needs trust_remote_code. What would settle it: paper or GitHub text on training data and sample rate.",
+     "needs_trust_remote_code": "Yes (AutoModel.from_pretrained(..., trust_remote_code=True) in the card)",
+     "install": "pip install torch torchaudio 'transformers<5' einops; tested on Python 3.10, torch 2.8.0+cu128, transformers 4.57; not compatible with transformers 5.x; Windows: not read",
+     "hardware": "VRAM and speed not read; 8.74 GB weights should fit 16 GB but this is not stated",
+     "quality_notes": "Makers claim (paper abstract) performance 'approaching real-world recordings in mixed-audio categories' and competitive in single-type generation; no independent report read",
+     "release_or_last_update": "Created 2026-04-07; last modified 2026-06-16; code repo pushed 2026-06-16"
+    }
+   ],
+   "could_not_read": "stabilityai/stable-audio-3-small-sfx and -medium README (401, gated; only the metadata and gate text via the API were read); stable-audio-3-medium-base gate state; SA3 paper full text (only abstract read); PyPI stable-audio-3 (no such package returned); Woosh LICENSE file on GitHub (404), Woosh training data, sample rate and paper (card's arXiv ID points to an unrelated paper); Dasheng-AudioGen training data, sample rate and output terms; Windows support of flash-attn route for SA3 medium; any independent listening reports on short hard impact sounds for all three; FuzzPuppy/Lightricks LTX-2.3 Foley LoRA licences.",
+   "newer_or_missed": "FunAudioLLM/PrismAudio (84 likes, created 2026-03-23, video-to-audio, successor of ThinkSound): card tag license: mit, but the card prose says code, weights and datasets are 'for research and educational purposes only. Commercial use is not permitted without explicit authorization' = fail by rule 1, and it is video-based. | HKUSTAudio/Audio-Omni (49 likes, 2026-03-27): cc-by-nc-4.0 = fail, 22 GB. | Lightricks/LTX-2.3-22b-LoRA-Foley-V2A (42 likes) and FuzzPuppy/LTX-2.3-Foley-LoRA (56): Foley LoRAs on the LTX-2.3 video model, video-to-audio, licences not read, a 22B model so not for 16 GB without heavy quantisation. | YJX-Xiaomi/ControlFoley (19 likes, 2026-04-13), CocoBro/Foley-Omni (3), Wubble-AI/wubble-sound-effects-model-v1 (1, 2026-06-27), mispeech/midashenglm-gen (47, 2026-08-12), mifinkelson/scena (16): small or unread, not checked. | OpenMOSS-Team/MOSS-SoundEffect-v2.0 (159 likes, 2026-05-25) is a newer version of a model family already on the list; GGUF copy ilintar/moss-soundeffect-gguf exists. | Music-only, left out: MiniMax-Music3, YuE2, ACE-Step 1.5, google/magenta-realtime-2, HeartMuLa, stable-audio-3-small-music. | facebook/sam-audio-* (separation, not generation). | Third-party re-uploads/quantisations of SA3 (cocktailpeanut, thepatch GGUF, mlx-community, MusicForge) skipped per brief; note thepatch GGUF and MLX copies exist for Apple/CPU use. | No other 2026 text-to-sound-effect family with more than 100 likes was found in the text-to-audio, sound-effects, foley and audio-generation sweeps except SA3 and MOSS."
+  },
+  {
+   "key": "recordings",
+   "candidates": [
+    {
+     "name": "OpenGameArt.org - CC0 sound effects",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://opengameart.org/art-search-advanced?keys=machine&field_art_type_tid[]=13&field_art_licenses_tid[]=4",
+      "https://opengameart.org/content/faq"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (site; per-item licence)",
+     "licence_weights_or_files": "Per item. OGA FAQ (https://opengameart.org/content/faq) on CC0: 'Works released under this license may be copied, modified, distributed, performed or otherwise used in anyway without asking, crediting or notifying the creating artist.' CC0 deed (https://creativecommons.org/publicdomain/zero/1.0/): 'You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission.' Items read today with License(s): CC0: Metal Interactions (qubodup, /content/metal-interactions: hit, heavy, machine, door, switch), Machine shutting down (Cough-E, /content/machine-shutting-down; card says it was edited from a vacuum sound found elsewhere, whose source licence was not read), Electronic device loop (qubodup, hard-disk hum), Mechanical Explosion (Spring Spring, metal clatter), Steamboat Engine Sound (Spring Spring, engine loop), Quick Drill Fix (qubodup, sped-up washing machine), 100 CC0 SFX and 100 CC0 SFX #2 (rubberduck, metal, switch, door, machine), 30 CC0 SFX loops (rubberduck, 11 machine loops, 3 alarms). Items with CC-BY 3.0/GPL 2.0 exist too (for example Metal sounds by Vinrax): take only items whose licence list is CC0 alone. OGA states it makes an effort to verify but the uploader asserts the licence.",
+     "gated": "no (files download without login; 'Log in' only for comments)",
+     "training_data": "not applicable",
+     "output_terms": "not applicable (recordings): CC0, no credit needed; a source link is only 'appreciated' by OGA",
+     "what_it_makes": "Holds metal impacts, clangs, machine loops, switches, doors, alarms, drills, engine loops, power-off. Mostly small WAV/OGG/FLAC clips, quality varies by author; little heavy hydraulics or large turbines. Search by CC0 licence plus type Sound Effect.",
+     "params_and_size": "individual files 0.1-2.7 MB (e.g. steamboat_engine.wav 2.7 MB, mechanical_explosion.wav 522 KB); packs of 30-100 clips",
+     "weights_format": "WAV, OGG, FLAC",
+     "verdict": "pass",
+     "verdict_reasons": "CC0 per item, no account, redistributable in AGPL repo. Check each item's licence line and that derived items (Machine shutting down) have a CC0 source; keep a per-file source list."
+    },
+    {
+     "name": "Freesound.org (CC0 filter)",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://freesound.org/help/faq/",
+      "https://freesound.org/help/tos_api/",
+      "https://freesound.org/docs/api/authentication.html"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (per-file licence)",
+     "licence_weights_or_files": "FAQ: sounds come under 'Creative Commons 0', 'Attribution' or 'Attribution Noncommercial' (plus legacy Sampling+). FAQ summary: 'for the \"zero\" license you can do pretty much what you want with the sound.' Only the CC0 licence fits; CC-BY needs credit per file, BY-NC and Sampling+ fail. FAQ says AI-generated sounds may be uploaded if tagged GenAI, so a CC0 file may be synthetic (check tag).",
+     "gated": "yes: FAQ 'To download a sound, first make sure you are logged into your registered account.' API needs a registered account and API key (https://freesound.org/apiv2/apply); API terms forbid scraping and full copies of the database and are revocable (UPF).",
+     "training_data": "not applicable",
+     "output_terms": "not applicable; API terms section 4c: no use of Content in breach of its licence; section 1: API licence is temporary and may be withdrawn",
+     "what_it_makes": "Largest source of CC0 heavy impacts, hydraulics, servos, engines, relays, arcs, doors; single user uploads, quality varies. Contents of a given search not read today.",
+     "params_and_size": "not stated; per-file",
+     "weights_format": "original upload (WAV/FLAC/AIFF/OGG/MP3)",
+     "verdict": "unclear",
+     "verdict_reasons": "Content licence CC0 fits, but download requires a login/API key, so an agent cannot fetch it; the owner would download by hand and record each file's licence. Per-file licence must be checked."
+    },
+    {
+     "name": "Sonniss #GameAudioGDC bundles",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://sonniss.com/gdc-bundle-license",
+      "https://sonniss.com/gameaudiogdc"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (custom EULA)",
+     "licence_weights_or_files": "Current licence page (read via fetch tool today; first line: 'All of the sound effects contained within the #GameAudioGDC bundle are licensed to the end-user.'). Quoted terms: 'Licensee may not distribute, publish, sub-license or otherwise supply the sound effects as sound effects', applying 'whether the sound effects are unmodified, modified or re-designed'; 'Re-designed and manipulated sounds remain licensed material under this Agreement'; AI training prohibited. No open-source clause. A 2023 mirror PDF (unofficial, https://scrubby.duckdns.org/Sonniss.com%20-%20GDC%202023%20-%20Game%20Audio%20Bundle/License.pdf) is looser ('may distribute and publicly perform a reproduction') but also says 'may not sell any of the sound effects (as is)'; terms differ by year.",
+     "gated": "yes (accept EULA before download; sonniss.com blocked plain curl with a Cloudflare challenge)",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "Professional recordings (metal, machinery, vehicles, sci-fi design); size of bundles not read",
+     "params_and_size": "not read (tens of GB per bundle per secondary sources, not verified)",
+     "weights_format": "WAV",
+     "verdict": "fail",
+     "verdict_reasons": "Shipping the files inside a public open-source repo is supplying them 'as sound effects' to third parties; sublicensing forbidden; AGPL cannot be kept. Edited versions still covered."
+    },
+    {
+     "name": "BBC Sound Effects archive (RemArc)",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://sound-effects.bbcrewind.co.uk/licensing",
+      "https://sound-effects.bbcrewind.co.uk/"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (RemArc licence)",
+     "licence_weights_or_files": "Site text read: 'use them in your own personal/educational projects, or licence them for use.' Secondary press (not the licence itself) says personal, educational or research use only, credit BBC, commercial use needs a paid licence. The RemArc licence text itself was not read (bbc.co.uk and the licensing page were not reachable by the fetch tools).",
+     "gated": "no login stated on landing page; licence page is a JavaScript app, not read",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "30,000+ recordings per site text; contents for the list not read",
+     "params_and_size": "not read",
+     "weights_format": "WAV per secondary sources, not read",
+     "verdict": "fail",
+     "verdict_reasons": "Free tier is limited to personal/educational/research (site text); commercial use needs separate licence, so the game could not later go commercial and cannot redistribute freely."
+    },
+    {
+     "name": "Wikimedia Commons audio (Gravity Sound and others)",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://commons.wikimedia.org/wiki/Category:Audio_files_by_Gravity_Sound",
+      "https://commons.wikimedia.org/wiki/Category:Audio_files_of_sound_effects"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (per-file licence)",
+     "licence_weights_or_files": "Per file, read via API today: File:Power Up Machine 1 (Gravity Sound).wav is 'CC BY 4.0' (https://creativecommons.org/licenses/by/4.0), 3.18 MB. Gravity Sound category (100+ files read by title: alarms 1-8, air vent, air conditioner hum, beacon, asteroid) is by one author; licence of every file not read. Other items in the sound-effects category are mixed (some from Freesound with CC-BY).",
+     "gated": "no",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "Alarms, hums, air vent, machine power-up, game stingers; few heavy impacts or hydraulics found. Much of the category is music and voice.",
+     "params_and_size": "3 MB per file seen",
+     "weights_format": "WAV, OGG, OPUS, MP3",
+     "verdict": "pass",
+     "verdict_reasons": "Pass only per file where licence is CC0/public domain; CC-BY files (Gravity Sound) pass only with every file credited. Check each file's licence field."
+    },
+    {
+     "name": "Freesound-style packs on itch.io (metal, machinery)",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://floraphonic.itch.io/metal-hits",
+      "https://rawambience.itch.io/metal-elements-sound-effects",
+      "https://asaksfx.itch.io/big-industrial-metal-debris-impacts",
+      "https://ad-sounds.itch.io/little-machines-sound-effects"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable",
+     "licence_weights_or_files": "Pages read today: Metal Hit Sound Effects $10 minimum, 150+ sounds, 96 kHz/24 bit; Metal Elements $19 minimum, 273 sounds; Big Industrial Metal Debris Impacts $3.99 minimum, 4 sounds; Little Machines (AD Sounds): 'non-exclusive license - you're free to use these packs in your commercial games. No license to remix or claim as your own work.' None states CC0. A search did not find a CC0 pack for servo, hydraulics or spaceship machinery.",
+     "gated": "yes (purchase or itch account; sampled packs are paid)",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "Good real metal hits and machine recordings, but sold under game-use licences",
+     "params_and_size": "42-278 MB per pack",
+     "weights_format": "WAV",
+     "verdict": "fail",
+     "verdict_reasons": "Game-use licences allow embedding in a game build, not republishing raw files in an open repo; no CC0 pack found."
+    },
+    {
+     "name": "US government sources (NPS, NOAA, Library of Congress)",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://www.nps.gov/aboutus/disclaimer.htm",
+      "https://www.loc.gov/legal/",
+      "https://www.noaa.gov/protocols/wcm-guidelines/use-of-noaa-content"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not applicable (US federal works)",
+     "licence_weights_or_files": "NPS disclaimer: 'material created by the National Park Service ... unless otherwise indicated, is generally considered in the public domain' and 'not all materials ... are in the public domain'. LOC legal page: 'we generally do not own the rights to materials in our collections. You should determine for yourself whether or not an item is protected by copyright or in the public domain.' NOAA page: not read (HTTP 403 from CloudFront).",
+     "gated": "no for NPS and LOC pages",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "NPS natural sounds are wildlife and landscape, not machinery. LOC holds historical audio, status per item. Mechanical/industrial content for the list not found at these sources today.",
+     "params_and_size": "not read",
+     "weights_format": "not read",
+     "verdict": "unclear",
+     "verdict_reasons": "Only items made by federal employees are public domain; no suitable mechanical recordings located. Each item needs a rights check."
+    },
+    {
+     "name": "Internet Archive public-domain sound effects collections",
+     "kind": "recording source",
+     "hf_repo_ids_or_urls": [
+      "https://archive.org"
+     ],
+     "code_repo_url": "not applicable",
+     "licence_code": "not read",
+     "licence_weights_or_files": "not read: archive.org returned 'Internet Archive services are temporarily offline' on 2026-11-15; Wayback availability API returned no snapshot for the Sonniss page.",
+     "gated": "not read",
+     "training_data": "not applicable",
+     "output_terms": "not applicable",
+     "what_it_makes": "not read",
+     "params_and_size": "not read",
+     "weights_format": "not read",
+     "verdict": "unclear",
+     "verdict_reasons": "Site offline today; retry later. Item licences on archive.org are per item and often unclear."
+    }
+   ],
+   "could_not_read": "archive.org (offline 2026-11-15); BBC RemArc licence text and sound-effects.bbcrewind.co.uk/licensing (JS app, fetch refused; only landing text and press reports read); sonniss.com by curl (Cloudflare challenge; read through fetch tool only); NOAA content-use page (HTTP 403); the licence of the vacuum source behind OGA 'Machine shutting down'; per-file licences across the Gravity Sound Commons category beyond one file; actual contents of Freesound CC0 searches (login needed to download); no CC0 itch.io or GitHub mechanical pack was found, none verified."
+  }
+ ],
+ "missing": []
+}
