@@ -1,0 +1,200 @@
+{
+  "role": "phonon",
+  "status": "done",
+  "summary": "Phonon 31M EN via ptts 0.7.1 (Rust runtime, no PyTorch) runs on CPU only here. All 15 lines rendered on 4 CPU threads in f32 (median RTF 0.082 and 0.066 in two runs), in q8 (0.073, 64.5 MB file) and the 4 listen lines with blended voices (0.057). Time to first streamed chunk about 0.02 s. Load 0.09 s. Peak process memory 604 MB (f32), 410 MB (q8). Voices are the makers' character embeddings (loose fit); no graphics-card run exists.",
+  "licences": [
+    {
+      "what": "code LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/gradium-ai/xn-ptts/main/LICENSE-MIT",
+      "first_line": "Permission is hereby granted, free of charge, to any"
+    },
+    {
+      "what": "code LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/gradium-ai/xn-ptts/main/LICENSE-APACHE",
+      "first_line": "Apache License, Version 2.0, January 2004 (no plain LICENSE file; PyPI says MIT or Apache-2.0)"
+    },
+    {
+      "what": "weights gradium/phonon-31m-en",
+      "url": "https://huggingface.co/gradium/phonon-31m-en/raw/main/README.md",
+      "first_line": "license: apache-2.0 (card table: phonon-31m-en Apache 2.0; 40m models CC BY-NC 4.0, not touched). Not gated. No LICENSE file in the repo."
+    },
+    {
+      "what": "voices gradium/phonon-voices",
+      "url": "https://huggingface.co/gradium/phonon-voices/raw/main/README.md",
+      "first_line": "license: apache-2.0; 'English character voices made with Gradium Voice Design.' Origin of the 90 catalogue voices not stated: not downloaded."
+    },
+    {
+      "what": "codec Mimi (Kyutai), named by the card as the base of the codec",
+      "url": "https://huggingface.co/kyutai/mimi/raw/main/README.md",
+      "first_line": "license: cc-by-4.0 (attribution required; read only, nothing downloaded from it)"
+    }
+  ],
+  "installed": [
+    {
+      "package": "ptts",
+      "version": "0.7.1",
+      "source": "PyPI wheel cp39-abi3-win_amd64"
+    },
+    {
+      "package": "numpy",
+      "version": "2.5.4",
+      "source": "PyPI"
+    },
+    {
+      "package": "soundfile",
+      "version": "0.14.0",
+      "source": "PyPI"
+    },
+    {
+      "package": "huggingface_hub",
+      "version": "2.4.0",
+      "source": "PyPI (downloads only)"
+    },
+    {
+      "package": "safetensors",
+      "version": "0.8.0",
+      "source": "PyPI (reading and writing embeddings)"
+    },
+    {
+      "note": "full freeze in assets/audio/voice/phonon/freeze.txt; Python 3.12.9; no torch"
+    }
+  ],
+  "downloaded": [
+    {
+      "repository": "gradium/phonon-31m-en",
+      "revision": "92741c5b07d085ff840e26fea8ce43110b87852f",
+      "files": {
+        "model.safetensors": 102823920,
+        "model.q8.gguf": 64512352,
+        "config.json": 4634,
+        "tokenizer.json": 277967,
+        "generation_config.json": 220
+      },
+      "bytes": 167619093,
+      "note": "default-voice.safetensors (origin not stated), model.q4k.gguf, tokenizer.model and the rest not taken"
+    },
+    {
+      "repository": "gradium/phonon-voices",
+      "revision": "0ee17205f254b5abc43b266c8a0f215565c352f7",
+      "files": "12 character embeddings voices/<id>.safetensors (about 256 KB each) and voices.jsonl (33 KB metadata listing; no catalogue embedding taken)",
+      "bytes": 3100000
+    }
+  ],
+  "voices": {
+    "control_f": {
+      "character": "Fairy Godmother (QXNr0SvkukLB4wPq)",
+      "how": "character embedding as is, seed 20261115, temperature 0.3",
+      "why": "woman, low calm unhurried alto; age (sixties vs forties) and warmth do not fit, clipped brisk delivery is not available"
+    },
+    "pilot_m": {
+      "character": "Vyrmathrax the Ancient (xO8xQo3BrB8FuI6J)",
+      "how": "as is",
+      "why": "no human man in his thirties among the 12; dry, offhand, gravelly, slow is the nearest manner, but the description is of a dragon, very low, far deeper than a pilot"
+    },
+    "computer": {
+      "character": "The Snow Queen (NIWoEurJHMJjyUTe)",
+      "how": "as is",
+      "why": "woman, cool crystalline mezzo, precise articulation, unhurried: nearest to composed and neutral"
+    },
+    "dock_m": {
+      "character": "Grub the Ogre (cYtsRSxV5q9IMehn)",
+      "how": "as is",
+      "why": "man, gruff, grainy, low, slow, warm humour under the grumble; nearest to a rough warm foreman, age not stated"
+    },
+    "fit": "loose for all four: only 12 fantasy characters, no man of thirties, no woman of forties, no neutral machine voice. A voice is a fixed embedding file passed with every request, so it is the same for any text; whether it sounds the same from line to line was not measured by me (score.py does that).",
+    "phonon-blend": {
+      "control_f": "0.5 Fairy Godmother + 0.5 Snow Queen",
+      "computer": "0.7 Snow Queen + 0.3 Fairy Godmother",
+      "dock_m": "0.5 Grub + 0.5 Old Mortlake (lX3LavMNdlIbgEHH)",
+      "how": "weighted average of the embedding files (1,512,125), written as safetensors in the card format (metadata sig/epoch kept) and loaded with add_voice; only the 3 voices of the four listen lines (control_f twice)"
+    }
+  },
+  "timings": {
+    "phonon_f32_cpu_run2": {
+      "median_rtf": 0.068,
+      "rtf_min": 0.066,
+      "rtf_max": 0.072,
+      "load_s": 0.07,
+      "first_audio_s_median": 0.019,
+      "first_audio_s_max": 0.025,
+      "peak_graphics_mb": null,
+      "peak_working_set_mb": 606.1,
+      "threads": 4,
+      "lines": 15,
+      "total_audio_s": 145.9
+    },
+    "phonon_f32_cpu_run1": {
+      "median_rtf": 0.082,
+      "rtf_min": 0.076,
+      "rtf_max": 0.086,
+      "load_s": 0.09,
+      "first_audio_s_median": 0.02,
+      "first_audio_s_max": 0.023,
+      "peak_graphics_mb": null,
+      "peak_working_set_mb": 603.7,
+      "threads": 4,
+      "lines": 15,
+      "total_audio_s": 145.9
+    },
+    "phonon-q8_cpu": {
+      "median_rtf": 0.073,
+      "rtf_min": 0.071,
+      "rtf_max": 0.078,
+      "load_s": 0.08,
+      "first_audio_s_median": 0.022,
+      "first_audio_s_max": 0.027,
+      "peak_graphics_mb": null,
+      "peak_working_set_mb": 410.0,
+      "threads": 4,
+      "lines": 15,
+      "total_audio_s": 146.1
+    },
+    "phonon-blend_cpu": {
+      "median_rtf": 0.057,
+      "rtf_min": 0.056,
+      "rtf_max": 0.059,
+      "load_s": 0.08,
+      "first_audio_s_median": 0.017,
+      "first_audio_s_max": 0.017,
+      "peak_graphics_mb": null,
+      "peak_working_set_mb": 596.0,
+      "threads": 4,
+      "lines": 4,
+      "total_audio_s": 41.1
+    },
+    "cuda": "not supported: ptts 0.7.1 Windows wheel reports devices ['cpu'] only (build_info devices=['cpu']); no PyTorch involved, so no graphics-card run exists"
+  },
+  "sizes": {
+    "environment_gb": 0.09,
+    "model_files_gb": 0.168,
+    "voice_files_gb": 0.003,
+    "q8_file_mb_browser_would_load": 64.5,
+    "q8_file_bytes": 64512352,
+    "output_wavs_gb": 0.037,
+    "disk_free_gb": "248 before, 235 after (other agents also write)"
+  },
+  "telemetry": "The package is a Rust extension (_ptts.pyd, 18 MB) plus three small python files that import nothing network-related. Strings in the binary name only huggingface.co (embedded hf-hub with xet client, for hub downloads and for catalogue voices looked up by name, downloaded on first use), localhost and a rustls docs URL; the word 'analytics' occurs only inside the normaliser's abbreviation list. No telemetry, sentry or posthog found. Not checked by network capture. The adapter passes a local model directory and local voice files and sets HF_HUB_OFFLINE=1, so nothing is fetched at run time (it would fail otherwise). Downloads were made with huggingface_hub, HF_HUB_DISABLE_TELEMETRY=1, DO_NOT_TRACK=1, HF_TOKEN unset.",
+  "problems": [
+    "ptts 0.7.1 Windows wheel offers devices ['cpu'] only: no graphics-card run, peak graphics memory reported null.",
+    "tts.add_voice_from_embedding with the embedding transposed to (125,512) gave 33 percent longer audio than the same embedding loaded from its file (176640 vs 132480 samples); the (1,512,125) and (512,125) shapes were rejected. null_embedding (silence encoding) needs the Mimi encoder, which is not exposed. The blend is therefore made through files. A first blend run via add_voice_from_embedding was overwritten (radio_clearance 18.7 s vs 11.8 s).",
+    "Timings vary between runs: f32 median RTF 0.082 (run 1) and 0.066 (run 2) with identical audio; other agents use the CPU between locked runs, and the lock only serialises voice adapters. q8 and blend are one run each, so q8 vs f32 and blend vs f32 differences are within that spread.",
+    "Speech is slow: radio_clearance is 13.8 s for 24 words (speech from 0.10 s to 12.8 s). Not judged.",
+    "voices.jsonl was downloaded (metadata only, lists the catalogue names).",
+    "first_audio_s comes from a separate streaming pass of the same text after the timed synth call; it is the time to the first float32 chunk, about 0.02 s, native not WASM."
+  ],
+  "notVerified": [
+    "How any voice sounds, whether voices stay the same from line to line, word error rate (score.py).",
+    "Browser/WASM speed: the npm phonon-tts package was not run; the CPU figures are native Rust on a 16-thread desktop CPU limited to 4 threads.",
+    "That the runtime makes no network calls: read from binary strings and offline setting only, no traffic capture.",
+    "How the runtime normaliser reads numbers and codes in the raw line computer_cargo_raw; the audio exists, nobody listened.",
+    "Licence of the Mimi codec weights inside the 31m repo: the Mimi card says cc-by-4.0, the 31m repo has no separate statement."
+  ],
+  "filesWritten": [
+    "tools/voice/adapters/phonon.py",
+    ".venv-voice/phonon/",
+    "assets/audio/voice/phonon/ (cpu/*.wav, cpu/timing.json, timing_run1.json, timing_run2.json, cast/, freeze.txt)",
+    "assets/audio/voice/phonon-q8/ (cpu/, cast/)",
+    "assets/audio/voice/phonon-blend/ (cpu/, cast/ with blended safetensors)",
+    "docs/reports/2026-11-15/voice-phonon-report.json"
+  ]
+}

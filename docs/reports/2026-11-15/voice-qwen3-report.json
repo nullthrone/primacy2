@@ -1,0 +1,187 @@
+{
+  "role": "qwen3 (designer of the cast, quality reference)",
+  "status": "done",
+  "summary": "Cast of four voices made with VoiceDesign 1.7B on the card (3 takes each, take 1 sound for all, 10.9-13.2 s). All 15 lines spoken with Base 0.6B clone prompts on cuda (median RTF 1.825, slower than real time) and 3 lines on CPU 4 threads (median RTF 3.064). No audio streaming in the package, so no time to first audio.",
+  "licences": [
+    {
+      "what": "code LICENSE",
+      "url": "https://raw.githubusercontent.com/QwenLM/Qwen3-TTS/main/LICENSE",
+      "first_line": "(blank/indented) then 'Apache License / Version 2.0, January 2004'"
+    },
+    {
+      "what": "VoiceDesign card",
+      "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign/raw/main/README.md",
+      "first_line": "license: apache-2.0 (API: gated false, tag license:apache-2.0)"
+    },
+    {
+      "what": "Base 0.6B card",
+      "url": "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base/raw/main/README.md",
+      "first_line": "license: apache-2.0 (API: gated false, tag license:apache-2.0)"
+    },
+    {
+      "note": "No LICENSE file in the model repos (per dossier; not re-checked beyond the file lists, which show none)."
+    }
+  ],
+  "installed": [
+    {
+      "package": "qwen-tts",
+      "version": "0.1.1",
+      "source": "PyPI"
+    },
+    {
+      "package": "torch / torchaudio",
+      "version": "2.11.0+cu128",
+      "source": "https://download.pytorch.org/whl/cu128"
+    },
+    {
+      "package": "transformers",
+      "version": "4.57.3",
+      "source": "PyPI (pinned by qwen-tts)"
+    },
+    {
+      "package": "numpy, soundfile, huggingface_hub, sox 1.5.0 and others",
+      "version": "see assets/audio/voice/qwen3/freeze.txt (88 lines)",
+      "source": "PyPI"
+    }
+  ],
+  "downloaded": [
+    {
+      "repository": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+      "revision": "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+      "files": [
+        "config.json",
+        "generation_config.json",
+        "merges.txt",
+        "model.safetensors",
+        "preprocessor_config.json",
+        "README.md",
+        "tokenizer_config.json",
+        "vocab.json",
+        "speech_tokenizer\\config.json",
+        "speech_tokenizer\\configuration.json",
+        "speech_tokenizer\\model.safetensors",
+        "speech_tokenizer\\preprocessor_config.json"
+      ],
+      "bytes": 4520162313
+    },
+    {
+      "repository": "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+      "revision": "5d83992436eae1d760afd27aff78a71d676296fc",
+      "files": [
+        "config.json",
+        "generation_config.json",
+        "merges.txt",
+        "model.safetensors",
+        "preprocessor_config.json",
+        "README.md",
+        "tokenizer_config.json",
+        "vocab.json",
+        "speech_tokenizer\\config.json",
+        "speech_tokenizer\\configuration.json",
+        "speech_tokenizer\\model.safetensors",
+        "speech_tokenizer\\preprocessor_config.json"
+      ],
+      "bytes": 2516104532
+    }
+  ],
+  "voices": {
+    "control_f": {
+      "how": "VoiceDesign 1.7B, generate_voice_design(text=reference_text, instruct=description, language=English), bf16 on cuda, sampling defaults of the package, max_new_tokens 600; clip then fed to Base 0.6B create_voice_clone_prompt (ICL mode, ref_text = reference_text)",
+      "from": "description of cast.json",
+      "seed": 20261115,
+      "take": 1,
+      "why": "take 1 passed all checks (not silent, not clipped, 6-25 s, no inner silence over 1.5 s)",
+      "clip_s": 10.88,
+      "sample_rate": 24000
+    },
+    "pilot_m": {
+      "how": "VoiceDesign 1.7B, generate_voice_design(text=reference_text, instruct=description, language=English), bf16 on cuda, sampling defaults of the package, max_new_tokens 600; clip then fed to Base 0.6B create_voice_clone_prompt (ICL mode, ref_text = reference_text)",
+      "from": "description of cast.json",
+      "seed": 20261115,
+      "take": 1,
+      "why": "take 1 passed all checks (not silent, not clipped, 6-25 s, no inner silence over 1.5 s)",
+      "clip_s": 12.88,
+      "sample_rate": 24000
+    },
+    "computer": {
+      "how": "VoiceDesign 1.7B, generate_voice_design(text=reference_text, instruct=description, language=English), bf16 on cuda, sampling defaults of the package, max_new_tokens 600; clip then fed to Base 0.6B create_voice_clone_prompt (ICL mode, ref_text = reference_text)",
+      "from": "description of cast.json",
+      "seed": 20261115,
+      "take": 1,
+      "why": "take 1 passed all checks (not silent, not clipped, 6-25 s, no inner silence over 1.5 s)",
+      "clip_s": 13.2,
+      "sample_rate": 24000
+    },
+    "dock_m": {
+      "how": "VoiceDesign 1.7B, generate_voice_design(text=reference_text, instruct=description, language=English), bf16 on cuda, sampling defaults of the package, max_new_tokens 600; clip then fed to Base 0.6B create_voice_clone_prompt (ICL mode, ref_text = reference_text)",
+      "from": "description of cast.json",
+      "seed": 20261115,
+      "take": 1,
+      "why": "take 1 passed all checks (not silent, not clipped, 6-25 s, no inner silence over 1.5 s)",
+      "clip_s": 11.84,
+      "sample_rate": 24000
+    }
+  },
+  "timings": {
+    "cuda": {
+      "median_rtf": 1.825,
+      "load_s": 4.88,
+      "first_audio": "not available: package has no audio streaming",
+      "peak_gpu_gb": 2.958,
+      "peak_gpu_note": "torch max_memory_allocated of Base 0.6B bf16 after warm-up, includes weights",
+      "cast_step_peak_gpu_gb": 4.6,
+      "cast_step_voicedesign_load_s": 7.2,
+      "threads": null,
+      "lines": 15,
+      "rtf_range": "1.655-1.963",
+      "clone_prompt_s_for_4_voices": 16.71
+    },
+    "cpu": {
+      "median_rtf": 3.064,
+      "load_s": 3.89,
+      "first_audio": "not available",
+      "threads": 4,
+      "dtype": "float32",
+      "lines": 3,
+      "lines_run": "radio_clearance, computer_fold, station_dock",
+      "clone_prompt_s_for_3_voices": 1.13,
+      "five_minute_rule": "not triggered (slowest line 30.3 s)"
+    }
+  },
+  "sizes": {
+    "environment_gb": 4.8,
+    "model_gb": 7.04,
+    "model_gb_detail": "VoiceDesign 4.52, Base 0.6B 2.52 (HF default cache C:/Users/Thomas/.cache/huggingface, shared, not in the repo)"
+  },
+  "telemetry": "Searched qwen_tts for analytics/telemetry/posthog/sentry: only demo.py (gradio UI, never imported by the adapter) matches 'gradio'. urllib.request.urlopen exists in qwen3_tts_model.py and qwen3_tts_tokenizer.py only to fetch a ref_audio given as a URL; the adapter passes arrays and local files. No other run-time fetch beyond HF model files. HF_HUB_DISABLE_TELEMETRY=1 and DO_NOT_TRACK=1 set in the adapter; HF_TOKEN removed. No trust_remote_code. The 3 Qwen3 weights files are safetensors, no pickle loaded (torch.load with weights_only=True only in demo.py, unused). Network I/O during runs was not packet-captured.",
+  "problems": [
+    "Speed: on the card the Base 0.6B clone path ran at RTF 1.66-1.96 (slower than real time) with 3 GB peak and GPU utilisation near idle between runs; likely launch/python-bound token loop in the HF generate path without flash-attn, on Windows; not investigated or tuned. CPU 4 threads float32 RTF about 3.06, i.e. only about 1.7x slower than the card.",
+    "No audio streaming in qwen-tts 0.1.1 (non_streaming_mode only simulates streamed text input), so no first-audio figure; the 97 ms claim of the paper is not reproducible with this package.",
+    "Every line starts with 0.24-0.79 s of near silence (first sample above 0.01); output is untrimmed as the contract requires.",
+    "Importing sox prints 'SoX could not be found' on every run (the python sox package; the 25 Hz tokenizer path only, not used here); harmless in these runs.",
+    "snapshot_download failed once with a Windows symlink error (WinError 1314) on the second repo with parallel workers; retried with max_workers=1 and it worked.",
+    "max_new_tokens capped at 600 (cast) and 1000 (lines) as a safety net instead of the package default 8192; no line hit the cap (longest 12.88 s = about 161 frames).",
+    "common.parse_args has no option for the cast device, so the adapter strips an extra --cast-device option from argv before calling it; VoiceDesign fitted the card, so the CPU fallback was not needed."
+  ],
+  "notVerified": [
+    "Whether any voice sounds right or stays the same voice from line to line (nobody can hear; score.py was not run).",
+    "Intelligibility of invented names, word error rate.",
+    "Whether the cuda RTF improves with flash-attn, torch.compile, or an idle card: the owner's desktop programs hold part of the card and may have taken compute.",
+    "Time to first audio (not supported by the package).",
+    "Network traffic of the package at run time (code grep only).",
+    "Generated-audio and training-data terms beyond the card text and the dossier."
+  ],
+  "filesWritten": [
+    "tools/voice/adapters/qwen3.py",
+    "docs/reports/2026-11-15/voice-qwen3-report.json",
+    ".venv-voice/qwen3/ (environment)",
+    "assets/audio/voice/qwen3/freeze.txt",
+    "assets/audio/voice/qwen3/_dl.json",
+    "assets/audio/voice/qwen3/cast/{control_f,pilot_m,computer,dock_m}.wav and .json",
+    "assets/audio/voice/qwen3/cast/takes/<voice>_<1-3>.wav (12)",
+    "assets/audio/voice/qwen3/cast/_cast_summary.json",
+    "assets/audio/voice/qwen3/cuda/*.wav (15) and timing.json",
+    "assets/audio/voice/qwen3/cpu/{radio_clearance,computer_fold,station_dock}.wav and timing.json"
+  ],
+  "castReady": "yes"
+}

@@ -91,7 +91,7 @@ def main():
         raise SystemExit("phonon: ptts 0.7.1 on Windows offers the device cpu only; no graphics card run exists")
     import numpy as np
     from huggingface_hub import snapshot_download
-    from safetensors.numpy import load_file
+    from safetensors.numpy import load_file, save_file
     import ptts
 
     ptts.set_num_threads(args.threads)
@@ -122,9 +122,15 @@ def main():
     for vid in used:
         if variant == "phonon-blend":
             mix = BLEND[vid]
-            e = sum(w * emb(c) for c, w in mix.items()).astype(np.float32)
-            tts.add_voice_from_embedding(vid, e)
-            how = "blend of character embeddings, weighted average of the (125, 512) matrices"
+            # add_voice_from_embedding gave 33 percent longer audio than the same embedding read from its
+            # file (the null branch of CFG is missing), so the blend is written as a file in the card's
+            # format (1, 512, 125, metadata sig/epoch) and loaded through add_voice, like every other voice.
+            e = sum(w * np.asarray(load_file(str(voice_dir / (CHARACTERS[c] + ".safetensors")))["speaker_wavs"], dtype=np.float32)
+                    for c, w in mix.items()).astype(np.float32)
+            bfile = cast_dir / (vid + ".safetensors")
+            save_file({"speaker_wavs": np.ascontiguousarray(e)}, str(bfile), metadata={"sig": "ba7a5a45", "epoch": "300"})
+            tts.add_voice(vid, str(bfile))
+            how = "weighted average of character embedding files (1, 512, 125), written as a safetensors file in the card's format and loaded with add_voice"
             facts = {"blend": mix}
         else:
             char, why = PICK[vid]
