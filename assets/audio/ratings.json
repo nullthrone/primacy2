@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "savedAt": "2026-11-15T08:42:14.266Z",
+  "savedAt": "2026-11-15T19:36:05.096Z",
   "manifest": {
     "placeholder": false,
-    "count": 114
+    "count": 128
   },
   "ratings": {
     "engine_main_t000": {
@@ -209,8 +209,17 @@
       "stars": 0,
       "verdict": "fits",
       "note": "",
-      "at": "2026-11-15T08:34:47.365Z",
-      "hash": "885aeda16116"
+      "at": "2026-11-15T19:36:04.593Z",
+      "history": [
+        {
+          "stars": 0,
+          "verdict": "fits",
+          "note": "",
+          "at": "2026-11-15T08:34:47.365Z",
+          "hash": "885aeda16116"
+        }
+      ],
+      "hash": "5a50213f8c3f"
     },
     "k_engine_low_0": {
       "stars": 0,
@@ -358,6 +367,48 @@
       "note": "Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..",
       "at": "2026-11-15T08:42:13.764Z",
       "hash": "f4926ce9e560"
+    },
+    "voice_2_computer_1_qwen3": {
+      "stars": 4,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:02.489Z",
+      "hash": "d55338b574fe"
+    },
+    "voice_2_computer_2_chatterbox": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:11.836Z",
+      "hash": "1b14c0e5111e"
+    },
+    "voice_2_computer_3_kokoro": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:17.099Z",
+      "hash": "4e0fe5d5b23f"
+    },
+    "voice_2_computer_4_kitten": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:21.824Z",
+      "hash": "96248b58e0c5"
+    },
+    "voice_2_computer_5_phonon": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:29.135Z",
+      "hash": "b7cd8a0e8d3b"
+    },
+    "voice_3_dock_1_qwen3": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "",
+      "at": "2026-11-15T19:34:39.180Z",
+      "hash": "719b445c3be2"
     }
   },
   "scenes": {},
