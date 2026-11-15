@@ -80,6 +80,11 @@ def main() -> None:
                         code="https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2", code_commit=CODE_COMMIT,
                         torch=torch.__version__, compile="disabled (TORCHDYNAMO_DISABLE=1)")
     for job in jobs:
+        if (common.raw_dir("moss") / (job["name"] + ".wav")).is_file() and job["name"] in rec.data["items"]:
+            print("have", job["name"])  # a second run adds to the first, and does not repeat
+            continue
+        if args.device == "cuda":
+            torch.cuda.empty_cache()  # 16 GB card: the 30 s latent decode otherwise spills into shared memory
         t = time.perf_counter()
         audio = pipe(prompt=job["text"], seconds=job["seconds"], num_inference_steps=steps,
                      cfg_scale=cfg, sigma_shift=shift, seed=job["seed"], progress_bar_cmd=lambda x: x)
@@ -91,6 +96,7 @@ def main() -> None:
                  steps=steps, cfg_scale=cfg, sigma_shift=shift, dtype="bfloat16",
                  note="makers' pipeline appends the duration suffix itself")
         rec.save()
+        del audio, wav
     rec.save()
 
 
