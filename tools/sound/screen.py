@@ -82,7 +82,8 @@ PAGE_OFFSET_DB = 10.0 * math.log10(2.0)   # a one-channel file is counted on bot
 LEVEL_TOL_DB = 0.05                       # the loudness of a copy must come this close to its target
 LEVEL_ITERATIONS = 30
 LOW_HZ = 60.0                             # the share of the energy above this is recorded (a measure, no rule)
-STEP_DB = -60.0                           # a sample above this at an end is a step
+STEP_DB = -72.0                           # a sample above this at an end is a step: the page's static rule is -60 dBFS, but its recorder
+                                          # (capture.ts) looks for clicks above -70 dBFS, and a first sample of -60.4 dBFS in a quiet start was found as one
 RAMP_S = 0.0015
 FADE_S = 0.030
 TAIL_CHECK_S = 0.010
