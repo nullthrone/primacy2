@@ -86,6 +86,21 @@ def main() -> None:
         te.to("cpu")
         te.register_forward_pre_hook(lambda m, a: m.to("cuda") and None)
         te.register_forward_hook(lambda m, a, o: (m.to("cpu"), torch.cuda.empty_cache(), None)[-1])
+        # Same for the denoiser (5.7 GB) while the 30 s latent is decoded by the VAE, whose
+        # float32 activations are the peak of the run.
+        vae, dit = pipe.vae, pipe.transformer
+        orig_decode = vae.decode
+
+        def decode(z, *a, **k):
+            dit.to("cpu")
+            torch.cuda.empty_cache()
+            try:
+                return orig_decode(z, *a, **k)
+            finally:
+                torch.cuda.empty_cache()
+                dit.to("cuda")
+
+        vae.decode = decode
         torch.cuda.empty_cache()
     rec = common.Record("moss", model="OpenMOSS-Team/MOSS-SoundEffect-v2.0", model_revision=MODEL_REVISION,
                         code="https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2", code_commit=CODE_COMMIT,
