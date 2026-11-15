@@ -1,0 +1,79 @@
+{
+  "role": "select: screen the candidates, publish sixteen to the audition page, check the page, write RESULTS.md",
+  "status": "partial",
+  "summary": "screen.py and publish.py ran on the real candidates (MOSS 72, Stable Audio 3 72, OpenGameArt 0). 53 of 144 files were thrown out (MOSS 12, Stable Audio 41; by first reason 40 clipped, 11 cut off, 2 several events). Sixteen were chosen, four per family (third slot filled by a second MOSS pick because the recordings are missing) and published as category source: 148 sounds in the manifest, validated, the hashes of all 132 earlier sounds and the 128 ids of round3.json unchanged. The page check with the sixteen ids plus test_edges and test_step passes 48 of 48 with no click from the page. Status is partial because the OpenGameArt source was blocked earlier and has no candidates.",
+  "licences": "None read or downloaded by this role; nothing was downloaded.",
+  "installed": "Nothing installed. Ran with .venv-audio (read only). The vite dev server of packages/client (already installed) was started on port 5197 and stopped afterwards.",
+  "downloaded": "Nothing.",
+  "settings": {
+    "screen": "defaults of screen.py plus: end of an event in hull, thruster and shield at 45 dB under the maximum (new, was 50), start within 40 dB, quiet 150 ms, family lengths hull 2.5 s, thruster 1.2 s, gear 3.8 s, shield 2.5 s, Whisper small and CLAP on the processor, mean removal in the listening copy when it is 0.0005 or more",
+    "skippedAsPick": {
+      "moss/thruster_3__s13": "steady noise with a 12.5 kHz line over the whole capped cut, no event",
+      "moss/thruster_1__s13": "same fault",
+      "moss/thruster_1__s16": "hiss sits 0.13 to 0.72 s inside a 1.2 s cut, silence before and after",
+      "sa3/thruster_1__s14": "thump at 0.75 s of the cut, after a quiet hiss kept by the 40 dB onset rule",
+      "moss/thruster_3__s16": "cut ends with the first samples of a second event",
+      "moss/shield_3__s11": "50 Hz sine over the whole 2.5 s cut, no decay"
+    },
+    "pageLevelRun": "audition-level.mjs, page defaults (room 1, radio filter on), port 5197",
+    "pageCheck": "audition-check.mjs with AUDITION_CAPTURE_ONLY = the sixteen ids + test_edges + test_step, AUDITION_CAPTURE_SCENES=none, ratings scratch file in the session scratch directory, started empty"
+  },
+  "sizes": {
+    "environmentGB": 0,
+    "filesGB": 0.0154,
+    "filesDetail": "assets/audio/render/source 6.6 MB, assets/audio/gen/_listen 8.8 MB, screen.json 100 KB",
+    "freeDiskAfterGB": 506
+  },
+  "safety": {
+    "pickles": "none loaded by this role",
+    "telemetry": "none: no model was downloaded or run on the card; Whisper and CLAP ran from the local cache with HF_HUB_DISABLE_TELEMETRY=1 and DO_NOT_TRACK=1 set by screen.py",
+    "ports": "5197 only; stopped with taskkill on pid 115076, which was my own vite process; netstat shows only a TIME_WAIT row afterwards. 5190, 8420, 8421 untouched.",
+    "ratingsJsonSha256": "f916ed364561b57618647545bfe8a11adeb8871219743cb244b23c87c01ecac4 before and after (assets/audio/ratings.json)"
+  },
+  "choice": {
+    "candidates": {"moss": 72, "sa3": 72, "oga": 0},
+    "kept": {"moss": {"hull": 18, "thruster": 17, "gear": 10, "shield": 15}, "sa3": {"hull": 8, "thruster": 6, "gear": 9, "shield": 8}},
+    "thrownOut": {"clipped": 40, "cut-off": 11, "several-events": 2, "firstReasonOnly": true},
+    "chosen": [
+      "src_1_hull_1_moss (hull_1 s14)", "src_1_hull_2_sa3 (hull_3 s16)", "src_1_hull_3_moss (hull_2 s12)", "src_1_hull_4_moss (hull_2 s16)",
+      "src_2_thruster_1_moss (thruster_1 s15)", "src_2_thruster_2_sa3 (thruster_1 s12)", "src_2_thruster_3_moss (thruster_2 s16)", "src_2_thruster_4_moss (thruster_2 s13)",
+      "src_3_gear_1_moss (gear_2 s16)", "src_3_gear_2_sa3 (gear_2 s16)", "src_3_gear_3_moss (gear_1 s12)", "src_3_gear_4_sa3 (gear_2 s11)",
+      "src_4_shield_1_moss (shield_3 s16)", "src_4_shield_2_sa3 (shield_2 s11)", "src_4_shield_3_moss (shield_1 s14)", "src_4_shield_4_sa3 (shield_2 s16)"
+    ],
+    "pageLevel": "sounding dBFS at the page output with defaults, by family: hull -36.6 to -31.4 (spread 5.2 dB), thruster -40.1 to -24.5 (15.6 dB), gear -42.2 to -35.1 (7.1 dB), shield -27.3 to -20.9 (6.4 dB); overload lamp lit for none. Not within 3 dB inside any family. Probable cause (not tested): LUFS K-weighting counts sub-bass little, the page measure does; also one against two channels and long against short files. No gain was changed.",
+    "pageCheckResult": "48 passed, 0 failed; faults found in the recordings 0 caused by the page, 4 in test_step (the control file); 18 sounds played in Stereo, 10 also in Mono and Headphones"
+  },
+  "changesToScripts": [
+    "tools/sound/screen.py: new option --skip SOURCE/NAME=REASON (the candidate stays in the pool for normalisation and centre, but is never picked; written to screen.json as skippedAsPick and per file). Used for the six replacements.",
+    "tools/sound/screen.py: new constant QUIET_DB = 45 for the end of an event in the one-event families (MOSS thruster_3 has a gap at -48 to -49 dB between two bursts, so 50 dB never ended the first event). Gear keeps END_DB = 50. settings in screen.json now hold quietUnderDb.",
+    "tools/sound/screen.py: listening_copy removes the mean (>= 0.0005) with a window that tapers over the first 1.5 ms and the last 5 ms before the last 10 ms; records dcBefore and dcAfter. Needed because four of the sixteen failed the page's dc-offset rule (0.0017 to 0.0099).",
+    "tools/sound/publish.py: moves the sounds of the category source to the front of manifest.json (stable), because audition-check.mjs takes manifest.sounds[0] and [1] for the first rows of the page and the page lists this category first. build.py alone would bring the failure back (3 steps failed before: hint text, plus two that were also affected by my copy of the owner's ratings used as scratch file).",
+    "tools/sound/tests/test_screen.py: the decaying-event test now says 45 dB; two tests added (a gap at -48 dB separates two events; the listening copy removes a mean the page would fail, with no step at either end). The random state is restored in the first so that the fake-tree test keeps its files. 23 tests, 0 failed."
+  ],
+  "problems": [
+    "OpenGameArt: no candidates (blocked earlier at tools/audio/fetch.py, which allows only kenney.nl and nasa.gov). Slot 3 of each family is a second MOSS pick, so slots 3 and 4 are both generated. Nothing substituted.",
+    "Thruster family is the weakest: Stable Audio thrown out 12 of 18 and MOSS thruster_1 and thruster_3 had steady noise or two-burst files; four of the six skips are in this family. The pick src_2_thruster_2_sa3 runs to the family length of 1.2 s (27 dB under its maximum at the cut).",
+    "The level on the page is not equal inside any family (see choice.pageLevel). src_1_hull_1_moss reaches -33.19 LUFS against a target of -34.0 (limitedByPeak false; not explained).",
+    "src_3_gear_1_moss has a steady line near 520 Hz for its whole length and runs to 3.8 s, 6.6 dB under its maximum at the cut; kept because the prompt asks for a servo whine.",
+    "A first page check run used a copy of the owner's ratings.json as scratch file and failed the two steps that count ratings; rerun with an empty scratch file passed. The owner's file was never written (hash unchanged).",
+    "assemble_manifest in build.py sorts ids it does not know after the known ones, and the page shows this category first; the durable fix (list the sixteen ids in sounds.json order, or sort by category) belongs to tools/audio, not to this role."
+  ],
+  "notVerified": [
+    "How any of the sixteen sounds. No one could listen; the spectrogram review finds only plain faults.",
+    "Whether the cuts (level rule) start and end where an ear would cut.",
+    "Whether low-frequency weighting is the cause of the unequal page levels.",
+    "The OpenGameArt source in any form.",
+    "Mono and Headphones playback of 8 of the 16 (only 10 of the 18 captured sounds were played in those settings)."
+  ],
+  "filesWritten": [
+    "assets/audio/gen/screen.json",
+    "assets/audio/gen/_listen/src_*.wav (16)",
+    "assets/audio/render/source/ (16 wav, png, json) through tools/sound/publish.py",
+    "assets/audio/render/manifest.json (through publish.py)",
+    "tools/sound/RESULTS.md",
+    "tools/sound/screen.py",
+    "tools/sound/publish.py",
+    "tools/sound/tests/test_screen.py",
+    "docs/reports/2026-11-15/sound-select-report.json"
+  ]
+}
