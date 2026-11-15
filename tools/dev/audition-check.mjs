@@ -438,9 +438,9 @@ try {
     'test/mono.wav': wav(1, tone),
     'test/left_only.wav': wav(2, tone, silence),
     // Controls of the capture: a cosine at half scale, so that the first and the last sample are far from zero (a fault
-    // only the page can cause), and a faded tone with a step in the middle (a fault that is in the file itself).
+    // only the page can cause), and a faded tone with a raised stretch in the middle, two steps that are in the file itself.
     'test/edges.wav': wav(1, Float32Array.from({ length: 48000 }, (_, i) => 0.5 * Math.cos((2 * Math.PI * 440 * i) / 48000))),
-    'test/step.wav': wav(1, Float32Array.from({ length: 48000 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000) * Math.min(1, i / 480, (48000 - i) / 480) + (i >= 24000 ? 0.4 : 0))),
+    'test/step.wav': wav(1, Float32Array.from({ length: 48000 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000) * Math.min(1, i / 480, (48000 - i) / 480) + (i >= 24000 && i < 36000 ? 0.4 : 0))),
   };
   const testSound = (id, file, extra) => ({
     id,

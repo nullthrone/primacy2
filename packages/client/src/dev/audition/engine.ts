@@ -25,7 +25,6 @@ const LIB = '/audio-lib/render/';
 const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
-const BASELINE = new URLSearchParams(location.search).has('baseline'); // BASELINE-TEMP
 /** Fade-in of a voice whose buffer does not start on silence, in seconds. */
 const EDGE_IN = 0.003;
 /** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
@@ -128,7 +127,6 @@ export function soundUrl(file: string): string {
 }
 
 function configureLimiter(c: DynamicsCompressorNode): void {
-  if (BASELINE) return; // BASELINE-TEMP
   c.threshold.value = LIMITER.threshold;
   c.knee.value = LIMITER.knee;
   c.ratio.value = LIMITER.ratio;
@@ -333,7 +331,7 @@ class Engine {
         sOut += out[i] * out[i];
       }
       const gain = Math.sqrt(sOut / sIn);
-      if (!BASELINE && Number.isFinite(gain) && gain > 0.1 && gain < 10) { // BASELINE-TEMP
+      if (Number.isFinite(gain) && gain > 0.1 && gain < 10) {
         this.limiterComp.gain.value = 1 / gain;
         this.limiterMakeupDb.value = 20 * Math.log10(gain);
       }
@@ -642,8 +640,8 @@ class Engine {
     // A loop fades in over FADE. A one-shot (or one pass of a loop file) starts untouched when its buffer starts on
     // silence, else with a short fade, so that a first sample away from zero never clicks; the end is treated alike.
     const edges = this.edgesOf(buf);
-    const fadeIn = BASELINE && !loop ? 0 : loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.min(Math.max(opts.fadeIn ?? EDGE_IN, 0.001), buf.duration / 2);
-    const fadeOut = BASELINE || loop || opts.joinOut || edges.endSilent ? 0 : Math.min(Math.max(opts.fadeOut ?? EDGE_OUT, 0.001), buf.duration / 2);
+    const fadeIn = loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.min(Math.max(opts.fadeIn ?? EDGE_IN, 0.001), buf.duration / 2);
+    const fadeOut = loop || opts.joinOut || edges.endSilent ? 0 : Math.min(Math.max(opts.fadeOut ?? EDGE_OUT, 0.001), buf.duration / 2);
     if (fadeIn > 0) {
       g.gain.setValueAtTime(0, t0);
       g.gain.setValueAtTime(0, start);
@@ -740,12 +738,12 @@ class Engine {
       const level = gain * (sound.gain ?? 1);
       const at = Math.max(when, ctx.currentTime);
       const edges = this.edgesOf(buf);
-      if (BASELINE || edges.startSilent) g.gain.setValueAtTime(level, at);
+      if (edges.startSilent) g.gain.setValueAtTime(level, at);
       else {
         g.gain.setValueAtTime(0, at);
         g.gain.linearRampToValueAtTime(level, at + EDGE_IN);
       }
-      if (!BASELINE && !edges.endSilent) {
+      if (!edges.endSilent) {
         const fo = Math.min(EDGE_OUT, buf.duration / 2);
         g.gain.setValueAtTime(level, at + buf.duration - fo);
         g.gain.linearRampToValueAtTime(0, at + buf.duration);
