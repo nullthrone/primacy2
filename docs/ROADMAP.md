@@ -251,11 +251,38 @@ light effects "fairly well". To do, in his order of weight:
   at any resolution; the brightest show small rays in the pattern of the sun's glare. The sky is
   the same from every system (only the stars of the game's own systems move). The cube map holds
   only what is diffuse: the glow of the galactic band with its dust lanes and a few small pale
-  nebulae.
-- **Textures** are mostly not pretty. Open. He named planets from close up, the ground while
-  landing, ships, stations, the cockpit and asteroids; what exactly bothers him he has not said.
-- After his next test he wants to be asked what to improve in light and sky, with proposals of
-  what more is possible.
+  nebulae. The new sky costs nothing that can be measured (a view without a sun: 2.16 ms per frame
+  before, 2.13 ms after, at 3840x2160 on the RTX 5080).
+- **Textures** were "mostly not pretty". He named planets from close up, the ground while
+  landing, ships, stations, the cockpit and asteroids; what exactly bothers him he has not said,
+  so the work followed what the pictures showed. Built on 2026-11-14 and 2026-11-15, all of it
+  in the shader, with no image files and no change to the models:
+  - Ships, stations, gates and bases: every `hull_*` material is cut into plates of varied size
+    with thin joints, small differences in tone and gloss from plate to plate, stains and fine
+    grain (`packages/client/src/render/local/objects/surface.ts`). The pattern is a function of
+    the position on the model, because the models have no texture coordinates; plates fade out
+    between 8 and 3 pixels of width. `hull_primary` is 14 % darker than it was.
+  - Cockpit: readable at every quality level. Six small cool lamps at the lit strips, a neutral
+    cabin fill and a bounce of the sun (`objects/lights.ts`); the `cockpit_*` materials are
+    lighter, less metallic and plated like the hulls.
+  - Asteroids: relief over two to four scales, mottling, sparse pits.
+  - Planets from close up (`packages/client/src/render/space/planetShader.ts`): once a planet
+    stands large in the view, clouds get lit relief on their tops and fray at their thin edges
+    while a thick deck stays closed; coasts are crisp, land has fine relief, the sea a sun glint;
+    giants get fine structure sheared along their bands; the glow of a lava planet resolves into
+    rafts with glowing seams; rocky bodies get small craters. From 3.1 radii outward the picture
+    is the same as before (compared at a frozen clock).
+  - The ground while landing: in work on 2026-11-15.
+
+  Cost at 3840x2160 on the RTX 5080, measured by the workers that built each part: plating
+  0.2 to 0.3 ms per frame with a station filling the view and nothing measurable on small ships
+  and asteroids; the cockpit 0.4 to 0.5 ms with its lamps. A planet that fills the view was and is
+  the most expensive picture of the game: 5 to 17 ms before, 6 to 14 ms after. The new detail
+  costs an estimated 2 to 3 ms there, and skipping work that is hidden saves more than that on
+  planets with clouds (a ship over an ocean planet 13.1 ms before and 8.4 ms after; an earth-like
+  planet from 1.15 radii 17.1 and 13.7; a gas giant 5.4 and 6.1; a rocky body 6.0 and 6.8).
+- After his next test he wants to be asked what to improve in light, sky and textures, with
+  proposals of what more is possible.
 
 ### Orientation on the HUD (decided and built on 2026-11-14)
 
@@ -375,8 +402,9 @@ Each step is one work session with its own workflow runs.
 2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
    touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
-   light and the sky are built (2026-11-14) and wait for the owner's next test; the textures are
-   not started. Orientation (a target that is chosen without opening a panel, an indicator that
+   light and the sky are built (2026-11-14) and wait for the owner's next test; of the textures
+   the hulls, the cockpit, the asteroids and the planets from close up are built (2026-11-15) and
+   wait for the same test, the ground while landing is in work. Orientation (a target that is chosen without opening a panel, an indicator that
    always leads back to it, the system's contents on the HUD, one window size for the station
    menus) is built (2026-11-14) and waits for the owner's next test. The radar sphere, the last
    part of what he chose for it, is built as well (2026-11-14) and waits for the same test.
@@ -423,8 +451,22 @@ Defects seen and left in:
   nearly the same direction; the nearer one keeps its label and the other shows the arrow only.
 - Projectiles and beams end at the ground; salvage and mining beams and the base structure do not
   stop shots. A missile that hits the ground does no area damage.
-- The cockpit is nearly black at quality 1 and 2 and readable at quality 0, where there are no
-  shadows (seen on `dev/local.html?scene=cockpit`; the cause is not looked into).
+- Surfaces of 2026-11-15. Hull plates do not follow the grooves that are modelled, because the
+  models have no texture coordinates; on the dashboard wings of the cockpit, which are turned by
+  30 degrees, the joints follow the model's axes and not the wing. The fracture planes of the
+  asteroid models are large flat triangles and stay visible under the relief. A light hull still
+  clips to white in full sun, and the shadow side of a hull is nearly black. At quality 0 the
+  cockpit has no shadow map, so the sun in the cabin is scaled by how far the canopy is open to it.
+- Planets from close up. The glow of a lava planet falls as the camera comes nearer than 2.4
+  radii (to about 0.64 of the old value inside 1.25 radii, and slightly redder), because the full
+  glow drowned the seams in bloom. The streaks of an ice giant are uniformly diagonal. From 1.05
+  radii the clouds are softer than from a ship in low orbit, and at 1600x900 with quality 1 the
+  cloud deck has texture of one scale only. Quality 0 keeps the old surface. Ice bodies with an
+  atmosphere, the lights of the night side and everything on the baked maps are untouched.
+- A planet that fills the view costs 6 to 14 ms per frame at 3840x2160 on the RTX 5080. Nobody
+  has looked at what that means on a weak graphics card.
+- The stars of the neighbouring systems are still soft discs without rays; only the sun of the
+  system and the brightest points of the sky have the new glare.
 - The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
   frame, the cockpit included.
 - Light in the lens: a black hole's disk has none; the core of a star that stays in the scene is
@@ -491,6 +533,10 @@ Never verified:
   star, how fast the exposure follows, whether the canopy scratches distract. Seen only in still
   pictures of the dev pages. The frame keeps its depth as a texture next to a multisampled colour
   target and the final pass reads it in its vertex shader: tried in Chromium only.
+- The surfaces of 2026-11-15 in motion: whether plates and grain shimmer or pop as they fade with
+  distance, whether the relief of the clouds crawls and their shadows slide as a planet comes
+  near, the limb of ocean worlds and giants from low orbit. Judged from still pictures of the dev
+  pages only. Wrecks, pods, missiles and beacons were not looked at in full size.
 - Any sound by ear, except what the owner rated (49 of 114 after round 2; the direction samples
   and the voice samples of round 3 not yet). Every other judgement of the sound library and of
   the speech models comes from measurements, spectrogram pictures and models that listen.
