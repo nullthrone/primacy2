@@ -1,0 +1,94 @@
+{
+  "role": "voice-verify: independent check of the repaired voice comparison",
+  "status": "done, with defects found",
+  "snapshot": "Taken 2026-11-15 15:45 to 16:35. The repair was still running: at 16:31 the bench lock was held by .venv-voice/qwen3 tools/voice/adapters/qwen3.py --device cpu --threads 4 (pid 99560), so the Qwen3 CPU files may change after this check.",
+  "summary": "The repaired code is good, the repaired documents and data are not there yet. test_score.py passes (all tests ok, none failing); .venv-audio is identical to its freeze (76 packages); qwen3.py is read-checked as offline and pinned; all scored WAVs are byte-identical to the audit's before copies and match timing.json in length. But RESULTS.md (last written 13:16), scores.json (13:14) and identity.json were not regenerated after the score.py fix, assets/audio/voice/retime.json does not exist, docs/reports/2026-11-15/voice-fix-report.json does not exist, and Qwen3 CPU still has 3 lines. Every table cell matches scores.json, identity.json and timing.json (they all describe the state before the repair), so the table still shows the defects the audit named: qwen3 cuda worst WER 0.214 and procedural_convoy 3 errors (hand count 2), single CUDA RTFs, 'no speedup' for 8 threads, seeds 20261115-17, no mention of the shared card. Nobody listened; nothing here says how a voice sounds.",
+  "check1_table_cells": {
+    "method": "Parsed all 11 rows of the RESULTS.md table and compared lines, threads, RTF median (also recomputed as the median of the per-line RTFs of each timing.json), first audio, load s, WER median, WER worst, names hit/total, same voice, voices apart with scores.json, timing.json and identity.json.",
+    "result": "0 cells differ from those sources. Sizes and memory (7.04 = 4.52 + 2.52 GB, 0.095, 1.94, 0.17 / 0.065 GB, peak GPU 2.96 / 0.81 GB, peak RAM 4.5 / 1.0 / 0.6 / 0.41 GB, Phonon 0.082 and 0.068) agree with the builders' reports, with two exceptions (below).",
+    "cells_that_do_not_match_a_source_or_are_stale": [
+      "qwen3/cuda WER worst 0.214 (scores.json 0.2143) is the pre-fix value; after the alignment fix the line has 2 errors of 14 = 0.143 (hand count and test_score.py). The cell agrees with the stale file, not with the repaired script.",
+      "kokoro/cuda and kokoro/cpu model files '0.33 GB': CANDIDATES.md says 341,870,408 bytes (= 0.34 GB); 0.33 is the builder's figure for the 327 MB .pth only (voice-kokoro-report.json sizes.model_gb 0.33, note '327 MB of model files').",
+      "kitten and kitten-blend parameters 'not read': voice-dossiers.json gives params_millions '82' for Kitten TTS 2 Mini (the builder's report gives none).",
+      "RTF median kokoro/cuda 0.011 and qwen3/cuda 1.825 equal timing.json, but on-disk re-times differ: kokoro/cuda 0.173 (card 95-99 % busy), 0.019, 0.019 (_audit/retime/kokoro__cuda*.json); qwen3/cuda 2.957, 2.424 (_audit/retime/qwen3__cuda*.json) and 2.197 (_retime_runs/proof_qwen3_offline_pinned.json, one line, card 47-49 %). The table shows one figure with no range and no load.",
+      "chatterbox-nano-8t RTF 0.703 and the words 'gave no speedup': _audit/retime has 8 threads 0.532 and 4 threads 0.710 (chatterbox-nano-8t__cpu.json, chatterbox-nano__cpu.json).",
+      "qwen3 'same voice' for the 4-line rows (chatterbox-nano-8t 0.959, kitten-blend 0.974, phonon-blend 0.944) is the mean of one voice (control_f, 2 lines); 'voices apart' of these rows uses 3 voices (pilot_m never spoken). identity.json shows n_lines per voice; RESULTS.md says only 'thin'."
+    ]
+  },
+  "check2_error_lists": {
+    "method": "Parsed every per-line entry under 'Lines Whisper read wrongly' (47 entries, 11 runs) and compared error count, reference and heard text with scores.json summary.lines_with_ordinary_errors: 0 differences, same set of lines per run. Then hand-counted six lines with names from the stored token sequences.",
+    "hand_counts": [
+      "qwen3 cuda procedural_convoy: hand 2 (drift lost inside xanthodrift; escorts heard as escort; 'and' is right; 'is' is an insertion inside the name run). scores.json and RESULTS.md still say 3 (stale). The new test test_tie_keeps_the_errors_on_the_names_qwen3_convoy asserts 2 and passes.",
+      "kitten-blend procedural_convoy: hand 2 (drift, escorts); scores.json 2. agrees.",
+      "phonon procedural_convoy: hand 1 (drift); scores.json 1. agrees.",
+      "phonon-blend procedural_convoy: hand 1 (pilot to pella); scores.json 1. agrees.",
+      "kokoro cuda radio_mayday: hand 2 ('point' inserted in 2 0 percent; bearing as bering); scores.json 2. agrees.",
+      "kitten station_dock: hand 1 (yard lost in okonkoyard), names 2/3; scores.json 1 and 2/3. agrees.",
+      "chatterbox-nano station_contract: hand 2 (want as wanted, it lost), name draumheim missed; scores.json 2. agrees.",
+      "phonon radio_mayday: hand 1 (third mayday as mayfair, in a run that touches the name wayfarer); scores.json 1. agrees (arguable, as the audit said)."
+    ],
+    "not_done": "The claim 'qwen3 cuda procedural_convoy was the only changed line across all scored runs' was NOT verified. I queued a CPU-only re-score of all stored hypotheses with the fixed score_text behind the bench lock (other agents held it from 15:45 to 16:31 with audition-check.mjs, build.py and the repair's own Qwen3 CPU run) and withdrew it unrun. The three other convoy lines and the test pass by hand count, so the claim is plausible, not shown."
+  },
+  "check3_scored_audio": {
+    "method": "For every timing.json (11 run directories): set of WAV files equals set of lines in timing.json; length of each WAV (frames / sample rate) within 0.01 s of audio_s; sample rate equals sr; mono. Then SHA-256 of every file in each run directory against assets/audio/voice/_audit/before/<model>/<device>/ (the audit's copy taken before any re-timing); cast directories of chatterbox-nano, kokoro, kitten, phonon against _audit/before/<model>/cast with diff -rq.",
+    "result": "No WAV differs from timing.json in length, rate or channel count. All 11 run directories are byte-identical to the audit's before copies (no differing file, no extra file); the four cast directories that have a before copy are identical. assets/audio/voice/_retime_runs/proof_qwen3_offline_pinned.json says restored_identical true, files_compared 43, which agrees with the directories as they are now. The Qwen3 cast clips have no before copy; their mtimes are 12:52-12:55, before all runs.",
+    "qwen3_cpu_has_15_lines": false,
+    "qwen3_cpu_detail": "assets/audio/voice/qwen3/cpu holds 3 WAVs (computer_fold, radio_clearance, station_dock) and a timing.json with 3 lines, rtf_median 3.064, written 13:40. assets/audio/voice/_retime_runs/builder_qwen3_cpu_3lines.timing.json is the same 3-line run kept as 'replaced by this fix'. identity.json has qwen3 cpu with 3 lines. A 15-line run was in progress at 16:31 (see snapshot) and not finished. Note on retime.py: its 'once' command copies the model directory, runs, then puts the copy back, so by design it cannot turn the 3-line directory into a 15-line one; the 15-line run needs a separate, non-restoring path."
+  },
+  "check4_qwen3_adapter": {
+    "method": "Read tools/voice/adapters/qwen3.py in full; ran nothing. Looked up the cache with ls and refs/main.",
+    "result": "Correct. HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1, telemetry off and HF_TOKEN removed at lines 33-38, before `import common` (line 41), torch and qwen_tts. REVISIONS pins 5ecdb67327fd37bb2e042aab12ff7391903235d3 (VoiceDesign) and 5d83992436eae1d760afd27aff78a71d676296fc (Base), the same as CANDIDATES.md, download.json and the builder's report. snapshot_download(repo, revision=rev, local_files_only=True) is asserted offline and its folder name must equal the revision, else SystemExit. Both models are loaded from that local folder path (no repo id reaches from_pretrained), so no hub request is possible. block_network refuses and counts any non-loopback connect/connect_ex, and the attempts are written to timing.json. No trust_remote_code. Cache check: each repository has exactly one snapshot and refs/main equals the pinned revision, so the earlier scored runs (made with the unpinned adapter) used the same weights; their timing.json files do not record revision or offline state. The proof run record shows hub_offline '1', the Base revision, the snapshot path and network_attempts_refused [] .",
+    "minor": "block_network wraps connect and connect_ex only; UDP sendto (DNS) is not wrapped. Not a defect for the claim 'offline', which rests on HF_HUB_OFFLINE and local paths."
+  },
+  "check5_voice_rule_and_candidates": {
+    "per_model_vs_builder_reports": {
+      "qwen3": "VoiceDesign from a text description, clip kept, Base clone prompt: supported (voice-qwen3-report voices.*.how). The seed is one value, 20261115, for all four voices; takes 2 and 3 use 20261116 and 20261117 and were not used. CANDIDATES.md says so correctly. RESULTS.md row still says 'seeds 20261115-17' (wrong).",
+      "chatterbox-nano": "Speaks only in the four Qwen3 clips; built-in conds.pt never downloaded: supported (report, cast json). 'met by method' is supported.",
+      "kokoro": "Weighted blends of 2-3 preset packs, origin of packs not documented, male packs C+/C: supported. 'not shown' is supported.",
+      "phonon": "Four of the twelve character embeddings as is: supported. CANDIDATES.md 'stated by the makers' rests on the voices README line 'made with Gradium Voice Design' (dossier preset_voice_provenance: 12 character voices stated made by voice design, synthetic; 90 catalogue voices not stated). That is the makers' statement and CANDIDATES.md says it is not checked here. The builder's own report does not say the 12 characters are covered; the audit re-read the card. RESULTS.md's phonon row does not state the rule status at all.",
+      "kitten": "Four fixed presets Martha, Vincent, Eleanor, Otis, origin not stated; blend of two presets: supported. 'not shown' is supported."
+    },
+    "results_md_has_no_rule_column": "RESULTS.md has one combined column 'how the voices were made; problems'. Only kokoro and kitten rows state that the origin is undocumented or not stated; qwen3, chatterbox and phonon rows say nothing about rule 2. The statement per model lives only in CANDIDATES.md.",
+    "candidates_vs_dossiers_and_reports": "Licence of code and weights, gating, revisions (all seven 40-hex revisions are in the builders' reports and the qwen3 one also in download.json), byte sizes and environment sizes (4.8, 1.7, 4.6, 0.09, 0.92 GB) agree with voice-dossiers.json and the five builder reports, with these exceptions: (a) Kokoro 341,870,408 bytes next to 'Model files 0.33 GB' (see check1); (b) the Mimi codec 'is CC-BY-4.0': the phonon report took it from the kyutai/mimi card and the dossier says 'its licence not read', so it is the card of the separate Mimi repository, not a statement about the Mimi weights inside the Phonon repository (the audit's soft spot, still there); (c) 'Timing varies between runs (RTF 0.082 and 0.068) because other agents used the CPU' states a cause that no report measured; (d) Chatterbox open point compares 0.65 (15 lines, 4 threads) with 0.70 (4 lines, 8 threads) and omits the re-time 0.53 vs 0.71; (e) the Kitten dossier says the SDK sends anonymous analytics (web SDK); the builder's report says the Python package has none: CANDIDATES.md does not mention it, which is consistent with the report."
+  },
+  "check6_tests": "tools/voice/tests/test_score.py run with .venv-audio/Scripts/python.exe: every line 'ok', no failing line. Includes test_tie_keeps_the_errors_on_the_names_qwen3_convoy, test_tie_other_convoy_lines_by_hand, test_align_cost_is_never_traded_for_names and test_words_per_second_counts_the_spoken_words_of_a_raw_line.",
+  "check7_venv_audio": "pip freeze | sort of .venv-audio equals sort of assets/audio/voice/venv-audio-freeze-before.txt: no difference (76 packages). Untouched.",
+  "venvAudioUntouched": "Yes: no difference to venv-audio-freeze-before.txt.",
+  "mustFix": [
+    "docs/reports/2026-11-15/voice-fix-report.json: does not exist (listing of the folder). Write it when the repair is finished.",
+    "assets/audio/voice/scores.json and tools/voice/RESULTS.md: not regenerated after the score.py fix (files dated 13:14 and 13:16, score.py 15:45). qwen3/cuda procedural_convoy still has ordinary_errors 3 and wer 0.2143, qwen3/cuda wer_worst 0.2143 and the RESULTS table cell 0.214 and the list entry '(3 errors)'; hand count and the new test give 2 of 14 = 0.143. Words-per-second flags still use the written tokens (kokoro computer_cargo_raw 1.44, phonon 1.49, phonon-q8 1.40 are in the checks table), which the repaired level_report no longer produces (16 spoken words / 8.35 s = 1.92 for kokoro). Re-score through the lock and rewrite the table, the checks table and the error lists.",
+    "tools/voice/RESULTS.md and assets/audio/voice/retime.json: retime.json does not exist (find over assets/audio/voice). The table shows one CUDA RTF per model (kokoro 0.011, qwen3 1.825) although on-disk re-times are kokoro 0.173 / 0.019 / 0.019 and qwen3 2.957 / 2.424 / 2.197 under 47-99 % outside card load. Show ranges with the load, as the audit required.",
+    "tools/voice/RESULTS.md chatterbox-nano-8t row ('8 threads gave no speedup') and CANDIDATES.md Chatterbox open point (0.65 at 4 threads, 0.70 at 8): contradicted by assets/audio/voice/_audit/retime (8 threads 0.532, 4 threads 0.710 on the same four lines). Remove or qualify, and drop the comparison of a 15-line median with a 4-line median.",
+    "tools/voice/RESULTS.md 'What was not measured', Timings bullet: still says only 'other agents used the CPU between locked runs'. Add that the graphics card is shared with the owner's desktop programs (card 47-52 % busy idle, 95-100 % in some runs) and that other agents' browser checks, build.py and others held the same lock for up to 40 minutes.",
+    "tools/voice/RESULTS.md qwen3 rows (cuda and cpu): 'seeds 20261115-17' is wrong; one seed 20261115 for all four voices, 20261116/20261117 are unused takes 2 and 3 (adapter make_cast, cast/*.json, CANDIDATES.md). CANDIDATES.md is already right.",
+    "Qwen3 CPU: assets/audio/voice/qwen3/cpu has 3 lines (not 15); timing.json rtf 3.064 from the 13:40 run. A run was in progress at 16:31 and unfinished at the time of this check. After it, timing.json, scores.json, identity.json (qwen3 cpu has no same-voice figure with 3 lines), the RESULTS row ('only 3 lines' text, thin note, not-run counts '12 of 15 not run' in the checks table) and the 'Qwen3 on CPU: three lines only' bullet need rewriting; retime.py 'once' restores the old directory and cannot be used for this run.",
+    "tools/voice/RESULTS.md: no per-model statement of the voice rule (rule 2). Add the CANDIDATES.md status (qwen3 met by method; chatterbox met by method; kokoro not shown; kitten not shown; phonon stated by makers for the 12 character voices, their statement, not checked) to the voice column, or the table implies more than the reports support for phonon, qwen3 and chatterbox.",
+    "tools/voice/CANDIDATES.md Kokoro: '341,870,408 bytes' next to 'Model files 0.33 GB' (also RESULTS.md 0.33 GB): the 0.33 is the .pth alone (327 MB); the repository download is 0.34 GB.",
+    "tools/voice/RESULTS.md Kitten rows: parameters 'not read' while voice-dossiers.json has params_millions 82 for Kitten TTS 2 Mini; either use the dossier figure with its source or keep 'not read' and say the dossier disagrees.",
+    "tools/voice/CANDIDATES.md Phonon: 'Mimi codec ... is CC-BY-4.0' comes from the separate kyutai/mimi card (voice-phonon-report licences), the dossier says Mimi's licence was not read; say that the figure is from that card and not shown for the weights inside the Phonon repository. Also 'because other agents used the CPU' for the 0.082 / 0.068 spread is a cause nobody measured.",
+    "tools/voice/RESULTS.md 4-line rows: same voice (0.959, 0.974, 0.944) is one voice with two lines and voices apart omits pilot_m; say so, or print '-' as is done for qwen3 cpu."
+  ],
+  "mismatches": [
+    "RESULTS.md table and lists vs scores.json, identity.json, timing.json: no difference in any of the 11 rows or 47 error-list entries (all stale in the same way).",
+    "RESULTS.md qwen3 cuda procedural_convoy 3 errors / worst WER 0.214 vs hand count and test 2 errors / 0.143.",
+    "RESULTS.md 'seeds 20261115-17' vs adapter, cast json, CANDIDATES.md (one seed).",
+    "RESULTS.md 'no speedup' (8 threads) vs _audit/retime 0.532 against 0.710.",
+    "RESULTS.md and CANDIDATES.md single CUDA RTFs vs re-times 0.173/0.019/0.019 (kokoro) and 2.957/2.424/2.197 (qwen3).",
+    "CANDIDATES.md Kokoro 341,870,408 bytes vs 0.33 GB.",
+    "RESULTS.md Kitten parameters 'not read' vs dossier 82 M.",
+    "The repair message said 'test_score.py has three new tests'; the diff shows four new tests (three tie tests plus the words-per-second test; one of the tie tests is test_align_cost_is_never_traded_for_names). All pass."
+  ],
+  "notVerified": [
+    "That qwen3 cuda procedural_convoy is the only line whose count changes under the fixed score.py (the re-score was queued behind the lock for 50 minutes and withdrawn unrun).",
+    "The repair agent's SHA-256 lists were not found as a file; byte identity was shown against the audit's before copies instead, and against the proof run's restored_identical flag. SHA-256 of qwen3 cuda before and after the proof run was not recomputed independently beyond that.",
+    "Whether the thread limits hold on the CPU runs (not measured by anyone).",
+    "Whether Phonon's native runtime fetches nothing (no network trace).",
+    "How any voice sounds; Whisper small mixes recogniser and model errors. Nobody listened.",
+    "Licence texts were not re-read at the source; the dossier and the builders' reports were taken as read, as in the audit.",
+    "The final state of Qwen3 CPU: a 15-line run was in progress when I stopped."
+  ],
+  "filesWritten": [
+    "docs/reports/2026-11-15/voice-verify-report.json",
+    "scratch only: %TEMP%/v/*.py (read-only checks; nothing in the repository changed, no installs, no commits)"
+  ]
+}
