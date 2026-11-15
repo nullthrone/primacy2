@@ -23,12 +23,16 @@ that the game makes up while it runs.
    generated audio alike. No gated repository.
 2. A voice is created with no real person as template: from a text description, by blending
    voice vectors, or by sampling. A clip that another model invented may serve as reference.
-3. Weights as safetensors or ONNX. No `trust_remote_code`. Packages from PyPI or the makers'
-   own repository, at a pinned version.
+3. Weights as safetensors, ONNX or GGUF; a pickle file (`.pt`, `.pth`, `.bin`) only where the
+   makers ship nothing else and it is loaded with `weights_only=True`. No `trust_remote_code`.
+   Packages from PyPI or the makers' own repository, at a pinned version. A package that reports
+   usage to its makers has that switched off.
 4. Every model has its own environment under `.venv-voice/<key>/`. Nothing is installed into
    `.venv-audio`: the sound library is measured with it.
-5. At least 10 % of the disk stays free (`df` before every download). One model on the graphics
-   card at a time.
+5. At least 10 % of the disk stays free (`df` before every download).
+6. Every timed run and every use of the graphics card goes through the lock:
+   `<python> tools/voice/with_lock.py -- <command>`. A timing taken while another model runs is
+   worth nothing.
 
 `CANDIDATES.md` lists what was looked at, what was taken, from where, how large and under which
 licence.
