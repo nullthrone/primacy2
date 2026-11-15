@@ -25,6 +25,13 @@ const LIB = '/audio-lib/render/';
 const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
+/**
+ * How long the nodes that place a voice (the low-pass of the loudspeaker stage, the HRTF panner of the headphone
+ * stage) stay connected after the source has ended, in milliseconds. The panner holds what it was given for some
+ * milliseconds; cut off at the very moment the source ends, the end of a sound that is not silent there came out as
+ * a click in Headphones (found with the control sound whose last sample is at half scale).
+ */
+const PLACEMENT_TAIL_MS = 250;
 /** How far ahead of the audio clock a sound is scheduled when it has no start time of its own, in seconds. */
 export const START_LEAD = 0.03;
 /**
@@ -704,8 +711,10 @@ class Engine {
       if (stopped) return;
       stopped = true;
       this.count(sound.id, -1);
-      src.disconnect();
-      placement.dispose();
+      window.setTimeout(() => {
+        src.disconnect();
+        placement.dispose();
+      }, PLACEMENT_TAIL_MS);
       hiss?.stop();
       hiss?.disconnect();
       hissGain?.disconnect();
@@ -850,8 +859,10 @@ class Engine {
           n.g.gain.linearRampToValueAtTime(0, now + FADE);
           n.src.stop(now + FADE + 0.01);
           n.src.onended = () => {
-            n.src.disconnect();
-            n.placement.dispose();
+            window.setTimeout(() => {
+              n.src.disconnect();
+              n.placement.dispose();
+            }, PLACEMENT_TAIL_MS);
           };
           this.count(n.sound.id, -1);
         }
