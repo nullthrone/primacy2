@@ -121,7 +121,8 @@ try {
     assert(manifest.categories[0].id === 'pilot', `the manifest lists "${manifest.categories[0].id}" first`);
     const first = page.locator('section.cat').first();
     assert((await first.getAttribute('id')) === 'cat-pilot', `the first category on the page is ${await first.getAttribute('id')}`);
-    const title = await first.locator('h2').innerText();
+    // The heading is set in capitals by the style sheet; the text itself is the German name.
+    const title = (await first.locator('h2').textContent()) ?? '';
     assert(title.startsWith('Richtungsproben (Runde 3)'), `the first category is called "${title}"`);
   });
 

@@ -24,11 +24,11 @@ from .cat_impacts import (SHIELD, body_scale, crackle_lr, flutter_gain, growl, h
 # Starting targets (true peak, dBFS). The thruster family is level-matched by integrated loudness
 # (the three variants within 2 dB), the shield family likewise; see the report for the values chosen.
 LEVELS.update({
-    "pilot_thruster_a": ("peak", -12.0),
-    "pilot_thruster_b": ("peak", -12.0),
-    "pilot_thruster_c": ("peak", -12.0),
+    "pilot_thruster_a": ("peak", -11.5),
+    "pilot_thruster_b": ("peak", -3.2),
+    "pilot_thruster_c": ("peak", -3.3),
     "pilot_shield_a": ("peak", -5.0),
-    "pilot_shield_b": ("peak", -5.0),
+    "pilot_shield_b": ("peak", -6.7),
 })
 
 
@@ -240,10 +240,14 @@ def bass_throb(n, seed, scale=1.0):
     sag = 1.0 - 0.2 * np.exp(-t / 0.22)
     out = np.zeros(n)
     for base, beat, lv in BASS_PAIRS:
-        for k, (sign, w) in enumerate(((-0.5, 1.0), (0.5, 0.42))):
-            drift = 1.0 + 0.07 * lowpass(np.cumsum(rng.standard_normal(n)) / np.sqrt(n), 2.5, 1) * 6.0
-            f = (base + sign * beat * (1 + 0.25 * np.sin(2 * np.pi * rng.uniform(0.5, 1.5) * t))) * sag * drift
+        # one slow drift for the pair, so that the two partners keep their distance (the beat)
+        walk = lowpass(np.cumsum(rng.standard_normal(n)) / np.sqrt(n), 2.0, 1)
+        drift = 1.0 + 0.05 * walk / max(np.max(np.abs(walk)), 1e-9)
+        for sign, w in ((-0.5, 1.0), (0.5, 0.45)):
+            f = (base + sign * beat) * sag * drift
             out += lv * w * np.sin(2 * np.pi * np.cumsum(f) / SR + rng.uniform(0, 6.28))
+    # a steady floor under the beats, so that a beat never drops the bass to nothing
+    out += 0.45 * np.sin(2 * np.pi * np.cumsum(66.0 * sag * (1.0 + 0.03 * np.sin(2 * np.pi * 0.7 * t))) / SR + 0.5)
     env_db = -6.0 * (t / 0.62) ** 2
     env = 10.0 ** (env_db / 20.0) * smooth_ramp(n, 0, int(0.030 * SR))
     y = out * env
@@ -327,23 +331,23 @@ def pilot_shield_b(ctx):
     ph = 2 * np.pi * np.cumsum(f) / SR
     f2 = (70.0 + 190.0 * np.exp(-t / 0.09)) * (1.0 + 0.1 * jit / max(rms(jit), 1e-9))
     env = smooth_ramp(n, 0, int(0.009 * SR)) * np.exp(-6.9078 * t / 0.6)
-    whoomp = (np.sin(ph) + 0.55 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.22)) * env
+    whoomp = (np.sin(ph) + 0.85 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.22)) * env
     # (no saturation here: a clipped sine at 30 to 40 Hz puts a hard line at three times its pitch)
     # the air moved: broad low rumble, 40 to 200 Hz, that blooms under it and fades with it
     rumble = bandpass(seeded("pilot_shield_b/rumble").standard_normal(n + 1024), 40.0, 200.0, 2)[1024:]
     rumble = rumble * smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.55)
-    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 1.6 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
+    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 2.0 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
 
     # the sizzle: soft, broad, a lot of it from 1.5 to 6 kHz and little above 8 kHz; the band slides
     # down while it dissolves. A few weak sparks in it, longer and duller than in A.
     envs = (0.55 * np.exp(-6.9078 * t / 0.95) + 0.45 * np.exp(-6.9078 * t / 0.35)) * smooth_ramp(n, 0, int(0.01 * SR))
     fc = 1400.0 + 1900.0 * np.exp(-t / 0.35)
-    sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.5, depth=0.9)
+    sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.5, depth=0.5)
     sizz = lowpass(sizz, 5200.0, 2)
-    sparks = crackle_lr(n, seeded("pilot_shield_b/sparks"), 10.0 + 80.0 * np.exp(-t / 0.25), 0.4, amp_sigma=0.6,
+    sparks = crackle_lr(n, seeded("pilot_shield_b/sparks"), 10.0 + 80.0 * np.exp(-t / 0.25), 0.4, amp_sigma=0.4,
                         lo=1200.0, hi=4200.0, dur_ms=(2.0, 7.0), first_at=None)
     sparks = lowpass(sparks, 5500.0, 2)
-    sizz = sizz + sparks * (0.35 * rms(sizz[w]) / max(rms(sparks[w]), 1e-9))
+    sizz = sizz + sparks * (0.0 * rms(sizz[w]) / max(rms(sparks[w]), 1e-9))
 
     # the field hum: five partials, each a pair (left and right are detuned a little against each
     # other, which is where the width comes from) that beats against its neighbour at 2 to 7 Hz.
@@ -365,7 +369,7 @@ def pilot_shield_b(ctx):
     hum_m = 0.5 * (hum[:, 0] + hum[:, 1])
     hum = hum * (rms(sizz_m[w]) * 0.85 / max(rms(hum_m[w]), 1e-9))
     rest_m = 0.5 * (sizz[:, 0] + sizz[:, 1] + hum[:, 0] + hum[:, 1])
-    low = low * body_scale(low, rest_m, 0.50)
+    low = low * body_scale(low, rest_m, 0.48)
     y = sizz + hum + lr_from(low)
     y = soft_limit(y, 6.0 * rms(y[w]))
     return no_dc(fade_edges(y, 0.0, 250.0))

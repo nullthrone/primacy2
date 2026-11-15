@@ -22,15 +22,19 @@ import numpy as np
 from . import (LEVELS, SR, bandpass, burst_env, exp_decay, fade_edges, highpass, lowpass, mid_side,
                register, rise)
 
-# true peak targets. The hull family and the gear family are meant to be about equally loud inside
-# the family (integrated loudness within 2 dB); the values were set from measured LUFS.
+# True peak targets. Inside a family the three variants are set to the same integrated loudness
+# (within 2 dB), so that the owner compares character and not level. The loudness of each variant at
+# a common peak was measured (hull: -34.8, -24.9, -29.0 LUFS at -5 dBFS; gear: -36.7, -33.7, -35.9
+# LUFS at -8 dBFS) and the peaks below move all of them to about -31 LUFS (hull) and -35 LUFS (gear).
+# The metal hit is peaky (a crack on a quiet ring) and so needs the highest peak; the cinema hit is
+# dense and so the lowest.
 LEVELS.update({
-    "pilot_hull_a": ("peak", -5.0),
-    "pilot_hull_b": ("peak", -5.0),
-    "pilot_hull_c": ("peak", -5.0),
-    "pilot_gear_a": ("peak", -8.0),
-    "pilot_gear_b": ("peak", -8.0),
-    "pilot_gear_c": ("peak", -8.0),
+    "pilot_hull_a": ("peak", -1.2),
+    "pilot_hull_b": ("peak", -11.1),
+    "pilot_hull_c": ("peak", -7.0),
+    "pilot_gear_a": ("peak", -6.3),
+    "pilot_gear_b": ("peak", -9.3),
+    "pilot_gear_c": ("peak", -7.1),
 })
 
 
@@ -201,7 +205,7 @@ def pilot_hull_a(ctx):
                                   (0.170, 9, 1500.0, 3600.0, 0.022)):
         rattle += _knock_run(rng, start, kn, lo, hi, g0, 1.0, n)
 
-    out = (_frac(crack, 0.27) + _frac(crack2, 0.02) + _frac(plate, 0.43) + _frac(sub, 0.26)
+    out = (_frac(crack, 0.25) + _frac(crack2, 0.02) + _frac(plate, 0.54) + _frac(sub, 0.25)
            + _frac(body, 0.012) + _frac(rattle, 0.012))
     return fade_edges(out, 0.0, 20.0)
 
@@ -441,7 +445,7 @@ def pilot_gear_b(ctx):
     crack_m = _placed(n, np.tanh(2.5 * _noise_burst(rng, 0.05, 250.0, 6000.0, 0.018, 0.3)), t_slam)
     crack_s = _placed(n, _noise_burst(rng, 0.05, 900.0, 6000.0, 0.02, 0.3), t_slam)
     ratios = [1.0, 1.52, 2.07, 2.61, 3.28, 4.04, 5.0, 6.1, 7.5, 9.1, 11.0, 13.6]
-    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.65, ref_hz=230.0, expo=0.8, tilt=0.1,
+    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.95, ref_hz=230.0, expo=0.8, tilt=0.25,
                     pair=(0.003, 0.009), drift=0.0009)
     pa[: int(0.001 * SR)] *= rise(int(0.001 * SR))
     pb[: int(0.001 * SR)] *= rise(int(0.001 * SR))
