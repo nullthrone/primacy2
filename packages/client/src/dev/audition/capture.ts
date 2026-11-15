@@ -345,6 +345,11 @@ export const capture = {
     return Array.from(last.l.subarray(a, b));
   },
 
+  /** Audio-clock time of the first sample of the last capture, so that a time in its fault list can be turned into one for window() or samples(). */
+  _base(): number {
+    return last ? last.first / last.rate : 0;
+  },
+
   fileFaults,
 };
 

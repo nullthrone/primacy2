@@ -26,7 +26,7 @@ const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
 /** How far ahead of the audio clock a sound is scheduled when it has no start time of its own, in seconds. */
-const START_LEAD = 0.15;
+const START_LEAD = 0.03;
 /** Fade-in of a voice whose buffer does not start on silence, in seconds. */
 const EDGE_IN = 0.003;
 /** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
@@ -641,6 +641,11 @@ class Engine {
     src.buffer = buf;
     src.loop = loop;
     const g = ctx.createGain();
+    // The gain of a new voice is 0 from the start, not the node's default of 1: whether the gain events or the source
+    // start comes first on a frame depends on the last bit of the start time in floating point (measured: about one
+    // start time in seven at a lead of 30 ms), and a source whose first frame meets the default gain plays that sample
+    // at full level, which is a click for any file that does not start on zero.
+    g.gain.value = 0;
     // A loop fades in over FADE. A one-shot (or one pass of a loop file) starts untouched when its buffer starts on
     // silence, else with a short fade, so that a first sample away from zero never clicks; the end is treated alike.
     const edges = this.edgesOf(buf);
@@ -662,7 +667,6 @@ class Engine {
     src.connect(g);
     const placement = this.place(g, this.outputFor(sound, viaRadio), multi, azimuth);
     src.start(start);
-    if (loop) console.log('DBG', sound.id, 'start-now', (start - ctx.currentTime).toFixed(4), 'asked-t0', (t0 - ctx.currentTime).toFixed(4));
 
     let hiss: AudioBufferSourceNode | null = null;
     let hissGain: GainNode | null = null;
@@ -671,6 +675,7 @@ class Engine {
       hiss.buffer = this.noiseBuffer;
       hiss.loop = true;
       hissGain = ctx.createGain();
+      hissGain.gain.value = 0;
       // Ramped in and out, so that the hiss does not start or stop with a step.
       hissGain.gain.setValueAtTime(0, start);
       hissGain.gain.linearRampToValueAtTime(0.012, start + 0.005);
@@ -742,6 +747,7 @@ class Engine {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
+      g.gain.value = 0;
       const level = gain * (sound.gain ?? 1);
       const at = Math.max(when, ctx.currentTime);
       const edges = this.edgesOf(buf);
