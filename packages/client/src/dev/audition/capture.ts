@@ -45,8 +45,9 @@ class Rec extends AudioWorkletProcessor {
     this.n = 0;
     this.first = -1;
     this.on = false;
+    this.ack = false;
     this.port.onmessage = (e) => {
-      if (e.data === 'start') { this.on = true; this.first = -1; this.n = 0; }
+      if (e.data === 'start') { this.on = true; this.first = -1; this.n = 0; this.ack = true; }
       if (e.data === 'stop') { this.flush(); this.on = false; this.port.postMessage({ done: true }); }
     };
   }
@@ -64,6 +65,7 @@ class Rec extends AudioWorkletProcessor {
     const a = inp && inp[0];
     const b = inp && (inp[1] || inp[0]);
     if (this.first < 0) this.first = currentFrame;
+    if (this.ack) { this.ack = false; this.port.postMessage({ started: currentFrame }); }
     for (let i = 0; i < 128; i++) {
       this.l[this.n + i] = a ? a[i] : 0;
       this.r[this.n + i] = b ? b[i] : 0;
@@ -185,6 +187,7 @@ async function attribute(f: Raw, audioTime: number, plays: Play[]): Promise<Faul
 let node: AudioWorkletNode | null = null;
 let chunks: { frame: number; l: Float32Array; r: Float32Array }[] = [];
 let stopWaiter: (() => void) | null = null;
+let startWaiter: (() => void) | null = null;
 let last: { rate: number; first: number; l: Float32Array } | null = null;
 
 async function ensureNode(): Promise<AudioWorkletNode> {
@@ -196,7 +199,8 @@ async function ensureNode(): Promise<AudioWorkletNode> {
   URL.revokeObjectURL(url);
   const n = new AudioWorkletNode(ctx, 'audition-rec', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
   n.port.onmessage = (e: MessageEvent) => {
-    if (e.data?.done) stopWaiter?.();
+    if (e.data?.started !== undefined) startWaiter?.();
+    else if (e.data?.done) stopWaiter?.();
     else if (e.data?.l) chunks.push(e.data);
   };
   // Silent output only so that the browser keeps the recorder running.
@@ -225,11 +229,15 @@ function peakOf(x: Float32Array): number {
 }
 
 export const capture = {
-  /** Starts recording; answers the audio-clock time of the call. */
+  /** Starts recording and answers once the first block has been taken, so that nothing played after this is missed. */
   async start(): Promise<number> {
     const n = await ensureNode();
     chunks = [];
-    n.port.postMessage('start');
+    await new Promise<void>((resolve) => {
+      startWaiter = resolve;
+      n.port.postMessage('start');
+    });
+    startWaiter = null;
     return engine.context.currentTime;
   },
 
