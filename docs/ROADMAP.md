@@ -626,6 +626,15 @@ Other notes:
   `AUDITION_CAPTURE_ONLY=id,id` and `AUDITION_CAPTURE_SCENES=fold` narrow it).
 - The voice samples on the audition page are put there by
   `.venv-audio/Scripts/python.exe tools/voice/publish.py` (and taken off with `--remove`).
+- A sound without a fixed `place` is put at a new random direction on every play of the library
+  page, and behind the listener it is made duller. Samples that are to be compared need a fixed
+  place: the voice samples and the direction samples have one. `node tools/dev/audition-level.mjs
+  id,id` (against a dev server of your own) measures what single sounds are at the page's
+  output: peak, level of the sounding parts, whether the overload lamp lit. Measured so on
+  2026-11-15, the five models of a voice line leave the page within about 2 dB of each other,
+  and the radio lines about 5 dB above the cabin lines. With the room at 1 the cabin's impulse
+  response colours a voice strongly; to judge a voice itself, the room goes to 0 and the radio
+  filter off.
 - The controller in a browser: `node scripts/pad-check.mjs` plays the game with a simulated pad
   (same ports and switches as `scripts/e2e.mjs`).
 - The checkpoint loop ends after eight hours. Start it again when it has ended: on 2026-11-14 an
