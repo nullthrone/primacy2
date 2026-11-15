@@ -10,6 +10,9 @@ library writes its files (48 kHz, 16 bit), measured and drawn, and given a recor
 sound, so that the manifest takes it up and the owner can rate it on the page. Lines of the role
 radio keep the path "radio": the page then plays them through its radio filter.
 
+A "composed" block of listening.json lists files that countdown.py made; they follow the lines as further entries
+and are not trimmed.
+
 Runs with the environment of the sound library, which it only reads. The category itself
 (listening.json, "category") must be listed in tools/audio/sounds.json.
 """
@@ -136,6 +139,63 @@ def main() -> int:
                 print("%-34s %5.2f s  %6.1f LUFS  tp %5.1f dB  cut %.2f/%.2f s  %s" % (
                     sid, entry["duration"], an["lufs"], an["truePeakDb"], cut["cutStartS"], cut["cutEndS"],
                     "ok" if not failed else "FAILED " + ",".join(failed)))
+
+        # Composed files (tools/voice/countdown.py) follow the lines above as further entries of the category. They
+        # are written as they are: not trimmed, because the silence up to the moment of the jump is part of them.
+        comp = cfg.get("composed", {})
+        mods = {m["key"]: m for m in cfg["models"]}
+        for e in comp.get("entries", []):
+            sid, mo = e["id"], mods[e["model"]]
+            src = ROOT / e["source"]
+            if not src.is_file():
+                print("missing: %s" % src)
+                return 1
+            x, sr = sf.read(str(src), always_2d=True)
+            if sr != SR or x.shape[1] != 1:
+                print("%s is not 48 kHz mono" % src)
+                return 1
+            meta = json.loads(src.with_suffix(".json").read_text(encoding="utf-8"))
+            line = lines[comp.get("line", e["line"])]
+            wav = target / (sid + ".wav")
+            synth.write_wav(wav, x[:, 0], dither_seed=sid)
+            data, sr = common.load_audio(wav)
+            an = measure.analyse(data, sr, loop=False)
+            measure.write_png(wav.with_suffix(".png"), sid, data, sr, an)
+            failed = []
+            if an["truePeakDb"] > -1.0:
+                failed.append("true-peak")
+            if an["clippedSamples"] > 0:
+                failed.append("clipped")
+            if an["dcOffset"] >= 0.001:
+                failed.append("dc-offset")
+            if np.abs(data[-int(0.010 * SR):]).max() > 10 ** (-60 / 20):
+                failed.append("tail-not-silent")
+            intent = ('The line: "%s" Model: %s, voice: the designed ship-computer voice (no real person’s voice). Made so: %s. '
+                      'The intro ("Fold drive charged. Destination: Ysolde Prime. Jump in") comes from one utterance of the whole line. '
+                      'The numbers sit on a one-second grid by their vowel onsets: each lies exactly %d samples (one second at 48 kHz) '
+                      'after the one before, and the file ends one second after the vowel onset of "one", at the moment of the jump. '
+                      'Each number has a 5 ms fade and the five numbers are set to the same level by gain only. '
+                      'Composed by tools/voice/countdown.py: a listening sample, not the game’s runtime.') % (
+                          line["text"], mo["name"], e["how"], meta["grid_samples"])
+            entry = {
+                "id": sid, "file": "%s/%s.wav" % (cat, sid), "spectrogram": "%s/%s.png" % (cat, sid),
+                "category": cat, "kind": "oneshot", "path": e["path"], "place": e["place"],
+                "en": e["en"], "de": e["de"], "intent": intent,
+                "source": "synth", "licence": mo["licence"],
+                "duration": round(data.shape[0] / sr, 4), "channels": 1, "gain": 1.0, "dry": True,
+                "hash": build.file_hash(wav),
+                "checks": {"pass": not failed, "failed": failed, "hints": [HINT],
+                           "peakDb": an["truePeakDb"], "lufs": an["lufs"],
+                           "lowShare": an["lowShare"], "highShare": an["highShare"],
+                           "centroidHz": an["spectralCentroidHz"]},
+                "voice": {"model": mo["key"], "device": mo["device"], "line": e["line"], "variant": e["variant"],
+                          "source": e["source"], "composed": True, "gridSamples": meta["grid_samples"],
+                          "firstAnchorS": meta["first_anchor_s"], "anchorsSamples": meta["anchors"]},
+            }
+            wav.with_suffix(".json").write_text(
+                json.dumps({"manifest": entry, "measure": an}, indent=1, default=build._json_default), encoding="utf-8")
+            print("%-40s %5.2f s  %6.1f LUFS  tp %5.1f dB  composed  %s" % (
+                sid, entry["duration"], an["lufs"], an["truePeakDb"], "ok" if not failed else "FAILED " + ",".join(failed)))
 
     manifest = build.assemble_manifest(out, measure, common)
     bad = build.validate_manifest(manifest, out)

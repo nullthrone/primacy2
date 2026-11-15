@@ -315,7 +315,7 @@ def place_words(intro: np.ndarray, words: list[np.ndarray], onsets: list[int], f
 
 
 def vowel_onsets_blind(x: np.ndarray, sr: int = SR, thresh_db: float = END_DB, merge_s: float = 0.12,
-                       margin_s: float = 0.01) -> tuple[list[dict], list[tuple[int, int]]]:
+                       margin_s: float = 0.01, **onset_kw) -> tuple[list[dict], list[tuple[int, int]]]:
     """Find the sounding runs of a finished file by silence alone (5 ms windows at or above thresh_db, gaps
     shorter than merge_s joined) and the vowel onset of each run. Returns (onsets, runs)."""
     win = int(0.005 * sr)
@@ -333,7 +333,7 @@ def vowel_onsets_blind(x: np.ndarray, sr: int = SR, thresh_db: float = END_DB, m
     m = int(margin_s * sr)
     for a, b in runs:
         a0, b0 = max(0, a - m), min(x.size, b + m)
-        o = vowel_onset(x[a0:b0], sr)
+        o = vowel_onset(x[a0:b0], sr, **onset_kw)
         out.append(None if o is None else {**o, "sample_in_file": a0 + o["sample"]})
     return out, [(a, b) for a, b in runs]
 
@@ -837,6 +837,16 @@ def stage_measure() -> int:
                 rec["intervals_blind_ms"] = [round((ob[k + 1] - ob[k]) * 1000.0 / SR, 3) for k in range(4)]
                 rec["deviation_blind_ms"] = [round(v - 1000.0, 3) for v in rec["intervals_blind_ms"]]
                 rec["blind_onset_minus_anchor_ms"] = [round((ob[k] - meta["anchors"][k]) * 1000.0 / SR, 3) for k in range(5)]
+                # how much the exactness depends on the definition of "onset": the same blind search with the level
+                # criterion 10 dB and 20 dB instead of 15 dB below the maximum
+                rec["sensitivity_to_the_definition"] = {}
+                for wd in (10.0, 20.0):
+                    on2, _ = vowel_onsets_blind(x, within_db=wd)
+                    if all(o is not None for o in on2[-5:]):
+                        o2 = [o["sample_in_file"] for o in on2[-5:]]
+                        rec["sensitivity_to_the_definition"]["within_%gdb" % wd] = {
+                            "intervals_ms": [round((o2[k + 1] - o2[k]) * 1000.0 / SR, 2) for k in range(4)],
+                            "onset_minus_anchor_ms": [round((o2[k] - meta["anchors"][k]) * 1000.0 / SR, 2) for k in range(5)]}
             else:
                 rec["blind_error"] = "expected at least 6 sounding runs (intro and five numbers), found %d" % len(runs)
                 rec["runs"] = [[int(a), int(b)] for a, b in runs]
@@ -849,7 +859,9 @@ def stage_measure() -> int:
                                    "word_end_s": r["word_end_s"], "end_after_anchor_s": r["end_after_anchor_s"],
                                    "ends_before_next_anchor_minus_50ms": r["ends_before_next_anchor_minus_guard"],
                                    "overlaps_next_word_start": r["overlaps_next_word_start"],
-                                   "level_db": r["level_db"], "reading": reading, "reads_as_number": read_number(reading, w),
+                                   "level_db": r["level_db"], "peak_db": round(db(np.abs(seg).max()), 2),
+                                   "rms_db_of_the_sounding_extent": round(db(np.sqrt(np.mean(seg[slice(*sound_extent(seg, END_DB))] ** 2))), 2),
+                                   "reading": reading, "reads_as_number": read_number(reading, w),
                                    "similarity_to_intro": round(cos(emb[w + ".wav"], iv), 4), "source": {
                                        kk: r[kk] for kk in ("source", "take") if kk in r}}
                 r["recogniser_reading"] = reading
@@ -857,6 +869,10 @@ def stage_measure() -> int:
                 r["similarity_to_intro"] = rec["words"][w]["similarity_to_intro"]
             lv = [rec["words"][w]["level_db"] for w in NUMS]
             rec["word_levels_spread_db"] = round(max(lv) - min(lv), 3)
+            rr = [rec["words"][w]["rms_db_of_the_sounding_extent"] for w in NUMS]
+            pk = [rec["words"][w]["peak_db"] for w in NUMS]
+            rec["word_rms_spread_db_whole_word"] = round(max(rr) - min(rr), 2)
+            rec["word_peak_spread_db"] = round(max(pk) - min(pk), 2)
             rec["all_words_end_before_next_anchor_minus_50ms"] = all(rec["words"][w]["ends_before_next_anchor_minus_50ms"] for w in NUMS)
             rec["similarity_whole_count_as_heard_to_intro"] = round(cos(emb["count.wav"], iv), 4)
             rec["similarity_whole_count_words_joined_to_intro"] = round(cos(emb["count_joined.wav"], iv), 4)
