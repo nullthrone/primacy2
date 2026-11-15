@@ -94,7 +94,16 @@ When in doubt: more weight and a clearer shape, never duller. (Until round 2 thi
 
 The radio carries no recorded voices of real people. The owner struck the NASA radio traffic in
 round 2: "we have to invent our own pipeline for natural voice generation, also so that we can
-have any text spoken". Voices are generated; how is its own piece of work.
+have any text spoken". Voices are generated. What he decided when asked (2026-11-15): voices speak
+in the radio, as the ship computer and as station staff ("all of it"); the spoken language is
+English; the game generates much of its content, so the system must be able to speak generated
+text, and lines made ahead are not enough; only artificial voices, with no real person as
+template, his own voice included. The comparison of speech models and its results are in
+`tools/voice`.
+
+What happens outside the ship stays a signal of the ship's sensors. Asked whether explosions,
+fly-bys and other ships' weapons may be heard as real sound, now that the game may leave physics,
+he answered "not for now".
 
 ## 2. Rules a sound is checked against
 
@@ -115,11 +124,21 @@ All sounds:
 - If the describing model runs: its answer to "What is this sound?" is recorded. An answer that
   names something else entirely is a reason to look again, not a failure by itself.
 
-Downloaded files are checked as well before the owner hears them (since round 2, when he heard
-crackling and asked whether it was too loud): a one-shot does not start or end on a sample that is
-not silence (it gets a short fade), its level is set from the same table as the rendered sounds,
-and a file whose source is clipped carries that in its entry. Until then the downloads played
-unlevelled at full scale, 10 to 20 dB above the rendered set, several cut hard at the end.
+Downloaded files are processed and checked as well before the owner hears them (since round 2,
+when he heard crackling and asked whether it was too loud). Until then they played unlevelled at
+full scale, 10 to 20 dB above the rendered set, several cut hard at the end. Now:
+
+- A one-shot does not start or end on a step. Where its first sample is not silence, a ramp of
+  1.5 ms is put in front of the recording; the recording itself is not faded at the start. (A
+  first version faded the first 8 ms: that took the attack off every short hit and the level step
+  then turned up what was left, which is the dullness the owner rejects. A review caught it.) The
+  end gets a fade of 30 ms where it is not silent, unless the loudest part of the sound lies
+  there: then a short tail is appended instead.
+- A loop wraps without a step: its tail is crossfaded into its head, and the processed file is
+  shorter by that.
+- The level comes from the same table as the rendered sounds (`DOWNLOAD_TARGETS` in `build.py`).
+  An event never sits at the level of a bed.
+- A file whose source is clipped carries that in its entry.
 
 By path (the rules for structure describe the beds; the one-shots of the structure path and the
 energy path get new numbers from the direction chosen in round 3, and until then the code in
@@ -283,11 +302,21 @@ above all we have to judge the big picture anew."
   not in the mix: the downloaded excerpts were cut without a fade (fourteen end or start on a
   sample between 0.1 and 0.86 of full scale), `n_sls_test_fire` holds about two thousand clipped
   samples in the recording itself, and all downloads played at full scale. The page's limiter was
-  a default compressor that lifts the beds by 2 to 3 dB. Both were repaired after this round.
+  a default compressor that lifts the beds by 2 to 3 dB (measured later on the page itself: a tone
+  at -20 dBFS came out 3.55 dB louder). Both were repaired after this round: the downloads are
+  processed (section 2), and the page has a limiter that leaves everything below its threshold as
+  it is, a lamp that stays lit after an overload, and a check that records what the page really
+  plays and looks for clicks in it. That check found clicks the page added itself, at the start
+  of loops that begin mid-wave; they were repaired as well. Some crackle is designed and stays:
+  the single discharges at the end of the shield hits, of the fold jump and of the fold exit. If
+  that is what he hears as crackling, it is his to say.
 - "Please strike the NASA radio traffic completely; we have to invent our own pipeline for
   natural voice generation, also so that we can have any text spoken if we want." The fifteen
-  recordings with voices were removed from the library. The two Quindar tones and the NASA
-  recordings without voices stay.
+  recordings with voices were removed from the library, and with them every other NASA file
+  marked as speech in the list of downloads. The two Quindar files went too: a review ran the
+  speech recogniser over what was left and found flight controllers talking in both excerpts,
+  although the list had said "none". Eleven NASA recordings without voices stay; the recogniser
+  finds no words in them, which is not proof that nobody speaks.
 - Not judged: the reworked fold jump, fold exit and shields-down alarm, the longer cruise charge,
   and the two-channel versions of the idle engine, the cruise loop and the fold tunnel carry their
   round-1 verdicts, given on the old files. Nothing was said about the stereo stage (the line
@@ -308,3 +337,23 @@ Measured across both rounds (centre of the spectrum, share per band, the first 3
 So dull is not what he rejects (the low boom and every bed are dull), and bright is not what he
 asks for (the small metal hits are bright). The rejected events are boxy: one resonance, no
 attack, no depth. Round 3 puts that to the test with the direction samples.
+
+### Round 3 (on the page since 2026-11-15, not yet rated)
+
+What he is asked to judge, at the top of the audition page:
+
+- Eleven direction samples (category `pilot`). Hull hit, thruster pulse and landing gear, each in
+  three answers: A metal or machinery, B larger than life as a film would do it, C dark but with
+  weight and a clear shape. Shield hit in two: A the current crackle on a bass throb, B a deep
+  whoomp with a softer sizzle. Inside a family the variants are equally loud. Nobody has heard
+  them: a blind check by measurement found no rule broken and flagged what may go wrong by ear
+  (the thruster pulse C is little more than a low thump; the ratchet of landing gear A is a row of
+  ticks; several read as "toy" or "foil" to the describing models).
+- Twenty voice samples (category `voice`): four lines, each spoken by five open speech models,
+  equally loud, the two radio lines through the page's radio filter. See `tools/voice/RESULTS.md`
+  for what was measured and `tools/voice/CANDIDATES.md` for the models and their licences.
+- Every download changed (level, edges, loops), so his round-2 verdicts on downloads show as
+  given on an older file.
+
+His choice among the direction samples becomes the rule for one-shots of the structure and energy
+paths; the event sounds are then rendered anew, and the samples are removed.
