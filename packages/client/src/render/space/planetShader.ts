@@ -323,15 +323,13 @@ Surf surface(vec3 nb, vec3 sunB) {
   float geo = dot(nb, sunB);
   vec4 f = fineNoise(nb, FINE, gSlant, 0.7);
   // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between:
-  // 'lit' is the share of the far glow that this spot gives off. Over any stretch of crust it
-  // comes to one, so the planet glows as much, and in the same colour, as it does from afar.
-  // A molten sea gathers nearly all of its light into the seams; a crack, narrow as it is, less.
+  // 'lit' is the share of the far glow that this spot gives off, in the colour it has from afar,
+  // so the hand-over changes neither hue nor, by much, the light of the whole. Where the crust
+  // is hottest the seams are held back, or they would drown the rafts in their own glare.
   float lit = 1.0;
   if (gNear > 0.0) {
-    float seams = smoothstep(0.60, 0.80, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
-    float molten = seas * (0.15 + 0.75 * churn * churn);
-    float share = molten / max(molten + crack * 0.8 + fine * 0.35, 1e-4);
-    lit = mix(1.0, mix(0.50 + 2.2 * seams, 0.06 + 4.1 * seams, share), gNear);
+    float seams = smoothstep(0.56, 0.78, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
+    lit = mix(1.0, 0.04 + mix(2.6, 1.5, smoothstep(0.45, 0.9, heat)) * seams, gNear);
   }
   // A raft is cooled crust: dark, and with relief in the sunlight.
   float cool = heat * min(lit, 1.0);
@@ -699,7 +697,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
     // Close up the deck has a body: slopes turned from the sun are darker and those turned to
     // it brighter, cloud that stands behind taller cloud is in its shadow, and thin cloud and
     // the seams between cells are greyer than thick cloud.
-    float relief = clamp(1.0 - 2.6 * s.cloudRise, 0.62, 1.10);
+    float relief = clamp(1.0 - 3.0 * s.cloudRise, 0.60, 1.10);
     float shaded = 1.0 - 0.25 * smoothstep(0.04, 0.40, s.cloudSunH - s.cloudH);
     cc *= mix(1.0, relief * shaded * s.cloudTone * (0.80 + 0.20 * s.cloudH), gNear);
 #endif
