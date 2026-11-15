@@ -1,7 +1,7 @@
 {
   "role": "phonon",
   "status": "done",
-  "summary": "Phonon 31M EN via ptts 0.7.1 (Rust runtime, no PyTorch) runs on CPU only here. All 15 lines rendered on 4 CPU threads in f32 (median RTF 0.082 and 0.066 in two runs), in q8 (0.073, 64.5 MB file) and the 4 listen lines with blended voices (0.057). Time to first streamed chunk about 0.02 s. Load 0.09 s. Peak process memory 604 MB (f32), 410 MB (q8). Voices are the makers' character embeddings (loose fit); no graphics-card run exists.",
+  "summary": "Phonon 31M EN via ptts 0.7.1 (Rust runtime, no PyTorch) runs on CPU only here. All 15 lines rendered on 4 CPU threads in f32 (median RTF 0.082 and 0.068 in two runs), in q8 (0.073, 64.5 MB file) and the 4 listen lines with blended voices (0.057). Time to first streamed chunk about 0.02 s. Load 0.09 s. Peak process memory 604 MB (f32), 410 MB (q8). Voices are the makers' character embeddings (loose fit); no graphics-card run exists.",
   "licences": [
     {
       "what": "code LICENSE-MIT",
@@ -177,7 +177,7 @@
   "problems": [
     "ptts 0.7.1 Windows wheel offers devices ['cpu'] only: no graphics-card run, peak graphics memory reported null.",
     "tts.add_voice_from_embedding with the embedding transposed to (125,512) gave 33 percent longer audio than the same embedding loaded from its file (176640 vs 132480 samples); the (1,512,125) and (512,125) shapes were rejected. null_embedding (silence encoding) needs the Mimi encoder, which is not exposed. The blend is therefore made through files. A first blend run via add_voice_from_embedding was overwritten (radio_clearance 18.7 s vs 11.8 s).",
-    "Timings vary between runs: f32 median RTF 0.082 (run 1) and 0.066 (run 2) with identical audio; other agents use the CPU between locked runs, and the lock only serialises voice adapters. q8 and blend are one run each, so q8 vs f32 and blend vs f32 differences are within that spread.",
+    "Timings vary between runs: f32 median RTF 0.082 (run 1) and 0.068 (run 2) with identical audio; other agents use the CPU between locked runs, and the lock only serialises voice adapters. q8 and blend are one run each, so q8 vs f32 and blend vs f32 differences are within that spread.",
     "Speech is slow: radio_clearance is 13.8 s for 24 words (speech from 0.10 s to 12.8 s). Not judged.",
     "voices.jsonl was downloaded (metadata only, lists the catalogue names).",
     "first_audio_s comes from a separate streaming pass of the same text after the timed synth call; it is the time to the first float32 chunk, about 0.02 s, native not WASM."

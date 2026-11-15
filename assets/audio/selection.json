@@ -264,38 +264,6 @@
     "speech": false
   },
   {
-    "id": "n_quindar_1",
-    "file": "nasa-quindar-1/578628main_hskquindar.mp3",
-    "category": "radio",
-    "kind": "oneshot",
-    "en": "Quindar tone 1",
-    "de": "Quindar-Ton 1",
-    "intent": "The tone that opens and closes a ground-to-air transmission, a ready model for the squelch tail.",
-    "licence": "Public domain (NASA)",
-    "credit": "NASA",
-    "excerpt": [
-      14.0,
-      24.0
-    ],
-    "speech": false
-  },
-  {
-    "id": "n_quindar_2",
-    "file": "nasa-quindar-2/578629main_hawquindar.mp3",
-    "category": "radio",
-    "kind": "oneshot",
-    "en": "Quindar tone 2",
-    "de": "Quindar-Ton 2",
-    "intent": "The second Quindar tone, for the other end of a transmission.",
-    "licence": "Public domain (NASA)",
-    "credit": "NASA",
-    "excerpt": [
-      14.0,
-      24.0
-    ],
-    "speech": false
-  },
-  {
     "id": "n_voyager_lightning",
     "file": "nasa-voyager-jupiter-lightning/603921main_voyager_jupiter_lightning.mp3",
     "category": "sensors",

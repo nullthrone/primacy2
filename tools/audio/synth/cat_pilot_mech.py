@@ -25,13 +25,15 @@ from . import (LEVELS, SR, bandpass, burst_env, exp_decay, fade_edges, highpass,
 # True peak targets. Inside a family the three variants are set to the same integrated loudness
 # (within 2 dB), so that the owner compares character and not level. The loudness of each variant at
 # a common peak was measured (hull: -34.8, -24.9, -29.0 LUFS at -5 dBFS; gear: -36.7, -33.7, -35.9
-# LUFS at -8 dBFS) and the peaks below move all of them to about -31 LUFS (hull) and -35 LUFS (gear).
+# LUFS at -8 dBFS) and the peaks below move all of them to about -34 LUFS (hull) and -35 LUFS (gear).
+# The hull family sat 3 dB higher at first (metal hit at -1.2 dBFS): lowered, because the owner had
+# asked whether the library is too loud, and the three families now sit within 1 LU of each other.
 # The metal hit is peaky (a crack on a quiet ring) and so needs the highest peak; the cinema hit is
 # dense and so the lowest.
 LEVELS.update({
-    "pilot_hull_a": ("peak", -1.2),
-    "pilot_hull_b": ("peak", -11.1),
-    "pilot_hull_c": ("peak", -7.0),
+    "pilot_hull_a": ("peak", -4.2),
+    "pilot_hull_b": ("peak", -14.1),
+    "pilot_hull_c": ("peak", -10.0),
     "pilot_gear_a": ("peak", -6.3),
     "pilot_gear_b": ("peak", -10.1),
     "pilot_gear_c": ("peak", -7.1),

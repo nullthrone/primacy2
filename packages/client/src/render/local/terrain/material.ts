@@ -370,6 +370,7 @@ void main() {
   float starlight = 1.0;
   if (uDetail > 0.0 && px < 21.0) {
     bool full = uDetail > 0.75;
+    int dbg = int(uDetail * 10.0 + 0.5);
     // The lattice plane of the cube face, the ground's lean against it, and the star along the ground.
     vec3 ab = abs(dirB);
     vec3 sunB = uToBody * (uSunView * normalMatrix);
@@ -412,7 +413,7 @@ void main() {
     // Rolling ground and patches of tone: cells of 5 cm, 16 cm, 0.5 m, 1.6 m, 5.3 m, 16 m and
     // 51 m, none a whole multiple of the next. The fine ones are rough, the coarse ones no rougher
     // than the terrain itself, and the two coarsest change the tone alone.
-    for (int i = full ? 0 : 1; i < 7; i++) {
+    for (int i = full ? 0 : 1; i < (dbg == 9 ? 0 : 7); i++) {
       float count = i == 0 ? 81920.0 : i == 1 ? 25600.0 : i == 2 ? 8192.0 : i == 3 ? 2560.0 : i == 4 ? 768.0 : i == 5 ? 256.0 : 80.0;
       float cell = PERIOD / count;
       float show = (1.0 - smoothstep(cell * 0.14, cell * 0.42, px)) * clamp(edge / cell, 0.0, 1.0);
@@ -438,13 +439,15 @@ void main() {
     float e16 = clamp(edge / 16.0, 0.0, 1.0);
     float e5 = clamp(edge / 5.12, 0.0, 1.0);
     float e1 = clamp(edge / 1.6, 0.0, 1.0);
+    if (dbg == 8) craters = 0.0;
+    if (dbg == 8) e16 = 0.0, e5 = 0.0;
     craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * e16, slope, tint);
     craterLayer(q, 800.0, face + 272u, craters, 0.85, px, e5, slope, tint);
-    craterLayer(q, 2560.0, face + 288u, craters, 1.0, px, e1, slope, tint);
+    craterLayer(q, 2560.0, face + 288u, craters, 1.0, px, dbg == 8 ? 0.0 : e1, slope, tint);
     if (full) {
-      stoneLayer(q, 4000.0, face + 304u, stones, shade, sun3, eye3, px2, e1, slope, tint, starlight);
-      stoneLayer(q, 12800.0, face + 320u, stones, shade, sun3, eye3, px2, e1, slope, tint, starlight);
-      gravelLayer(q, 40000.0, face + 336u, stones, shade, sun3, sunPlane, px, e1, true, slope, tint, starlight);
+      stoneLayer(q, 4000.0, face + 304u, stones, shade, sun3, eye3, px2, dbg == 7 ? 0.0 : e1, slope, tint, starlight);
+      stoneLayer(q, 12800.0, face + 320u, stones, shade, sun3, eye3, px2, dbg == 7 ? 0.0 : e1, slope, tint, starlight);
+      gravelLayer(q, 40000.0, face + 336u, stones, shade, sun3, sunPlane, px, dbg == 6 ? 0.0 : e1, true, slope, tint, starlight);
     } else {
       gravelLayer(q, 4000.0, face + 304u, stones, shade, sun3, sunPlane, px, e1, false, slope, tint, starlight);
       gravelLayer(q, 12800.0, face + 320u, stones, shade, sun3, sunPlane, px, e1, false, slope, tint, starlight);

@@ -69,32 +69,6 @@
       "speech": "none"
     },
     {
-      "id": "nasa-quindar-1",
-      "title": "Quindar tone, sound 1",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578628main_hskquindar.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "cb82d970ee7ed0c1ddb2355eb9c428820aa3b72b743a5219c87fa010250a45d4",
-      "bytes": 588368,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "none"
-    },
-    {
-      "id": "nasa-quindar-2",
-      "title": "Quindar tone, sound 2",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578629main_hawquindar.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "886ca14f1391168c222dace4086d9a210aa53e238f4c8cbbefbb6828006b1d7f",
-      "bytes": 583980,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "none"
-    },
-    {
       "id": "nasa-sls-test-fire",
       "title": "SLS test fire",
       "url": "https://www.nasa.gov/wp-content/uploads/2015/01/663784main_SLS_Audio_D.mp3",
@@ -533,6 +507,14 @@
     {
       "what": "ISS: capcom calls Expedition 74 to exit safe haven configuration (nasa-iss-safe-haven-end, https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-end-safe-haven/06-05-26_MCC-H-calls-ISS-to-end-safe-haven~128k.mp3)",
       "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Quindar tone, sound 1 (nasa-quindar-1, https://www.nasa.gov/wp-content/uploads/2015/01/578628main_hskquindar.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated. The 10 s excerpts [14, 24] s of both Quindar recordings contain NASA flight-controller speech (Whisper read it back; the speech mark here had said none). A signal tone is synthesised instead"
+    },
+    {
+      "what": "Quindar tone, sound 2 (nasa-quindar-2, https://www.nasa.gov/wp-content/uploads/2015/01/578629main_hawquindar.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated. The 10 s excerpts [14, 24] s of both Quindar recordings contain NASA flight-controller speech (Whisper read it back; the speech mark here had said none). A signal tone is synthesised instead"
     }
   ]
 }

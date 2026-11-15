@@ -198,7 +198,7 @@ def pilot_thruster_b(ctx):
     punch = chest * np.sqrt(PUNCH_VS_CRACK * e_crack / max(float(np.sum(chest ** 2)), 1e-12))
     air = air * np.sqrt(AIR_VS_CRACK * e_crack / max(float(np.sum(air ** 2)), 1e-12))
     y = crack + punch + air
-    return no_dc(fade_edges(y, 0.0, 12.0))
+    return no_dc(fade_edges(y, 1.0, 12.0))  # 1 ms in: the file must not start on a step
 
 
 THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.6, 0.13, 5.0, 4.0
@@ -225,7 +225,7 @@ def pilot_thruster_c(ctx):
     body = np.zeros(n)
     put(body, th, int(THUMP_DELAY_MS * SR / 1000.0))
     y = clack + body * np.sqrt(THUMP_VS_CLACK * float(np.sum(clack ** 2)) / max(float(np.sum(body ** 2)), 1e-12))
-    return no_dc(fade_edges(y, 0.0, 12.0))
+    return no_dc(fade_edges(y, 1.0, 12.0))  # 1 ms in: the file must not start on a step
 
 
 # --------------------------------------------------------------------------- shield hits
@@ -317,7 +317,7 @@ def pilot_shield_a(ctx):
     throb = throb * body_scale(throb, base_mono, THROB_SHARE)
     y = base + lr_from(throb)
     y = soft_limit(y, 3.2 * rms(y[w]))
-    return no_dc(fade_edges(y, 0.0, 250.0))
+    return no_dc(fade_edges(y, 1.0, 250.0))  # 1 ms in: the file must not start on a step
 
 
 WHOOMP_TAU, WHOOMP_T60, RUMBLE_GAIN = 0.075, 0.8, 1.0
