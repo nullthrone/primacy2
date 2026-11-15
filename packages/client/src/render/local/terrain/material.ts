@@ -196,7 +196,6 @@ uniform float uDetail;
 uniform float uLow;
 uniform float uRadius;
 uniform sampler2D uGrain;
-uniform float uDbg;
 uniform vec3 uOriginMod;
 uniform mat3 uToBody;
 uniform vec3 uSunView;
@@ -448,7 +447,7 @@ void main() {
     vec2 turnY = toPlane(stepY, face).xy;
     float pxMean = sqrt(pixel.x * pixel.y);
     float coarser = 0.0;
-    for (int i = (uDbg == 1.0 || uDbg == 4.0 ? -1 : 5); i >= (full ? 0 : 1); i--) {
+    for (int i = 5; i >= (full ? 0 : 1); i--) {
       float count = i == 0 ? 1000.0 : i == 1 ? 250.0 : i == 2 ? 64.0 : i == 3 ? 16.0 : i == 4 ? 4.0 : 1.0;
       float scale = count / PERIOD;
       float cell = PERIOD / (count * ${GRAIN_CELLS}.0);
@@ -484,12 +483,12 @@ void main() {
     float craters = uKind == 1 ? 0.25 : uKind == 2 ? 0.2 : 0.5;
     vec2 shade = uKind == 1 ? vec2(1.0, 1.5) : uKind == 2 ? vec2(0.8, 1.35) : vec2(0.82, 1.55);
     // Craters of 2 to 10 m and of 0.5 to 2.4 m across.
-    if (px < 4.8 && uDbg != 2.0 && uDbg != 4.0) {
+    if (px < 4.8) {
       craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * clamp(edge / 16.0, 0.0, 1.0), slope, tint);
       if (px < 1.2) craterLayer(q, 1024.0, face + 272u, craters, 0.9, px, clamp(edge / 4.0, 0.0, 1.0), slope, tint);
     }
     vec2 px2 = vec2(px, min(pixel.x, pixel.y));
-    if (px2.y < 0.64 && px < 1.97 && uDbg != 3.0 && uDbg != 4.0) {
+    if (px2.y < 0.64 && px < 1.97) {
       // The star and the camera as the place sees them, over the ground as it lies there.
       vec3 nlB = uToBody * nl;
       vec3 sunB = uToBody * (uSunView * normalMatrix);
@@ -576,7 +575,6 @@ export interface GroundUniforms {
   uDetail: IUniform<number>;
   /** 1 while the camera is low over the ground, 0 from 2 km up: for detail the view from high up does not have. */
   uLow: IUniform<number>;
-  uDbg: IUniform<number>;
   /** Unit vector toward the star in view axes, and the star's and the ambient light's strength. */
   uSunView: IUniform<Vector3>;
   uSunColor: IUniform<Vector3>;
@@ -586,7 +584,7 @@ export interface GroundUniforms {
 export function groundUniforms(): GroundUniforms {
   return {
     uRadius: { value: 1 }, uRelief: { value: 1 }, uFar: { value: null }, uGrain: { value: grainTexture() }, uBase: { value: new Vector3(0.2, 0.2, 0.2) },
-    uKind: { value: 0 }, uDetail: { value: 1 }, uLow: { value: 1 }, uDbg: { value: 0 },
+    uKind: { value: 0 }, uDetail: { value: 1 }, uLow: { value: 1 },
     uSunView: { value: new Vector3(0, 1, 0) }, uSunColor: { value: new Vector3() }, uAmbient: { value: new Vector3() },
   };
 }
