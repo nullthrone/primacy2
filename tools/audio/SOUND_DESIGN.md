@@ -347,9 +347,18 @@ What he heard is in `assets/audio/rounds/round3.json` (file hashes) and `round3-
   rated none of the eleven direction samples and chose no direction among A, B and C. So no
   rule follows from this round: the event sounds are not rendered anew, and the rules for
   one-shots stay as they are, until there is a way of making sound that he does not hear as
-  artificial. What he approved in every round is recorded sound (the Kenney engines and
-  thrusters, the NASA recordings; `k_engine_large_0` again this round); what he calls artificial
-  is sound made by formula.
+  artificial. Asked which of A, B and C came nearest, he answered: "I don't know, I didn't
+  really like any of it. But I can only describe it badly." So he is not asked to describe any
+  more; he is given candidates to accept or reject.
+- The pattern over three rounds, read from the ratings and not from his words: long beds pass,
+  short events fail, whatever the source. Approved: the rendered engine levels, burn, cruise and
+  fold beds, and of the recordings the large and the low Kenney engine, two Kenney thrusters, the
+  NASA rover, Ingenuity and the SLS firing. Rejected: every rendered short event he rated, and of
+  the recordings the Kenney metal and plate hits, the light metal landing, the computer noise,
+  the NASA "dinks and donks", and two Kenney engines. One short event was ever approved: the
+  Kenney low boom. So recorded sound is not the answer by itself (a first reading of this round
+  said so and was wrong), and the aim of the next round is the first short event he accepts,
+  from any source.
 - On the voices: "The voices are really good, but the rhythm of the countdown is still broken.
   Perhaps the numbers should be recorded one by one and played back deterministically." On the
   page he rated the five ship-computer lines "close", each with the same note: "the countdown is

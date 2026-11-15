@@ -2,10 +2,14 @@
 
 After round 3 the owner said of the rendered sounds: "we are slowly going in the right direction,
 but everything still sounds too artificial and boring. Are there no better local models for
-generating audio?" What he approved in every round is recorded sound; what he calls artificial is
-sound computed by the synthesis scripts. This file records what was looked at on 2026-11-15, with
-the licence read at the source. Nothing was downloaded or run for it. The full dossiers are in
-`docs/reports/2026-11-15/sound-generator-dossiers.json`.
+generating audio?" Over three rounds the ratings show one pattern: long beds pass and short
+events fail, from every source (rendered by formula or recorded; the one short event he ever
+approved is a recorded low boom). So the aim is the first short event he accepts, and every source
+is a candidate for it. This file records what was looked at on 2026-11-15, with the licence read at
+the source; the full dossiers are in `docs/reports/2026-11-15/sound-generator-dossiers.json`. The
+same evening the owner approved three downloads for a listening test ("Ja, alle laden"):
+MOSS-SoundEffect v2.0, Stable Audio 3 Small-SFX Base and CC0 recordings from OpenGameArt. The test
+itself is `tools/sound`.
 
 The owner's rules, as for everything taken into the repository: nothing with non-commercial,
 research-only or no-derivatives terms; a licence with a revenue cap or a duty to register is not
