@@ -114,6 +114,10 @@ def main() -> int:
                 entry = {
                     "id": sid, "file": "%s/%s.wav" % (cat, sid), "spectrogram": "%s/%s.png" % (cat, sid),
                     "category": cat, "kind": "oneshot", "path": "radio" if radio else "cabin",
+                    # a fixed place, ahead: without one the page puts a one-channel sound at a new random
+                    # direction on every play (behind the listener it is also made duller), and no two
+                    # plays of a voice could be compared
+                    "place": 0,
                     "en": "%s · %s" % (li["en"], mo["name"]), "de": "%s · %s" % (li["de"], mo["name"]),
                     "intent": "The line: \"%s\" %s" % (line["text"], mo["about"]),
                     "source": "synth", "licence": mo["licence"],

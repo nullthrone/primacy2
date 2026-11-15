@@ -250,25 +250,30 @@ vec4 hashBytes(uint n) {
   return vec4(float(n & 255u), float((n >> 8) & 255u), float((n >> 16) & 255u), float(n >> 24)) * (1.0 / 255.0);
 }
 
-// The outline of a stone: an ellipse with two pieces cut off straight, so no two look alike and
+// A stone is this much narrower at its top than at its foot: a block, not a cone.
+const float STONE_TAPER = 0.3;
+
+// The outline of a stone: an ellipse with three pieces cut off straight, so no two look alike and
 // each has a few flat faces. 'e' is the place in the stone's own axes, in radii. Returns 1 on the
 // outline, less inside; 'og' points outward across it.
-float stoneOutline(vec2 e, vec2 cuts, out vec2 og) {
+float stoneOutline(vec2 e, vec3 cuts, out vec2 og) {
   float m = length(e);
   og = e / max(m, 1e-4);
   float m1 = dot(e, vec2(0.5, 0.866)) / cuts.x;
   float m2 = dot(e, vec2(0.6, -0.8)) / cuts.y;
+  float m3 = dot(e, vec2(-0.966, 0.259)) / cuts.z;
   if (m1 > m) { m = m1; og = vec2(0.5, 0.866) / cuts.x; }
   if (m2 > m) { m = m2; og = vec2(0.6, -0.8) / cuts.y; }
+  if (m3 > m) { m = m3; og = vec2(-0.966, 0.259) / cuts.z; }
   return m;
 }
 
 // Stones of one size class: one to a lattice cell (in 'share' of the cells), anywhere in it,
-// 0.02 to 0.2 cells in radius, as many in every doubling of size, a shade off the ground they lie on.
+// 0.02 to 0.16 cells in radius, most of them small and few large, a shade off the ground they lie on.
 //
 // A stone stands up. The mesh has no stones, so the ground behind one, as far as the stone would
 // hide it from this camera, is drawn as the stone: its top where the outline lifted to the
-// stone's height is seen (half the size: a stone narrows upward), its flank below that. Seen from
+// stone's height is seen (a little smaller: a stone narrows upward), its flank below that. Seen from
 // above that is the outline alone; from the cockpit of a landed ship it is a stone some pixels
 // high where a flat mark would be a line. 'eye' and 'sun' are the camera and the star as seen
 // from the place (xy: along the ground toward it, z: cotangent of its height; with z 0 for the
@@ -295,50 +300,52 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     uint n = cellHash(mod(c, count), seed);
     vec4 a = hashBytes(n);
     float own = a.z / share;
-    float r = own < 1.0 ? 0.02 * exp2(3.32 * a.w) * cell : 1e-6;
+    float r = own < 1.0 ? 0.02 * exp2(3.0 * a.w * a.w) * cell : 1e-6;
     vec2 dj = alongGround((p - c - a.xy) * cell);
-    float tall = (0.45 + 0.65 * own) * r;
+    float tall = (0.4 + 0.5 * own) * r;
     // Metres of ground the stone hides behind itself, and how near the place is to that.
     float rise = min(tall * eye.z, reach - r);
     float lift = clamp(-dot(dj, eye.xy), 0.0, rise);
-    float mb = length(dj + eye.xy * lift) / (r * (1.0 - 0.5 * lift / max(rise, 1e-4)));
+    float mb = length(dj + eye.xy * lift) / (r * (1.0 - STONE_TAPER * lift / max(rise, 1e-4)));
     float len = min(max(tall * sun.z, 0.3 * r), reach - r);
     float along = clamp(-dot(dj, sun.xy), 0.0, len);
-    float ms = length(dj + sun.xy * along) / (r * mix(0.85, 0.47, along / len));
+    float ms = length(dj + sun.xy * along) / (r * mix(0.85, 0.85 * (1.0 - STONE_TAPER), along / len));
     float key = mb < 1.0 ? mb - 4.0 : min(mb, ms);
     if (key < nearest) { nearest = key; d = dj; what = vec2(r, own); bits = n; }
   }
   if (nearest < 1.5) {
     float r = what.x;
     vec4 b = hashBytes(hashAgain(bits));
-    float tall = (0.45 + 0.65 * what.y) * r;
+    float tall = (0.4 + 0.5 * what.y) * r;
     float rise = min(tall * eye.z, reach - r);
     float w = smoothstep(0.8, 2.5, r / px.y) * smoothstep(0.8, 2.5, (r + 0.5 * rise) / px.x) * strength;
     // The stone's own axes; it is up to 1.7 times as long as wide.
     vec2 ax = normalize(b.xy - 0.5 + 0.001);
     vec2 ay = vec2(-ax.y, ax.x);
     float narrow = 1.0 + 0.7 * b.z;
-    vec2 cuts = 0.45 + 0.5 * vec2(b.w, fract((b.x + b.y) * 5.7));
+    vec3 cuts = 0.45 + 0.5 * vec3(b.w, fract((b.x + b.y) * 5.7), fract((b.z + b.w) * 3.3));
+    // The top is one face, and every stone's leans its own way.
+    vec2 lean = vec2(fract(b.x * 9.1 + b.z), fract(b.y * 7.3 + b.w)) - 0.5;
     // 'up' is how high on the stone the view meets it.
     float lift = clamp(-dot(d, eye.xy), 0.0, rise);
     float up = lift / max(rise, 1e-4);
     vec2 dTop = d + eye.xy * rise;
     vec2 dSide = d + eye.xy * lift;
     vec2 og;
-    float mTop = 2.0 * stoneOutline(vec2(dot(dTop, ax), dot(dTop, ay) * narrow) / r, cuts, og);
+    float mTop = stoneOutline(vec2(dot(dTop, ax), dot(dTop, ay) * narrow) / r, cuts, og) / (1.0 - STONE_TAPER);
     vec2 lid = ax * og.x + ay * (og.y * narrow);
     // An edge is softened by a pixel, which along the view is more ground than across it.
     float soft = clamp(3.0 * mix(px.y, px.x, abs(dot(normalize(lid), eye.xy))) / r, 0.08, 0.6);
     float top = 1.0 - smoothstep(1.0 - soft, 1.0, mTop);
     vec2 og2;
-    float mSide = stoneOutline(vec2(dot(dSide, ax), dot(dSide, ay) * narrow) / r, cuts, og2) / (1.0 - 0.5 * up);
+    float mSide = stoneOutline(vec2(dot(dSide, ax), dot(dSide, ay) * narrow) / r, cuts, og2) / (1.0 - STONE_TAPER * up);
     vec2 rim = normalize(ax * og2.x + ay * (og2.y * narrow));
     soft = clamp(1.5 * mix(px.y, px.x, abs(dot(rim, eye.xy))) / r, 0.08, 0.6);
     float body = 1.0 - smoothstep(1.0 - soft, 1.0, mSide);
     float side = body * (1.0 - top);
-    // The top is a few faces leaning outward; the flank leans outward more, and where the view
-    // meets it head on it faces the camera.
-    slope -= lid * (0.4 * top * w);
+    // The top is a flat face that leans its own way, rounded a little toward its edge; the flank
+    // leans outward more, and where the view meets it head on it faces the camera.
+    slope += (ax * lean.x + ay * lean.y - lid * 0.12) * (top * w);
     slope -= normalize(mix(eye.xy, rim, clamp(mSide, 0.0, 1.0)) + 1e-4) * (0.9 * side * w);
     tint *= mix(1.0, mix(shade.x, shade.y, what.y), w * body);
     // Darker toward the foot of the stone, and the ground darker around it: little light gets in there.
@@ -348,7 +355,7 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     // The shadow: under a high star still a sliver, which is what sets a stone on the ground.
     float len = min(max(tall * sun.z, 0.3 * r), reach - r);
     float along = clamp(-dot(d, sun.xy), 0.0, len);
-    float ms = length(d + sun.xy * along) / (r * mix(0.85, 0.47, along / len));
+    float ms = length(d + sun.xy * along) / (r * mix(0.85, 0.85 * (1.0 - STONE_TAPER), along / len));
     float blur = max(1.1 * px.y / r, 0.09);
     light *= 1.0 - 0.92 * (1.0 - smoothstep(1.0 - blur, 1.0 + blur, ms)) * w * (1.0 - body);
   }
@@ -484,7 +491,8 @@ void main() {
     // Craters of 0.6 to 3.8 m across.
     if (px < 1.92) craterLayer(q, 640.0, face + 256u, craters, 0.85, px, clamp(edge / 6.4, 0.0, 1.0), slope, tint);
     vec2 px2 = vec2(px, min(pixel.x, pixel.y));
-    if (px2.y < 0.64 && px < 1.13) {
+    // The reduced tier (quality 0) draws no stones: finding them is the costly part of the ground.
+    if (full && px2.y < 0.64 && px < 1.13) {
       // The star and the camera as the place sees them, over the ground as it lies there.
       vec3 nlB = uToBody * nl;
       vec3 sunB = uToBody * (uSunView * normalMatrix);
@@ -496,9 +504,9 @@ void main() {
       float eyeUp = dot(eyeB, nlB);
       vec3 eye3 = vec3(eyeGround / max(length(eyeGround), 1e-5), sqrt(max(1.0 - eyeUp * eyeUp, 0.0)) / max(eyeUp, 0.02));
       float e4 = clamp(edge / 4.3, 0.0, 1.0);
-      // Stones of 5 to 50 cm, and close to the camera gravel of 1 to 8 cm, which lies flat.
+      // Stones of 10 to 80 cm across, and close to the camera gravel of 1 to 8 cm, which lies flat.
       stoneLayer(q, 1600.0, face + 304u, stones, shade, sun3, eye3, px2, e4, slope, tint, starlight);
-      if (full && px < 0.05) stoneLayer(q, 10000.0, face + 320u, stones, shade, sun3, vec3(eye3.xy, 0.0), px2, e4, slope, tint, starlight);
+      if (px < 0.05) stoneLayer(q, 10000.0, face + 320u, stones, shade, sun3, vec3(eye3.xy, 0.0), px2, e4, slope, tint, starlight);
     }
 
     tint *= 1.0 + mottle * (uKind == 1 ? 0.7 : 1.0);
