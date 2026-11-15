@@ -26,7 +26,14 @@ const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
 /** How far ahead of the audio clock a sound is scheduled when it has no start time of its own, in seconds. */
-const START_LEAD = 0.03;
+export const START_LEAD = 0.03;
+/**
+ * How far ahead a group of sounds that must keep their spacing (a chain) is planned, in seconds. It is larger than
+ * START_LEAD by a margin: engine.play moves a start that lies nearer than START_LEAD to the audio clock, and a plan made
+ * on exactly START_LEAD was overtaken by the clock between planning and playing, so that the first sound was pushed
+ * later while the second kept its planned time and the spacing between them shrank.
+ */
+export const PLAN_LEAD = START_LEAD + 0.07;
 /** Fade-in of a voice whose buffer does not start on silence, in seconds. */
 const EDGE_IN = 0.003;
 /** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
@@ -635,7 +642,10 @@ class Engine {
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
     // Test hook: when each sound was scheduled to start and to end on the audio clock.
-    const playRecord = this.logPlay(sound.id, start, loop ? Infinity : start + buf.duration, multi ? null : azimuth, buf.duration);
+    // `gain` is the most the page does to a sample of this file, for telling a step of the file from one of the page: the
+    // voice level and the volume (the stage law never raises a side, the limiter only lowers; a radio signal passes a
+    // waveshaper whose slope is about 2.3 near zero).
+    const playRecord = this.logPlay(sound.id, start, loop ? Infinity : start + buf.duration, multi ? null : azimuth, buf.duration, level * this.opts.volume * (radio ? 2.5 : 1));
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -728,8 +738,10 @@ class Engine {
   }
 
   /** Test hook: when each sound was scheduled to start and to end on the audio clock. */
-  private logPlay(id: string, start: number, end: number, azimuth: number | null, length: number): { end: number } {
-    const record = { id, start, end, azimuth, length };
+  private logPlay(id: string, start: number, end: number, azimuth: number | null, length: number, gain?: number): { end: number } {
+    // `loop` is kept apart from `end`, which is shortened when the voice is stopped: the recorder needs to know that the
+    // file went round, also for a loop that has been stopped by the time the recording is looked at.
+    const record = { id, start, end, azimuth, length, loop: end === Infinity, gain };
     const w = window as unknown as { __audition?: { plays?: (typeof record)[] } };
     if (w.__audition) {
       const plays = (w.__audition.plays ??= []);
@@ -761,7 +773,7 @@ class Engine {
         g.gain.setValueAtTime(level, at + buf.duration - fo);
         g.gain.linearRampToValueAtTime(0, at + buf.duration);
       }
-      this.logPlay(sound.id, at, at + buf.duration, null, buf.duration);
+      this.logPlay(sound.id, at, at + buf.duration, null, buf.duration, level * this.opts.volume * 2.5);
       src.connect(g).connect(this.opts.radio ? this.radioIn : this.dryIn);
       src.start(at);
       src.onended = () => {

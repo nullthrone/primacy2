@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { auditionPlugin } from '../../../dev/auditionPlugin.ts';
-import { analyseChannel } from './capture.ts';
-import { bufferEdges, crossfadeWeights } from './engine.ts';
+import { analyseChannel, fileExplains } from './capture.ts';
+import { bufferEdges, crossfadeWeights, PLAN_LEAD, START_LEAD } from './engine.ts';
 import { DOCKING, SCENES, sceneSoundIds } from './scenes.ts';
 
 const RATE = 48000;
@@ -169,6 +169,62 @@ describe('analyseChannel reaches quiet and dense material', () => {
     const found = clicksOf(x);
     expect(found).toHaveLength(1);
     expect(found[0].ratio).toBeGreaterThan(10);
+  });
+});
+
+describe('what the click detector cannot see', () => {
+  /** Gaussian noise from a fixed seed, `rms` linear. */
+  function noise(rms: number): Float32Array {
+    let seed = 99;
+    const rnd = (): number => {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    return Float32Array.from({ length: RATE }, () => rms * Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd()));
+  }
+
+  it('in noise at -12 dBFS RMS no step that fits under full scale is found: it is masked by the noise', () => {
+    // Stated as a limit, not hidden: a step must beat CLICK_RATIO times the 99.9th percentile of the steps around it.
+    const x = noise(db(-12));
+    expect(clicksOf(x)).toEqual([]);
+    for (let i = 24000; i < x.length; i++) x[i] += 0.5;
+    expect(clicksOf(x)).toEqual([]);
+  });
+
+  it('noise at -30 dBFS RMS shows a step of -6 dBFS but not one of -18 dBFS: 3 times its step ceiling is the least that is found', () => {
+    const quiet = noise(db(-30));
+    const small = quiet.map((v, i) => (i >= 24000 ? v + db(-18) : v));
+    expect(clicksOf(small)).toEqual([]);
+    const big = quiet.map((v, i) => (i >= 24000 ? v + db(-6) : v));
+    expect(clicksOf(big)).toHaveLength(1);
+  });
+});
+
+describe('fileExplains', () => {
+  const click = { kind: 'click' as const, channel: 0, t: 1, size: 0.02, ratio: 5 };
+
+  it('a step that is the file step times the page gain is the file', () => {
+    // File step 0.04, the page passes it on at 0.5: 0.02 at the output.
+    const v = fileExplains(click, 0.04 * 0.5);
+    expect(v.file).toBe(true);
+    expect(v.explained).toBeLessThan(1);
+  });
+
+  it('a step four times larger than the file can account for is the page, whatever its ratio', () => {
+    const v = fileExplains({ ...click, size: 0.08, ratio: 40 }, 0.02);
+    expect(v.file).toBe(false);
+    expect(v.explained).toBeGreaterThan(2);
+  });
+
+  it('with the gain not known, or for a clipped sample, the match alone counts', () => {
+    expect(fileExplains({ ...click, size: 1 }, null).file).toBe(true);
+    expect(fileExplains({ kind: 'clip', channel: 0, t: 1, size: 1.2 }, 0.001).file).toBe(true);
+  });
+});
+
+describe('planning lead', () => {
+  it('a chain is planned further ahead than the engine pushes a start, with room for the time between planning and playing', () => {
+    expect(PLAN_LEAD).toBeGreaterThanOrEqual(START_LEAD + 0.05);
   });
 });
 

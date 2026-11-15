@@ -1022,6 +1022,16 @@ try {
           const step = 4 * ceiling(x);
           out.noise.push({ sigma, clean: clicks(x), click: clicks(x.map((v, i) => (i >= 24000 ? v + step : v))), stepDb: 20 * Math.log10(step) });
         }
+        // The limit, measured: for Gaussian noise of several levels, whether a click of full scale (a step of 1.0) is found,
+        // and the smallest click (in steps of a quarter of the noise's step ceiling) that is.
+        out.limit = [0.02, 0.04, 0.06, 0.07, 0.08, 0.1, 0.2, 0.3].map((sigma) => {
+          const x = noise(sigma);
+          const ceil = ceiling(x);
+          let least = null;
+          for (let k = 1; k <= 12 && least === null; k += 0.25) if (k * ceil < 1 && clicks(x.map((v, i) => (i >= 24000 ? v + k * ceil : v))).length) least = k * ceil;
+          const full = clicks(x.map((v, i) => (i >= 24000 ? v + 1.0 : v))).length > 0;
+          return { sigma, ceil, least, full };
+        });
         out.sine = clicks(sine(0.5, 1000));
         out.attacks = [0.0005, 0.002, 0.01].map((tau) => {
           const env = (i) => 1 - Math.exp(-i / (tau * R));
@@ -1043,6 +1053,18 @@ try {
       }
       assert(r.sine.length === 0, `a clean sine has ${r.sine.length} clicks`);
       for (const a of r.attacks) assert(a.tone.length + a.noise.length + a.rise.length === 0, `exponential attack (tau ${a.tau}): ${JSON.stringify(a)}`);
+      // What the detector cannot see, said plainly. A step counts as a click only when it is more than CLICK_RATIO (3) times the
+      // 99.9th percentile of the steps around it, so in loud dense material a click that does not stand out of the noise by that
+      // ratio is, as far as a measurement of the output can say, masked by that noise: it is neither found nor excluded.
+      const dbOf = (v) => (20 * Math.log10(v)).toFixed(1);
+      console.log('      limit of the detector (Gaussian noise; the smallest click found, and whether a full-scale step is found):');
+      for (const l of r.limit) {
+        console.log(`        noise ${dbOf(l.sigma)} dBFS RMS: step ceiling ${dbOf(l.ceil)} dBFS, smallest click found ${l.least === null ? 'none under full scale' : `${dbOf(l.least)} dBFS`}, full-scale step ${l.full ? 'found' : 'NOT found'}`);
+      }
+      const masked = r.limit.filter((l) => l.least === null);
+      console.log(
+        `      so: a click that does not stand out of the surrounding steps by 3 times their 99.9th percentile is masked by that material${masked.length ? `; in white noise louder than about ${dbOf(masked[0].sigma)} dBFS RMS no click under full scale can be seen at all` : ''}. A page click inside such material is not excluded by a clean capture.`,
+      );
       console.log(
         `      controls: -40 dBFS click in -50 dBFS tone found (ratio ${r.quietClick[0].ratio.toFixed(0)}); clicks of 12 dB above the noise's step ceiling found in ${r.noise.length} noises (ratios ${r.noise.map((n) => n.click[0].ratio.toFixed(1)).join(', ')}); clean noise, sine and attacks: none`,
       );
@@ -1094,6 +1116,29 @@ try {
       }
       await sleep(500);
     };
+
+    // A voice starts at a time on the audio clock that is rarely a whole number of frames; whether its gain events or its source
+    // come first on the starting frame depends on the last bit of that time. A voice whose gain were left at the default of 1
+    // would play its first sample at full level in about one start in seven. test_edges starts at 0.5 of full scale, so such a
+    // sample is a click of 0.35 at the output: 24 starts, none of them may click (AUDITION_CAPTURE_STARTS=skip leaves this out).
+    if (process.env.AUDITION_CAPTURE_STARTS !== 'skip') {
+      await check('capture, starts: 24 plays of a sound that starts away from zero, none begins with a step', async () => {
+        await pc.click('[data-tab="library"]');
+        await setRange(pc, 'room', 0);
+        await startCap();
+        for (let i = 0; i < 24; i++) {
+          await press(pc, 'button[data-sound="test_edges"]');
+          // 1.04 s to 1.09 s: after the end of the one before, at a different place of the audio clock's grid each time.
+          await sleep(1040 + ((i * 7) % 11) * 5);
+        }
+        await sleep(500);
+        const res = await stopCap();
+        await setRange(pc, 'room', 1);
+        addFaults('test_edges, 24 starts', res);
+        const mine = res.faults.filter((f) => f.origin === 'page');
+        assert(mine.length === 0, `${mine.length} page faults in 24 starts: ${JSON.stringify(mine.slice(0, 3))}`);
+      });
+    }
 
     // AUDITION_CAPTURE_SCENES=fold,combat records only those scenes ('none' for no scene).
     const sceneList = (process.env.AUDITION_CAPTURE_SCENES ?? 'docking,combat,landing,fold').split(',');
@@ -1176,11 +1221,19 @@ try {
     const fileFaultList = found.filter((f) => f.origin === 'file');
     console.log(`\n      faults found in the recordings: ${pageFaults.length} caused by the page, ${fileFaultList.length} in a sound file itself`);
     if (found.length) {
-      console.log('      origin  where                                         time s   kind   size   ratio  sounds playing');
+      console.log('      origin  where                                         time s   kind   size   ratio  xfile  sounds playing');
       for (const f of found) {
         const ratio = f.ratio === undefined ? '     -' : Number.isFinite(f.ratio) ? f.ratio.toFixed(1).padStart(6) : '   inf';
-        console.log(`      ${f.origin.padEnd(7)} ${f.where.padEnd(45)} ${f.t.toFixed(3).padStart(7)}  ${f.kind.padEnd(5)}  ${f.size.toFixed(3)}  ${ratio}  ${f.sounds.join(',')}`);
+        const xf = f.explained === undefined ? '     -' : f.explained.toFixed(2).padStart(6);
+        console.log(`      ${f.origin.padEnd(7)} ${f.where.padEnd(45)} ${f.t.toFixed(3).padStart(7)}  ${f.kind.padEnd(5)}  ${f.size.toFixed(3)}  ${ratio}  ${xf}  ${f.sounds.join(',')}`);
       }
+      // xfile: the output's step over what the file's own step (times the page's gain, plus an ordinary step around it) can
+      // make of it; up to 2 is called the file's, above that the page's.
+      const byId = new Map();
+      for (const f of fileFaultList) for (const id of f.sounds) byId.set(id, (byId.get(id) ?? 0) + 1);
+      console.log(`      faults in sound files, by sound id (every sound playing at the time is counted): ${[...byId].sort((a, b) => b[1] - a[1]).map(([id, n]) => `${id} ${n}`).join(', ') || 'none'}`);
+      const xs = found.filter((f) => f.origin === 'file' && f.explained !== undefined).map((f) => f.explained).sort((a, b) => a - b);
+      if (xs.length) console.log(`      xfile of the ${xs.length} file clicks that are tested by size: median ${xs[Math.floor(xs.length / 2)].toFixed(2)}, 90th percentile ${xs[Math.floor(xs.length * 0.9)].toFixed(2)}, largest ${xs[xs.length - 1].toFixed(2)}`);
     }
     await check('capture controls: a tone cut off away from zero is a page fault, a step inside a file is only listed', async () => {
       const edges = found.filter((f) => f.where.startsWith('test_edges (Stereo)'));

@@ -1,5 +1,5 @@
 import { signal, type Signal } from '@preact/signals';
-import { engine, type GroupVoice, type Voice } from './engine.ts';
+import { engine, PLAN_LEAD, type GroupVoice, type Voice } from './engine.ts';
 import {
   CHAIN_OVERLAP,
   effectiveThrust,
@@ -259,7 +259,8 @@ export class SceneRunner {
     const speed = this.scripted.value ? Math.max(0.1, hooks().speed) : 1;
     const picks = shots.map((sh) => engine.get(this.pickId(sh.id)));
     await engine.preload(picks.filter((p): p is NonNullable<typeof p> => !!p).map((p) => p.id));
-    const base = engine.now() + 0.03;
+    // The chain is planned PLAN_LEAD ahead, nearer than that the engine would push the first start later and the spacing would shrink.
+    const base = engine.now() + PLAN_LEAD;
     // First the start times, then the joins: a pass of one periodic file that follows another meets it exactly (no fade
     // on either side), and two sounds chained with the planned short overlap cross-fade over that overlap.
     const plan = shots.map(() => ({ at: 0, len: 0, joinIn: false, joinOut: false, fadeIn: undefined as number | undefined, fadeOut: undefined as number | undefined }));

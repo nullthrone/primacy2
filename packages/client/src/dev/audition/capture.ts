@@ -19,6 +19,8 @@ export interface Fault {
   origin: 'page' | 'file';
   /** The sounds that were playing at that moment. */
   sounds: string[];
+  /** For a click that was attributed to a file: its size over the largest size the file's own step (times the page's gain, plus an ordinary step of the surroundings) can have at the output; 1 or less is a plain copy of the file's step. */
+  explained?: number;
 }
 
 type Raw = Omit<Fault, 'origin' | 'sounds'>;
@@ -57,6 +59,15 @@ const GUARD = 48;
 /** A page fault is only blamed on a file whose own fault is not much weaker than it (a ratio is capped at this). */
 const RATIO_CAP = 1000;
 const FILE_RATIO_SLACK = 4;
+/**
+ * A step of the output is blamed on a file only when the file's own step, as the page can at most pass it on (the voice
+ * level times the volume, recorded with each play), explains its size: the output step may be at most SIZE_SLACK times
+ * that, plus the size of an ordinary step of its surroundings. The ratio test above compares against percentiles that
+ * change with whatever else is playing, so on its own it let a page click up to FILE_RATIO_SLACK times stronger than a
+ * mild step of a file pass as the file's. Headroom for the room and the headphone filters, which move a step's size by a
+ * little in either direction.
+ */
+const SIZE_SLACK = 2;
 
 const WORKLET = `
 class Rec extends AudioWorkletProcessor {
@@ -216,34 +227,61 @@ interface Play {
   start: number;
   end: number;
   length?: number;
+  /** The file goes round; `end` alone cannot say so once the voice has been stopped and its end shortened. */
+  loop?: boolean;
+  /** Most the page does to a sample of the file (level times volume); absent when it is not known. */
+  gain?: number;
 }
 
 const MATCH = 0.02;
 
 /** True when a fault of a file can be what the output's fault is: same kind, same place, and for a click not much weaker. */
-function sameFault(own: Raw, f: Raw, rel: number): boolean {
+export function sameFault(own: Raw, f: Raw, rel: number): boolean {
   if (own.kind !== f.kind || Math.abs(own.t - rel) > MATCH) return false;
   if (f.kind !== 'click') return true;
   // A click that the page makes on top of a mild step of the file is stronger than that step by far.
   return Math.min(own.ratio ?? RATIO_CAP, RATIO_CAP) * FILE_RATIO_SLACK >= Math.min(f.ratio ?? RATIO_CAP, RATIO_CAP);
 }
 
-/** Marks a fault as 'file' when a sound playing at that moment holds the same kind of fault at the same place. */
+/**
+ * Marks a fault as 'file' when a sound playing at that moment holds the same kind of fault at the same place and, for a
+ * click, the output's step is no larger than what those files' steps (times the page's gain) can add up to.
+ */
 async function attribute(f: Raw, audioTime: number, plays: Play[]): Promise<Fault> {
   const sounds: string[] = [];
-  let origin: Fault['origin'] = 'page';
+  let matched = false;
+  let unbounded = false;
+  let expected = 0;
   for (const p of plays) {
     if (audioTime < p.start - MATCH || audioTime > p.end + 0.05) continue;
     if (!sounds.includes(p.id)) sounds.push(p.id);
     let rel = audioTime - p.start;
     const len = p.length ?? 0;
-    if (p.end === Infinity && len > 0) rel = ((rel % len) + len) % len;
+    // A loop is wrapped also after it has been stopped (its `end` is then finite, and a second pass is still the same file).
+    const looped = p.loop ?? p.end === Infinity;
+    if (looped && len > 0) rel = ((rel % len) + len) % len;
     const own = await fileFaults(p.id);
-    if (own.some((q) => sameFault(q, f, rel))) origin = 'file';
     // A fault at the wrap of a looped file sits at the end and at the start of the file at once.
-    else if (len > 0 && own.some((q) => sameFault(q, f, rel + len))) origin = 'file';
+    const hits = own.filter((q) => sameFault(q, f, rel) || (len > 0 && sameFault(q, f, rel + len)));
+    if (!hits.length) continue;
+    matched = true;
+    if (p.gain === undefined) unbounded = true;
+    else expected += Math.max(...hits.map((q) => q.size)) * p.gain;
   }
-  return { ...f, origin, sounds };
+  const out: Fault = { ...f, origin: 'page', sounds };
+  if (!matched) return out;
+  const verdict = fileExplains(f, unbounded ? null : expected);
+  return { ...out, origin: verdict.file ? 'file' : 'page', explained: verdict.explained };
+}
+
+/**
+ * Whether the files' own steps explain a fault of the output. `expected` is the sum, over the plays that hold the
+ * same fault there, of the file's step times the page's gain (null when a gain is not known: then the match alone counts).
+ */
+export function fileExplains(f: Raw, expected: number | null): { file: boolean; explained?: number } {
+  if (f.kind !== 'click' || expected === null) return { file: true };
+  const around = f.ratio !== undefined && Number.isFinite(f.ratio) && f.ratio > 0 ? f.size / f.ratio : 0;
+  return { file: f.size <= SIZE_SLACK * expected + around, explained: f.size / (expected + around) };
 }
 
 let node: AudioWorkletNode | null = null;
