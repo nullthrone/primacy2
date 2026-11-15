@@ -185,7 +185,10 @@ def detect_source_clipping(x: np.ndarray) -> int:
         x = x[:, None]
     if x.size == 0:
         return 0
-    a = np.abs(x)
+    # magnitudes above full scale (a lossy decoder overshoots a clipped waveform, up to 1.14 in
+    # the SLS recording) count as full scale: otherwise the flat plateaus of such a file are
+    # not within 0.1 % of its highest overshoot and clipping goes unseen
+    a = np.minimum(np.abs(x), 1.0)
     top = float(a.max())
     if top < CLIP_MIN_PEAK:
         return 0

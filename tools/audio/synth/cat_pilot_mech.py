@@ -148,6 +148,25 @@ def _rms_scale(x: np.ndarray, ref_rms: float, t_from: float = 0.0, t_to: float |
     return x * (ref_rms / max(r, 1e-12))
 
 
+_REF = 0.01 * SR  # the energy (sum of squares) of a layer that holds a share of 1.0
+
+
+def _frac(x: np.ndarray, share: float, t_from: float = 0.0, t_to: float | None = None) -> np.ndarray:
+    """Scale x so that its energy over the window is `share` of the reference energy. Layers are
+    set this way so that the mix is built from shares of the energy, which is what the targets of
+    the brief are written in; the build then sets the peak."""
+    a = int(t_from * SR)
+    b = x.shape[0] if t_to is None else int(t_to * SR)
+    e = float(np.sum(x[a:b] ** 2))
+    return x * np.sqrt(share * _REF / max(e, 1e-12))
+
+
+def _placed(n: int, x: np.ndarray, t: float) -> np.ndarray:
+    out = np.zeros(n)
+    _add(out, x, t)
+    return out
+
+
 # --------------------------------------------------------------------------- hull hits
 
 @register("pilot_hull_a")
@@ -155,38 +174,35 @@ def pilot_hull_a(ctx):
     """Metal: a hard crack, the clang of a large plate, a sub thump, then fittings rattling."""
     n = ctx.n
     rng = ctx.rng()
-    out = np.zeros(n)
 
-    # 1. the crack: broadband 1 to 8 kHz, 15 to 30 ms, onset inside 2 ms
-    crack = _noise_burst(rng, 0.060, 1000.0, 8000.0, 0.020, 0.25)
-    # a second, slightly later and duller layer so that the crack has a tail and not only a click
-    crack2 = _noise_burst(rng, 0.060, 1800.0, 5000.0, 0.035, 0.4)
-    out += 0.9 * crack
-    _add(out, crack2, 0.003, 0.45)
+    # 1. the crack: broadband 1 to 8 kHz, 15 to 30 ms, onset inside 2 ms, plus a duller layer 3 ms
+    # later so that it has a tail and not only a click
+    crack = _placed(n, _noise_burst(rng, 0.060, 1000.0, 8000.0, 0.020, 0.25), 0.0)
+    crack2 = _placed(n, _noise_burst(rng, 0.060, 1800.0, 5000.0, 0.035, 0.4), 0.003)
 
-    # 2. the plate: at least twelve inharmonic partials 180 Hz to 5 kHz (here 22), pairs detuned
+    # 2. the plate: at least twelve inharmonic partials from 180 Hz to 5 kHz (here 22), pairs
+    # detuned. The upper partials are not weaker than the lower ones (a plate is bright when hit
+    # hard); they die much faster instead.
     ratios = [1.0, 1.43, 1.93, 2.31, 2.86, 3.37, 3.94, 4.58, 5.23, 6.05, 6.94, 7.73, 8.86, 10.1,
               11.4, 12.9, 14.6, 16.5, 18.7, 21.2, 23.9, 27.0]
-    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=1.4, ref_hz=200.0, expo=0.85, tilt=0.45,
+    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=1.5, ref_hz=200.0, expo=0.85, tilt=-0.05,
                     pair=(0.002, 0.008), drift=0.0007)
     plate = pa + pb
-    # the plate is struck by the crack: it starts within a millisecond and swells over 1.5 ms
-    plate[: int(0.0015 * SR)] *= rise(int(0.0015 * SR))
-    out += 0.34 * plate
+    plate[: int(0.0015 * SR)] *= rise(int(0.0015 * SR))   # struck by the crack: starts at once
 
-    # 3. the sub thump, 70 falling to 45 Hz; it follows the attack by about 3 ms
+    # 3. the sub thump, 72 falling to 44 Hz, 2 ms behind the crack, and a low body for the clang
     sub = _falling_sine(n, 72.0, 44.0, 0.07, rng, wobble=0.01) * burst_env(n, 3.5, 0.42)
-    _add(out, sub[: n - int(0.002 * SR)], 0.002, 1.55)
-    # a low body of the plate itself, so that the clang has a floor to stand on
-    body = lowpass(_noise_burst(rng, 0.5, 90.0, 400.0, 0.16, 1.5), 450.0, 2)
-    out += 0.45 * body
+    sub = _placed(n, sub[: n - int(0.002 * SR)], 0.002)
+    body = _placed(n, lowpass(_noise_burst(rng, 0.5, 90.0, 400.0, 0.16, 1.5), 450.0, 2), 0.0)
 
     # 4. the fittings rattle after the clang, 60 to 250 ms, quiet, uneven
-    for start, kn, lo, hi, g0, lv in ((0.062, 11, 1500.0, 4200.0, 0.0125, 0.075),
-                                      (0.105, 14, 1700.0, 5000.0, 0.017, 0.07),
-                                      (0.170, 9, 1500.0, 3600.0, 0.022, 0.055)):
-        out += _knock_run(rng, start, kn, lo, hi, g0, lv, n)
+    rattle = np.zeros(n)
+    for start, kn, lo, hi, g0 in ((0.062, 11, 1500.0, 4200.0, 0.0125), (0.105, 14, 1700.0, 5000.0, 0.017),
+                                  (0.170, 9, 1500.0, 3600.0, 0.022)):
+        rattle += _knock_run(rng, start, kn, lo, hi, g0, 1.0, n)
 
+    out = (_frac(crack, 0.075) + _frac(crack2, 0.030) + _frac(plate, 0.46) + _frac(sub, 0.27)
+           + _frac(body, 0.11) + _frac(rattle, 0.012))
     return fade_edges(out, 0.0, 20.0)
 
 
@@ -197,43 +213,37 @@ def pilot_hull_b(ctx):
     n = ctx.n
     rng = ctx.rng()
 
-    # sub drop 80 to 35 Hz, lasting well past half a second
+    # sub drop 80 to 35 Hz, lasting well past half a second; a layer an octave above falls with it
     t = np.arange(n) / SR
     f = 35.0 + 45.0 * np.exp(-t / 0.28)
     sub = np.sin(2 * np.pi * np.cumsum(f) / SR) * _smooth_env(n, 0.004, 0.18, 1.05)
-    # a second layer one octave above that falls with it: the chest of the blow
     f2 = 70.0 + 70.0 * np.exp(-t / 0.18)
     chest = np.sin(2 * np.pi * np.cumsum(f2) / SR + 0.7) * _smooth_env(n, 0.003, 0.02, 0.45)
 
     def crunch(seed: str) -> np.ndarray:
         r = ctx.rng(seed)
         n_c = int(0.28 * SR)
-        # a dense burst of 80 to 150 ms: a body held at full level, then let go
+        # a dense burst of 80 to 150 ms: held at full level for 50 ms, then let go
         hold = np.ones(n_c)
         hold[int(0.050 * SR):] = exp_decay(n_c - int(0.050 * SR), 0.11)
         hold[: int(0.0015 * SR)] *= rise(int(0.0015 * SR))
         raw = bandpass(r.standard_normal(n_c + 256), 300.0, 3000.0, 2)[256:]
         raw = raw / np.sqrt(np.mean(raw ** 2)) * hold
         driven = np.tanh(3.5 * raw)                      # driven into saturation: grit
-        return bandpass(driven, 260.0, 3600.0, 2)        # and the harmonics kept in the band
+        return _placed(n, bandpass(driven, 260.0, 3600.0, 2), 0.0)   # harmonics kept in the band
 
     cr_a, cr_b = crunch("crunch/a"), crunch("crunch/b")
 
     # debris grains 2 to 9 kHz over about 1.1 s, sparser and sparser, spread between the channels
     g_mono, g_side = _grains(n, rng, 0.012, 1.15, 360, 0.38, 2000.0, 9000.0)
-
-    mid = np.zeros(n)
-    side = np.zeros(n)
-    mid += 1.0 * sub + 0.55 * chest
-    _add(mid, cr_a, 0.0, 0.62)
-    _add(side, cr_b, 0.0, 0.45)
-    mid += 0.20 * g_mono
-    side += 0.20 * g_side * 1.6
+    g_side = g_side * (np.sqrt(np.sum(g_mono ** 2)) / max(np.sqrt(np.sum(g_side ** 2)), 1e-9)) * 0.8
     # a bright click at the very start: the hit has an edge
-    click = _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2)
-    _add(mid, click, 0.0, 0.8)
-    _add(side, _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2), 0.0, 0.6)
+    click_m = _placed(n, _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2), 0.0)
+    click_s = _placed(n, _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2), 0.0)
 
+    mid = (_frac(sub, 0.30) + _frac(chest, 0.07) + _frac(cr_a, 0.26) + _frac(g_mono, 0.075)
+           + _frac(click_m, 0.015))
+    side = (_frac(cr_b, 0.17) + _frac(g_side, 0.06) + _frac(click_s, 0.012))
     y = mid_side(mid, side, periodic=False)
     return fade_edges(y, 0.0, 25.0)
 
@@ -244,25 +254,19 @@ def pilot_hull_c(ctx):
     resonance, only a soft knock in the attack, a long low tail."""
     n = ctx.n
     rng = ctx.rng()
-    t = np.arange(n) / SR
 
-    # the boom: two falling sines, one below 60 Hz and one in the 60 to 125 Hz range
+    # the boom: two falling sines, one below 60 Hz and one between 50 and 80 Hz
     boom_a = _falling_sine(n, 78.0, 50.0, 0.20, rng, wobble=0.012) * _smooth_env(n, 0.006, 0.05, 1.9)
     boom_b = _falling_sine(n, 52.0, 34.0, 0.35, rng, wobble=0.015) * _smooth_env(n, 0.008, 0.10, 2.3)
     # the long low tail: a rumble of low noise, not a tone
-    rumble = lowpass(rng.standard_normal(n), 95.0, 2) * _smooth_env(n, 0.012, 0.0, 1.7)
-    rumble = highpass(rumble, 25.0, 2)
-
+    rumble = highpass(lowpass(rng.standard_normal(n), 95.0, 2) * _smooth_env(n, 0.012, 0.0, 1.7), 25.0, 2)
     # the body: broad noise from 125 to 600 Hz, decaying faster than the boom, no resonance
     body = bandpass(rng.standard_normal(n + 256), 110.0, 650.0, 2)[256:] * _smooth_env(n, 0.003, 0.0, 0.55)
-    body = _rms_scale(body, 1.0, 0.0, 0.3)
-
     # the soft knock: 0.8 to 2 kHz, only in the attack
-    knock = _noise_burst(rng, 0.030, 800.0, 2000.0, 0.012, 0.8)
+    knock = _placed(n, _noise_burst(rng, 0.030, 800.0, 2000.0, 0.012, 0.8), 0.0)
 
-    out = 1.0 * boom_a + 0.8 * boom_b + 0.55 * _rms_scale(rumble, 0.35, 0.0, 0.5) * 1.0
-    out += 0.30 * body
-    _add(out, knock, 0.0, 0.10)
+    out = (_frac(boom_a, 0.30) + _frac(boom_b, 0.24) + _frac(rumble, 0.08) + _frac(body, 0.34)
+           + _frac(knock, 0.012))
     return fade_edges(out, 0.0, 40.0)
 
 
@@ -270,7 +274,7 @@ def pilot_hull_c(ctx):
 
 def _whine(n: int, rng, t0: float, t1: float, f_start: float, f_end: float, rise_t: float,
            harmonics, wobble_hz=(4.5, 7.3), wobble_depth: float = 0.012, stop_wind: float = 0.0,
-           detune: float = 0.0, ratchet_hz: float = 0.0, ratchet_depth: float = 0.0):
+           ratchet_hz: float = 0.0, ratchet_depth: float = 0.0) -> np.ndarray:
     """A motor whine: a fundamental that rises smoothly from f_start to f_end over rise_t seconds and
     then holds (with a little wobble and a slow drift), harmonics `harmonics` = [(k, level), ...].
     From t0 to t1; the last `stop_wind` seconds wind down in pitch and level. The gear-train ratchet
@@ -281,11 +285,10 @@ def _whine(n: int, rng, t0: float, t1: float, f_start: float, f_end: float, rise
     f = f_start + (f_end - f_start) * (3 * u ** 2 - 2 * u ** 3)
     f = f * (1.0 + wobble_depth * (0.6 * np.sin(2 * np.pi * wobble_hz[0] * tt + rng.uniform(0, 6.28))
                                    + 0.4 * np.sin(2 * np.pi * wobble_hz[1] * tt + rng.uniform(0, 6.28))))
-    f = f * (1.0 + detune)
-    drift = 1.0 + 0.004 * np.cumsum(rng.standard_normal(m)) / np.sqrt(SR) * 4
+    drift = 1.0 + 0.016 * np.cumsum(rng.standard_normal(m)) / np.sqrt(SR)
     f = f * np.clip(drift, 0.98, 1.02)
     amp = np.ones(m)
-    amp[: int(0.12 * SR)] *= rise(int(0.12 * SR))
+    amp[: int(0.03 * SR)] *= rise(int(0.03 * SR))
     if stop_wind > 0:
         w = int(stop_wind * SR)
         f[-w:] *= 1.0 - 0.25 * (np.arange(w) / w) ** 2
@@ -298,33 +301,32 @@ def _whine(n: int, rng, t0: float, t1: float, f_start: float, f_end: float, rise
         y += lv * lw * np.sin(k * phase + rng.uniform(0, 6.28))
     y *= amp
     if ratchet_hz:
-        # teeth of a gear train: pulses at about ratchet_hz with uneven spacing and depth
+        # teeth of a gear train: dips at about ratchet_hz with uneven spacing and depth
         period = SR / ratchet_hz
-        jitter = np.cumsum(rng.uniform(0.75, 1.25, int(m / period * 1.3) + 4)) * period
+        centres = np.cumsum(rng.uniform(0.75, 1.25, int(m / period * 1.3) + 4)) * period
         env = np.ones(m)
         w = int(0.45 * period)
         shape = 1.0 - ratchet_depth * (0.5 + 0.5 * np.cos(np.linspace(0, 2 * np.pi, 2 * w)))
-        for c in jitter:
+        for c in centres:
             i = int(c) - w
             if i < 0 or i + 2 * w > m:
                 continue
-            env[i:i + 2 * w] = np.minimum(env[i:i + 2 * w], shape * rng.uniform(0.92, 1.0) + (1 - shape) * 0.0)
+            env[i:i + 2 * w] = np.minimum(env[i:i + 2 * w], 1.0 - (1.0 - shape) * rng.uniform(0.6, 1.0))
         y *= env
     out = np.zeros(n)
     _add(out, y, t0)
-    return out, f
+    return out
 
 
-def _teeth(n: int, rng, t0: float, t1: float, rate: float, lo: float, hi: float, level: float) -> np.ndarray:
+def _teeth(n: int, rng, t0: float, t1: float, rate: float, lo: float, hi: float) -> np.ndarray:
     """Tooth clicks of a gear train: a small noise tick at roughly `rate` per second, uneven in time
     and level, band-limited lo to hi. These carry the texture above 1 kHz."""
     out = np.zeros(n)
     t = t0 + rng.uniform(0, 1.0 / rate)
     while t < t1:
         tick = _noise_burst(rng, rng.uniform(0.0015, 0.004), lo, hi, 0.0012, 0.2)
-        # a ramp on the level near both ends so that the texture swells in and winds out
-        edge = min(1.0, (t - t0) / 0.25, (t1 - t) / 0.12)
-        _add(out, tick, t, level * rng.uniform(0.3, 1.0) * max(edge, 0.0))
+        edge = min(1.0, (t - t0) / 0.25, (t1 - t) / 0.12)   # swells in and winds out
+        _add(out, tick, t, rng.uniform(0.3, 1.0) * max(edge, 0.0))
         t += rng.uniform(0.6, 1.4) / rate
     return out
 
@@ -338,43 +340,39 @@ def pilot_gear_a(ctx):
     t_lock = 1.80
 
     harm = [(1, 1.0), (2, 0.75), (3, 0.62), (4, 0.42), (5, 0.34), (6, 0.22), (7, 0.16), (8, 0.10)]
-    whine, _ = _whine(n, rng, 0.04, t_lock - 0.01, 180.0, 420.0, 0.85, harm, stop_wind=0.12,
-                      ratchet_hz=29.0, ratchet_depth=0.55)
-    # a second, weaker voice a fifth above the fundamental, to make it a motor and not a tone
-    # (kept off the harmonic grid so the two beat a little)
-    whine2, _ = _whine(n, rng, 0.04, t_lock - 0.01, 180.0 * 1.012, 420.0 * 1.012, 0.85,
-                       [(1, 0.22), (3, 0.16), (5, 0.1)], wobble_hz=(5.1, 8.2), stop_wind=0.12,
-                       ratchet_hz=0.0)
-    teeth = _teeth(n, rng, 0.05, t_lock, 31.0, 1400.0, 4200.0, 0.30)
+    whine = _whine(n, rng, 0.0, t_lock - 0.01, 180.0, 420.0, 0.85, harm, stop_wind=0.12,
+                   ratchet_hz=29.0, ratchet_depth=0.55)
+    # a second, weaker voice a little off the first so that the two beat: a motor, not a tone
+    whine2 = _whine(n, rng, 0.0, t_lock - 0.01, 180.0 * 1.012, 420.0 * 1.012, 0.85,
+                    [(1, 0.22), (3, 0.16), (5, 0.1)], wobble_hz=(5.1, 8.2), stop_wind=0.12)
+    teeth = _teeth(n, rng, 0.05, t_lock, 31.0, 1400.0, 4200.0)
     air = highpass(rng.standard_normal(n), 900.0, 2)
     air = lowpass(air, 3500.0, 2) * np.concatenate([_smooth_env(int(1.7 * SR), 0.2, 1.3, 0.05),
                                                     np.zeros(n - int(1.7 * SR))])
 
-    out = 0.55 * whine + 0.2 * whine2 + teeth + 0.035 * air
-
-    # lock, stage one: a bright metallic clack (centre above 2.5 kHz), with a tiny ring of two parts
-    clack = _noise_burst(rng, 0.040, 2200.0, 9000.0, 0.011, 0.2)
+    # lock, stage one: a bright metallic clack (centre above 2.5 kHz) with a tiny ring of three parts
+    clack = _placed(n, _noise_burst(rng, 0.040, 2200.0, 9000.0, 0.011, 0.2), t_lock)
     ring = np.zeros(n)
+    tt = np.arange(int(0.10 * SR)) / SR
     for f, a in ((2630.0, 0.5), (3470.0, 0.35), (4310.0, 0.25)):
-        tt = np.arange(int(0.10 * SR)) / SR
         _add(ring, a * np.sin(2 * np.pi * f * tt * (1 + 0.002 * np.sin(2 * np.pi * 3 * tt)) + rng.uniform(0, 6.28))
              * np.exp(-6.9078 * tt / 0.045), t_lock)
-    _add(out, clack, t_lock, 1.3)
-    out += 0.45 * ring
 
     # stage two, 60 ms later: a heavy clunk: body 100 to 400 Hz, sub at 50 to 80 Hz, ring 0.3 s
     t2 = t_lock + 0.060
     m = n - int(t2 * SR)
     body = bandpass(rng.standard_normal(m + 256), 100.0, 400.0, 2)[256:] * burst_env(m, 2.0, 0.12)
-    body = _rms_scale(body, 1.0, 0.0, 0.06)
     sub = _falling_sine(m, 82.0, 52.0, 0.05, rng) * burst_env(m, 3.0, 0.24)
     tt = np.arange(m) / SR
     rings = sum(a * np.sin(2 * np.pi * f * tt + rng.uniform(0, 6.28)) * np.exp(-6.9078 * tt / t60)
                 for f, a, t60 in ((133.0, 0.55, 0.30), (187.0, 0.45, 0.26), (254.0, 0.35, 0.22),
                                   (371.0, 0.22, 0.16)))
     rings[: int(0.002 * SR)] *= rise(int(0.002 * SR))
-    clunk = 1.15 * body + 1.6 * sub + 0.55 * rings
-    _add(out, clunk, t2, 1.0)
+
+    out = (_frac(whine, 0.26) + _frac(whine2, 0.05) + _frac(teeth, 0.10) + _frac(air, 0.01)
+           + _frac(clack, 0.075) + _frac(ring, 0.025)
+           + _frac(_placed(n, body, t2), 0.14) + _frac(_placed(n, sub, t2), 0.20)
+           + _frac(_placed(n, rings, t2), 0.08))
     return fade_edges(out, 0.0, 30.0)
 
 
@@ -384,21 +382,18 @@ def pilot_gear_b(ctx):
     whine, a big locking slam with a sub drop and a metallic ring, a last puff of air. Two channels:
     the hiss, the whine and the ring are wide, the growl and the slam's low part sit in the middle."""
     n = ctx.n
-    rng = ctx.rng()
     t_slam = 1.85
-    mid = np.zeros(n)
-    side = np.zeros(n)
+    rng = ctx.rng()
 
-    # pneumatic hiss, 0 to 0.25 s, 3 to 9 kHz: independent noise in mid and side makes it wide
-    def hiss(seed, dur, lo, hi, attack, hold, t60):
+    def noise_band(seed, dur, lo, hi, attack, hold, t60):
         r = ctx.rng(seed)
         m = int(dur * SR)
         x = bandpass(r.standard_normal(m + 256), lo, hi, 2)[256:]
-        x = x / np.sqrt(np.mean(x ** 2))
-        e = _smooth_env(m, attack, hold, t60)
-        return x * e
-    _add(mid, hiss("hiss/m", 0.34, 3000.0, 9000.0, 0.004, 0.10, 0.07), 0.0, 0.75)
-    _add(side, hiss("hiss/s", 0.34, 3000.0, 9000.0, 0.004, 0.10, 0.07), 0.0, 0.75)
+        return _placed(n, x / np.sqrt(np.mean(x ** 2)) * _smooth_env(m, attack, hold, t60), 0.0)
+
+    # pneumatic hiss, 0 to 0.25 s, 3 to 9 kHz: independent noise in mid and side makes it wide
+    hiss_m = noise_band("hiss/m", 0.34, 3000.0, 9000.0, 0.004, 0.10, 0.07)
+    hiss_s = noise_band("hiss/s", 0.34, 3000.0, 9000.0, 0.004, 0.10, 0.07)
 
     # servo growl, 70 to 160 Hz: a rough buzzy pulse, amplitude-modulated by uneven noise
     m = int(1.70 * SR)
@@ -407,15 +402,15 @@ def pilot_gear_b(ctx):
     f = 70.0 + 85.0 * (3 * u ** 2 - 2 * u ** 3)
     f = f * (1.0 + 0.012 * np.sin(2 * np.pi * 5.2 * tt + 1.0))
     ph = 2 * np.pi * np.cumsum(f) / SR
-    growl = sum(lv * np.sin(k * ph + rng.uniform(0, 6.28)) for k, lv in ((1, 1.0), (2, 0.8), (3, 0.55), (4, 0.4), (5, 0.25), (6, 0.15)))
+    growl = sum(lv * np.sin(k * ph + rng.uniform(0, 6.28))
+                for k, lv in ((1, 1.0), (2, 0.8), (3, 0.55), (4, 0.4), (5, 0.25), (6, 0.15)))
     rough = lowpass(rng.standard_normal(m), 55.0, 2)
     rough = rough / np.max(np.abs(rough))
     growl = growl * (1.0 + 0.55 * rough) * (1.0 + 0.25 * np.sin(2 * np.pi * 31.0 * tt))
     genv = np.ones(m)
     genv[: int(0.25 * SR)] = rise(int(0.25 * SR))
     genv[-int(0.12 * SR):] *= (1 - np.arange(int(0.12 * SR)) / int(0.12 * SR))
-    growl = lowpass(growl * genv, 650.0, 2)
-    _add(mid, growl, 0.14, 0.34)
+    growl = _placed(n, lowpass(growl * genv, 650.0, 2), 0.14)
 
     # whine that sweeps 300 to 900 Hz and back down a little before the slam; each ear its own
     # slightly detuned copy (wide)
@@ -432,38 +427,37 @@ def pilot_gear_b(ctx):
         e = np.ones(mm)
         e[: int(0.30 * SR)] = rise(int(0.30 * SR))
         e[-int(0.10 * SR):] *= (1 - np.arange(int(0.10 * SR)) / int(0.10 * SR))
-        return y * e
+        return _placed(n, y * e, 0.22)
     wl, wr = sweep(-0.004, "sweep/l"), sweep(0.004, "sweep/r")
-    _add(mid, 0.5 * (wl + wr), 0.22, 0.17)
-    _add(side, 0.5 * (wl - wr), 0.22, 0.17)
+    whine_m, whine_s = 0.5 * (wl + wr), 0.5 * (wl - wr)
 
     # the slam: crunch on top, a sub drop 70 to 35 Hz, a metallic ring of at least 0.4 s
     mm = n - int(t_slam * SR)
     tt = np.arange(mm) / SR
     f = 35.0 + 35.0 * np.exp(-tt / 0.16)
-    sub = np.sin(2 * np.pi * np.cumsum(f) / SR) * _smooth_env(mm, 0.004, 0.08, 0.5)
+    sub = _placed(n, np.sin(2 * np.pi * np.cumsum(f) / SR) * _smooth_env(mm, 0.004, 0.08, 0.5), t_slam)
     thud = bandpass(rng.standard_normal(mm + 256), 90.0, 450.0, 2)[256:] * burst_env(mm, 1.5, 0.16)
-    thud = _rms_scale(thud, 1.0, 0.0, 0.08)
-    crack = np.tanh(2.5 * _noise_burst(rng, 0.05, 250.0, 6000.0, 0.018, 0.3))
-    _add(mid, 1.5 * sub + 1.1 * thud, t_slam, 0.9)
-    _add(mid, crack, t_slam, 0.65)
-    _add(side, _noise_burst(rng, 0.05, 900.0, 6000.0, 0.02, 0.3), t_slam, 0.35)
+    thud = _placed(n, thud, t_slam)
+    crack_m = _placed(n, np.tanh(2.5 * _noise_burst(rng, 0.05, 250.0, 6000.0, 0.018, 0.3)), t_slam)
+    crack_s = _placed(n, _noise_burst(rng, 0.05, 900.0, 6000.0, 0.02, 0.3), t_slam)
     ratios = [1.0, 1.52, 2.07, 2.61, 3.28, 4.04, 5.0, 6.1, 7.5, 9.1, 11.0, 13.6]
-    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.55, ref_hz=230.0, expo=0.8, tilt=0.5,
+    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.55, ref_hz=230.0, expo=0.8, tilt=0.1,
                     pair=(0.003, 0.009), drift=0.0009)
     pa[: int(0.001 * SR)] *= rise(int(0.001 * SR))
     pb[: int(0.001 * SR)] *= rise(int(0.001 * SR))
-    _add(mid, 0.5 * (pa + pb), t_slam, 0.30)
-    _add(side, 0.5 * (pa - pb), t_slam, 0.30)
+    ring_m, ring_s = _placed(n, 0.5 * (pa + pb), t_slam), _placed(n, 0.5 * (pa - pb), t_slam)
 
     # a last puff of air as the pressure lets go
-    puff = bandpass(ctx.rng("puff/m").standard_normal(int(0.22 * SR) + 256), 2500.0, 7500.0, 2)[256:]
-    puff = puff / np.sqrt(np.mean(puff ** 2)) * _smooth_env(int(0.22 * SR), 0.035, 0.02, 0.08)
-    puff2 = bandpass(ctx.rng("puff/s").standard_normal(int(0.22 * SR) + 256), 2500.0, 7500.0, 2)[256:]
-    puff2 = puff2 / np.sqrt(np.mean(puff2 ** 2)) * _smooth_env(int(0.22 * SR), 0.035, 0.02, 0.08)
-    _add(mid, puff, 2.20, 0.30)
-    _add(side, puff2, 2.20, 0.30)
+    def puff(seed):
+        r = ctx.rng(seed)
+        k = int(0.22 * SR)
+        x = bandpass(r.standard_normal(k + 256), 2500.0, 7500.0, 2)[256:]
+        return _placed(n, x / np.sqrt(np.mean(x ** 2)) * _smooth_env(k, 0.035, 0.02, 0.08), 2.20)
 
+    mid = (_frac(hiss_m, 0.045) + _frac(growl, 0.16) + _frac(whine_m, 0.10) + _frac(sub, 0.27)
+           + _frac(thud, 0.10) + _frac(crack_m, 0.04) + _frac(ring_m, 0.07) + _frac(puff("puff/m"), 0.012))
+    side = (_frac(hiss_s, 0.045) + _frac(whine_s, 0.035) + _frac(crack_s, 0.015) + _frac(ring_s, 0.03)
+            + _frac(puff("puff/s"), 0.010))
     y = mid_side(mid, side, periodic=False)
     return fade_edges(y, 0.0, 30.0)
 
@@ -476,20 +470,17 @@ def pilot_gear_c(ctx):
     rng = ctx.rng()
     t_lock = 1.55
     harm = [(1, 1.0), (2, 0.85), (3, 0.70), (4, 0.50)]
-    whine, _ = _whine(n, rng, 0.05, t_lock - 0.02, 150.0, 350.0, 0.8, harm, stop_wind=0.10,
-                      ratchet_hz=24.0, ratchet_depth=0.40)
+    whine = _whine(n, rng, 0.0, t_lock - 0.02, 150.0, 350.0, 0.8, harm, stop_wind=0.10,
+                   ratchet_hz=24.0, ratchet_depth=0.40)
     # a little duller: nothing above 3 kHz, the structure takes the top
-    out = 0.55 * lowpass(whine, 1900.0, 4)
-    teeth = _teeth(n, rng, 0.06, t_lock, 26.0, 900.0, 2400.0, 0.12)
-    out += lowpass(teeth, 2600.0, 2)
+    whine = lowpass(whine, 1900.0, 4)
+    teeth = lowpass(_teeth(n, rng, 0.06, t_lock, 26.0, 900.0, 2400.0), 2600.0, 2)
 
     # the lock: a tick (1 to 3 kHz) leading a thunk (80 to 250 Hz) by about 2 ms, sub below 80 Hz
-    tick = lowpass(_noise_burst(rng, 0.030, 1000.0, 3000.0, 0.007, 0.4), 3000.0, 4)
+    tick = _placed(n, lowpass(_noise_burst(rng, 0.030, 1000.0, 3000.0, 0.007, 0.4), 3000.0, 4), t_lock)
     m = n - int((t_lock + 0.002) * SR)
     body = bandpass(rng.standard_normal(m + 256), 80.0, 250.0, 2)[256:] * burst_env(m, 2.5, 0.10)
-    body = _rms_scale(body, 1.0, 0.0, 0.06)
     sub = _falling_sine(m, 80.0, 52.0, 0.04, rng) * burst_env(m, 3.0, 0.16)
-    thunk = 1.0 * body + 1.2 * sub
-    _add(out, thunk, t_lock + 0.002, 1.0)
-    _add(out, tick, t_lock, 1.0)
+    out = (_frac(whine, 0.50) + _frac(teeth, 0.04) + _frac(tick, 0.08)
+           + _frac(_placed(n, body, t_lock + 0.002), 0.16) + _frac(_placed(n, sub, t_lock + 0.002), 0.12))
     return fade_edges(out, 0.0, 30.0)
