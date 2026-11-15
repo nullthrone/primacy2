@@ -76,6 +76,17 @@ def main() -> None:
     t0 = time.perf_counter()
     pipe = MossSoundEffectPipeline.from_pretrained(str(MODEL_DIR), torch_dtype=torch.bfloat16, device=args.device)
     print("loaded in %.1f s" % (time.perf_counter() - t0))
+    if args.device == "cuda":
+        # The card is shared with whatever else runs on the desktop (a game held 3.9 GB of the 16 GB
+        # during this test): with all weights resident the run spilled into shared memory and
+        # stalled. The text encoder (4 GB) is only needed while the prompt is encoded, so it
+        # lives on the CPU between calls and visits the card for its forward pass. Same maths,
+        # same numbers; only where the weights sit changes.
+        te = pipe.text_encoder
+        te.to("cpu")
+        te.register_forward_pre_hook(lambda m, a: m.to("cuda") and None)
+        te.register_forward_hook(lambda m, a, o: (m.to("cpu"), torch.cuda.empty_cache(), None)[-1])
+        torch.cuda.empty_cache()
     rec = common.Record("moss", model="OpenMOSS-Team/MOSS-SoundEffect-v2.0", model_revision=MODEL_REVISION,
                         code="https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2", code_commit=CODE_COMMIT,
                         torch=torch.__version__, compile="disabled (TORCHDYNAMO_DISABLE=1)")
