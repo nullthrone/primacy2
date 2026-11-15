@@ -551,7 +551,7 @@ Other notes:
   model have not been run. The licence of each model and each downloaded sound is to be read and
   recorded before first use.
 - The speech models of the comparison (2026-11-15) each have their own environment under
-  `.venv-voice/<key>/` (ignored by git, made with `uv`, about 12 GB together) and their weights
+  `.venv-voice/<key>/` (ignored by git, made with `uv`, about 7 GB on disk together) and their weights
   in the Hugging Face cache (about 9 GB: Qwen3-TTS VoiceDesign 1.7B and Base 0.6B,
   Chatterbox-Nano, Kokoro-82M, Phonon 31M with its twelve designed character voices, Kitten TTS
   2 Mini). Nothing is installed into `.venv-audio`; a saved package list

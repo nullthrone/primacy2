@@ -26,7 +26,7 @@ const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
 /** How far ahead of the audio clock a sound is scheduled when it has no start time of its own, in seconds. */
-const START_LEAD = 0.03;
+const START_LEAD = 0.15;
 /** Fade-in of a voice whose buffer does not start on silence, in seconds. */
 const EDGE_IN = 0.003;
 /** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
@@ -662,6 +662,7 @@ class Engine {
     src.connect(g);
     const placement = this.place(g, this.outputFor(sound, viaRadio), multi, azimuth);
     src.start(start);
+    if (loop) console.log('DBG', sound.id, 'start-now', (start - ctx.currentTime).toFixed(4), 'asked-t0', (t0 - ctx.currentTime).toFixed(4));
 
     let hiss: AudioBufferSourceNode | null = null;
     let hissGain: GainNode | null = null;

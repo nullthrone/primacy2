@@ -112,11 +112,27 @@ strikes the file, and marks in `downloads.json` come from titles, not from liste
 48 kHz, 16 bit. The recording is never multiplied at its start, so no attack is lost: where a
 one-shot's first SAMPLE is above -60 dBFS (a real step) a lead-in of 1.5 ms is put in front (raised
 cosine from zero to that sample, per channel, `checks.leadInMs`); where its last millisecond is above
--60 dBFS the last 30 ms are faded out (raised cosine). A loop gets neither: its tail is crossfaded
-into its head with equal power (300 ms or a tenth of the file, whichever is less, so the file is
-that much shorter and its last sample runs into its first; `checks.loopCrossfadeMs`), and where the
-first and last 50 ms still differ by more than 2 dB in level the start is moved to the wrap point,
-on a 10 ms grid, where they differ least (`checks.loopStartMs`). The seam is measured
+-60 dBFS the last 30 ms are faded out (raised cosine; `checks.fadeOutMs` is the fade that was applied,
+half the file for a file under 60 ms) - unless the maximum of the envelope (1 ms moving average of the
+largest |sample| of the channels) lies inside that fade: a fade-out must not reach into the loudest
+part. Then the recording is left as it is and a raised-cosine tail of 3 ms falling from the last
+sample to zero is appended (per channel; `checks.appendedTailMs`, the file is 3 ms longer, the
+last sample is 0; `checks.fadeOutMs` is then 0). A loop gets neither: its tail is crossfaded
+into its head (300 ms or a tenth of the file, whichever is less; `checks.loopCrossfadeMs`). Before
+that the cut of the tail moves up to 30 ms earlier, to the offset where the normalised
+cross-correlation of tail and head over the crossfade is highest (`checks.loopShiftMs`, the file is
+that much shorter; a steady tone is in phase with itself only at some offsets), and that
+correlation (`checks.loopCorrelation`) picks the law (`checks.loopLaw`): above 0.5 the weights add to 1
+(`linear`, equal gain: two copies of one signal keep their level), otherwise their squares do
+(`equal-power`, cos / sin, with a divisor that takes out the part of the correlation that is left).
+The last sample then runs into the first. `checks.loopZone` states the level of the zone in 50 ms
+windows: `vsSourcesDb` against what the mixed tail and head would give with that law (the part the
+crossfade is responsible for; above 1.5 dB it fails the loop as `loop-crossfade-level`),
+`vsOutsideDb` against the 300 ms before and after the zone (includes whatever the recording
+itself does there) and `outsideSpreadDb`, the range of the same windows over the rest of the loop
+against the same reference. Where the first and last 50 ms still differ by more than 2 dB in level
+the start is moved to the wrap point, on a 10 ms grid, where they differ least
+(`checks.loopStartMs`). The seam is measured
 (`loop-seam` in `checks.failed`); clipping of the source is counted (`checks.sourceClipped`, flag
 `source-clipped`; runs of three or more samples within 0.1 % of the maximum, magnitudes above
 full scale counted as full scale; a loud low sine can trip it); the level comes from

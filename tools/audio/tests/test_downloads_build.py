@@ -161,7 +161,7 @@ class Loops(unittest.TestCase):
         y, info = build.process_download(x, SR, 'loop', 'sensors')
         k = min(int(0.3 * SR), x.shape[0] // 10)
         self.assertEqual(k, 14400)
-        self.assertEqual(y.shape[0], x.shape[0] - k)
+        self.assertEqual(y.shape[0], x.shape[0] - k - int(round(info['loopShiftMs'] * 48)))
         self.assertEqual((info['leadInMs'], info['fadeInMs'], info['fadeOutMs']), (0.0, 0.0, 0.0))
         self.assertEqual(info['loopCrossfadeMs'], 300.0)
         self.assertGreater(abs(y[0, 0]), 0.0)
@@ -169,7 +169,7 @@ class Loops(unittest.TestCase):
     def test_the_crossfade_is_a_tenth_of_a_short_file(self):
         x = self._noise_with_step(1.0)
         y, info = build.process_download(x, SR, 'loop', 'sensors')
-        self.assertEqual(y.shape[0], SR - SR // 10)
+        self.assertEqual(y.shape[0], SR - SR // 10 - int(round(info['loopShiftMs'] * 48)))
         self.assertEqual(info['loopCrossfadeMs'], 100.0)
 
     def test_the_last_sample_runs_into_the_first(self):
@@ -343,14 +343,31 @@ class TonalLoops(unittest.TestCase):
             self.assertLessEqual(d[j], np.percentile(d, 99.9) * 3.0)
             self.assertLessEqual(d[j], d[j - 200:j].max() * 3.0)
 
-    def test_uncorrelated_noise_gets_equal_power_and_is_not_shifted(self):
+    def test_uncorrelated_noise_gets_equal_power_and_keeps_its_level(self):
         rng = np.random.default_rng(3)
         x = rng.normal(0, 0.1, 5 * SR)
         info = {}
         y, k = build._loop_crossfade(x[:, None], info)
-        self.assertEqual((info['loopLaw'], info['loopShiftMs']), ('equal-power', 0.0))
+        self.assertEqual(info['loopLaw'], 'equal-power')
+        self.assertLessEqual(info['loopShiftMs'], 30.0)
         self.assertLess(info['loopCorrelation'], 0.5)
-        self.assertEqual(y.shape[0], x.shape[0] - k)
+        self.assertEqual(y.shape[0], x.shape[0] - k - int(round(info['loopShiftMs'] * 48)))
+        self.assertLess(abs(info['loopZone']['vsSourcesDb']), 1.5)
+
+    def test_a_little_correlation_left_does_not_make_the_zone_louder(self):
+        # tail and head of one noise that share a third of their power: plain cos / sin would add
+        # 10 log10(1 + c) = 1.2 dB in the middle of the zone, the law takes that out
+        rng = np.random.default_rng(8)
+        k = 14400
+        shared = rng.normal(0, 0.1, k)
+        x = rng.normal(0, 0.1, 4 * SR)
+        x[:k] = 0.8 * x[:k] + 0.6 * shared
+        x[-k:] = 0.8 * x[-k:] + 0.6 * shared
+        info = {}
+        build._loop_crossfade(x[:, None], info)
+        self.assertEqual(info['loopLaw'], 'equal-power')
+        self.assertGreater(info['loopCorrelation'], 0.2)
+        self.assertLess(abs(info['loopZone']['vsSourcesDb']), 1.5)
 
     def test_the_fields_reach_the_info_that_goes_into_the_manifest(self):
         _, info = build.process_download(self._tone(), SR, 'loop', 'engines')

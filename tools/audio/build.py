@@ -286,16 +286,18 @@ def _align_tail(x: np.ndarray, k: int, smax: int) -> np.ndarray:
     return corr[::-1]            # index s: the tail that ends s samples before the end of x
 
 
-def _zone_levels(y: np.ndarray, tail: np.ndarray, head: np.ndarray, k: int) -> dict:
+def _zone_levels(y: np.ndarray, tail: np.ndarray, head: np.ndarray, k: int, fin: np.ndarray, fout: np.ndarray) -> dict:
     """Levels of a loop's crossfade zone, which is y[:k] and circular (y wraps). In windows of
     LOOP_ZONE_WINDOW_S every 10 ms that lie inside the zone, the power (mean over samples and
     channels) is compared in dB with
       - the power of the k samples before and the k samples after the zone together
         (vsOutsideDb: the literal "level just outside the zone"; it includes whatever the recording
         itself does in those 600 ms), and
-      - the power the same window has in the tail and the head that were mixed, weighted by the
-        position in the zone (vsSourcesDb: what the crossfade itself adds or takes away; 0 for a
-        stationary signal when the law is right).
+      - the power the same window has in the tail and the head that were mixed, averaged with the
+        squares of the weights of the law at the middle of the window and divided by their sum
+        (vsSourcesDb: what the crossfade itself adds or takes away; 0 where the law matches the
+        material, about -3 dB where two copies of one signal are mixed with the power law out of
+        phase, or two unrelated signals with the linear law).
     Each is the signed deviation of largest magnitude. outsideSpreadDb is the range of the same
     windows over the rest of the loop, against the same reference, for comparison."""
     m, w, hop = y.shape[0], int(round(LOOP_ZONE_WINDOW_S * DOWNLOAD_SR)), int(round(0.01 * DOWNLOAD_SR))
@@ -315,8 +317,11 @@ def _zone_levels(y: np.ndarray, tail: np.ndarray, head: np.ndarray, k: int) -> d
     ref = db(0.5 * mean(cy, z - k, z) + 0.5 * mean(cy, z + k, z + 2 * k))
     ins = range(0, k - w + 1, hop)
     vs_out = [db(mean(cy, z + o, z + o + w)) - ref for o in ins]
-    vs_src = [db(mean(cy, z + o, z + o + w))
-              - db((1.0 - (o + w / 2) / k) * mean(ct, o, o + w) + ((o + w / 2) / k) * mean(ch, o, o + w)) for o in ins]
+    def expected(o: int) -> float:
+        a, b = float(fout[o + w // 2, 0]) ** 2, float(fin[o + w // 2, 0]) ** 2
+        return (a * mean(ct, o, o + w) + b * mean(ch, o, o + w)) / (a + b)
+
+    vs_src = [db(mean(cy, z + o, z + o + w)) - db(expected(o)) for o in ins]
     outs = [db(mean(cy, a, a + w)) - ref for a in range(z + k, z + m - w + 1, hop)]
     big = lambda v: max(v, key=abs)                 # noqa: E731
     return {"vsOutsideDb": round(float(big(vs_out)), 2), "vsSourcesDb": round(float(big(vs_src)), 2),
@@ -330,11 +335,11 @@ def _loop_crossfade(x: np.ndarray, info: dict | None = None) -> tuple[np.ndarray
 
     Two things depend on how well the tail and the head agree. The cut may move up to LOOP_ALIGN_S
     earlier, to the offset s at which the normalised cross-correlation of the two over the
-    crossfade length is highest (a steady tone is in phase with itself only at some offsets); this is
-    only done where that correlation is above LOOP_CORR_LINEAR, otherwise there is nothing to line
-    up and s = 0. And the law: where the correlation is above LOOP_CORR_LINEAR the weights add to 1
+    crossfade length is highest (a steady tone is in phase with itself only at some offsets; for
+    noise the best offset is a small gain over s = 0, which does no harm). And the law: where the correlation is above LOOP_CORR_LINEAR the weights add to 1
     (linear, equal gain: two copies of one signal keep their level), otherwise their squares do
-    (cos / sin, equal power: two unrelated signals keep their power). info, if given, receives
+    (cos / sin, equal power: two unrelated signals keep their power, corrected for the part of
+    the correlation that is left, see below). info, if given, receives
     loopShiftMs, loopCorrelation, loopLaw and loopZone (see _zone_levels)."""
     n = x.shape[0]
     k = min(int(round(LOOP_XFADE_S * DOWNLOAD_SR)), int(n * LOOP_XFADE_SHARE))
@@ -342,16 +347,18 @@ def _loop_crossfade(x: np.ndarray, info: dict | None = None) -> tuple[np.ndarray
         return x, 0
     smax = max(0, min(int(round(LOOP_ALIGN_S * DOWNLOAD_SR)), n - 2 * k))
     corr = _align_tail(x, k, smax)
-    s = int(np.argmax(corr))
-    if corr[s] <= LOOP_CORR_LINEAR:
-        s = 0
+    s = int(np.argmax(corr))          # the first of equal maxima: the smallest shift
     c = float(corr[s])
     linear = c > LOOP_CORR_LINEAR
     t = np.arange(k) / k
     if linear:
         fin, fout = t[:, None], (1.0 - t)[:, None]
     else:
-        fin, fout = np.sin(0.5 * np.pi * t)[:, None], np.cos(0.5 * np.pi * t)[:, None]
+        # cos / sin keep the power of two unrelated signals; where the two still agree a little
+        # (0 < c <= 0.5) their sum is louder by c * sin(2 theta), which the divisor takes out again
+        th = 0.5 * np.pi * t
+        g = 1.0 / np.sqrt(1.0 + min(max(c, 0.0), LOOP_CORR_LINEAR) * np.sin(2.0 * th))
+        fin, fout = (g * np.sin(th))[:, None], (g * np.cos(th))[:, None]
     e = n - s
     y = x[: e - k].copy()
     y[:k] = x[:k] * fin + x[e - k: e] * fout
@@ -359,7 +366,7 @@ def _loop_crossfade(x: np.ndarray, info: dict | None = None) -> tuple[np.ndarray
         info["loopShiftMs"] = round(1000.0 * s / DOWNLOAD_SR, 3)
         info["loopCorrelation"] = round(c, 4)
         info["loopLaw"] = "linear" if linear else "equal-power"
-        info["loopZone"] = _zone_levels(y, x[e - k: e], x[:k], k)
+        info["loopZone"] = _zone_levels(y, x[e - k: e], x[:k], k, fin, fout)
     return y, k
 
 
