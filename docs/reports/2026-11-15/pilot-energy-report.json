@@ -1,0 +1,82 @@
+{
+  "role": "pilot-energy",
+  "status": "done",
+  "summary": "Five direction samples written in tools/audio/synth/cat_pilot_energy.py, rendered with build.py (all five pass the general rules), spectrograms read, nine tests written and passing. Numbers are shares of the whole-file plain FFT of the mono sum unless marked W (the Welch/Hann numbers that listen/measure.py prints, which differ a lot on short clips because the Hann window damps the first and last milliseconds). Where a brief number and the character disagreed I kept the character; the places are in 'unsure'. Nobody has heard these: all judgement is from numbers, spectrograms and CLAP.",
+  "filesChanged": [
+    "tools/audio/synth/cat_pilot_energy.py",
+    "tools/audio/synth/tests/test_pilot_energy.py",
+    "docs/reports/2026-11-15/pilot-energy-report.json"
+  ],
+  "sounds": [
+    {
+      "id": "pilot_thruster_a",
+      "layers": "(1) opening click 2.2-6.2 kHz, 4.5 ms, at 0 ms, unit. (2) jet from 4 to 204 ms: two noises with their own envelopes; high noise from 1.5 kHz up (weight around 3-10 kHz, air to 16 kHz), swell 9 ms, a 0.9 pop at the start, fall over 42 ms; low-mid noise 250 Hz-2 kHz at 0.9 of the high one's level, swell 16 ms, fall over 55 ms, 12 ms longer; both torn by a 25-130 Hz flutter (depth 0.38 and 0.3) and a 4-18 Hz wander (0.2). (3) closing click 1.8-5.2 kHz, 4 ms, 0.55 of the opening one, at 204 ms. (4) thin bleed hiss 2-12 kHz, t60 70 ms, from 204 ms, 0.30 of the jet. (5) thump from 206.5 ms: 150 Hz falling to 72 Hz (measured 128 Hz at 222 ms to 74 Hz at 326 ms), t60 130 ms, soft saturation, gain set so that the thump holds 17 % of the energy. Level: true peak -11.5 dBFS.",
+      "targetsMet": true,
+      "measured": "above 1 kHz 73.2 % (target >=55), above 4 kHz 41.7 % (>=15), below 250 Hz 16.9 % (10-25); W: above 4 kHz 36.5 %, below 500 Hz 22.0 %. Above 8 kHz 20.9 %. Jet spans 0-205 ms above -20 dB. Strongest line 10.7 % (W). -28.5 LUFS (mono) at peak -11.5. CLAP margin +0.029, best 'a short sharp burst of compressed gas from a nozzle'.",
+      "unsure": "The Kenney references (5 s beds, 89-97 % below 250 Hz) only give a tilt: almost nothing between 500 Hz and 10 kHz and a hump at 12-16 kHz. I did not copy that (it would give a bare 'tsss' with no body); the jet is broader, heavy at 1-10 kHz. If the owner wants it closer to the Kenney thrusters, move the weight up to 12-16 kHz and drop the low-mid noise. The first 5 ms hold only the opening click, then a dip of about 20 dB before the jet swells (2 ms steps): the intended valve snap, but it could sound like two events. Whether the jet is alive and not flat I cannot hear: the 25 ms envelope varies by 2-4 dB."
+    },
+    {
+      "id": "pilot_thruster_b",
+      "layers": "(1) crack at 0 ms: 9 ms burst of 1.2-8 kHz noise (t60 5.5 ms), a 1.2 ms snap above 2.5 kHz at 0.8, a bounce knock 1.5-6.5 kHz at 7.5 ms at 0.45. (2) chesty punch from 1.5 ms: sine falling 330 Hz to 92 Hz (tau 50 ms, t60 190 ms) through tanh drive 2.2 and a 1.1 kHz low-pass, plus a second body 150 Hz falling to 58 Hz at 0.9, plus a short dull noise knock (0.22 of the punch); punch energy set to 1.75 times the crack's. (3) airy tail: 1.5-20 kHz noise (weight 3.5-12 kHz), bloom 12-40 ms, t60 270 ms, flutter 25-110 Hz, energy 0.6 times the crack's. Level: true peak -3.2 dBFS.",
+      "targetsMet": true,
+      "measured": "attack (first 30 ms from onset, rectangular window) centroid 2823 Hz (>=2 kHz), 44.9 % of the attack above 1 kHz; below 500 Hz 52.3 % (W 42.0 %; target 40-60); above 1 kHz 46.6 % (>=25). Below 250 Hz 32.9 %, 125-250 Hz 21.1 %. Punch pitch measured falling from about 280 Hz to 71 Hz in 100 ms. -28.2 LUFS at peak -3.2. CLAP margin -0.036 (best negative 'someone tapping on a taut plastic foil'; an earlier version 'music').",
+      "unsure": "CLAP does not like it (hint only). The attack centre reads 2.8 kHz with a rectangular window but only 0.64 kHz with a Hann window, so a checker that windows will call the attack dull; the crack is 9 ms long and the punch carries most of the 30 ms. The tail is mostly air above 8 kHz (44 % W) rather than 1-4 kHz. The peak of -3.2 dBFS comes from matching loudness to A (see checks); the crack alone sets it. The 125-250 Hz octave holds 21 %, the zone of the plastic container, but the punch sweeps through it and 60-125 Hz holds 12 %, so I do not expect it to be boxy; I cannot hear."
+    },
+    {
+      "id": "pilot_thruster_c",
+      "layers": "(1) solenoid clack at 0 ms: armature hit 2.3-5.2 kHz 6.5 ms (t60 2.6 ms), a second hit 2-4.6 kHz at 7.2 ms at 0.5, housing knock 0.7-1.5 kHz 9 ms at 0.2. (2) thump from 12 ms with a 15 ms rise: 150 Hz falling to 58 Hz (tau 45 ms), t60 130 ms, tanh drive 1.35, 420 Hz low-pass, energy 1.65 times the clack's. No hiss. Level: true peak -3.3 dBFS.",
+      "targetsMet": true,
+      "measured": "attack above 1 kHz 50.8 % (>=50, narrow); below 250 Hz 62.2 % (>=60, narrow), 60-125 Hz 39.9 %, 125-250 Hz 22.3 %; above 1 kHz after the first 15 ms 0.0 % (<=10); low band 40 dB down at 110 ms (dies within 0.15 s); thump pitch 152 Hz at 20 ms to 69 Hz at 119 ms. -28.6 LUFS at peak -3.3. CLAP margin +0.076, best 'a solenoid valve clacking with a tight low thump'.",
+      "unsure": "The two targets (half of the attack above 1 kHz, 60 % of the file below 250 Hz) pull against each other, because an exponential thump puts nearly all its energy into the first 30 ms; I met both only by starting the thump 12 ms after the clack with a 15 ms rise (the brief wanted the body to follow within a few ms; here it is felt as a separate beat after the clack, which may read as more mechanical or may split into two events). Both numbers pass by under one point. measure.py (W) says 68 % of the energy sits in one line at 105 Hz and the file is 100 % below 500 Hz: that is the Hann window hiding the clack; the plain FFT has 22 % in the 114 Hz peak. A short thump is one line by nature; the struck-bowl risk is small because it falls 150 to 58 Hz in 100 ms, but I cannot hear."
+    },
+    {
+      "id": "pilot_shield_a",
+      "layers": "(1) hiss and crackle of impact_shield_medium: same seeds ('impact_shield') and parameters (SHIELD['impact_shield_medium']), rendered for 1.4 s; crackle at 0.85 of the hiss in the first 150 ms. (2) growl in two channels: generator growl (100 Hz, odd harmonics, sag 0.2) in the middle, a second growl with another seed as side (above 200 Hz through mid_side, ratio 0.6), plus rough noise 600 Hz-2.2 kHz (independent left and right, torn by a 30-90 Hz flutter, t60 0.55 s); level 1.25 times the sparks over the first 0.5 s. (3) bass throb, mono, identical in both ears: four close pairs (56 Hz beat 8, 68 beat 9.5, 82 beat 7, 96 beat 6; second partner 0.45 of the first) plus a steady 66 Hz floor at 0.45; pitch sags 20 % at the hit (tau 0.22 s); one slow drift of +-5 % per pair; envelope 30 ms swell then -6*(t/0.62)^2 dB; tanh drive 2.2 for harmonics; the throb is set to hold 34 % of the energy. Soft limit at 3.2 x RMS of the first 150 ms, 250 ms fade out. Level: true peak -5 dBFS.",
+      "targetsMet": true,
+      "measured": "below 250 Hz 56.6 % (>=30; W 67.4 %), 250 Hz-2 kHz 22.8 % (>=15; W 15.7 %, narrow), above 2 kHz 20.5 % (>=15; W 17.0 %). Throb band (<125 Hz): maximum at 100 ms, within 12 dB of it for 700 ms contiguous with 20 ms frames (860 ms in the best run), within 12 dB until 0.95 s with 50 ms frames; last above -30 dB at 1.25 s, while the crackle band above 2 kHz is 30 dB down at 0.95 s, so the throb outlasts the crackle. Correlation L/R 0.596, below 150 Hz 0.9993, level difference 0.74 dB. -28.3 LUFS mono at peak -5. CLAP margin +0.065.",
+      "unsure": "The 12 dB window is met with 20 ms or longer frames; with 10 ms frames the beat nulls of a 50-100 Hz band reach 23 dB because 10 ms is under one period of 50 Hz (a measuring effect, but a checker with 10 ms frames will fail it). The beat is not a clean 6-12 Hz: the sag shrinks every partner distance by up to 20 % at the start and four pairs interfere; the dominant component of the beat envelope measured 12.9 Hz, a little above 12. The strongest spectral peak (W) is 31 % at 53 Hz (a +-14 Hz window; the throb is deliberately a bass band of 45-100 Hz, and the brief for A gave no peak limit): the struck-bowl risk, it may be heard as a standing hum. Isolated crackle bursts at 0.55 s and 0.98 s stand out in the spectrogram (the old hit does the same)."
+    },
+    {
+      "id": "pilot_shield_b",
+      "layers": "(1) whoomp, mono (equal in both ears): sine falling 120 Hz to 38 Hz (tau 150 ms) with 30 % pitch jitter (4-25 Hz noise), 9 ms swell, t60 0.6 s; a second sweep 260 Hz falling to 70 Hz (tau 90 ms) at 0.85 for the chest; rumble of noise 40-200 Hz at 2.0 (12 ms swell, t60 0.55 s); no saturation (a clipped 30-40 Hz sine puts a hard line at three times its pitch, which showed up as a standing peak at 88 Hz). The layer is set to hold 45 % of the energy. (2) sizzle: hiss_lr band centred 1.25 kHz plus 1.65 kHz sliding down (tau 0.35 s), width 0.85 octave, rho 0.5, flutter depth 0.5, double-slope decay, low-passed at 4.6 kHz; sparks (2-7 ms, 1.2-4.2 kHz, thinning) at only 0.06 of the sizzle. (3) field hum: five partials 183, 268, 337, 452, 617 Hz (levels 0.55-0.9), each a pair with a 2-7 Hz beat (partner 0.7), left and right detuned by 0.9 Hz, slow drift, bloom 10-140 ms, t60 1.5 s, amplitude torn at 3-14 Hz (depth 0.5); level 0.75 of the sizzle. Soft limit 6 x RMS. Level: true peak -8.2 dBFS.",
+      "targetsMet": true,
+      "measured": "below 250 Hz 43.3 % (>=40, narrow; W 42.0 %), 250 Hz-2 kHz 32.5 % (>=15), above 2 kHz 24.2 % (10-25, narrow), above 8 kHz 0.1 % (<=5), strongest spectral peak 12.8 % at 182 Hz (W; <=15; whole-file FFT 6.6 %); low band (<125 Hz) maximum at 50 ms (<=60). Correlation 0.631, below 150 Hz 0.9996, level difference 0.01 dB. -28.1 LUFS mono at peak -8.2. CLAP margin +0.004 (best negative 'someone tapping on a taut plastic foil' 0.066 against best positive 0.104).",
+      "unsure": "Several numbers pass narrowly and moved by a point or two with every change; a re-seed would need re-tuning. The hum is five steady lines in the spectrogram (the level flickers, the pitch drifts little): it can sound like a synthesiser pad ('arcade video game sound effect' scored highest among the negatives when I made the hum quieter or removed the sparks, 0.18 against 0.09; 'taut foil' scored highest with louder sparks). I picked the middle. With no saturation and the fundamental ending at 38 Hz, the deep whoomp is mostly the 60-250 Hz part (below 60 Hz only 1.3 %); more sub was possible but made a standing line at 88 Hz."
+    }
+  ],
+  "checks": [
+    {
+      "name": "build of the five ids",
+      "command": ".venv-audio/Scripts/python.exe tools/audio/build.py --only pilot_thruster_a,pilot_thruster_b,pilot_thruster_c,pilot_shield_a,pilot_shield_b",
+      "result": "all five pass the general rules (true peak, no clipping, DC, onset within 5 ms, silent last 10 ms); manifest validates. Final LEVELS: thruster_a -11.5, thruster_b -3.2, thruster_c -3.3, shield_a -5.0, shield_b -8.2 dBFS true peak."
+    },
+    {
+      "name": "loudness inside the families (BS.1770 on the mono sum, clips under 400 ms repeated)",
+      "command": "synth.lufs on the levelled render",
+      "result": "thrusters -28.5 / -28.2 / -28.6 LUFS (spread 0.4 dB); shields -28.3 / -28.1 LUFS (spread 0.2 dB). The thruster peaks differ a lot (A -11.5, B and C about -3) because short low thumps count little in K-weighted loudness; the owner will hear A with much smaller peaks. If he judges A too quiet or B and C too loud, move the peak targets, not the sounds."
+    },
+    {
+      "name": "tests",
+      "command": ".venv-audio/Scripts/python.exe -m unittest discover -s tools/audio/synth/tests -p test_pilot_energy.py -v",
+      "result": "9 tests, OK. The whole synth suite (discover -s tools/audio/synth/tests, 54 tests, including another agent's test_pilot_mech.py) passed once, OK. The README command with '-t tools/audio' fails here because the tests folder has no __init__.py (not my file, not changed)."
+    },
+    {
+      "name": "spectrograms read",
+      "command": "Read of the five PNGs in assets/audio/render/pilot/",
+      "result": "Looked at all five. A: hiss to 200 ms, then a thump with a falling line near 100 Hz. B: 100-300 Hz drop and an air hump above 5 kHz that fades by 0.2 s. C: a thump with a short bright mark at the start. The spectrogram window is 85 ms, so the first 37 ms and the clicks are not visible; the clicks were checked with 2 ms band envelopes. Shield A: broad 40-100 Hz bar for the whole file, crackle bursts decaying with a few strong isolated bursts later, thin growl lines at 250-900 Hz. Shield B: low smear at the start that fades by 0.5 s, five hum lines, a sizzle that fades."
+    },
+    {
+      "name": "CLAP (compare.py --spec, pilot negatives plus the global ones)",
+      "command": "compare.py --spec tools/audio/sounds.json --dir assets/audio/render --only <five ids>",
+      "result": "margins: thruster_a +0.029, thruster_b -0.036 (fail, hint only), thruster_c +0.076, shield_a +0.065, shield_b +0.004."
+    }
+  ],
+  "notVerified": [
+    "Nothing was listened to. Whether any of the five sounds like the owner's plastic container, a submarine, a toy or a taut foil is a guess from numbers, pictures and CLAP.",
+    "Two definitions of share disagree on short clips: the plain FFT of the whole file (rules.py energy_share, used here) and measure.py's Welch spectrum with a Hann window, which damps the first and last milliseconds. I reported both where they differ; thruster_c, thruster_b and shield_a (250 Hz-2 kHz 15.7 % W) are the cases to watch. I do not know which one the reviewer uses.",
+    "The throb target within 12 dB for at least 0.4 s depends on the frame length (see shield_a); I used 20 ms and 50 ms frames, not 10 ms.",
+    "The thruster_c timing (thump 12 ms after the clack) was chosen to satisfy two numbers; whether it still reads as one event was not judged.",
+    "describe.py (the describing model) was not run. The dither of the two-channel pilot files is not shared between channels (is_mid_side is false for path pilot); it is far below -80 dB and I only checked the 0.999 correlation below 150 Hz.",
+    "Another agent's tools/audio/synth/tests/test_pilot_mech.py was present and passed in the full run; I did not read it. build.py rewrote assets/audio/render/manifest.json on every run (normal build behaviour, but a shared file)."
+  ]
+}
