@@ -538,6 +538,143 @@ def test_both_scripts_on_a_fake_tree():
         assert not [s for s in manifest["sounds"] if s["category"] == "source"]
 
 
+def test_energy_share_above_60_hz():
+    t = np.arange(SR) / SR
+    low = np.sin(2 * np.pi * 30 * t)[:, None]
+    high = np.sin(2 * np.pi * 200 * t)[:, None]
+    assert screen.energy_share_above(low, SR) < 0.01
+    assert screen.energy_share_above(high, SR) > 0.99
+    near(screen.energy_share_above(low + high, SR), 0.5, 0.01, "equal energy below and above")
+    two = np.concatenate([low, high], axis=1)  # the energies of the channels are added
+    near(screen.energy_share_above(two, SR), 0.5, 0.01, "two channels")
+    assert screen.energy_share_above(np.zeros((100, 1)), SR) == 0.0
+    assert screen.LOW_HZ == 60.0
+
+
+def test_candidate_tags_name_the_candidate_and_make_valid_ids():
+    assert screen.candidate_tag("moss", "gear_2__s16", {}) == "p2s16"
+    assert screen.candidate_tag("sa3", "hull_3__s11", {"prompt": "hull_3", "seed": 11}) == "p3s11"
+    assert screen.candidate_tag("moss", "odd", {"prompt": "thruster_1", "seed": 14}) == "p1s14"
+    assert screen.candidate_tag("oga", "gear__Chain Winch #2.wav", {}) == "chain-winch-2-wav"
+    assert screen.candidate_tag("oga", "shield__steam-release", {}) == "steam-release"
+    assert screen.candidate_tag("oga", "###", {}) == "x"
+    assert len(screen.candidate_tag("oga", "hull__" + "a" * 100, {})) <= 32
+    for sid in ("src_3_gear_1_moss_p2s16", "src_2_thruster_3_oga_" + screen.candidate_tag("oga", "thruster__Door Lock", {})):
+        assert screen.ID_PATTERN.match(sid), sid
+    # the tag belongs to the candidate: another seed or another prompt gives another id
+    assert screen.candidate_tag("moss", "gear_2__s16", {}) != screen.candidate_tag("moss", "gear_2__s15", {})
+    assert screen.candidate_tag("moss", "gear_2__s16", {}) != screen.candidate_tag("moss", "gear_1__s16", {})
+
+
+def test_the_committed_skips_are_read_by_default_and_skip_adds():
+    sk = screen.load_skips(screen.SKIPS_FILE)
+    assert len(sk) == 6 and all(k.count("/") == 1 and v for k, v in sk.items()), sk
+    assert "moss/thruster_3__s13" in sk and "sa3/thruster_1__s14" in sk
+    assert screen.load_skips(None) == {} and screen.load_skips(Path("does-not-exist.json")) == {}
+    # a skipped candidate stays in the pool but is not picked: the next nearest takes its place
+    picks, _ = screen.choose(fake_family())
+    first = picks[0]["cand"]["name"]
+    f2 = fake_family()
+    for c in f2:
+        if c["name"] == first:
+            c["skip"] = "plain fault"
+    picks2, _ = screen.choose(f2)
+    assert first not in [p["cand"]["name"] for p in picks2] and len(picks2) == 4
+    # a plain run reads the file, --skip adds to it, --skips names another one
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "gen"
+        build_tree(root)
+        assert screen.main(["--no-models", "--root", str(root), "--skip", "moss/hull_1__s11=by hand"]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        assert set(res["skippedAsPick"]) == set(sk) | {"moss/hull_1__s11"}, res["skippedAsPick"]
+        assert res["skippedAsPick"]["moss/hull_1__s11"] == "by hand"
+        assert not any(c["name"] == "hull_1__s11" and c["source"] == "moss" for c in res["chosen"])
+        other = Path(td) / "other.json"
+        other.write_text(json.dumps({"skips": [{"candidate": "sa3/gear_1__s11", "reason": "r"}]}), encoding="utf-8")
+        assert screen.main(["--no-models", "--root", str(root), "--skips", str(other)]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        assert res["skippedAsPick"] == {"sa3/gear_1__s11": "r"}
+
+
+def test_capped_events_and_flat_tops_are_thrown_out_in_a_run_and_the_share_is_recorded():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "gen"
+        build_tree(root)
+        # one more MOSS hull file that is steady for 4 s of a 5 s file and ends quietly: cut by the family length while loud
+        n = int(5.0 * SR)
+        x = np.concatenate([noise(4.0, 0.3), decaying(1.0, 90.0, 0.003)])[:n]
+        sf.write(str(root / "moss" / "raw" / "hull_1__s99.wav"), x.astype(np.float32), SR, subtype="FLOAT")
+        # a Stable Audio hull file clamped at full scale, and one that goes beyond full scale without a flat top
+        t = np.arange(int(2 * 44100)) / 44100
+        env = np.exp(-5 * t)
+        clamped = np.clip(3.0 * np.sin(2 * np.pi * 150 * t) * env, -1.0, 1.0)
+        beyond = 1.6 * np.sin(2 * np.pi * 150 * t) * env
+        for nm, sig in (("hull_1__s98", clamped), ("hull_1__s97", beyond)):
+            sf.write(str(root / "sa3" / "raw" / (nm + ".wav")), np.stack([sig, sig], axis=1).astype(np.float32), 44100, subtype="FLOAT")
+        for key, names in (("moss", ["hull_1__s99"]), ("sa3", ["hull_1__s98", "hull_1__s97"])):
+            gj = json.loads((root / key / "gen.json").read_text(encoding="utf-8"))
+            for nm in names:
+                gj["items"][nm] = {"file": "raw/%s.wav" % nm, "family": "hull", "prompt": "hull_1", "seed": int(nm.split("s")[-1]), "text_given": "t"}
+            (root / key / "gen.json").write_text(json.dumps(gj), encoding="utf-8")
+        assert screen.main(["--no-models", "--root", str(root), "--skips", str(Path(td) / "none.json")]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        rows = {(f["source"], f["name"]): f for f in res["files"]}
+        capped = rows[("moss", "hull_1__s99")]
+        assert capped["status"] == "thrown-out" and capped["reason"] == "cut-off" and capped["cutOffAt"] == "family-length", capped
+        assert rows[("sa3", "hull_1__s98")]["reason"] == "clipped"
+        assert rows[("sa3", "hull_1__s97")]["status"] == "kept", rows[("sa3", "hull_1__s97")]
+        for f in res["files"]:
+            if f["status"] == "kept":
+                assert 0.0 <= f["energyAbove60Hz"] <= 1.0, f
+        for c in res["chosen"]:
+            assert c["energyAbove60Hz"] is not None and c["tag"] and c["id"].endswith("_" + c["tag"])
+
+
+def test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order():
+    import copy
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "gen"
+        out = Path(td) / "render"
+        build_tree(root)
+        assert screen.main(["--no-models", "--root", str(root), "--skips", str(Path(td) / "none.json")]) == 0
+        import build as b  # noqa: E402
+
+        b.SELECTION = Path(td) / "no-selection.json"
+        pub = load("publish")
+        assert pub.main(["--root", str(root), "--out", str(out)]) == 0
+        target = out / "source"
+        ids = sorted(p.stem for p in target.glob("*.wav"))
+        assert len(ids) == 16
+        # files of an earlier pick (an old id), and a stray file
+        old = "src_1_hull_1_moss"
+        for ext in (".wav", ".png", ".json"):
+            (target / (old + ext)).write_bytes((target / (ids[0] + ext)).read_bytes())
+        rec = json.loads((target / (old + ".json")).read_text(encoding="utf-8"))
+        rec["manifest"]["id"] = old
+        rec["manifest"]["file"] = "source/%s.wav" % old
+        rec["manifest"]["spectrogram"] = "source/%s.png" % old
+        (target / (old + ".json")).write_text(json.dumps(rec), encoding="utf-8")
+        (target / "notes.txt").write_text("x", encoding="utf-8")
+        # a sound of a category that comes first in the order of the build (an id of sounds.json)
+        (out / "engines").mkdir()
+        e = copy.deepcopy(json.loads((target / (ids[0] + ".json")).read_text(encoding="utf-8")))
+        e["manifest"].update({"id": "engine_main_t000", "category": "engines", "file": "engines/engine_main_t000.wav",
+                              "spectrogram": "engines/engine_main_t000.png", "path": "structure", "kind": "oneshot"})
+        for ext in (".wav", ".png"):
+            (out / "engines" / ("engine_main_t000" + ext)).write_bytes((target / (ids[0] + ext)).read_bytes())
+        (out / "engines" / "engine_main_t000.json").write_text(json.dumps(e), encoding="utf-8")
+        assert pub.main(["--root", str(root), "--out", str(out)]) == 0
+        assert sorted(p.stem for p in target.glob("*.wav")) == ids
+        assert not (target / (old + ".json")).exists() and not (target / "notes.txt").exists()
+        assert sorted({p.name.split(".")[0] for p in target.iterdir()}) == ids
+        manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+        order = [s["id"] for s in manifest["sounds"]]
+        assert old not in order
+        # the manifest is in the order of build.py: the id it knows first, the ids it does not know after it, none moved to the front
+        assert order[0] == "engine_main_t000" and order[1:] == sorted(order[1:]) and len(order) == 17, order[:3]
+
+
 def main() -> int:
     tests = [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     bad = 0
