@@ -78,9 +78,14 @@ class Rec extends AudioWorkletProcessor {
 registerProcessor('audition-rec', Rec);
 `;
 
-/** 99.9th percentile of the steps in [lo, hi) of `steps`. */
-function percentile(steps: Float32Array, lo: number, hi: number): number {
-  const a = steps.slice(Math.max(0, lo), Math.min(steps.length, hi));
+/** Samples around a candidate that do not count as its surroundings: a click rings for a moment (about 1 ms). */
+const GUARD = 48;
+
+/** 99.9th percentile of the steps in [lo, hi) of `steps`, leaving out [skipLo, skipHi) when given. */
+function percentile(steps: Float32Array, lo: number, hi: number, skipLo = 0, skipHi = 0): number {
+  const from = Math.max(0, lo);
+  const to = Math.min(steps.length, hi);
+  const a = skipHi > skipLo ? Float32Array.from([...steps.subarray(from, Math.max(from, Math.min(to, skipLo))), ...steps.subarray(Math.min(to, Math.max(from, skipHi)), to)]) : steps.slice(from, to);
   a.sort();
   return a.length ? a[Math.min(a.length - 1, Math.floor(0.999 * (a.length - 1)))] : 0;
 }
@@ -116,8 +121,15 @@ export function analyseChannel(x: Float32Array, rate: number, channel: number): 
       cache.set(block, p);
     }
     // A flat surrounding gives a percentile of 0; the step then only has to clear the absolute threshold.
-    const ratio = p > 0 ? d / p : Infinity;
-    if (ratio <= CLICK_RATIO) continue;
+    let ratio = p > 0 ? d / p : Infinity;
+    if (ratio <= CLICK_RATIO) {
+      // The ringing of the click itself raises the percentile of its own surroundings; judge it against the steps
+      // around it instead, with the 1 ms on either side left out.
+      if (ratio <= 2) continue;
+      const q = percentile(steps, i - HALF_WINDOW, i + HALF_WINDOW, i - GUARD, i + GUARD);
+      ratio = q > 0 ? d / q : Infinity;
+      if (ratio <= CLICK_RATIO) continue;
+    }
     if (i - lastClick > gap) out.push({ kind: 'click', channel, t: i / rate, size: d, ratio });
     else {
       const f = out[out.length - 1];
@@ -273,6 +285,14 @@ export const capture = {
       sum += last.l[i] * last.l[i];
     }
     return { peak, rms: b > a ? Math.sqrt(sum / (b - a)) : 0 };
+  },
+
+  /** Samples of channel 0 of the last capture between two audio-clock times, for looking at a fault by hand. */
+  samples(from: number, to: number): number[] {
+    if (!last) return [];
+    const a = Math.max(0, Math.round(from * last.rate) - last.first);
+    const b = Math.min(last.l.length, Math.round(to * last.rate) - last.first);
+    return Array.from(last.l.subarray(a, b));
   },
 
   fileFaults,

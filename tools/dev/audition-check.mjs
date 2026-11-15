@@ -975,6 +975,9 @@ try {
     // One play of every sound; a one-shot to its end, a loop for two passes and then stopped.
     const playOne = async (sound, mode) => {
       await pc.click(`[data-stage="${mode}"]`);
+      // The controls are heard without the room, whose tail would hide their clicks as any dense material does.
+      const control = sound.id.startsWith('test_');
+      if (control) await setRange(pc, 'room', 0);
       await startCap();
       const sel = `button[data-sound="${sound.id}"]`;
       const n = await playsCount();
@@ -986,7 +989,9 @@ try {
       } else {
         await quietNow(n, sound.duration * 1000 + 5000);
       }
-      return stopCap();
+      const res = await stopCap();
+      if (control) await setRange(pc, 'room', 1);
+      return res;
     };
     // AUDITION_CAPTURE_LIMIT=n plays only the first n sounds (for trying the check itself).
     const playable = cm.sounds.filter((x) => x.kind !== 'ir').slice(0, Number(process.env.AUDITION_CAPTURE_LIMIT) || Infinity);
