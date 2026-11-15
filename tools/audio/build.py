@@ -186,6 +186,9 @@ LEAD_IN_MS = 1.5            # ramp 0 -> first sample put in front of a start tha
 FADE_OUT_MS = 30.0
 LOOP_XFADE_S = 0.3          # loop seam: crossfade of the tail into the head, at most this long ...
 LOOP_XFADE_SHARE = 0.1      # ... and at most this share of the file
+LOOP_EDGE_WINDOW_S = 0.05   # the loop check compares the level of the first and the last 50 ms ...
+LOOP_EDGE_TRY_DB = 2.0      # ... and the wrap point is moved where that differs by more than this
+LOOP_ROLL_HOP_S = 0.01      # candidate wrap points lie this far apart
 CLIP_SHARE = 0.001          # "within 0.1 % of the maximum"
 CLIP_MIN_PEAK = 0.98        # the maximum must be at least this much of full scale
 CLIP_MIN_RUN = 3
@@ -256,6 +259,37 @@ def _loop_crossfade(x: np.ndarray) -> tuple[np.ndarray, int]:
     return y, k
 
 
+def _edge_level_diff_db(s: np.ndarray, r: int, w: int, ch: int) -> float:
+    """Level difference in dB between the w samples after and the w samples before position r of a
+    circular signal, s being its power per sample (summed over the channels), like the loop check."""
+    m = s.shape[0]
+    cs = np.concatenate([[0.0], np.cumsum(np.concatenate([s, s]))])
+    after = (cs[r + w] - cs[r]) / (w * ch)
+    before = (cs[r + m] - cs[r + m - w]) / (w * ch)
+    floor = 1e-12
+    return abs(10.0 * np.log10(max(after, floor)) - 10.0 * np.log10(max(before, floor)))
+
+
+def _loop_roll(y: np.ndarray) -> tuple[np.ndarray, int]:
+    """A crossfaded loop is continuous all the way round, so it may start anywhere. Where the level
+    of its first and its last 50 ms differ by more than LOOP_EDGE_TRY_DB (the loop check fails at
+    3 dB: a recording that is louder here than there), start it at the wrap point, a multiple of
+    LOOP_ROLL_HOP_S, where the two differ least (the earliest on a tie). Returns (y, start)
+    with start in samples (0 where nothing was moved)."""
+    m, ch = y.shape
+    w = int(DOWNLOAD_SR * LOOP_EDGE_WINDOW_S)
+    if m < 2 * w:
+        return y, 0
+    s = (y ** 2).sum(axis=1)
+    if _edge_level_diff_db(s, 0, w, ch) <= LOOP_EDGE_TRY_DB:
+        return y, 0
+    hop = int(round(DOWNLOAD_SR * LOOP_ROLL_HOP_S))
+    cands = np.arange(0, m, hop)
+    diffs = np.array([_edge_level_diff_db(s, int(r), w, ch) for r in cands])
+    r = int(cands[int(np.argmin(diffs))])
+    return np.roll(y, -r, axis=0), r
+
+
 def prepare_download(data: np.ndarray, sr: int, excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
     """The first steps of process_download: cut the excerpt (seconds), keep 1 or 2 channels (more
     are mixed down to 2), count the clipped samples of that cut as it is, resample to 48 kHz.
@@ -290,7 +324,9 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
         the first SAMPLE is above -60 dBFS (a real step) a lead-in of LEAD_IN_MS is put in front: a
         raised cosine from zero to that sample (per channel), then the file as it is. Where the last
         millisecond is not silent the last FADE_OUT_MS are faded out (raised cosine).
-      loop: the tail is crossfaded into the head (see _loop_crossfade); no lead-in, no fade-out.
+      loop: the tail is crossfaded into the head (see _loop_crossfade), and where the level of its
+        first and last 50 ms still differ the start is moved to a better wrap point (_loop_roll);
+        no lead-in, no fade-out.
     Then the level is set (set_level) and info["level"] states the gain that was applied
     (gainDb) and the gain that was asked for (requestedGainDb), which differs where the ceiling
     limited it. Nothing here is random, so the same input gives the same output."""
@@ -313,6 +349,9 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
     elif kind == "loop":
         x, k = _loop_crossfade(x)
         info["loopCrossfadeMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)
+        if k:
+            x, r = _loop_roll(x)
+            info["loopStartMs"] = round(1000.0 * r / DOWNLOAD_SR, 3)
     mode, value = download_target(category, kind, x.shape[0] / DOWNLOAD_SR)
     before = float(np.abs(x).max())
     y, level = set_level(x, mode, value, ceiling_db=DOWNLOAD_CEILING_DB)
@@ -372,6 +411,7 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 "centroidHz": an["spectralCentroidHz"], "level": info["level"],
                 "fadeInMs": info["fadeInMs"], "fadeOutMs": info["fadeOutMs"],
                 "leadInMs": info["leadInMs"], "loopCrossfadeMs": info["loopCrossfadeMs"],
+                "loopStartMs": info.get("loopStartMs", 0.0),
             }
             if "loop" in an:
                 checks["loop"] = {k: an["loop"].get(k) for k in ("seamRatio", "levelSwingDb", "edgeLevelDiffDb", "pass")}

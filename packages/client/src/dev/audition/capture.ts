@@ -35,8 +35,8 @@ export interface CaptureResult {
  * of a fixed level:
  *  - ratio: the step is at least CLICK_RATIO times the 99.9th percentile of the steps in the surrounding 50 ms, with
  *    the click's own 1 ms on either side left out of that surrounding;
- *  - level: and at least CLICK_LEVEL times the RMS of the signal in the same surrounding, so that a step that is only
- *    a large part of a very quiet surrounding's tiny steps is not mistaken for one when the signal itself is large;
+ *  - level: and at least CLICK_LEVEL times the RMS of the signal in the same surrounding, so that the floor follows the
+ *    level of the material (a quiet tone has a low floor, a loud one a high floor) instead of a fixed number;
  *  - dust: and above CLICK_DUST (about -70 dBFS), below which nothing is looked at.
  */
 export const CLICK_RATIO = 3;

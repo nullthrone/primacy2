@@ -343,11 +343,17 @@ class ListsAgree(unittest.TestCase):
 
     def test_struck_entries_are_recorded_as_not_taken(self):
         why = [n for n in self.downloads['notTaken'] if 'struck by the owner on 2026-11-15' in n['why']]
-        self.assertEqual(len(why), 30)
+        self.assertEqual(len(why), 32)
         self.assertTrue(all(set(n) == {'what', 'why'} for n in why))
-        # the two Quindar tones have no voice and stay
+        # the two Quindar excerpts turned out to contain flight-controller speech (Whisper read it back): struck too
         kept = {e['id'] for e in self.downloads['entries']}
-        self.assertLessEqual({'nasa-quindar-1', 'nasa-quindar-2'}, kept)
+        self.assertFalse({'nasa-quindar-1', 'nasa-quindar-2'} & kept)
+        struck = ' '.join(n['what'] for n in why)
+        self.assertIn('nasa-quindar-1', struck)
+        self.assertIn('nasa-quindar-2', struck)
+        self.assertFalse(any('quindar' in x['id'] or 'quindar' in x['file'] for x in self.selection))
+        for rel in ('nasa-quindar-1', 'nasa-quindar-2'):
+            self.assertFalse(os.path.exists(os.path.join(REAL_AUDIO, 'downloads', rel)), rel)
 
     def test_nasa_evidence_does_not_present_the_guidelines_as_a_commercial_permission(self):
         for e in self.downloads['entries']:

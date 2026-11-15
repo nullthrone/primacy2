@@ -37,7 +37,7 @@ def test_perfect_and_ordinary_errors():
     assert r["ordinary_errors"] == 0 and r["wer"] == 0.0
     r = score.score_text("Cut your engines and stand by.", "Cut the engines and stand by now.")
     assert r["substitutions"] == 1 and r["insertions"] == 1 and r["deletions"] == 0
-    assert r["ordinary_errors"] == 2 and abs(r["wer"] - 2 / 6) < 1e-3
+    assert r["ordinary_errors"] == 2 and abs(r["wer"] - 2 / 5) < 1e-3  # "stand by" is one word
 
 
 def test_names_are_counted_apart():

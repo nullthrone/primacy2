@@ -2,7 +2,9 @@
 //   cd packages/client && AUDITION_RATINGS_FILE=<a scratch file> npx vite --port 5183 --strictPort
 // first. The page is taken from AUDITION_URL (default http://localhost:5183/dev/audition.html).
 // The check writes ratings through the page, so the server must keep them in AUDITION_RATINGS_FILE (the same
-// variable is read here), never in the owner's assets/audio/ratings.json.
+// variable is read here), never in the owner's assets/audio/ratings.json. Before anything else the check asks the
+// server (GET /audio-lib/ratings-path) which file it writes and refuses to start when that is the owner's file (any
+// spelling, any letter case), when it differs from AUDITION_RATINGS_FILE, or when the server does not answer.
 // Saves screenshots to screenshots/audition/ and exits with code 1 on any failure.
 //
 // The last part records the page's real output (after the limiter) and looks for clipped samples and clicks:
@@ -975,6 +977,85 @@ try {
       assert(!(await lamp.getAttribute('class')).includes('hot'), 'the lamp did not go out when clicked');
       await pc.check('#sw-limiter');
     });
+
+    // The detector is tested on signals made here, so that what it can and cannot see is proved and not assumed.
+    await check('click detector controls: finds a -40 dBFS click in a -50 dBFS tone and a click 12 dB above loud white noise, none in clean noise, sine or exponential attacks', async () => {
+      const r = await pc.evaluate(() => {
+        const R = 48000;
+        const h = window.__audition;
+        const db = (d) => 10 ** (d / 20);
+        let seed = 12345;
+        const rnd = () => {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
+        const noise = (sigma) => Array.from({ length: R }, () => sigma * Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd()));
+        const sine = (amp, f) => Array.from({ length: R }, (_, i) => amp * Math.sin((2 * Math.PI * f * i) / R));
+        const clicks = (x) => h.analyse(x, R).filter((f) => f.kind === 'click').map((f) => ({ t: f.t, ratio: f.ratio }));
+        const ceiling = (x) => {
+          const d = [];
+          for (let i = 1; i < x.length; i++) d.push(Math.abs(x[i] - x[i - 1]));
+          d.sort((a, b) => a - b);
+          return d[Math.floor(0.999 * (d.length - 1))];
+        };
+        const out = { cut: 24000 / R };
+        const quiet = sine(db(-50), 440);
+        out.quietClean = clicks(quiet);
+        out.quietClick = clicks(quiet.map((v, i) => (i >= 24000 ? v + db(-40) : v)));
+        out.noise = [];
+        for (const sigma of [0.03, 0.1, 0.3]) {
+          const x = noise(sigma);
+          const step = 4 * ceiling(x);
+          out.noise.push({ sigma, clean: clicks(x), click: clicks(x.map((v, i) => (i >= 24000 ? v + step : v))), stepDb: 20 * Math.log10(step) });
+        }
+        out.sine = clicks(sine(0.5, 1000));
+        out.attacks = [0.0005, 0.002, 0.01].map((tau) => {
+          const env = (i) => 1 - Math.exp(-i / (tau * R));
+          return {
+            tau,
+            tone: clicks(sine(0.5, 200).map((v, i) => v * env(i))),
+            noise: clicks(noise(0.2).map((v, i) => v * env(i))),
+            rise: clicks(Array.from({ length: R }, (_, i) => 0.8 * env(i))),
+          };
+        });
+        return out;
+      });
+      const near = (c) => c.length === 1 && Math.abs(c[0].t - r.cut) < 0.001;
+      assert(r.quietClean.length === 0, `a clean -50 dBFS tone has ${r.quietClean.length} clicks`);
+      assert(near(r.quietClick), `the -40 dBFS click in the -50 dBFS tone: ${JSON.stringify(r.quietClick)}`);
+      for (const n of r.noise) {
+        assert(n.clean.length === 0, `clean noise (sigma ${n.sigma}) has ${n.clean.length} clicks`);
+        assert(near(n.click), `the click in noise (sigma ${n.sigma}): ${JSON.stringify(n.click)}`);
+      }
+      assert(r.sine.length === 0, `a clean sine has ${r.sine.length} clicks`);
+      for (const a of r.attacks) assert(a.tone.length + a.noise.length + a.rise.length === 0, `exponential attack (tau ${a.tau}): ${JSON.stringify(a)}`);
+      console.log(
+        `      controls: -40 dBFS click in -50 dBFS tone found (ratio ${r.quietClick[0].ratio.toFixed(0)}); clicks of 12 dB above the noise's step ceiling found in ${r.noise.length} noises (ratios ${r.noise.map((n) => n.click[0].ratio.toFixed(1)).join(', ')}); clean noise, sine and attacks: none`,
+      );
+    });
+
+    // AUDITION_FILE_FAULTS=1 lists what the detector finds inside each sound file as the page decodes it, without playing
+    // anything (a quick look at where clicks are part of a sound); AUDITION_CAPTURE_ONLY limits it to some sounds.
+    if (process.env.AUDITION_FILE_FAULTS === '1') {
+      await check('file faults: the clicks the detector finds inside the sound files themselves (listing only)', async () => {
+        const only = process.env.AUDITION_CAPTURE_ONLY ? process.env.AUDITION_CAPTURE_ONLY.split(',') : null;
+        const list = await pc.evaluate(async (ids) => {
+          const h = window.__audition;
+          const rows = [];
+          const m = await fetch('/audio-lib/render/manifest.json').then((x) => x.json());
+          for (const s of m.sounds) {
+            if (s.kind === 'ir' || (ids && !ids.includes(s.id))) continue;
+            const f = await h.capture.fileFaults(s.id);
+            const clicks = f.filter((x) => x.kind === 'click');
+            rows.push({ id: s.id, kind: s.kind, clicks: clicks.length, clips: f.length - clicks.length, first: clicks.slice(0, 3).map((x) => [Number(x.t.toFixed(3)), Number(x.size.toFixed(3)), Number.isFinite(x.ratio) ? Number(x.ratio.toFixed(1)) : 'inf']) });
+          }
+          return rows;
+        }, only);
+        const withFaults = list.filter((x) => x.clicks + x.clips > 0);
+        console.log(`\n      sound files examined: ${list.length}; with at least one fault: ${withFaults.length}; clicks in total: ${list.reduce((s, x) => s + x.clicks, 0)}; clipped runs in total: ${list.reduce((s, x) => s + x.clips, 0)}`);
+        for (const x of withFaults) console.log(`      ${x.id.padEnd(34)} ${x.kind.padEnd(8)} clicks ${String(x.clicks).padStart(4)}  clips ${String(x.clips).padStart(3)}  first [t s, step, ratio] ${JSON.stringify(x.first)}`);
+      });
+    }
 
     // A table of what the recordings found, filled by the steps below and printed at the end.
     const found = [];

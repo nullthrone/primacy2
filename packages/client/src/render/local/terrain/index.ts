@@ -171,6 +171,7 @@ export function createTerrain(): Part {
       groundShown.body = -1;
       drop();
       disposeFarMaps();
+      uniforms.uGrain.value.dispose();
     },
   };
 }

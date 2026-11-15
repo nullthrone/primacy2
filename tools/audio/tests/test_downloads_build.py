@@ -35,59 +35,204 @@ def ms_envelope(y):
     return m[: n * 48].reshape(n, 48).max(axis=1)
 
 
-class Fades(unittest.TestCase):
-    def test_loud_edges_get_fades_of_the_right_length(self):
-        x = sine(1000, 1.0)  # 1 kHz is exactly one period per millisecond; starts at 0, ends near 0
-        x = np.concatenate([[0.9], x[1:]])  # but this one starts at 0.9, not silent
+class Ends(unittest.TestCase):
+    """One-shots: a lead-in where the first sample is a step, a fade-out where the end is not silent."""
+
+    def test_a_start_that_is_a_step_gets_a_lead_in_and_the_recording_is_not_touched(self):
+        x = sine(1000, 1.0)
+        x = np.concatenate([[0.9], x[1:]])  # the first sample is 0.9, not silent
         x[-1] = 0.9
         y, info = build.process_download(x, SR, 'oneshot', 'switches')
-        self.assertEqual((info['fadeInMs'], info['fadeOutMs']), (8.0, 30.0))
-        self.assertEqual(y.shape, (SR, 1))
+        k = 72  # 1.5 ms
+        self.assertEqual((info['leadInMs'], info['fadeInMs'], info['fadeOutMs']), (1.5, 0.0, 30.0))
+        self.assertEqual(y.shape, (SR + k, 1))
         self.assertEqual(y[0, 0], 0.0)
         self.assertEqual(y[-1, 0], 0.0)
+        ramp = y[:k, 0] / y[k, 0]            # rises from 0 towards the first sample of the file
+        self.assertTrue(np.all(np.diff(ramp) > 0))
+        self.assertLess(ramp[-1], 1.0)
+        self.assertGreater(ramp[-1], 0.99)
+        self.assertAlmostEqual(ramp[k // 2], 0.5, delta=0.02)   # raised cosine: half way at half time
+        # the file after the lead-in is the recording, only scaled: one factor all the way to the fade-out
+        end = SR - 1500
+        body, src = y[k:k + end, 0], x[:end]
+        m = np.abs(src) > 0.2
+        g = body[m] / src[m]
+        np.testing.assert_allclose(g, g[0], rtol=1e-9)
+        # the fade-out is 30 ms, raised cosine
         e = ms_envelope(y)
-        top = e[200]
-        self.assertLess(e[0], 0.1 * top)
-        self.assertLess(e[6], 0.95 * top)        # still inside the 8 ms fade
-        self.assertAlmostEqual(e[8] / top, 1.0, places=2)  # 8 ms later the fade is over
-        self.assertAlmostEqual(e[-31] / top, 1.0, places=3)  # 30 ms before the end it starts
-        self.assertTrue(0.6 * top < e[-21] < 0.9 * top)      # half way, about 0.75
-        self.assertLess(e[-1], 0.01 * top)
+        self.assertAlmostEqual(e[-31] / e[200], 1.0, places=3)
+        self.assertTrue(0.6 * e[200] < e[-21] < 0.9 * e[200])
+        self.assertLess(e[-1], 0.01 * e[200])
+
+    def test_a_start_below_minus_60_dbfs_is_left_alone(self):
+        x = sine(440, 0.5)
+        x[0] = 0.0009  # -61 dBFS: not a step
+        y, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        self.assertEqual(info['leadInMs'], 0.0)
+        self.assertEqual(y.shape[0], x.shape[0])
+        x2 = x.copy()
+        x2[0] = 0.0011  # -59 dBFS: a step
+        y2, info2 = build.process_download(x2, SR, 'oneshot', 'sensors')
+        self.assertEqual(info2['leadInMs'], 1.5)
+        self.assertEqual(y2.shape[0], x.shape[0] + 72)
 
     def test_silent_edges_are_left_alone(self):
         x = np.concatenate([np.zeros(4800), sine(440, 0.5), np.zeros(4800)])
         y, info = build.process_download(x, SR, 'oneshot', 'sensors')
-        self.assertEqual((info['fadeInMs'], info['fadeOutMs']), (0.0, 0.0))
-        # same shape as the input, only scaled
-        k = np.abs(y).max() / np.abs(x).max()
+        self.assertEqual((info['leadInMs'], info['fadeOutMs']), (0.0, 0.0))
+        k = np.abs(y).max() / np.abs(x).max()   # same shape as the input, only scaled
         np.testing.assert_allclose(y[:, 0], x * k, atol=1e-9)
+
+    def test_a_signal_that_rises_at_once_from_a_silent_first_sample_is_untouched(self):
+        # the old rule faded this for 8 ms: its first millisecond is loud, its first sample is zero
+        x = sine(2000, 0.3, amp=0.8)
+        self.assertEqual(x[0], 0.0)
+        y, info = build.process_download(x, SR, 'oneshot', 'impacts')
+        self.assertEqual((info['leadInMs'], info['fadeInMs']), (0.0, 0.0))
+        k = np.abs(y[:200, 0]).max() / np.abs(x[:200]).max()
+        np.testing.assert_allclose(y[:200, 0], x[:200] * k, atol=1e-9)
 
     def test_only_the_loud_end_is_faded(self):
         x = np.concatenate([np.zeros(4800), sine(440, 0.5)])
         x[-1] = 0.5  # not silent at the end
         y, info = build.process_download(x, SR, 'oneshot', 'sensors')
-        self.assertEqual((info['fadeInMs'], info['fadeOutMs']), (0.0, 30.0))
+        self.assertEqual((info['leadInMs'], info['fadeOutMs']), (0.0, 30.0))
         xs, ys = x[100:-1500], y[100:-1500, 0]
         k = ys[np.abs(xs) > 0.1] / xs[np.abs(xs) > 0.1]
         np.testing.assert_allclose(k, k[0], rtol=1e-6)  # unfaded part is only scaled
 
-    def test_a_loop_gets_no_fade(self):
-        x = sine(500, 2.0, amp=0.9)
-        x = x + 0.05  # starts and ends loud
-        y, info = build.process_download(x, SR, 'loop', 'engines')
-        self.assertEqual((info['fadeInMs'], info['fadeOutMs']), (0.0, 0.0))
-        self.assertGreater(abs(y[0, 0]), 0.0)
-        k = y[:, 0] / x
-        m = np.abs(x) > 0.2
-        np.testing.assert_allclose(k[m], k[m][0], rtol=1e-6)
+    def test_the_lead_in_runs_per_channel_to_the_first_sample_of_each(self):
+        left = sine(300, 0.25, amp=0.5) + 0.4
+        right = -sine(300, 0.25, amp=0.2) - 0.1
+        y, info = build.process_download(np.stack([left, right], axis=1), SR, 'oneshot', 'switches')
+        self.assertEqual(info['leadInMs'], 1.5)
+        self.assertEqual(tuple(y[0]), (0.0, 0.0))
+        self.assertGreater(y[71, 0], 0)
+        self.assertLess(y[71, 1], 0)   # the second channel starts negative and ramps towards that
+        # the first sample of the file keeps the proportion of the two channels
+        self.assertAlmostEqual(y[72, 0] / y[72, 1], left[0] / right[0], places=6)
 
-    def test_a_very_short_clip_gets_fades_that_fit(self):
-        x = np.full(240, 0.5)  # 5 ms: the 8 and 30 ms fades are cut to half the clip each
+    def test_the_attack_keeps_its_place_and_the_gain_does_not_jump(self):
+        # a click: full level from the first sample, over in 20 ms
+        n = int(0.02 * SR)
+        t = np.arange(n) / SR
+        x = 0.9 * np.sin(2 * np.pi * 3000 * t + 1.0) * np.exp(-t / 0.004)
+        before = x.copy()
+        y, info = build.process_download(x, SR, 'oneshot', 'cabin')   # short: set by true peak
+        self.assertEqual(info['leadInMs'], 1.5)
+
+        def t90(v):
+            return np.argmax(np.abs(v) >= 0.9 * np.abs(v).max()) / SR * 1000.0
+
+        self.assertLessEqual(abs(t90(y[:, 0]) - t90(before)), 1.6)
+        # the level is what the unprocessed recording needs, not what is left of it after a fade
+        want = -16.0 - true_peak_db(before[:, None])
+        self.assertAlmostEqual(info['level']['gainDb'], want, delta=0.25)   # the ramp moves the oversampled peak a little
+        self.assertAlmostEqual(true_peak_db(y), -16.0, delta=0.05)
+
+    def test_a_very_short_clip_gets_ends_that_fit(self):
+        x = np.full(240, 0.5)  # 5 ms
         x[::2] = -0.5
         y, info = build.process_download(x, SR, 'oneshot', 'switches')
-        self.assertEqual(y.shape[0], 240)
+        self.assertEqual(y.shape[0], 240 + 72)
         self.assertEqual(y[0, 0], 0.0)
         self.assertEqual(y[-1, 0], 0.0)
+
+
+def _tile_steps(y, times=3):
+    """Absolute steps of a loop played `times` times, and the indices of the joins."""
+    t = np.tile(y, (times, 1))
+    d = np.abs(np.diff(t, axis=0)).max(axis=1)
+    joins = [i * y.shape[0] - 1 for i in range(1, times)]  # d[j] is the step from sample j to j+1
+    return d, joins
+
+
+class Loops(unittest.TestCase):
+    def _noise_with_step(self, seconds=3.0, seed=1):
+        rng = np.random.default_rng(seed)
+        x = rng.normal(0, 0.1, int(seconds * SR))
+        x += np.linspace(0.0, 0.5, x.shape[0])     # first and last sample far apart: a hard seam
+        return x
+
+    def test_a_loop_is_shorter_by_the_crossfade_and_gets_no_lead_in_or_fade_out(self):
+        x = self._noise_with_step(3.0)
+        y, info = build.process_download(x, SR, 'loop', 'sensors')
+        k = min(int(0.3 * SR), x.shape[0] // 10)
+        self.assertEqual(k, 14400)
+        self.assertEqual(y.shape[0], x.shape[0] - k)
+        self.assertEqual((info['leadInMs'], info['fadeInMs'], info['fadeOutMs']), (0.0, 0.0, 0.0))
+        self.assertEqual(info['loopCrossfadeMs'], 300.0)
+        self.assertGreater(abs(y[0, 0]), 0.0)
+
+    def test_the_crossfade_is_a_tenth_of_a_short_file(self):
+        x = self._noise_with_step(1.0)
+        y, info = build.process_download(x, SR, 'loop', 'sensors')
+        self.assertEqual(y.shape[0], SR - SR // 10)
+        self.assertEqual(info['loopCrossfadeMs'], 100.0)
+
+    def test_the_last_sample_runs_into_the_first(self):
+        x = self._noise_with_step(3.0)
+        y, info = build.process_download(x, SR, 'loop', 'sensors')
+        self.assertEqual(info['loopStartMs'], 0.0)
+        steps = np.abs(np.diff(y[:, 0]))
+        self.assertLessEqual(abs(y[0, 0] - y[-1, 0]), np.percentile(steps, 99.9))
+        self.assertGreater(abs(x[0] - x[-1]), 0.3)   # the recording itself had a step of that size
+
+    def test_tiled_three_times_the_joins_are_no_larger_than_the_steps_around_them(self):
+        for seed, cat in ((1, 'sensors'), (2, 'engines'), (3, 'cabin')):
+            y, _ = build.process_download(self._noise_with_step(3.0, seed), SR, 'loop', cat)
+            d, joins = _tile_steps(y)
+            for j in joins:
+                around = np.concatenate([d[j - 200:j], d[j + 1:j + 201]])
+                self.assertLessEqual(d[j], around.max(), (seed, j))
+                self.assertLessEqual(d[j], 3.0 * np.percentile(d, 99), (seed, j))
+
+    def test_the_crossfade_keeps_the_power_for_uncorrelated_material(self):
+        rng = np.random.default_rng(5)
+        x = rng.normal(0, 0.1, 5 * SR)
+        k = 14400
+        y, _ = build._loop_crossfade(x[:, None])
+        rms = lambda v: float(np.sqrt((v ** 2).mean()))
+        self.assertAlmostEqual(rms(y[:k]) / rms(y[k:]), 1.0, delta=0.03)
+
+    def test_the_loop_check_passes_where_the_recording_is_louder_at_one_end(self):
+        import measure
+        rng = np.random.default_rng(7)
+        env = np.concatenate([np.full(SR, 1.0), np.linspace(1.0, 0.05, 3 * SR), np.full(SR, 0.05)])
+        x = rng.normal(0, 0.2, env.shape[0]) * env
+        stereo = np.stack([x, np.roll(x, 100)], axis=1)
+        y, info = build.process_download(stereo, SR, 'loop', 'engines')
+        self.assertGreater(info['loopStartMs'], 0.0)   # the wrap point was moved
+        res = measure.loop_check(y, SR)
+        self.assertTrue(res['pass'], res)
+        d, joins = _tile_steps(y)
+        self.assertLessEqual(d[joins[0]], np.percentile(d, 99.9))
+
+    def test_a_loop_that_wraps_already_is_not_moved(self):
+        y, info = build.process_download(sine(500, 4.0, amp=0.5), SR, 'loop', 'sensors')
+        self.assertEqual(info['loopStartMs'], 0.0)
+
+
+class HonestLevel(unittest.TestCase):
+    def test_the_applied_gain_is_stated_and_what_was_asked_for_too(self):
+        x = 0.0005 * sine(80, 2.0, amp=1.0)       # a quiet floor under three snaps: loudness asks for a lot
+        x[[1000, 30000, 60000]] = 0.8
+        x[0] = 0.0
+        y, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        lv = info['level']
+        self.assertEqual(lv['mode'], 'lufs')
+        self.assertTrue(lv['limited'])
+        self.assertGreater(lv['requestedGainDb'], lv['gainDb'] + 3.0)
+        applied = 20 * np.log10(np.abs(y).max() / np.abs(x).max())
+        self.assertAlmostEqual(lv['gainDb'], applied, delta=0.02)
+        self.assertAlmostEqual(lv['truePeakDb'], build.DOWNLOAD_CEILING_DB, delta=0.01)
+
+    def test_without_limiting_the_two_agree(self):
+        y, info = build.process_download(sine(800, 0.5, amp=0.99), SR, 'oneshot', 'thrusters')
+        lv = info['level']
+        self.assertFalse(lv['limited'])
+        self.assertEqual(lv['gainDb'], lv['requestedGainDb'])
 
 
 class Level(unittest.TestCase):
@@ -107,6 +252,15 @@ class Level(unittest.TestCase):
         self.assertEqual(info['level']['mode'], 'lufs')
         self.assertAlmostEqual(lufs(y), -27.0, delta=0.15)
 
+    def test_no_long_one_shot_sits_at_a_bed_level(self):
+        # a long one-shot is within 8 dB of the loudness of a short one at its peak target (peak - 16 dB)
+        for (cat, length), (mode, value) in build.DOWNLOAD_TARGETS.items():
+            if length != 'long':
+                continue
+            short_mode, short_peak = build.DOWNLOAD_TARGETS[(cat, 'short')]
+            self.assertEqual((mode, short_mode), ('lufs', 'peak'), cat)
+            self.assertGreaterEqual(value, short_peak - 16.0 - 8.0, cat)
+
     def test_the_ceiling_wins_over_the_target(self):
         x = np.zeros(SR)
         x[:2000] = 0.5 * np.sin(2 * np.pi * 200 * np.arange(2000) / SR)
@@ -118,6 +272,12 @@ class Level(unittest.TestCase):
         self.assertEqual(build.download_target('radio', 'oneshot', 1.5)[0], 'peak')
         self.assertEqual(build.download_target('radio', 'oneshot', 1.51)[0], 'lufs')
         self.assertEqual(build.download_target('radio', 'loop', 0.2)[0], 'lufs')
+        # a bed level is not given to an event: a long cabin one-shot is -32 LUFS, the cabin loop stays -45
+        self.assertEqual(build.download_target('cabin', 'oneshot', 5.0), ('lufs', -32.0))
+        self.assertEqual(build.download_target('cabin', 'loop', 5.0), ('lufs', -45.0))
+        self.assertEqual(build.download_target('landing', 'oneshot', 3.0), ('lufs', -24.0))
+        self.assertEqual(build.download_target('landing', 'loop', 3.0), ('lufs', -32.0))
+        self.assertEqual(build.download_target('sensors', 'loop', 3.0), build.download_target('sensors', 'oneshot', 3.0))
         self.assertEqual(build.download_target('no-such-category', 'oneshot', 0.2), build.DOWNLOAD_FALLBACK['short'])
         # every category of the selection has a short and a long row
         import json
@@ -181,9 +341,10 @@ class Resampling(unittest.TestCase):
             x = sine(1000, 1.0, sr=sr)
             y, info = build.process_download(x, sr, 'loop', 'sensors')
             self.assertEqual(info['sourceSr'], sr)
-            self.assertEqual(y.shape[0], SR, sr)
-            spec = np.abs(np.fft.rfft(y[:, 0] * np.hanning(SR)))
-            self.assertAlmostEqual(np.argmax(spec) * SR / SR, 1000, delta=2, msg=str(sr))
+            self.assertEqual(y.shape[0], SR - SR // 10, sr)   # a loop is shorter by its crossfade
+            n = y.shape[0]
+            spec = np.abs(np.fft.rfft(y[:, 0] * np.hanning(n)))
+            self.assertAlmostEqual(np.argmax(spec) * SR / n, 1000, delta=2, msg=str(sr))
 
     def test_excerpt_is_cut_in_source_seconds(self):
         x = sine(1000, 3.0, sr=44100)

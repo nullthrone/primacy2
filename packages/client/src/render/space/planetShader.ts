@@ -112,6 +112,8 @@ struct Surf {
   float cloudRise;
   float cloudH;
   float cloudSunH;
+  // Brightness of the cloud itself, around one: the hollows between its cells are greyer.
+  float cloudTone;
   // Light on a deck of cloud that has relief of its own (the giants), around one.
   float shade;
 };
@@ -133,7 +135,11 @@ float gNear;
 // it: the step on the unit sphere and the same step in pixels on screen.
 vec3 gSunStep;
 vec2 gSunPix;
-Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0); }
+// The tops of cloud are lit over a longer step, that many times the one above: four pixels, and
+// never less than a few kilometres of an Earth, so that it is the lie of the deck that shows
+// and not the grain of a single pixel.
+float gCloudStep;
+Surf blank() { return Surf(vec3(0.5), vec3(0.0), 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0); }
 // Detail finer than fbm() gives a planet seen whole: octaves of gradient noise from 'freq' cycles
 // per unit of 'q' upward, each 'gain' times the weight of the one before. Two things hold it back.
 // How large the planet stands in the view: none of it shows until the first octave (FINE cycles
@@ -366,30 +372,49 @@ Surf surface(vec3 nb, vec3 sunB) {
 }
 #elif TYPE == 4
 // Terran and ocean worlds: continents, seas, ice caps, clouds and settlement lights.
-// Cloud cover before its threshold, above zero where there is cloud. 'cd' is the place in the
-// warped pattern, without the seed: the fine structure is laid out in it, so it follows the fronts.
-float cloudCover(vec3 nb, out vec3 cd) {
-  vec3 cr = rotY(nb, uCloudPhase);
+// Cloud cover before its threshold, above zero where there is cloud. 'cr' is the place in the
+// frame the clouds drift in, without the seed: what cloud is made of close up is laid out there.
+float cloudCover(vec3 nb, out vec3 cr) {
+  cr = rotY(nb, uCloudPhase);
   vec3 cp = cr * 2.1 + seedOff() * 1.7;
   float cw = fbm(cp * 0.8 + 2.0, min(uOct, 4));
-  vec3 wv = vec3(cw * 1.8, cw * 0.6, -cw * 1.4);
-  cd = cr + wv / 2.73;
-  float cl = fbm(cp * 1.3 + wv, uOct) + 0.22 * fbm(cp * 5.5 + cw, uOct);
+  float cl = fbm(cp * 1.3 + vec3(cw * 1.8, cw * 0.6, -cw * 1.4), uOct) + 0.22 * fbm(cp * 5.5 + cw, uOct);
   float lat = abs(nb.y);
   float zonal = 0.10 * cos(lat * 9.0) - 0.08 * smoothstep(0.15, 0.35, lat) * smoothstep(0.55, 0.35, lat);
   return cl + zonal - uPar.y;
 }
-// x: how much of the ground the cloud hides, y: the height of its tops. 'f' is the fine
-// structure at this place and 'patchy' how strongly it breaks the cloud up here.
-vec2 cloudDeck(float cover, vec4 f, float patchy) {
+// What cloud is made of close up, at one place. 'kind' is the weather of the region: 0 a layered
+// deck of broad cells, 1 convection, cumulus of all sizes down to the smallest.
+// x: its grain, around zero; y: the humps of its cells, around zero, rounded on top with creases
+// between; z: finer relief that falls off as height does. The cells are coarser than
+// 'fineNoise' starts with, so they follow gNear: a planet seen whole must not show them.
+vec3 cloudGrain(vec3 cr, float foot, float kind) {
+  float w1 = gNear * (1.0 - smoothstep(0.15, 0.36, foot * 70.0));
+  float w2 = gNear * (1.0 - smoothstep(0.15, 0.36, foot * 150.0));
+  float g1 = w1 > 0.0 ? gnoise(cr * 70.0 + uSeed) : 0.0;
+  float g2 = w2 > 0.0 ? gnoise(cr * 150.0 + uSeed + 11.0) : 0.0;
+  // The finest are drawn out a little along the latitudes, as cloud streets are.
+  vec4 f = fineNoise(cr * vec3(1.0, 1.4, 1.0), FINE, foot * 1.4, 0.72);
+  float grain = (mix(0.80, 0.45, kind) * w1 * g1 + mix(0.50, 0.45, kind) * w2 * g2) * 4.4 + mix(0.45, 0.70, kind) * f.x;
+  float humps = (w1 * (abs(g1) - 0.184) + 0.6 * w2 * (abs(g2) - 0.184)) * 7.3 + 0.55 * f.y;
+  return vec3(grain, humps, f.z);
+}
+// x: how much of the ground the cloud hides, y: the height of its tops, z: its own brightness.
+vec3 cloudDeck(float cover, vec3 g, float kind) {
   float soft = smoothstep(0.0, 0.32, cover);
-  // Close up, the soft edge of a front is a field of cells and wisps: the fine structure opens
-  // and closes the cloud wherever it is neither clear sky nor a closed deck.
-  float open = smoothstep(-0.10, 0.04, cover) * (1.0 - smoothstep(0.12, 0.36, cover));
-  float a = clamp(soft + open * patchy * (0.26 * f.x + 0.32 * f.y), 0.0, 1.0);
-  // The tops rise toward the middle of a front, and every cell is a rounded hump on them.
-  float h = (clamp(cover * 1.5, 0.0, 0.75) + 0.14 * f.y) * smoothstep(0.0, 0.5, a);
-  return vec2(a, h);
+  // Only thin cloud breaks up, and only near cloud; a closed deck stays closed. The grain moves
+  // the edge to and fro and gathers the grey veil of the far view into cloud with clearer air
+  // between, the more the finer the cumulus of the region. The curve that does it is a gentle
+  // one, so the edge of every cloud stays soft, and without grain the cover is as it was.
+  float thin = (1.0 - smoothstep(0.10, 0.36, cover)) * smoothstep(-0.20, 0.0, cover);
+  float t = soft + thin * mix(0.22, 0.34, kind) * g.x;
+  float crisp = 0.8 * thin * mix(0.75, 1.0, kind) * min(abs(g.x) * 4.0 + gNear, 1.0);
+  float a = clamp(mix(t, smoothstep(0.20, 0.80, t), crisp), 0.0, 1.0);
+  // The tops keep rising toward the middle of a front. On them stand the humps of the cells,
+  // broad on a layered deck and taller, with finer lumps, where air rises.
+  float body = 1.0 - exp(-max(cover + 0.04, 0.0) * 2.6);
+  float h = body + mix(0.055 * g.y, 0.045 * g.y + 0.06 * g.x, kind) + 0.05 * g.z;
+  return vec3(a, h * smoothstep(0.0, 0.45, a), 1.0 + 0.035 * g.y);
 }
 // The sea inside the sun's glint. x: its roughness, around one, with calm water lying in slicks
 // between ruffled water; y: the glitter of the waves, around one.
@@ -412,42 +437,40 @@ float hfield(vec3 nb) {
 Surf surface(vec3 nb, vec3 sunB) {
   Surf s = blank();
   float geo = dot(nb, sunB);
-  vec3 cd;
-  float cover = cloudCover(nb, cd);
-  // The size of the pixel in the cloud pattern, which the fronts stretch and squeeze, and how
-  // pattern and cover change from pixel to pixel.
-  vec3 cdx = dFdx(cd), cdy = dFdy(cd);
+  vec3 cr;
+  float cover = cloudCover(nb, cr);
+  // How the cover changes from pixel to pixel: it is smooth, so this carries it a few pixels on.
   vec2 coverPix = vec2(dFdx(cover), dFdy(cover));
-  float cfoot = uFine > 0.0 ? uFine * max(length(cdx), length(cdy)) : 1e3;
-  bool fineCloud = cover > -0.10 && cfoot * uView * FINE < 0.36;
-  vec4 cf = vec4(0.0);
-  float patchy = 1.0;
-  if (fineCloud) {
-    cf = fineNoise(cd, FINE, cfoot, 0.8);
-    patchy = 0.15 + 1.1 * smoothstep(-0.25, 0.25, gnoise(cd * 55.0 + uSeed));
+  bool grainy = cover > -0.22 && (gNear > 0.0 || gSlant * uView * FINE < 0.36);
+  vec3 grain = vec3(0.0);
+  float kind = 0.0;
+  if (grainy) {
+    kind = smoothstep(-0.12, 0.22, gnoise(cr * 4.5 + uSeed));
+    grain = cloudGrain(cr, gSlant, kind);
   }
-  vec2 deck = cloudDeck(cover, cf, patchy);
+  vec3 deck = cloudDeck(cover, grain, kind);
   float cl = deck.x;
   s.cloud = cl * 0.95;
   s.cloudShadow = s.cloud;
   s.cloudH = deck.y;
   s.cloudSunH = deck.y;
+  s.cloudTone = deck.z;
   // Past the terminator there is no direct light left for a shadow to take away.
   if (uOct >= 5 && geo > -0.2) {
     // From afar the shadow is thrown wide so that it shows at all; close up it lies where the
     // shadow of real cloud would.
     vec3 cs;
     float coverSun = cloudCover(normalize(nb + sunB * mix(0.02, 0.003, uNear)), cs);
-    vec4 fs = vec4(0.0);
-    if (fineCloud) fs = fineNoise(cs, FINE, cfoot * 1.6, 0.8);
-    vec2 deckSun = cloudDeck(coverSun, fs, patchy);
+    vec3 grainSun = vec3(0.0);
+    if (grainy) grainSun = cloudGrain(cs, gSlant * 1.6, kind);
+    vec3 deckSun = cloudDeck(coverSun, grainSun, kind);
     s.cloudShadow = deckSun.x;
     s.cloudSunH = deckSun.y;
-    // The same deck two pixels toward the sun tells which way its tops slope here.
-    if (fineCloud && cl > 0.0 && gNear > 0.0) {
-      vec3 cdSun = cd + cdx * gSunPix.x + cdy * gSunPix.y;
-      float coverStep = cover + dot(coverPix, gSunPix);
-      s.cloudRise = cloudDeck(coverStep, fineNoise(cdSun, FINE, cfoot, 0.8), patchy).y - deck.y;
+    // The same deck a few pixels toward the sun tells which way its tops slope here.
+    if (grainy && cl > 0.0 && gNear > 0.0) {
+      vec3 crSun = cr + rotY(gSunStep * gCloudStep, uCloudPhase);
+      float coverStep = cover + dot(coverPix, gSunPix * gCloudStep);
+      s.cloudRise = cloudDeck(coverStep, cloudGrain(crSun, gSlant, kind), kind).y - deck.y;
     }
   }
   vec3 p = nb * 1.45 + seedOff();
@@ -604,6 +627,7 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
   vec3 sunB = uRot * uSunDir;
   gSunStep = (sunB - nb * dot(nb, sunB)) * (2.0 * slant);
   gSunPix = vec2(0.0);
+  gCloudStep = max(2.0, 0.0002 / max(slant, 1e-7));
 #ifndef BAKED
   // Where that step lands on screen, from how the place on the sphere changes between
   // neighbouring pixels. (Not for bodies with a baked map: there this code sits in a branch.)
@@ -659,11 +683,12 @@ vec3 procedural(vec3 d, vec3 n, vec3 nb) {
     float cl = max((geo + 0.06) / 1.06, 0.0);
     vec3 cc = mix(vec3(1.0, 0.50, 0.28), vec3(0.96), smoothstep(-0.02, 0.11, geo));
 #ifndef BAKED
-    // Close up the deck has a body: slopes turned from the sun are darker, cloud that stands
-    // behind taller cloud is in its shadow, and thin cloud is greyer than thick.
-    float relief = clamp(1.0 - 2.4 * s.cloudRise, 0.5, 1.2);
-    float shaded = 1.0 - 0.32 * smoothstep(0.04, 0.40, s.cloudSunH - s.cloudH);
-    cc *= mix(1.0, relief * shaded * (0.84 + 0.16 * s.cloudH), gNear);
+    // Close up the deck has a body: slopes turned from the sun are darker and those turned to
+    // it brighter, cloud that stands behind taller cloud is in its shadow, and thin cloud and
+    // the seams between cells are greyer than thick cloud.
+    float relief = clamp(1.0 - 2.6 * s.cloudRise, 0.62, 1.10);
+    float shaded = 1.0 - 0.25 * smoothstep(0.04, 0.40, s.cloudSunH - s.cloudH);
+    cc *= mix(1.0, relief * shaded * s.cloudTone * (0.80 + 0.20 * s.cloudH), gNear);
 #endif
     col = mix(col, cc * sun * cl, s.cloud);
   }
