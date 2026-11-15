@@ -256,12 +256,27 @@ Surf surface(vec3 nb, vec3 sunB) {
 }
 #elif TYPE == 1
 // Desert: dune fields, dark rock outcrops and canyons.
+// A canyon runs where ridged() comes near its crest: smoothstep(0.80, 0.95, ridged(q, uOct)).
+// Most places are so far from one after three octaves that the rest (0.121 at most) cannot
+// lift them there, and those are done early; the value is the same either way.
+float canyons(vec3 q) {
+  float a = 0.5, s = 0.0;
+  for (int i = 0; i < 9; i++) {
+    if (i >= uOct) break;
+    if (i == 3 && s < 0.675) return 0.0;
+    float n = 1.0 - abs(gnoise(q));
+    s += a * n * n;
+    q = q * 2.07 + vec3(5.3, 11.9, 2.1);
+    a *= 0.5;
+  }
+  return smoothstep(0.80, 0.95, s);
+}
 float hfield(vec3 nb) {
   vec3 p = nb * 1.8 + seedOff();
   float w = gWarp.x;
   float h = fbm(p * 2.1 + w * 1.3, uOct);
   float dunes = ridged(vec3(p.x * 3.0, p.y * 8.0, p.z * 3.0) + w * 2.2, uOct);
-  float canyon = smoothstep(0.80, 0.95, ridged(p * 1.05 + w * 0.7 + 5.0, uOct));
+  float canyon = canyons(p * 1.05 + w * 0.7 + 5.0);
   return h * 0.4 + dunes * 0.10 - canyon * 0.35;
 }
 Surf surface(vec3 nb, vec3 sunB) {
@@ -273,7 +288,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   float h = fbm(p * 2.1 + w * 1.3, uOct);
   float dunes = ridged(vec3(p.x * 3.0, p.y * 8.0, p.z * 3.0) + w * 2.2, uOct);
   float rock = smoothstep(0.05, 0.38, fbm(p * 1.2 + 21.0, lo) + h * 0.3);
-  float canyon = smoothstep(0.80, 0.95, ridged(p * 1.05 + w * 0.7 + 5.0, uOct));
+  float canyon = canyons(p * 1.05 + w * 0.7 + 5.0);
   vec3 col = mix(uBase * 0.70, uBase * 1.28, clamp(0.5 + h * 0.9 + (dunes - 0.5) * 0.35, 0.0, 1.0));
   col = mix(col, uBase * vec3(0.42, 0.36, 0.36), rock * 0.75);
   col *= 1.0 - 0.55 * canyon;
@@ -292,7 +307,7 @@ Surf surface(vec3 nb, vec3 sunB) {
     float sand = (0.35 + 0.65 * smoothstep(0.45, 0.75, dunes)) * (1.0 - 0.7 * rock);
     s.albedo *= clamp(1.0 + sand * (0.05 * f.x - 0.03 * f.y), 0.6, 1.4);
     // Their relief costs one more sample, taken only where the sand lies thick enough to show it.
-    float lift = max(sand - 0.3, 0.0) / 0.7;
+    float lift = max(sand - 0.45, 0.0) / 0.55;
     if (geo > -0.2 && lift > 0.0) s.fineRise = 0.0022 * lift * (fineNoise((nb + gSunStep) * along, FINE, gSlant * 1.7, 0.7).z - f.z);
   }
   if (geo < -0.35) s.bump = 0.0;

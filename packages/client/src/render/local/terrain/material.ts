@@ -265,7 +265,7 @@ float stoneOutline(vec2 e, vec2 cuts, out vec2 og) {
 }
 
 // Stones of one size class: one to a lattice cell (in 'share' of the cells), anywhere in it,
-// 0.03 to 0.12 cells in radius, most of them small, a shade off the ground they lie on.
+// 0.03 to 0.12 cells in radius, a shade off the ground they lie on.
 //
 // A stone stands up. The mesh has no stones, so the ground behind one, as far as the stone would
 // hide it from this camera, is drawn as the stone: its top where the outline lifted to the
@@ -296,7 +296,7 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     uint n = cellHash(mod(c, count), seed);
     vec4 a = hashBytes(n);
     float own = a.z / share;
-    float r = own < 1.0 ? (0.03 + 0.09 * a.w * a.w * a.w) * cell : 1e-6;
+    float r = own < 1.0 ? 0.03 * exp2(2.0 * a.w) * cell : 1e-6;
     vec2 dj = alongGround((p - c - a.xy) * cell);
     float tall = (0.45 + 0.65 * own) * r;
     // Metres of ground the stone hides behind itself, and how near the place is to that.
@@ -340,7 +340,7 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     // The top is a few faces leaning outward; the flank leans outward more, and where the view
     // meets it head on it faces the camera.
     slope -= lid * (0.4 * top * w);
-    slope -= normalize(mix(eye.xy, rim, clamp(mSide, 0.0, 1.0)) + 1e-4) * (1.15 * side * w);
+    slope -= normalize(mix(eye.xy, rim, clamp(mSide, 0.0, 1.0)) + 1e-4) * (0.9 * side * w);
     tint *= mix(1.0, mix(shade.x, shade.y, what.y), w * body);
     // Darker toward the foot of the stone, and the ground darker around it: little light gets in there.
     tint *= 1.0 - 0.25 * w * side * (1.0 - smoothstep(0.0, 0.6, up)) * smoothstep(0.0, 0.3 * r, rise);
@@ -351,12 +351,12 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     float along = clamp(-dot(d, sun.xy), 0.0, len);
     float ms = length(d + sun.xy * along) / (r * mix(0.85, 0.47, along / len));
     float blur = max(1.1 * px.y / r, 0.09);
-    light *= 1.0 - (1.0 - smoothstep(1.0 - blur, 1.0 + blur, ms)) * w * (1.0 - body);
+    light *= 1.0 - 0.92 * (1.0 - smoothstep(1.0 - blur, 1.0 + blur, ms)) * w * (1.0 - body);
   }
 }
 
 // Small craters of one size class: one to a lattice cell (in 'share' of the cells), rim radius
-// 0.07 to 0.3 cells, most of them small; a soft bowl with a low rounded rim, old ones shallow.
+// 0.06 to 0.3 cells; a soft bowl with a low rounded rim, old ones shallow.
 // Only the slope and the tone of the ground change: where the ground is does not. Of the four
 // cells nearest the place only the crater the place lies deepest in is worked out, so where two
 // overlap, a crease runs between them.
@@ -372,7 +372,7 @@ void craterLayer(vec2 q, float count, uint seed, float share, float deep, float 
     vec2 c = first + vec2(float(j & 1), float(j >> 1));
     vec4 a = hashBytes(cellHash(mod(c, count), seed));
     float own = a.z / share;
-    float r = own < 1.0 ? (0.07 + 0.23 * a.w * a.w) * cell : 1e-6;
+    float r = own < 1.0 ? 0.06 * exp2(2.32 * a.w) * cell : 1e-6;
     vec2 dj = alongGround((p - c - a.xy) * cell);
     float key = dot(dj, dj) / (r * r);
     if (key < nearest) { nearest = key; d = dj; what = vec2(r, own); }
@@ -391,7 +391,7 @@ void craterLayer(vec2 q, float count, uint seed, float share, float deep, float 
     slope += d * (rise * wall * w / max(rho * r, 1e-5));
     // A fresh crater has thrown out brighter ground; dust darkens the floor of any.
     float fresh = smoothstep(0.55, 1.0, fract(own * 7.3)) * own;
-    tint *= 1.0 + w * (0.16 * fresh * smoothstep(0.4, 1.0, rho) * (1.0 - t) - 0.10 * inside * inside * (0.4 + wall));
+    tint *= 1.0 + w * (0.16 * fresh * smoothstep(0.4, 1.0, rho) * (1.0 - t) - 0.07 * inside * inside * (0.4 + wall));
   }
 }
 
@@ -466,13 +466,13 @@ void main() {
         }
         vec4 g = textureGrad(uGrain, uv + vec2(0.37, 0.61) * float(i), ux, uy) * 2.0 - 1.0;
         float rough = i == 0 ? 0.30 : i == 1 ? 0.17 : i == 2 ? 0.085 : i == 3 ? 0.04 : 0.0;
-        float patchy = i == 0 ? 0.08 : i == 1 ? 0.065 : i == 2 ? 0.055 : i == 3 ? 0.05 : 0.045;
+        float patchy = i == 0 ? 0.10 : i == 1 ? 0.08 : i == 2 ? 0.07 : i == 3 ? 0.06 : 0.05;
         slope += (turned ? vec2(-g.y, g.x) : g.xy) * (rough * show);
         mottle += g.z * (patchy * show);
         // Clods and the shadows between them: dark flecks while they are a few pixels, which is
         // what loose ground looks like at any distance. Nearer, the next finer cells have them.
-        float fleck = smoothstep(0.42, 0.62, g.w + 0.5 * coarser) - 0.06;
-        if (i < 4) mottle -= fleck * (0.11 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
+        float fleck = smoothstep(0.25, 0.8, g.w + 0.5 * coarser) - 0.08;
+        if (i < 4) mottle -= fleck * (0.2 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
         here = g.z;
       }
       coarser = here;
@@ -480,10 +480,10 @@ void main() {
 
     // How much there is of what, by the kind of ground: ice has few blocks, brighter than the
     // dusty plain, and few pits; a desert is gravel with hardly a crater.
-    float stones = uKind == 1 ? 0.4 : uKind == 2 ? 0.95 : 0.8;
-    float craters = uKind == 1 ? 0.3 : uKind == 2 ? 0.22 : 0.62;
-    vec2 shade = uKind == 1 ? vec2(0.95, 1.45) : uKind == 2 ? vec2(0.72, 1.25) : vec2(0.68, 1.42);
-    // Craters of 2 to 10 m and of 0.6 to 2.4 m across.
+    float stones = uKind == 1 ? 0.4 : uKind == 2 ? 1.0 : 0.85;
+    float craters = uKind == 1 ? 0.25 : uKind == 2 ? 0.2 : 0.5;
+    vec2 shade = uKind == 1 ? vec2(1.0, 1.5) : uKind == 2 ? vec2(0.8, 1.35) : vec2(0.82, 1.55);
+    // Craters of 2 to 10 m and of 0.5 to 2.4 m across.
     if (px < 4.8 && uDbg != 2.0 && uDbg != 4.0) {
       craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * clamp(edge / 16.0, 0.0, 1.0), slope, tint);
       if (px < 1.2) craterLayer(q, 1024.0, face + 272u, craters, 0.9, px, clamp(edge / 4.0, 0.0, 1.0), slope, tint);
