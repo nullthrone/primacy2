@@ -138,19 +138,38 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
 #            lasts a couple of seconds measures about -26 LUFS, taken as -26.
 #   landing  short -8 peak (landing one-shot default), long -32 LUFS (landing loop default).
 #   switches short -14 peak (relay_click_*, breaker_thunk); long: no value, -30 LUFS (as thrusters).
-#   cabin    short: no value, -16 peak (button_press); long / loop -45 LUFS (cabin_ambience_loop).
+#   cabin    short: no value, -16 peak (button_press); long one-shot -32 LUFS (see below); loop -45
+#            LUFS (cabin_ambience_loop).
 #   sensors  default is -27 LUFS for any one-shot; for the short ones that is about -17 dB peak
 #            of a blip, taken as -16 peak. Loops: no value, -27 LUFS as the one-shots.
 #   radio    short -14 peak, long / loop -32 LUFS (radio defaults).
 #   alarms   loudspeaker, -20 LUFS (the alarm defaults); short -10 peak, nearest to a short beep.
 #   drive, weapons: the category defaults; long one-shots of weapons: -26 LUFS (weapons loop).
+# A loop is looked up under (category, "loop") first and falls back to (category, "long").
+#
+# A bed level must not be given to an event. The loop defaults above are the levels of beds (the
+# cabin ambience at -45 LUFS sits 29 dB below a button press at -16 dBFS peak); a one-shot that
+# lasts a few seconds is an event, and at a bed level it vanishes next to the rendered sounds of
+# its category (review of 2026-11-15: k_computer_noise_1 peak -37 dBFS, n_dinks_donks -23).
+# The test applied to every row: a long one-shot should sit near the loudness of a short one at
+# its peak target, taken as the short peak minus 16 dB (the cabin value -32 is the owner's
+# decision and follows from it; the crest factor of the long one-shots of the library is 8 to
+# 20 dB). A long row more than 8 dB under that value is a bed level and is corrected:
+#   cabin    long -45 -> -32 LUFS (short -16 - 16 = -32; 13 dB under). Loop stays -45.
+#   landing  long -32 -> -24 LUFS (short -8 - 16 = -24; 8 dB under, a touchdown is an event). Loop
+#            stays -32. No download uses this row at present.
+# The other rows are within 8 dB of that value (engines -27 against -24, thrusters -30 against
+# -28, impacts -26 against -21, switches -30 against -30, radio -32 against -30, weapons -26
+# against -24, drive -28 against -22) and stay as they were.
 DOWNLOAD_TARGETS: dict[tuple[str, str], tuple[str, float]] = {
     ("engines", "short"): ("peak", -8.0), ("engines", "long"): ("lufs", -27.0),
     ("thrusters", "short"): ("peak", -12.0), ("thrusters", "long"): ("lufs", -30.0),
     ("impacts", "short"): ("peak", -5.0), ("impacts", "long"): ("lufs", -26.0),
-    ("landing", "short"): ("peak", -8.0), ("landing", "long"): ("lufs", -32.0),
+    ("landing", "short"): ("peak", -8.0), ("landing", "long"): ("lufs", -24.0),
+    ("landing", "loop"): ("lufs", -32.0),
     ("switches", "short"): ("peak", -14.0), ("switches", "long"): ("lufs", -30.0),
-    ("cabin", "short"): ("peak", -16.0), ("cabin", "long"): ("lufs", -45.0),
+    ("cabin", "short"): ("peak", -16.0), ("cabin", "long"): ("lufs", -32.0),
+    ("cabin", "loop"): ("lufs", -45.0),
     ("sensors", "short"): ("peak", -16.0), ("sensors", "long"): ("lufs", -27.0),
     ("radio", "short"): ("peak", -14.0), ("radio", "long"): ("lufs", -32.0),
     ("alarms", "short"): ("peak", -10.0), ("alarms", "long"): ("lufs", -20.0),
@@ -162,9 +181,11 @@ SHORT_ONESHOT_S = 1.5
 DOWNLOAD_SR = 48000
 # ceiling for the level setting: -1 dBFS true peak, with a little room for the rounding to 16 bit
 DOWNLOAD_CEILING_DB = -1.05
-SILENT_EDGE_DB = -60.0      # an edge millisecond below this needs no fade
-FADE_IN_MS = 8.0
+SILENT_EDGE_DB = -60.0      # an edge sample (start) or millisecond (end) below this needs no repair
+LEAD_IN_MS = 1.5            # ramp 0 -> first sample put in front of a start that is a step
 FADE_OUT_MS = 30.0
+LOOP_XFADE_S = 0.3          # loop seam: crossfade of the tail into the head, at most this long ...
+LOOP_XFADE_SHARE = 0.1      # ... and at most this share of the file
 CLIP_SHARE = 0.001          # "within 0.1 % of the maximum"
 CLIP_MIN_PEAK = 0.98        # the maximum must be at least this much of full scale
 CLIP_MIN_RUN = 3
@@ -174,6 +195,8 @@ def download_target(category: str, kind: str, duration_s: float) -> tuple[str, f
     """Level target (mode, value) for a download: a loop or a one-shot longer than SHORT_ONESHOT_S
     is set by loudness, a shorter one-shot by true peak."""
     length = "short" if kind == "oneshot" and duration_s <= SHORT_ONESHOT_S else "long"
+    if kind == "loop" and (category, "loop") in DOWNLOAD_TARGETS:
+        return DOWNLOAD_TARGETS[(category, "loop")]
     return DOWNLOAD_TARGETS.get((category, length), DOWNLOAD_FALLBACK[length])
 
 
@@ -209,21 +232,39 @@ def _fade_curve(n: int) -> np.ndarray:
     return 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / (n - 1))
 
 
-def process_download(data: np.ndarray, sr: int, kind: str, category: str,
-                     excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
-    """Turn a decoded download into the file that is shipped: arrays in, array out.
+def _lead_in(first: np.ndarray, n: int) -> np.ndarray:
+    """n samples of a raised cosine rising from exactly 0 towards the first sample (per channel),
+    the last of them one step short of it, so that the file that follows continues the ramp."""
+    ramp = 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / n)
+    return ramp[:, None] * first[None, :]
 
-    data is (n, channels) or (n,). Steps: cut the excerpt (seconds), keep 1 or 2 channels (more are
-    mixed down to 2), count clipped samples of that cut as it is, resample to 48 kHz, fade the
-    ends of a one-shot where the first or last millisecond is not silent (8 ms in, 30 ms out,
-    raised cosine; none for a loop), set the level. Returns (float array (n, ch) at 48 kHz, info);
-    nothing here is random, so the same input gives the same output."""
+
+def _loop_crossfade(x: np.ndarray) -> tuple[np.ndarray, int]:
+    """Make x wrap without a step: the last k samples are mixed into the first k with equal power
+    (cos / sin) and cut off, so the result is k samples shorter. Its first sample is the sample
+    that followed its last one in the recording. Returns (y, k); k is 0 where the file is too
+    short for a crossfade."""
+    n = x.shape[0]
+    k = min(int(round(LOOP_XFADE_S * DOWNLOAD_SR)), int(n * LOOP_XFADE_SHARE))
+    if k < 2:
+        return x, 0
+    t = np.arange(k) / k
+    fin = np.sin(0.5 * np.pi * t)[:, None]
+    fout = np.cos(0.5 * np.pi * t)[:, None]
+    y = x[: n - k].copy()
+    y[:k] = x[:k] * fin + x[n - k:] * fout
+    return y, k
+
+
+def prepare_download(data: np.ndarray, sr: int, excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
+    """The first steps of process_download: cut the excerpt (seconds), keep 1 or 2 channels (more
+    are mixed down to 2), count the clipped samples of that cut as it is, resample to 48 kHz.
+    Returns (float array (n, ch) at 48 kHz, info)."""
     from math import gcd
 
     from scipy.signal import resample_poly
-    from synth import set_level
 
-    x = np.array(data, dtype=np.float64)  # a copy: the fades work in place
+    x = np.array(data, dtype=np.float64)  # a copy: nothing here changes the input
     if x.ndim == 1:
         x = x[:, None]
     if excerpt is not None:
@@ -236,23 +277,53 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
     if sr != DOWNLOAD_SR:
         g = gcd(int(sr), DOWNLOAD_SR)
         x = resample_poly(x, DOWNLOAD_SR // g, int(sr) // g, axis=0)
-    info["fadeInMs"] = info["fadeOutMs"] = 0.0
+    return x, info
+
+
+def process_download(data: np.ndarray, sr: int, kind: str, category: str,
+                     excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
+    """Turn a decoded download into the file that is shipped: arrays in, array out.
+
+    data is (n, channels) or (n,). Steps: prepare_download (cut, channels, clipping count, 48 kHz),
+    then the ends, then the level.
+      one-shot: the recording itself is never multiplied at its start, so no attack is lost. Where
+        the first SAMPLE is above -60 dBFS (a real step) a lead-in of LEAD_IN_MS is put in front: a
+        raised cosine from zero to that sample (per channel), then the file as it is. Where the last
+        millisecond is not silent the last FADE_OUT_MS are faded out (raised cosine).
+      loop: the tail is crossfaded into the head (see _loop_crossfade); no lead-in, no fade-out.
+    Then the level is set (set_level) and info["level"] states the gain that was applied
+    (gainDb) and the gain that was asked for (requestedGainDb), which differs where the ceiling
+    limited it. Nothing here is random, so the same input gives the same output."""
+    from synth import set_level
+
+    x, info = prepare_download(data, sr, excerpt)
+    info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["loopCrossfadeMs"] = 0.0
     if kind == "oneshot":
         n = x.shape[0]
         ms = DOWNLOAD_SR // 1000
         silent = 10.0 ** (SILENT_EDGE_DB / 20.0)
-        if np.abs(x[:ms]).max() > silent:
-            k = min(int(round(FADE_IN_MS * ms)), n // 2)
-            x[:k] *= _fade_curve(k)[:, None]
-            info["fadeInMs"] = FADE_IN_MS
         if np.abs(x[-ms:]).max() > silent:
             k = min(int(round(FADE_OUT_MS * ms)), n // 2)
             x[n - k:] *= _fade_curve(k)[::-1][:, None]
             info["fadeOutMs"] = FADE_OUT_MS
+        if np.abs(x[0]).max() > silent:
+            k = int(round(LEAD_IN_MS * ms))
+            x = np.concatenate([_lead_in(x[0], k), x], axis=0)
+            info["leadInMs"] = LEAD_IN_MS
+    elif kind == "loop":
+        x, k = _loop_crossfade(x)
+        info["loopCrossfadeMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)
     mode, value = download_target(category, kind, x.shape[0] / DOWNLOAD_SR)
-    x, level = set_level(x, mode, value, ceiling_db=DOWNLOAD_CEILING_DB)
+    before = float(np.abs(x).max())
+    y, level = set_level(x, mode, value, ceiling_db=DOWNLOAD_CEILING_DB)
+    # set_level reports the gain that was asked for; where the ceiling cut it back the gain that
+    # was applied is smaller, and that is what the manifest must state
+    level["requestedGainDb"] = level["gainDb"]
+    after = float(np.abs(y).max())
+    if level["limited"] and before > 0 and after > 0:
+        level["gainDb"] = round(float(20.0 * np.log10(after / before)), 2)
     info["level"] = level
-    return x, info
+    return y, info
 
 
 def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
@@ -300,6 +371,7 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 "lowShare": an["lowShare"], "highShare": an["highShare"],
                 "centroidHz": an["spectralCentroidHz"], "level": info["level"],
                 "fadeInMs": info["fadeInMs"], "fadeOutMs": info["fadeOutMs"],
+                "leadInMs": info["leadInMs"], "loopCrossfadeMs": info["loopCrossfadeMs"],
             }
             if "loop" in an:
                 checks["loop"] = {k: an["loop"].get(k) for k in ("seamRatio", "levelSwingDb", "edgeLevelDiffDb", "pass")}

@@ -258,7 +258,8 @@ Decided by the engineer, for the owner to overrule:
 - The compass stays, to the left of the speed readout. The radar shows the chosen place and the
   locked ship too, so the two overlap in what they say; the compass is the finer aid for turning
   the nose onto one target (dead ahead is its middle), the radar the picture of everything around.
-  The owner chose both and has flown with neither. Taking the compass out is a small change.
+  Settled by the owner on 2026-11-15, asked whether the compass should stay beside the radar:
+  "Kompass bleibt".
 - The distance is logarithmic with fixed rings (100 m, 1 km, 10 km, rim at 100 km), not a range
   that switches: nothing on the instrument jumps, and a pod 200 m off and a ship 50 km off both
   have a place. The price is that the scale has to be read: the rings are named under it. A ship

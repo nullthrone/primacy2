@@ -97,6 +97,12 @@ export function auditionPlugin(): Plugin {
             return;
           }
 
+          // Read-only: tells a test where this server writes ratings, so that it can refuse to run against the owner's file.
+          if ((req.method === 'GET' || req.method === 'HEAD') && pathname === '/ratings-path') {
+            send(res, 200, req.method === 'HEAD' ? '' : JSON.stringify({ path: ratingsFile }), TYPES['.json']);
+            return;
+          }
+
           if (req.method === 'PUT' && pathname === '/ratings') {
             // A form post from another site cannot set this type without a preflight, which this server never answers.
             if (!String(req.headers['content-type'] ?? '').toLowerCase().startsWith('application/json')) {

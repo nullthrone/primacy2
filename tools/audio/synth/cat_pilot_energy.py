@@ -71,6 +71,18 @@ def put(dst, src, i0, gain=1.0):
     return dst
 
 
+def lead_in(y, ms=1.5):
+    """Start the file at zero without touching the attack. A fade over the first millisecond would
+    take the crack with it (it is the first samples) and the level step would then turn up what is
+    left. So a raised-cosine ramp from zero to the first sample is put in front of the sound, and
+    the same number of samples, which are silent, is dropped at the end."""
+    y = np.asarray(y, dtype=np.float64)
+    m = int(SR * ms / 1000.0)
+    ramp = 0.5 - 0.5 * np.cos(np.pi * np.arange(m) / m)
+    head = ramp.reshape((-1,) + (1,) * (y.ndim - 1)) * y[:1]
+    return np.concatenate([head, y[:-m]], axis=0)
+
+
 def unit_peak(x):
     return x / max(float(np.max(np.abs(x))), 1e-12)
 
@@ -198,7 +210,7 @@ def pilot_thruster_b(ctx):
     punch = chest * np.sqrt(PUNCH_VS_CRACK * e_crack / max(float(np.sum(chest ** 2)), 1e-12))
     air = air * np.sqrt(AIR_VS_CRACK * e_crack / max(float(np.sum(air ** 2)), 1e-12))
     y = crack + punch + air
-    return no_dc(fade_edges(y, 1.0, 12.0))  # 1 ms in: the file must not start on a step
+    return no_dc(fade_edges(lead_in(y), 0.0, 12.0))
 
 
 THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.6, 0.13, 5.0, 4.0
@@ -225,7 +237,7 @@ def pilot_thruster_c(ctx):
     body = np.zeros(n)
     put(body, th, int(THUMP_DELAY_MS * SR / 1000.0))
     y = clack + body * np.sqrt(THUMP_VS_CLACK * float(np.sum(clack ** 2)) / max(float(np.sum(body ** 2)), 1e-12))
-    return no_dc(fade_edges(y, 1.0, 12.0))  # 1 ms in: the file must not start on a step
+    return no_dc(fade_edges(lead_in(y), 0.0, 12.0))
 
 
 # --------------------------------------------------------------------------- shield hits
@@ -317,7 +329,7 @@ def pilot_shield_a(ctx):
     throb = throb * body_scale(throb, base_mono, THROB_SHARE)
     y = base + lr_from(throb)
     y = soft_limit(y, 3.2 * rms(y[w]))
-    return no_dc(fade_edges(y, 1.0, 250.0))  # 1 ms in: the file must not start on a step
+    return no_dc(fade_edges(lead_in(y), 0.0, 250.0))
 
 
 WHOOMP_TAU, WHOOMP_T60, RUMBLE_GAIN = 0.075, 0.8, 1.0

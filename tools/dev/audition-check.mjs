@@ -11,7 +11,7 @@
 // same fault is in the samples of a sound file that was playing, which is only listed ("file"). Set
 // AUDITION_CAPTURE=skip to leave this part out (it takes about a quarter of an hour).
 import { chromium } from 'playwright';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +21,7 @@ const URL_PAGE = process.env.AUDITION_URL ?? 'http://localhost:5183/dev/audition
 const ORIGIN = new URL(URL_PAGE).origin;
 const SHOTS = path.join(ROOT, 'screenshots', 'audition');
 const OWNERS = path.join(ROOT, 'assets', 'audio', 'ratings.json');
-if (!process.env.AUDITION_RATINGS_FILE || path.resolve(process.env.AUDITION_RATINGS_FILE) === OWNERS) {
+if (!process.env.AUDITION_RATINGS_FILE) {
   console.error('Set AUDITION_RATINGS_FILE to a scratch file (the same one the vite server was started with): this check writes ratings.');
   process.exit(2);
 }
@@ -70,6 +70,57 @@ const rawRequest = (method, p, headers = {}, body) =>
     req.on('error', reject);
     req.end(body);
   });
+
+// The same file under another spelling: resolved (links too, when the file exists) and compared without regard to case.
+const samePath = (a, b) => {
+  const norm = (x) => {
+    let r = path.resolve(x);
+    try {
+      r = realpathSync.native(r);
+    } catch {
+      // a file that does not exist yet has no links to resolve
+    }
+    return r.toLowerCase();
+  };
+  return norm(a) === norm(b);
+};
+
+// Asks the server which file it writes ratings to, before the browser is started or anything else is sent. The variable
+// of this shell says nothing about the server that is running: an old server, or one started without the variable,
+// would write the owner's file.
+async function refuseUnlessServerKeepsScratchRatings() {
+  let answer;
+  try {
+    answer = await rawRequest('GET', '/audio-lib/ratings-path');
+  } catch (e) {
+    console.error(`The server at ${ORIGIN} did not answer: ${e instanceof Error ? e.message : e}. Nothing was sent. Start it as described at the top of this file.`);
+    process.exit(2);
+  }
+  let served = null;
+  try {
+    const j = JSON.parse(answer.text);
+    if (answer.status === 200 && j && typeof j.path === 'string' && j.path) served = j.path;
+  } catch {
+    // not JSON: an old server answers this URL with 403 or with the page
+  }
+  if (served === null) {
+    console.error(`The server at ${ORIGIN} does not answer /audio-lib/ratings-path (status ${answer.status}): it is an old server that may write the owner's ratings. Nothing was sent. Restart it with AUDITION_RATINGS_FILE set to a scratch file.`);
+    process.exit(2);
+  }
+  if (samePath(served, OWNERS)) {
+    console.error(`The server at ${ORIGIN} writes its ratings to ${served}, which is the owner's file. Nothing was sent. Restart it with AUDITION_RATINGS_FILE set to a scratch file.`);
+    process.exit(2);
+  }
+  if (!samePath(served, RATINGS)) {
+    console.error(`The server writes its ratings to ${served}, but AUDITION_RATINGS_FILE here is ${RATINGS}: the check would restore the wrong file. Nothing was sent. Use the same file for both.`);
+    process.exit(2);
+  }
+}
+if (samePath(RATINGS, OWNERS)) {
+  console.error("AUDITION_RATINGS_FILE is the owner's ratings file: this check writes ratings. Set it to a scratch file.");
+  process.exit(2);
+}
+await refuseUnlessServerKeepsScratchRatings();
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const hadRatings = existsSync(RATINGS);
@@ -601,8 +652,19 @@ try {
     const tail = async (id, room) => {
       await setRange(pageS, 'room', room);
       await sleep(300);
+      const before = await pageS.evaluate(() => window.__audition.now());
       await press(pageS, `button[data-sound="${id}"]`);
-      await sleep(1060);
+      // The start is a little after the click (START_LEAD) and the browser's timers are not the audio clock: wait until the
+      // audio clock has passed the end of this very play, instead of for a fixed time, so that the test tone is over
+      // before the tail is measured.
+      await pageS.waitForFunction(
+        (a) => {
+          const p = (window.__audition.plays ?? []).filter((x) => x.id === a.id && x.start >= a.before).pop();
+          return p !== undefined && p.end !== Infinity && window.__audition.now() > p.end;
+        },
+        { id, before },
+        { timeout: 10000 },
+      );
       await pageS.evaluate(() => window.__audition.resetPeak());
       await sleep(300);
       const t = await pageS.evaluate(() => Math.max(window.__audition.peakLMax, window.__audition.peakRMax));

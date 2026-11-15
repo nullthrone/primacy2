@@ -113,10 +113,20 @@ class ShieldTest(unittest.TestCase):
         self.assertGreaterEqual(share(x, 250, 2000), 0.15)
         self.assertGreaterEqual(share(x, 2000, 1e5), 0.15)
         env = band_env_db(x, 20, 125)                      # 20 ms frames
+        # The throb beats, and the trough of one beat sits right at -12 dB: whether that single 20 ms
+        # frame lands at -11.9 or -12.3 depends on where the frames fall (a shift of 1.5 ms decides
+        # it). So one frame between two frames that hold may dip, down to -15 dB; two in a row end
+        # the run.
         within = env >= env.max() - 12.0
+        near = env >= env.max() - 15.0
         run = 0
-        while run < within.size and within[run]:
-            run += 1
+        while run < within.size:
+            if within[run]:
+                run += 1
+            elif near[run] and 0 < run < within.size - 1 and within[run - 1] and within[run + 1]:
+                run += 1
+            else:
+                break
         self.assertGreaterEqual(run * 0.020, 0.4)          # contiguous, from the start
         # the bass is the same in both ears
         from scipy.signal import butter, sosfilt

@@ -67,6 +67,16 @@ def test_possessive_name():
     assert r["names_hit"] == 1, r
 
 
+def test_spelling_folds_are_no_errors():
+    r = score.score_text("Cleared to pad four, stand by. Range twelve kilometres. Platinum ore.",
+                         "Cleared to pad 4 er standby. Range 12 km. Platinum or.")
+    assert r["ordinary_errors"] == 0, r
+    r = score.score_text("Helium 3", "Helium III")
+    assert r["ordinary_errors"] == 0, r
+    r = score.score_text("Cut your engines", "Cut your engines now")
+    assert r["ordinary_errors"] == 1
+
+
 def test_digit_read_backs():
     same = [
         ("seven four niner", "749"), ("seven four niner", "7 4 9"), ("seven four niner", "seven four nine"),

@@ -1,0 +1,191 @@
+{
+  "role": "chatterbox-nano",
+  "status": "done",
+  "summary": "Chatterbox-Nano runs on the CPU only (torch 2.6.0+cpu), speaking in the four Qwen3 reference clips (never the built-in voice). All 15 lines at 4 threads: median RTF 0.651 (range 0.58-0.91, pooled 0.70), load 2.65 s, peak RAM 4.54 GB. The four listen lines at 8 threads: median RTF 0.703, i.e. no speedup over 4 threads and far from the makers' claim of 3x real time (RTF 0.33). No streaming, so no first-audio time. Perth watermark always on. tools/voice/identity.py written and run.",
+  "licences": [
+    {
+      "what": "code (chatterbox repo)",
+      "url": "https://raw.githubusercontent.com/resemble-ai/chatterbox/master/LICENSE",
+      "first_line": "MIT License",
+      "read": "2026-11-15"
+    },
+    {
+      "what": "model card ResembleAI/chatterbox-nano",
+      "url": "https://huggingface.co/ResembleAI/chatterbox-nano/raw/main/README.md",
+      "first_line": "license: mit (front matter line 2); not gated (API gated:false); the Perth watermark section is the only further statement",
+      "read": "2026-11-15"
+    },
+    {
+      "what": "resemble-perth (watermarker code and shipped weights)",
+      "url": "https://raw.githubusercontent.com/resemble-ai/Perth/master/LICENSE",
+      "first_line": "MIT License",
+      "read": "2026-11-15"
+    }
+  ],
+  "installed": [
+    {
+      "package": "chatterbox-tts",
+      "version": "0.1.7 (version string) from commit ab55923c27757c90cfcc407baa57dc25a7d25217 (2026-11-04), installed with --no-deps",
+      "source": "git+https://github.com/resemble-ai/chatterbox.git. The PyPI wheel 0.1.7 does NOT contain nano (no 'nano' in its tts_turbo.py); commit 5de7a54 (2026-07-21) added it."
+    },
+    {
+      "package": "torch / torchaudio",
+      "version": "2.6.0+cpu",
+      "source": "https://download.pytorch.org/whl/cpu"
+    },
+    {
+      "package": "others",
+      "version": "numpy 1.26.4, transformers 5.2.0, diffusers 0.29.0, librosa 0.11.0, safetensors 0.5.3, conformer 0.3.2, pykakasi 2.3.0, resemble-perth 1.0.1, s3tokenizer 0.3.0, spacy-pkuseg, pyloudnorm, omegaconf, soundfile, scipy, huggingface_hub (full list in assets/audio/voice/chatterbox-nano/freeze.txt)",
+      "source": "PyPI. gradio (hard dependency in pyproject) not installed: nothing under src/ imports it. resemble-perth from PyPI 1.0.1 instead of the pyproject's git master."
+    }
+  ],
+  "downloaded": [
+    {
+      "repository": "ResembleAI/chatterbox-nano",
+      "revision": "71ccd1d0081b430592cea481f4307e764e07bc64",
+      "files": {
+        "added_tokens.json": 418,
+        "merges.txt": 456318,
+        "s3gen_meanflow.safetensors": 1064875036,
+        "special_tokens_map.json": 470,
+        "t3_nano_v1.safetensors": 869899204,
+        "tokenizer_config.json": 3878,
+        "ve.safetensors": 5695784,
+        "vocab.json": 999186
+      },
+      "bytes": 1941930294,
+      "not_downloaded": "conds.pt (built-in voice), s3gen.safetensors (not used by nano), t3_nano_v1.yaml, README"
+    }
+  ],
+  "voices": {
+    "control_f": {
+      "how": "voice of a reference clip invented by Qwen3-TTS VoiceDesign (assets/audio/voice/qwen3/cast/control_f.wav); conditionals made once per voice by the package's prepare_conditionals (reference loudness-normalised by the package); prep time 1.538 s",
+      "from": "cast.json description, via qwen3",
+      "seed": "torch.manual_seed(20261115) before the conditionals; torch.manual_seed(20261115 + index of the line in lines.json) before each line"
+    },
+    "pilot_m": {
+      "how": "voice of a reference clip invented by Qwen3-TTS VoiceDesign (assets/audio/voice/qwen3/cast/pilot_m.wav); conditionals made once per voice by the package's prepare_conditionals (reference loudness-normalised by the package); prep time 0.546 s",
+      "from": "cast.json description, via qwen3",
+      "seed": "torch.manual_seed(20261115) before the conditionals; torch.manual_seed(20261115 + index of the line in lines.json) before each line"
+    },
+    "computer": {
+      "how": "voice of a reference clip invented by Qwen3-TTS VoiceDesign (assets/audio/voice/qwen3/cast/computer.wav); conditionals made once per voice by the package's prepare_conditionals (reference loudness-normalised by the package); prep time 0.546 s",
+      "from": "cast.json description, via qwen3",
+      "seed": "torch.manual_seed(20261115) before the conditionals; torch.manual_seed(20261115 + index of the line in lines.json) before each line"
+    },
+    "dock_m": {
+      "how": "voice of a reference clip invented by Qwen3-TTS VoiceDesign (assets/audio/voice/qwen3/cast/dock_m.wav); conditionals made once per voice by the package's prepare_conditionals (reference loudness-normalised by the package); prep time 0.504 s",
+      "from": "cast.json description, via qwen3",
+      "seed": "torch.manual_seed(20261115) before the conditionals; torch.manual_seed(20261115 + index of the line in lines.json) before each line"
+    }
+  },
+  "timings": {
+    "cpu 4 threads, 15 lines": {
+      "rtf_median": 0.651,
+      "rtf_min": 0.582,
+      "rtf_max": 0.91,
+      "rtf_pooled": 0.697,
+      "load_s": 2.65,
+      "first_audio": "none: no streaming",
+      "peak_gpu_memory": "n/a (CPU, card hidden)",
+      "peak_ram_gb": 4.54,
+      "threads": 4,
+      "cond_prep_s_per_voice": {
+        "control_f": 1.538,
+        "pilot_m": 0.546,
+        "computer": 0.546,
+        "dock_m": 0.504
+      }
+    },
+    "cpu 8 threads, 4 listen lines (key chatterbox-nano-8t)": {
+      "rtf_median": 0.703,
+      "rtf_per_line": {
+        "radio_clearance": 0.653,
+        "computer_fold": 0.675,
+        "station_dock": 0.916,
+        "procedural_convoy": 0.73
+      },
+      "rtf_same_lines_at_4_threads": {
+        "radio_clearance": 0.582,
+        "computer_fold": 0.657,
+        "station_dock": 0.698,
+        "procedural_convoy": 0.819
+      },
+      "load_s": 3.26,
+      "first_audio": "none",
+      "peak_ram_gb": 4.11,
+      "threads": 8
+    },
+    "cuda": "not run: torch 2.6.0 has no kernels for this card, by the task's decision"
+  },
+  "sizes": {
+    "environment_gb": 1.7,
+    "model_gb": 1.94,
+    "outputs_mb": 14.5,
+    "disk_free_gb_after": 231
+  },
+  "identity": {
+    "chatterbox-nano (4 threads, 15 lines)": {
+      "same_voice_mean": 0.9453,
+      "same_voice_per_voice": {
+        "control_f": 0.9514,
+        "pilot_m": 0.9488,
+        "computer": 0.9333,
+        "dock_m": 0.9476
+      },
+      "different_voices": 0.6827,
+      "to_cast_mean": 0.8976,
+      "to_cast_per_voice": {
+        "control_f": 0.8889,
+        "pilot_m": 0.923,
+        "computer": 0.8541,
+        "dock_m": 0.9245
+      },
+      "different_voices_pairs": {
+        "computer|control_f": 0.7857,
+        "computer|dock_m": 0.5588,
+        "computer|pilot_m": 0.6689,
+        "control_f|dock_m": 0.6582,
+        "control_f|pilot_m": 0.7004,
+        "dock_m|pilot_m": 0.7323
+      }
+    },
+    "chatterbox-nano-8t (4 lines)": {
+      "same_voice_mean (only control_f has two lines)": 0.9586,
+      "different_voices": 0.7123,
+      "to_cast_mean": 0.8935
+    },
+    "reference": "the four qwen3 cast clips against each other: different_voices 0.7086 (dock_m|pilot_m 0.80, computer|control_f 0.76), so the clips themselves are not far apart for this encoder. Other models are in identity.json (at the time: kitten same 0.961 apart 0.620; kokoro same 0.955 apart 0.752; phonon same 0.948 apart 0.673; qwen3 cpu incomplete).",
+    "script": "tools/voice/identity.py, run through the lock with this environment's Python; writes assets/audio/voice/identity.json; recomputed from the files on every run"
+  },
+  "telemetry": {
+    "found": "Searched chatterbox, perth, s3tokenizer, conformer, pyloudnorm in site-packages for posthog, sentry, telemetry, analytics, urllib, requests, http: no telemetry or analytics code. Network use exists only in huggingface_hub snapshot_download inside from_pretrained (not used: the adapter calls from_local on the local snapshot) and in s3tokenizer's _download via urllib (modelscope ONNX, only for its own load_model path; chatterbox builds S3Tokenizer(name) directly with weights from s3gen_meanflow.safetensors, so it is not reached).",
+    "switched_off": "HF_HUB_DISABLE_TELEMETRY=1, DO_NOT_TRACK=1, HF_HUB_OFFLINE=1, HF_TOKEN unset; sockets blocked from before model loading to the end of the run: 0 refused connection attempts in both runs (net_attempts: [] in timing.json)."
+  },
+  "watermark": "Perth implicit watermark is always on: tts_turbo.py creates PerthImplicitWatermarker in __init__ and generate() always returns the watermarked wave; no switch. Left as the package does it, so every WAV carries it. Perth ships its weights as a .pth.tar pickle inside the PyPI package (37 MB, makers ship nothing else), loaded by torch.load without an explicit weights_only; torch 2.6.0 defaults to weights_only=True and loading succeeded, so it was loaded under the safe default.",
+  "problems": [
+    "Speed claim not reproduced: at 8 threads the median RTF was 0.703, at 4 threads the same four lines gave 0.582, 0.657, 0.698, 0.819. The makers claim 3x real time on 8 cores (RTF 0.33). Reasons not separated: the autoregressive token loop may not scale with threads; other agents' processes ran on the machine (the lock only serialises voice benches); the makers name no hardware.",
+    "Short lines cost relatively more (station_refuel, 4.2 s of audio, RTF 0.91): a fixed cost per call.",
+    "PyPI chatterbox-tts 0.1.7 has no nano; the source commit was needed. pyproject hard-pins torch 2.6.0 / transformers 5.2.0 / gradio 6.8.0; gradio was left out.",
+    "chatterbox/__init__ imports ChatterboxVC, whose vc.py calls torch.load(conds.pt) without weights_only: never reached here (no conds.pt, VC unused).",
+    "Timed region is generate(text) with the conditionals prepared beforehand per voice (0.4-1.5 s per voice, first one slower); a server that does not cache them pays that on every call.",
+    "librosa's kaiser_fast resampling needs resampy, which is not installed; identity.py resamples with librosa's default resampler instead (same as the package's own path).",
+    "CUDA not tested (by decision). The five-minute CPU limit was never approached (slowest line 8.3 s)."
+  ],
+  "notVerified": [
+    "How any voice sounds; nobody listened. Whether the voices fit the descriptions in cast.json, and whether numbers and invented names are intelligible (Whisper read-back by score.py not run by me).",
+    "Whether 8 threads would reach the makers' figure on an otherwise idle machine; CPU load of other processes during the runs was not measured.",
+    "That the Perth watermark is really present in the files (extraction not run) and that it is inaudible.",
+    "Speaker-encoder cosines say nothing about whether a voice is right, and are not comparable between encoders.",
+    "Behaviour on a server CPU other than this AMD 16-thread machine."
+  ],
+  "filesWritten": [
+    "tools/voice/adapters/chatterbox-nano.py",
+    "tools/voice/identity.py",
+    "assets/audio/voice/identity.json",
+    "assets/audio/voice/chatterbox-nano/ (cpu/*.wav, cpu/timing.json, cast/*.json, freeze.txt, download.json)",
+    "assets/audio/voice/chatterbox-nano-8t/ (cpu/*.wav, cpu/timing.json, cast/*.json)",
+    ".venv-voice/chatterbox-nano/",
+    "docs/reports/2026-11-15/voice-chatterbox-nano-report.json"
+  ]
+}

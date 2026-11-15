@@ -14,7 +14,8 @@ into 749, keeps "niner", drops the zero of "04" and the percent sign of "20 %". 
 script (a) reads "niner" as nine, "decimal" as point, "m/s" as metres per second and "%" as percent, (b)
 writes every digit string out as spoken digits, and after it (c) cuts every digit run into single digits.
 "seven four niner", "749", "7 4 9" and "seven four nine" are then the same three tokens. Radio call signs
-("Alpha Kilo", "AK-447") are made equal the same way. Errors are counted apart: ordinary words and the
+("Alpha Kilo", "AK-447") are made equal the same way. A few spellings that are no speech error are folded
+on both sides (see _spelling_fold: filler "er", "stand by"/"standby", "km", roman "iii", "ore"/"or"). Errors are counted apart: ordinary words and the
 invented names of a line ('names' in lines.json). An error run (substitutions, deletions, insertions in a
 row) that touches a name position counts for the name, not for the ordinary words.
 """
@@ -183,7 +184,32 @@ def normalise_tokens(text: str, names: list[str] | None = None, normalizer=None)
                 toks.append("percent")
             else:
                 toks.append(part)
-    return [t for t in toks if t.strip()]
+    return _spelling_fold([t for t in toks if t.strip()])
+
+
+# Spellings the recogniser chooses that are no speech error. Applied to reference and recogniser output
+# alike. "er"/"erm" are filler spellings of a pause (the Whisper normaliser drops "uh"/"um" but not
+# these); "stand by" and "standby", "km" and "kilometers", the roman "iii" for the written 3 and the
+# homophones "ore"/"or" are one word each in speech.
+_FILLERS = {"er", "erm"}
+_WORD_FOLD = {"km": "kilometers", "iii": "3", "ore": "or"}
+
+
+def _spelling_fold(toks: list[str]) -> list[str]:
+    out: list[str] = []
+    i = 0
+    while i < len(toks):
+        t = toks[i]
+        if t in _FILLERS:
+            i += 1
+            continue
+        if t == "stand" and i + 1 < len(toks) and toks[i + 1] == "by":
+            out.append("standby")
+            i += 2
+            continue
+        out.append(_WORD_FOLD.get(t, t))
+        i += 1
+    return out
 
 
 def _nato_fold(ref: list[str], hyp: list[str]) -> tuple[list[str], list[str]]:

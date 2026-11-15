@@ -13,7 +13,7 @@ export interface Fault {
   t: number;
   /** The magnitude of the sample (clip) or of the step (click). */
   size: number;
-  /** For a click: the step divided by the 99.9th percentile of the steps in the surrounding 50 ms. */
+  /** For a click: the step divided by the 99.9th percentile of the steps in the surrounding 50 ms (its own few samples left out). */
   ratio?: number;
   /** 'file' when the same fault is in the samples of a sound that was playing, else 'page'. */
   origin: 'page' | 'file';
@@ -30,18 +30,33 @@ export interface CaptureResult {
   faults: Fault[];
 }
 
-export const CLICK_STEP = 0.05;
-export const CLICK_RATIO = 8;
+/**
+ * A step counts as a click when it stands far above the steps around it, so the test follows the material instead
+ * of a fixed level:
+ *  - ratio: the step is at least CLICK_RATIO times the 99.9th percentile of the steps in the surrounding 50 ms, with
+ *    the click's own 1 ms on either side left out of that surrounding;
+ *  - level: and at least CLICK_LEVEL times the RMS of the signal in the same surrounding, so that a step that is only
+ *    a large part of a very quiet surrounding's tiny steps is not mistaken for one when the signal itself is large;
+ *  - dust: and above CLICK_DUST (about -70 dBFS), below which nothing is looked at.
+ */
+export const CLICK_RATIO = 3;
+export const CLICK_LEVEL = 0.5;
+export const CLICK_DUST = 10 ** (-70 / 20);
 /**
  * A sound file is looked at more closely than the output: the page changes its level and adds the room, so a step
  * that is below the limits in the file can be above them at the output. A step of the output counts as the file's
- * when the file has a step of a quarter of that size, standing out from its surroundings by half the ratio.
+ * when the file has a step that passes a looser test.
  */
-const FILE_STEP = CLICK_STEP / 4;
-const FILE_RATIO = CLICK_RATIO / 2;
+const FILE_RATIO = 2;
+const FILE_LEVEL = CLICK_LEVEL / 4;
+const FILE_DUST = CLICK_DUST / 4;
 /** Half the surrounding window in samples at 48 kHz (50 ms in all). */
 const HALF_WINDOW = 1200;
-const HOP = 600;
+/** Samples around a candidate that do not count as its surroundings: a click rings for a moment (about 1 ms). */
+const GUARD = 48;
+/** A page fault is only blamed on a file whose own fault is not much weaker than it (a ratio is capped at this). */
+const RATIO_CAP = 1000;
+const FILE_RATIO_SLACK = 4;
 
 const WORKLET = `
 class Rec extends AudioWorkletProcessor {
@@ -85,20 +100,35 @@ class Rec extends AudioWorkletProcessor {
 registerProcessor('audition-rec', Rec);
 `;
 
-/** Samples around a candidate that do not count as its surroundings: a click rings for a moment (about 1 ms). */
-const GUARD = 48;
-
-/** 99.9th percentile of the steps in [lo, hi) of `steps`, leaving out [skipLo, skipHi) when given. */
-function percentile(steps: Float32Array, lo: number, hi: number, skipLo = 0, skipHi = 0): number {
-  const from = Math.max(0, lo);
-  const to = Math.min(steps.length, hi);
-  const a = skipHi > skipLo ? Float32Array.from([...steps.subarray(from, Math.max(from, Math.min(to, skipLo))), ...steps.subarray(Math.min(to, Math.max(from, skipHi)), to)]) : steps.slice(from, to);
-  a.sort();
-  return a.length ? a[Math.min(a.length - 1, Math.floor(0.999 * (a.length - 1)))] : 0;
+/**
+ * The 99.9th percentile of the steps in [lo, hi) leaving out [gl, gh): the k-th largest one, found without sorting.
+ * Steps are never negative, so zero stands for "none yet".
+ */
+function reference(steps: Float32Array, lo: number, gl: number, gh: number, hi: number): { ref: number; n: number } {
+  const n = gl - lo + (hi - gh);
+  if (n <= 0) return { ref: 0, n: 0 };
+  // Same rank as a sorted copy read at index floor(0.999 * (n - 1)).
+  const k = n - Math.floor(0.999 * (n - 1));
+  const top = new Float32Array(k);
+  const feed = (from: number, to: number): void => {
+    for (let j = from; j < to; j++) {
+      const v = steps[j];
+      if (v <= top[k - 1]) continue;
+      let p = k - 1;
+      while (p > 0 && top[p - 1] < v) {
+        top[p] = top[p - 1];
+        p--;
+      }
+      top[p] = v;
+    }
+  };
+  feed(lo, gl);
+  feed(gh, hi);
+  return { ref: top[k - 1], n };
 }
 
 /** Clipped samples and clicks of one channel; times in seconds from the first sample. */
-export function analyseChannel(x: Float32Array, rate: number, channel: number, minStep = CLICK_STEP, minRatio = CLICK_RATIO): Raw[] {
+export function analyseChannel(x: Float32Array, rate: number, channel: number, minRatio = CLICK_RATIO, minLevel = CLICK_LEVEL, dust = CLICK_DUST): Raw[] {
   const out: Raw[] = [];
   const gap = Math.round(rate * 0.005);
   let lastClip = -Infinity;
@@ -115,28 +145,33 @@ export function analyseChannel(x: Float32Array, rate: number, channel: number, m
   }
   const steps = new Float32Array(x.length);
   for (let i = 1; i < x.length; i++) steps[i] = Math.abs(x[i] - x[i - 1]);
-  const cache = new Map<number, number>();
+  // Running sums of the squares, for the RMS level of any stretch.
+  const sq = new Float64Array(x.length + 1);
+  for (let i = 0; i < x.length; i++) sq[i + 1] = sq[i] + x[i] * x[i];
   let lastClick = -Infinity;
   for (let i = 1; i < x.length; i++) {
     const d = steps[i];
-    if (d <= minStep) continue;
-    const block = Math.floor(i / HOP);
-    let p = cache.get(block);
-    if (p === undefined) {
-      const centre = block * HOP + HOP / 2;
-      p = percentile(steps, centre - HALF_WINDOW, centre + HALF_WINDOW);
-      cache.set(block, p);
+    if (d <= dust) continue;
+    // A click is the largest step of its own neighbourhood; the slopes of a smooth signal are not.
+    const near0 = Math.max(0, i - GUARD);
+    const near1 = Math.min(x.length, i + GUARD + 1);
+    let top = true;
+    for (let j = near0; j < near1; j++) {
+      if (steps[j] > d) {
+        top = false;
+        break;
+      }
     }
-    // A flat surrounding gives a percentile of 0; the step then only has to clear the absolute threshold.
-    let ratio = p > 0 ? d / p : Infinity;
-    if (ratio <= minRatio) {
-      // The ringing of the click itself raises the percentile of its own surroundings; judge it against the steps
-      // around it instead, with the 1 ms on either side left out.
-      if (ratio <= minRatio / 4) continue;
-      const q = percentile(steps, i - HALF_WINDOW, i + HALF_WINDOW, i - GUARD, i + GUARD);
-      ratio = q > 0 ? d / q : Infinity;
-      if (ratio <= minRatio) continue;
-    }
+    if (!top) continue;
+    const lo = Math.max(0, i - HALF_WINDOW);
+    const hi = Math.min(x.length, i + HALF_WINDOW + 1);
+    const { ref, n } = reference(steps, lo, near0, near1, hi);
+    // The level of the surrounding signal, the click's own few samples left out.
+    const rms = n > 0 ? Math.sqrt((sq[near0] - sq[lo] + (sq[hi] - sq[near1])) / n) : 0;
+    if (d <= minLevel * rms) continue;
+    // A flat surrounding gives a reference of 0; the step then only has to clear the dust floor and the level test.
+    const ratio = ref > 0 ? d / ref : Infinity;
+    if (ratio <= minRatio) continue;
     if (i - lastClick > gap) out.push({ kind: 'click', channel, t: i / rate, size: d, ratio });
     else {
       const f = out[out.length - 1];
@@ -167,7 +202,7 @@ export function fileFaults(id: string): Promise<Raw[]> {
         const x = new Float32Array(d.length + extra);
         x.set(d);
         x.set(d.subarray(0, extra), d.length);
-        all.push(...analyseChannel(x, b.sampleRate, c, FILE_STEP, FILE_RATIO));
+        all.push(...analyseChannel(x, b.sampleRate, c, FILE_RATIO, FILE_LEVEL, FILE_DUST));
       }
       return all;
     });
@@ -185,6 +220,14 @@ interface Play {
 
 const MATCH = 0.02;
 
+/** True when a fault of a file can be what the output's fault is: same kind, same place, and for a click not much weaker. */
+function sameFault(own: Raw, f: Raw, rel: number): boolean {
+  if (own.kind !== f.kind || Math.abs(own.t - rel) > MATCH) return false;
+  if (f.kind !== 'click') return true;
+  // A click that the page makes on top of a mild step of the file is stronger than that step by far.
+  return Math.min(own.ratio ?? RATIO_CAP, RATIO_CAP) * FILE_RATIO_SLACK >= Math.min(f.ratio ?? RATIO_CAP, RATIO_CAP);
+}
+
 /** Marks a fault as 'file' when a sound playing at that moment holds the same kind of fault at the same place. */
 async function attribute(f: Raw, audioTime: number, plays: Play[]): Promise<Fault> {
   const sounds: string[] = [];
@@ -196,9 +239,9 @@ async function attribute(f: Raw, audioTime: number, plays: Play[]): Promise<Faul
     const len = p.length ?? 0;
     if (p.end === Infinity && len > 0) rel = ((rel % len) + len) % len;
     const own = await fileFaults(p.id);
-    if (own.some((q) => q.kind === f.kind && Math.abs(q.t - rel) <= MATCH)) origin = 'file';
+    if (own.some((q) => sameFault(q, f, rel))) origin = 'file';
     // A fault at the wrap of a looped file sits at the end and at the start of the file at once.
-    else if (len > 0 && own.some((q) => q.kind === f.kind && Math.abs(q.t - rel - len) <= MATCH)) origin = 'file';
+    else if (len > 0 && own.some((q) => sameFault(q, f, rel + len))) origin = 'file';
   }
   return { ...f, origin, sounds };
 }
@@ -313,4 +356,6 @@ export function installCaptureHooks(): void {
   h.injectTone = (amp: number, freq: number, when: number, seconds: number) => engine.injectTone(amp, freq, when, seconds);
   h.limiterMakeupDb = () => engine.limiterMakeupDb.value;
   h.settled = () => engine.settled();
+  // The detector itself, for the controls of the check: plain arrays in, faults out.
+  h.analyse = (samples: number[], rate: number) => analyseChannel(Float32Array.from(samples), rate, 0);
 }
