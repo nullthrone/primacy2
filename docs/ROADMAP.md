@@ -25,9 +25,11 @@ Built on 2026-11-14 and played in the browser with a simulated controller by
 `scripts/pad-check.mjs` (114 checks): controller support for flight, menus, station screens, maps
 and a binding screen. No real controller has been used yet.
 
-Built on 2026-11-14 beside the game and not yet in it: the sound library (64 sounds rendered by
-scripts, 50 downloaded files with a licence list) and the audition page on which the owner listens
-and rates. The game itself still plays the old procedural sound.
+Built on 2026-11-14 beside the game and not yet in it: the sound library (on 2026-11-15: 75 sounds
+rendered by scripts, eleven of them direction samples for the owner to choose between, and 33
+downloaded files with a licence list) and the audition page on which the owner listens and rates.
+The game itself still plays the old procedural sound. Since 2026-11-15 there is also a comparison
+of five open speech models (`tools/voice`), with twenty voice samples on the audition page.
 
 Tests: 779 pass, 2 are marked as expected failures on purpose (see section 4). The audio tools have
 tests of their own in Python (listening tools 22, synthesis 38, downloads 27).
@@ -95,13 +97,23 @@ The decisions were made in interviews; the wording here is the specification.
 - Sound concept "you hear your ship, not space": structure-borne sound, cockpit, radio with a
   filter, sensor sonification for what happens outside, silence as a means. Sources that fit the
   AGPL repository: sounds rendered by scripts in the repository, CC0 packs, public-domain NASA
-  recordings, voices from open local speech models, the owner's own phone recordings. An audition
-  page lets the owner listen and rate; the game's audio is changed only after that.
+  recordings without voices, voices from open local speech models, the owner's own phone
+  recordings. An audition page lets the owner listen and rate; the game's audio is changed only
+  after that.
 - Added by the owner on 2026-11-14 after his first listening: the high-energy events (a hit on the
   shield, the fold jump and its exit) must sound energetic, hissing and rushing, not dull; and the
   sound must have width and places (stereo, spatial), not sit in the middle. The direction for
   every sound, the rules it is checked against and the owner's words from each listening round
   are in `tools/audio/SOUND_DESIGN.md`.
+- Added by the owner on 2026-11-15 after his second listening: many sounds are too muffled, "it
+  feels like a submarine simulation and not like a space sim"; it is a game, and a sound may be
+  clearer and larger than physics. The beds he heard stay as they are (he approved every one);
+  the short events get an attack, a body and a tail, and energy always has a bass throb. No
+  recorded voices of real people: the NASA radio traffic is struck. Voices come from our own
+  pipeline of generated speech: in the radio, as the ship computer and as station staff, in
+  English, able to speak text the game generates, with artificial voices only (no real person as
+  template, his own voice included). What happens outside the ship stays a sensor signal: asked
+  whether it may now be heard as real sound, he answered "not for now".
 
 ### Sound library and controller support (built on 2026-11-14)
 
@@ -115,26 +127,75 @@ The sound library, all of it outside the game's runtime:
   The build renders them, checks every rule and writes the manifest. Rendered files are not in
   git; the build is deterministic and makes them again.
 - `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
-  from kenney.nl and 52 files from NASA hosts (329 MB, not in git, fetched again by the script
-  with checksums), every file with its licence and where it was read. 50 of them are picked for
-  listening (`assets/audio/selection.json`).
+  from kenney.nl and NASA recordings without voices (25 entries, about 160 MB, not in git,
+  fetched again by the script with checksums), every file with its licence and where it was
+  read. 32 NASA entries with speech were struck on 2026-11-15 and are listed with the reason. 33
+  files are picked for listening (`assets/audio/selection.json`). The build processes every
+  picked file before anyone hears it: level from the table of the rendered sounds, no step at
+  either end, loops crossfaded, a clipped source marked.
 - The audition page (`packages/client/dev/audition.html`, a page of the dev server only): every
   sound alone, the engine levels on one thrust slider, a stage (mono, stereo, headphones, a room
   slider), four scenes (docking approach, combat, moon landing, fold jump), ratings that are
   saved to `assets/audio/ratings.json`, and a mark on sounds that changed since their rating.
 
-Listening rounds: round 1 on 2026-11-14 (20 of 114 rated) approved the engine idle, the cruise
-chain, the fold charge and tunnel, the cabin and the missile warning, and rejected the shield
-hits, the fold jump and exit and the shields-down alarm; 20 sounds were reworked for it. Round 2
-is on the page and waits for him. `assets/audio/rounds/` keeps what he heard in each round.
+Listening rounds (`assets/audio/rounds/` keeps what he heard in each; his words and the
+measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
 
-Open for the owner to decide: 15 of the NASA files carry the voices of astronauts and flight
-controllers who can be identified; they are marked as test material that must not ship. Whether
-the game's radio uses real NASA traffic, his own voice or synthetic voices is his decision. He
-offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
+- Round 1 on 2026-11-14 (20 of 114 rated) approved the engine idle, the cruise chain, the fold
+  charge and tunnel, the cabin and the missile warning, and rejected the shield hits, the fold
+  jump and exit and the shields-down alarm; 20 sounds were reworked for it.
+- Round 2 on 2026-11-15 (32 rated on the current files, 49 in all). He did not go through
+  everything, "because above all we have to judge the big picture anew". Every bed he heard
+  fits. Every dull short event is wrong, each with the same words ("as if someone knocked on a
+  dull plastic container"): thruster pulses, hull hits, landing gear. The shield hits are close
+  ("energetic must always have a bass throb as well"). Measured, the rejected events have 50 to
+  83 % of their energy in the one octave from 125 to 250 Hz, no attack above 1 kHz and nothing
+  below 60 Hz; an approved dull boom has depth, and rejected bright hits are tiny. So the answer
+  is not "brighter" but "a shape and weight". He heard crackling: it was in the downloaded
+  files (hard cuts, played 10 to 20 dB too loud) and in the page (a compressor as limiter,
+  loops that started on a step); both are repaired.
+- Round 3 is on the page and waits for him: eleven direction samples (hull hit, thruster pulse
+  and landing gear in three answers each, shield hit in two) and twenty voice samples. The
+  reworked fold jump, fold exit, shields-down alarm and cruise charge of round 1 are still
+  unrated, and nothing was said yet about the stereo stage. His choice among the direction
+  samples becomes the rule; then the event sounds are rendered anew.
 
-Not built: the game's runtime audio on the library (the next step, see section 3), voices and
-music (the models are downloaded and have never been run).
+He offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
+
+Not built: the game's runtime audio on the library (see section 3), the voice pipeline (only the
+comparison of models exists), music (the model is downloaded and has never been run).
+
+### Voices: a comparison of open speech models (2026-11-15)
+
+`tools/voice` holds a comparison and no pipeline. About forty open models were looked at with the
+licence read at the source (`tools/voice/CANDIDATES.md`; the dossiers are in
+`docs/reports/2026-11-15/voice-dossiers.json`). Most fail a rule of the owner: non-commercial
+terms, a gated repository, or only voices of real speakers. Five were run, each in its own
+environment under `.venv-voice/`, on fifteen test lines (radio, ship computer, station staff,
+invented names, numbers) in four invented voices. `tools/voice/RESULTS.md` has every figure;
+nobody has heard a voice yet.
+
+| model | voices | speed (below 1 is faster than real time) | open point |
+|---|---|---|---|
+| Qwen3-TTS (1.7B designs, 0.6B speaks) | built from a text description | 1.8 to 3.0 on the graphics card, 3.6 to 3.8 on 4 processor threads | too slow for live speech with the package as it is |
+| Chatterbox-Nano (110M) | speaks in the designed Qwen3 voices | 0.65 to 0.79 on 4 threads, 0.53 to 0.70 on 8 | always embeds an inaudible watermark; 4.5 GB of memory |
+| Kokoro (82M) | blends of the model's presets | 0.14 on 4 threads | where the presets come from is not documented; needs a GPL library for invented names |
+| Kitten TTS 2 Mini (82M) | the model's presets | 0.15 on 4 threads | the makers do not say where the voices come from |
+| Phonon 31M | the makers' designed fantasy characters | 0.07 on 4 threads; runs in a browser tab (65 MB) | no voice fits a role; slow speech with long pauses |
+
+The speech recogniser read every model back with few errors on ordinary words; invented names
+came back as written in 10 to 15 of 24 cases, which mixes the models' errors with the
+recogniser's. Every model keeps a voice the same from line to line by the measure used.
+
+What follows from it, for the owner to decide after listening: the voices are designed once with
+Qwen3-TTS; what speaks while the game runs must be a small model, and only Chatterbox-Nano among
+the five speaks in a designed voice on a processor. The small preset models are several times
+faster and one runs in the browser, but their voices are not shown to be free of a real person
+as template. Not tried: a small model that takes a designed voice and runs in the browser (one
+candidate appeared the day before the comparison, ZONOS3-Mini; the provenance of its voice data
+is unclear), text normalisation (numbers, units, call signs are written out by hand in the test
+lines), and how the game asks for speech (ahead by the server, cached by content, or in the
+browser).
 
 Controller support: gamepads and joysticks through the Gamepad API feed the same input values as
 keyboard and mouse (`packages/client/src/input/gamepad.ts`, pure logic with tests); binding codes
@@ -303,11 +364,14 @@ in the foreground and went on in the background after ten minutes.
 Each step is one work session with its own workflow runs.
 
 1. **Sound library and controller support.** Built on 2026-11-14 (see section 2). What is left of
-   the sound: the owner's listening rounds until he approves the set, then the game's runtime
-   audio is rebuilt on the library (files instead of oscillators, the stage with places, two
-   channels and the cabin's impulse response, levels as rendered), then voices and music. The
-   runtime audio is core work for the strongest model; `docs/NEXT.md` is its brief. What is left
-   of the controller: the owner's own test with a real pad.
+   the sound, in this order: the owner's round 3 (he chooses a direction for the short events
+   and judges the voice samples); the event sounds rendered anew to the chosen direction and
+   heard once more; the game's runtime audio rebuilt on the library (files instead of
+   oscillators, the stage with places, two channels and the cabin's impulse response, levels as
+   rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
+   in section 2); music. The runtime audio and the design of the voice pipeline are core work
+   for the strongest model; `docs/NEXT.md` is the brief. What is left of the controller: the
+   owner's own test with a real pad.
 2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
    touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
@@ -377,10 +441,23 @@ Defects seen and left in:
   axis bound as the throttle lever is exempt. A joystick or HOTAS pilot will meet this.
 - Sound library: the radio filter fails its rule on speech clips shorter than about 3 s (the
   speech model mishears them even unfiltered; lines of 20 s pass with 0 to 9 % word errors). The
-  rattles in the heavy hull hit sit at even distances. Downloaded loops are raw files whose seams
-  nobody checked. On the audition page the level of a point source in the Headphones setting
-  against Mono and Stereo was never measured (Stereo uses a balance law that keeps a source
-  ahead at the file's level). The intent texts on the page are English only.
+  rattles in the heavy hull hit sit at even distances. On the audition page the level of a point
+  source in the Headphones setting against Mono and Stereo was never measured (Stereo uses a
+  balance law that keeps a source ahead at the file's level). The intent texts on the page are
+  English only.
+- Sound library, since round 2: the rules in `tools/audio/synth/rules.py` still check one-shots
+  of the structure and energy paths the old way (dull); they get new numbers from the direction
+  the owner chooses in round 3. Some rendered one-shots start on a sample that is not silence
+  (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
+  radio squelch): the audition page fades such a start, the game's runtime will have to do the
+  same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
+  firing is clipped in its source (marked; the owner rated it as fitting), and the recording of
+  the laser shots is a row of hard snaps by nature. The speech recogniser finds no words in the
+  eleven NASA recordings that are left, which does not prove that nobody speaks in them.
+- The click detector of the audition check (`packages/client/src/dev/audition/capture.ts`)
+  compares a step with the steps around it. In loud dense noise a click that fits under full
+  scale does not stand out by that measure and is not found; as far as a measurement can say it
+  is masked there. The check's "no click from the page" holds within that limit.
 - The measuring tools and rules of the sound library (`tools/audio/listen/measure.py`,
   `tools/audio/synth/rules.py`, `tools/audio/build.py`) have their own tests but were not
   reviewed by a second pair of eyes, and every "passes all rules" rests on them. One mismatch is
@@ -414,8 +491,9 @@ Never verified:
   star, how fast the exposure follows, whether the canopy scratches distract. Seen only in still
   pictures of the dev pages. The frame keeps its depth as a texture next to a multisampled colour
   target and the final pass reads it in its vertex shader: tried in Chromium only.
-- Any sound by ear, except what the owner rated (20 of 114 in round 1). Every other judgement of
-  the sound library comes from measurements, spectrogram pictures and two models.
+- Any sound by ear, except what the owner rated (49 of 114 after round 2; the direction samples
+  and the voice samples of round 3 not yet). Every other judgement of the sound library and of
+  the speech models comes from measurements, spectrogram pictures and models that listen.
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
@@ -469,9 +547,17 @@ Other notes:
   owner's own login. The owner's condition for downloads: at least 10 % of the disk stays free
   (on 2026-11-14: 259 GB free of 2,047 GB, so about 54 GB of room). Run so far: CLAP, Whisper and
   Qwen2-Audio (the last in 4-bit through bitsandbytes, about 6.4 GB of graphics memory); their
-  licences (Apache-2.0) are in `tools/audio/MODELS.md`. The speech and music models have not been
-  run. The licence of each model and each downloaded sound is to be read and recorded before
-  first use.
+  licences (Apache-2.0) are in `tools/audio/MODELS.md`. The music model and the Parler speech
+  model have not been run. The licence of each model and each downloaded sound is to be read and
+  recorded before first use.
+- The speech models of the comparison (2026-11-15) each have their own environment under
+  `.venv-voice/<key>/` (ignored by git, made with `uv`, about 12 GB together) and their weights
+  in the Hugging Face cache (about 9 GB: Qwen3-TTS VoiceDesign 1.7B and Base 0.6B,
+  Chatterbox-Nano, Kokoro-82M, Phonon 31M with its twelve designed character voices, Kitten TTS
+  2 Mini). Nothing is installed into `.venv-audio`; a saved package list
+  (`assets/audio/voice/venv-audio-freeze-before.txt`) proves it. `tools/voice/README.md` has the
+  rules and how a model is run; timed runs go through `tools/voice/with_lock.py`. After the
+  comparison 231 GB of 1.9 TB were free (the owner's limit is 10 %, so about 40 GB of room).
 - The sound library: `tools/audio/README.md` (the listening tools), `tools/audio/synth/README.md`
   (how a sound is written), `tools/audio/SOUND_DESIGN.md` (the direction and the rules).
   Render everything: `.venv-audio/Scripts/python.exe tools/audio/build.py` (add `--describe` for
@@ -481,7 +567,13 @@ Other notes:
 - The audition page: `npm run dev:client`, then `/dev/audition.html` on the port it prints. Its
   browser check, `node tools/dev/audition-check.mjs`, needs a dev server and the variable
   `AUDITION_RATINGS_FILE` pointing at a scratch file on both, so that the owner's ratings are
-  never touched (see `docs/reports/2026-11-14/audition-space-report.json`).
+  never touched (see `docs/reports/2026-11-14/audition-space-report.json`). Since 2026-11-15 the
+  check asks the server which file it writes and refuses to start if that is the owner's. It
+  also records what the page really plays, after the limiter, and looks for clicks and clipped
+  samples in it (about 20 minutes for everything; `AUDITION_CAPTURE=skip` leaves it out,
+  `AUDITION_CAPTURE_ONLY=id,id` and `AUDITION_CAPTURE_SCENES=fold` narrow it).
+- The voice samples on the audition page are put there by
+  `.venv-audio/Scripts/python.exe tools/voice/publish.py` (and taken off with `--remove`).
 - The controller in a browser: `node scripts/pad-check.mjs` plays the game with a simulated pad
   (same ports and switches as `scripts/e2e.mjs`).
 - The checkpoint loop ends after eight hours. Start it again when it has ended: on 2026-11-14 an

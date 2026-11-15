@@ -16,7 +16,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Licence of weights: Apache-2.0, from the model-card metadata of both repositories (https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign/raw/main/README.md and https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base/raw/main/README.md: "license: apache-2.0"). Not gated. The model repositories have no LICENSE file.
 - How voices are made: VoiceDesign writes a short reference clip from a text description (no real person). The Base 0.6B model builds a reusable clone prompt from that clip and speaks every line with it. One seed, 20261115, for all four voices (each voice also had takes 2 and 3 with seeds 20261116 and 20261117, not used); take 1 passed all checks for every voice (`cast/*.json`). The four clips are the shared cast for the Chatterbox run.
 - No real person as template (owner's rule): **met by method.** The voices are VoiceDesign output from a text description; the Base model only clones those clips.
-- Both models are loaded offline (`HF_HUB_OFFLINE=1`) from the local snapshots of the revisions above.
+- Since the audit the adapter loads both models offline (`HF_HUB_OFFLINE=1`) from the local snapshots of the revisions above. The run on the CPU was made that way. The scored run on the card and the audit's re-times were made with the earlier adapter, which named no revision; the snapshots on disk were the same ones.
 - Open points:
   - No LICENSE file in the model repositories; the licence rests on the card metadata and the paper.
   - The training data (more than 5M hours per the paper) is not itemised.
@@ -68,7 +68,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
   - The Mimi codec that Phonon builds on: CC-BY-4.0 (attribution) according to the card of the separate `kyutai/mimi` repository, which the builder read. The dossier says Mimi's licence was not read for the weights inside the Phonon repository, so the figure is not shown for those; nothing was downloaded from the Mimi repository.
   - No graphics-card run exists.
   - The in-memory `add_voice_from_embedding` call gave different audio from the same embedding loaded from a file; the blend was therefore written as files.
-  - Timing varies between runs (RTF 0.082 and 0.068 in the builder's two runs; 0.067 to 0.074 over five later runs); the cause was not measured (other agents and the owner's programs were using the machine at times).
+  - Timing varies between runs (RTF 0.082 and 0.068 in the builder's two runs; 0.067 to 0.074 over the scored run, the audit's run and three later runs); the cause was not measured (other agents and the owner's programs were using the machine at times).
 
 ### Kitten TTS 2 Mini (key `kitten`)
 

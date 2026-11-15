@@ -804,7 +804,9 @@ class Engine {
       const w = crossfadeWeights(points, lastThrust);
       nodes.forEach((n, i) => {
         state[i].gain = w[i] * master * (n.sound.gain ?? 1);
-        n.g.gain.setTargetAtTime(state[i].gain, ctx.currentTime, 0.03);
+        // Never before the moment the sources start: the gain is held at 0 until then, so the rise begins together with
+        // the sound, not a part of it earlier (loops start in the middle of a wave and would begin on a step).
+        n.g.gain.setTargetAtTime(state[i].gain, Math.max(ctx.currentTime, when), 0.03);
       });
     };
     apply();

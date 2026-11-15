@@ -248,20 +248,118 @@ def _lead_in(first: np.ndarray, n: int) -> np.ndarray:
     return ramp[:, None] * first[None, :]
 
 
-def _loop_crossfade(x: np.ndarray) -> tuple[np.ndarray, int]:
-    """Make x wrap without a step: the last k samples are mixed into the first k with equal power
-    (cos / sin) and cut off, so the result is k samples shorter. Its first sample is the sample
-    that followed its last one in the recording. Returns (y, k); k is 0 where the file is too
-    short for a crossfade."""
+def envelope_peak_index(x: np.ndarray) -> int:
+    """Index (in samples) of the maximum of the envelope of x (n, ch): the moving average over
+    ENV_WINDOW_MS of the largest |sample| of the channels, centred, first maximum on a tie."""
+    w = max(1, int(round(ENV_WINDOW_MS * DOWNLOAD_SR / 1000.0)))
+    m = np.abs(x).max(axis=1)
+    if m.shape[0] < w:
+        return int(np.argmax(m))
+    cs = np.concatenate([[0.0], np.cumsum(m)])
+    env = (cs[w:] - cs[:-w]) / w          # env[i] covers samples i .. i+w-1
+    return int(np.argmax(env)) + w // 2
+
+
+def _tail_out(last: np.ndarray, n: int) -> np.ndarray:
+    """n samples of a raised cosine falling from the last sample (per channel) to exactly zero: the
+    first of them one step below it, the last one zero."""
+    ramp = 0.5 + 0.5 * np.cos(np.pi * np.arange(1, n + 1) / n)
+    return ramp[:, None] * last[None, :]
+
+
+def _align_tail(x: np.ndarray, k: int, smax: int) -> np.ndarray:
+    """Normalised cross-correlation (summed over the channels, no mean removed) between the head
+    x[:k] and the tail x[n-s-k : n-s] for every cut s = 0 .. smax samples before the end."""
+    from scipy.signal import fftconvolve
+
+    n = x.shape[0]
+    head = x[:k]
+    region = x[n - k - smax: n]
+    num = np.zeros(smax + 1)
+    en = np.zeros(smax + 1)
+    for c in range(x.shape[1]):
+        num += fftconvolve(region[:, c], head[::-1, c], mode="valid")
+        cs = np.concatenate([[0.0], np.cumsum(region[:, c] ** 2)])
+        en += cs[k: k + smax + 1] - cs[: smax + 1]
+    hn = float((head ** 2).sum())
+    corr = num / np.sqrt(np.maximum(en * hn, 1e-30))
+    return corr[::-1]            # index s: the tail that ends s samples before the end of x
+
+
+def _zone_levels(y: np.ndarray, tail: np.ndarray, head: np.ndarray, k: int) -> dict:
+    """Levels of a loop's crossfade zone, which is y[:k] and circular (y wraps). In windows of
+    LOOP_ZONE_WINDOW_S every 10 ms that lie inside the zone, the power (mean over samples and
+    channels) is compared in dB with
+      - the power of the k samples before and the k samples after the zone together
+        (vsOutsideDb: the literal "level just outside the zone"; it includes whatever the recording
+        itself does in those 600 ms), and
+      - the power the same window has in the tail and the head that were mixed, weighted by the
+        position in the zone (vsSourcesDb: what the crossfade itself adds or takes away; 0 for a
+        stationary signal when the law is right).
+    Each is the signed deviation of largest magnitude. outsideSpreadDb is the range of the same
+    windows over the rest of the loop, against the same reference, for comparison."""
+    m, w, hop = y.shape[0], int(round(LOOP_ZONE_WINDOW_S * DOWNLOAD_SR)), int(round(0.01 * DOWNLOAD_SR))
+    if k < w:
+        return {}
+
+    def pw(a: np.ndarray) -> np.ndarray:
+        p = (a ** 2).mean(axis=1)
+        return np.concatenate([[0.0], np.cumsum(p)])
+
+    def mean(cs: np.ndarray, a: int, b: int) -> float:
+        return float((cs[b] - cs[a]) / (b - a))
+
+    db = lambda v: 10.0 * np.log10(max(v, 1e-12))   # noqa: E731
+    cy, ct, ch = pw(np.concatenate([y, y, y])), pw(tail), pw(head)
+    z = m                                            # the zone starts here in the tripled signal
+    ref = db(0.5 * mean(cy, z - k, z) + 0.5 * mean(cy, z + k, z + 2 * k))
+    ins = range(0, k - w + 1, hop)
+    vs_out = [db(mean(cy, z + o, z + o + w)) - ref for o in ins]
+    vs_src = [db(mean(cy, z + o, z + o + w))
+              - db((1.0 - (o + w / 2) / k) * mean(ct, o, o + w) + ((o + w / 2) / k) * mean(ch, o, o + w)) for o in ins]
+    outs = [db(mean(cy, a, a + w)) - ref for a in range(z + k, z + m - w + 1, hop)]
+    big = lambda v: max(v, key=abs)                 # noqa: E731
+    return {"vsOutsideDb": round(float(big(vs_out)), 2), "vsSourcesDb": round(float(big(vs_src)), 2),
+            "outsideSpreadDb": [round(float(min(outs)), 2), round(float(max(outs)), 2)]}
+
+
+def _loop_crossfade(x: np.ndarray, info: dict | None = None) -> tuple[np.ndarray, int]:
+    """Make x wrap without a step: the last k samples are mixed into the first k and cut off, so the
+    result is k samples (plus the shift below) shorter. Its first sample is the sample that followed
+    its last one in the recording. Returns (y, k); k is 0 where the file is too short.
+
+    Two things depend on how well the tail and the head agree. The cut may move up to LOOP_ALIGN_S
+    earlier, to the offset s at which the normalised cross-correlation of the two over the
+    crossfade length is highest (a steady tone is in phase with itself only at some offsets); this is
+    only done where that correlation is above LOOP_CORR_LINEAR, otherwise there is nothing to line
+    up and s = 0. And the law: where the correlation is above LOOP_CORR_LINEAR the weights add to 1
+    (linear, equal gain: two copies of one signal keep their level), otherwise their squares do
+    (cos / sin, equal power: two unrelated signals keep their power). info, if given, receives
+    loopShiftMs, loopCorrelation, loopLaw and loopZone (see _zone_levels)."""
     n = x.shape[0]
     k = min(int(round(LOOP_XFADE_S * DOWNLOAD_SR)), int(n * LOOP_XFADE_SHARE))
     if k < 2:
         return x, 0
+    smax = max(0, min(int(round(LOOP_ALIGN_S * DOWNLOAD_SR)), n - 2 * k))
+    corr = _align_tail(x, k, smax)
+    s = int(np.argmax(corr))
+    if corr[s] <= LOOP_CORR_LINEAR:
+        s = 0
+    c = float(corr[s])
+    linear = c > LOOP_CORR_LINEAR
     t = np.arange(k) / k
-    fin = np.sin(0.5 * np.pi * t)[:, None]
-    fout = np.cos(0.5 * np.pi * t)[:, None]
-    y = x[: n - k].copy()
-    y[:k] = x[:k] * fin + x[n - k:] * fout
+    if linear:
+        fin, fout = t[:, None], (1.0 - t)[:, None]
+    else:
+        fin, fout = np.sin(0.5 * np.pi * t)[:, None], np.cos(0.5 * np.pi * t)[:, None]
+    e = n - s
+    y = x[: e - k].copy()
+    y[:k] = x[:k] * fin + x[e - k: e] * fout
+    if info is not None:
+        info["loopShiftMs"] = round(1000.0 * s / DOWNLOAD_SR, 3)
+        info["loopCorrelation"] = round(c, 4)
+        info["loopLaw"] = "linear" if linear else "equal-power"
+        info["loopZone"] = _zone_levels(y, x[e - k: e], x[:k], k)
     return y, k
 
 
@@ -339,21 +437,28 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
     from synth import set_level
 
     x, info = prepare_download(data, sr, excerpt)
-    info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["loopCrossfadeMs"] = 0.0
+    info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["loopCrossfadeMs"] = info["appendedTailMs"] = 0.0
     if kind == "oneshot":
         n = x.shape[0]
         ms = DOWNLOAD_SR // 1000
         silent = 10.0 ** (SILENT_EDGE_DB / 20.0)
         if np.abs(x[-ms:]).max() > silent:
             k = min(int(round(FADE_OUT_MS * ms)), n // 2)
-            x[n - k:] *= _fade_curve(k)[::-1][:, None]
-            info["fadeOutMs"] = FADE_OUT_MS
+            if envelope_peak_index(x) >= n - k:
+                # the loudest part is where the fade would go: the recording stays as it is and a
+                # short tail runs from its last sample down to zero after it
+                kt = int(round(TAIL_MS * ms))
+                x = np.concatenate([x, _tail_out(x[-1], kt)], axis=0)
+                info["appendedTailMs"] = round(1000.0 * kt / DOWNLOAD_SR, 3)
+            else:
+                x[n - k:] *= _fade_curve(k)[::-1][:, None]
+                info["fadeOutMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)   # what was applied: n // 2 of a short file
         if np.abs(x[0]).max() > silent:
             k = int(round(LEAD_IN_MS * ms))
             x = np.concatenate([_lead_in(x[0], k), x], axis=0)
             info["leadInMs"] = LEAD_IN_MS
     elif kind == "loop":
-        x, k = _loop_crossfade(x)
+        x, k = _loop_crossfade(x, info)
         info["loopCrossfadeMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)
         if k:
             x, r = _loop_roll(x)
@@ -408,6 +513,8 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 failed.append("source-clipped")
             if kind == "loop" and not an.get("loop", {}).get("pass", True):
                 failed.append("loop-seam")
+            if kind == "loop" and abs(info.get("loopZone", {}).get("vsSourcesDb", 0.0)) > LOOP_ZONE_MAX_DB:
+                failed.append("loop-crossfade-level")
             png = wav.with_suffix(".png")
             measure_mod.write_png(png, sid, back, back_sr, an)
             checks = {
@@ -417,8 +524,11 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 "centroidHz": an["spectralCentroidHz"], "level": info["level"],
                 "fadeInMs": info["fadeInMs"], "fadeOutMs": info["fadeOutMs"],
                 "leadInMs": info["leadInMs"], "loopCrossfadeMs": info["loopCrossfadeMs"],
-                "loopStartMs": info.get("loopStartMs", 0.0),
+                "loopStartMs": info.get("loopStartMs", 0.0), "appendedTailMs": info["appendedTailMs"],
             }
+            for key in ("loopShiftMs", "loopCorrelation", "loopLaw", "loopZone"):
+                if key in info:
+                    checks[key] = info[key]
             if "loop" in an:
                 checks["loop"] = {k: an["loop"].get(k) for k in ("seamRatio", "levelSwingDb", "edgeLevelDiffDb", "pass")}
             entries.append({

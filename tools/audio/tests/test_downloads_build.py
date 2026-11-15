@@ -94,10 +94,11 @@ class Ends(unittest.TestCase):
         np.testing.assert_allclose(y[:200, 0], x[:200] * k, atol=1e-9)
 
     def test_only_the_loud_end_is_faded(self):
-        x = np.concatenate([np.zeros(4800), sine(440, 0.5)])
-        x[-1] = 0.5  # not silent at the end
+        # decaying, so that the envelope maximum is early and the fade does not reach it
+        x = np.concatenate([np.zeros(4800), sine(440, 0.5) * np.linspace(1.0, 0.3, 24000)])
+        x[-1] = 0.2  # not silent at the end
         y, info = build.process_download(x, SR, 'oneshot', 'sensors')
-        self.assertEqual((info['leadInMs'], info['fadeOutMs']), (0.0, 30.0))
+        self.assertEqual((info['leadInMs'], info['fadeOutMs'], info['appendedTailMs']), (0.0, 30.0, 0.0))
         xs, ys = x[100:-1500], y[100:-1500, 0]
         k = ys[np.abs(xs) > 0.1] / xs[np.abs(xs) > 0.1]
         np.testing.assert_allclose(k, k[0], rtol=1e-6)  # unfaded part is only scaled
@@ -212,6 +213,149 @@ class Loops(unittest.TestCase):
     def test_a_loop_that_wraps_already_is_not_moved(self):
         y, info = build.process_download(sine(500, 4.0, amp=0.5), SR, 'loop', 'sensors')
         self.assertEqual(info['loopStartMs'], 0.0)
+
+
+class EndsLoudestAtTheEnd(unittest.TestCase):
+    """A fade-out must not reach into the loudest part of a one-shot (k_door_close_1 of the library:
+    its envelope maximum lies 10 ms before the end of the recording)."""
+
+    def _rising(self):
+        t = np.arange(int(0.5 * SR)) / SR
+        env = np.concatenate([np.full(int(0.05 * SR), 0.0), 0.05 + 0.95 * np.linspace(0, 1, int(0.45 * SR)) ** 3])
+        x = env * np.sin(2 * np.pi * 300 * t)
+        x[-1] = x[-2] * 0.9 + 0.01                       # not silent at the end
+        return x
+
+    def test_the_recording_stays_untouched_and_a_tail_of_3_ms_is_appended(self):
+        x = self._rising()
+        y, info = build.process_download(x, SR, 'oneshot', 'switches')
+        self.assertEqual((info['fadeOutMs'], info['appendedTailMs'], info['leadInMs']), (0.0, 3.0, 0.0))
+        self.assertEqual(y.shape[0], x.shape[0] + 144)
+        g = 10.0 ** (info['level']['gainDb'] / 20.0)
+        np.testing.assert_allclose(y[: x.shape[0], 0], x * g, atol=4e-5)   # nothing multiplied by a fade (16 bit)
+        tail = y[x.shape[0]:, 0] / g
+        want = x[-1] * (0.5 + 0.5 * np.cos(np.pi * np.arange(1, 145) / 144))
+        np.testing.assert_allclose(tail, want, atol=1e-3)   # 16 bit, divided by the gain
+        self.assertEqual(y[-1, 0], 0.0)
+        self.assertTrue(np.all(np.diff(tail) <= 1e-12) if x[-1] > 0 else np.all(np.diff(tail) >= -1e-12))
+
+    def test_the_gain_is_what_the_unprocessed_recording_needs(self):
+        from synth import set_level
+        x = self._rising()
+        y, info = build.process_download(x, SR, 'oneshot', 'switches')
+        _, level = set_level(x[:, None], 'peak', -14.0, ceiling_db=build.DOWNLOAD_CEILING_DB)
+        self.assertAlmostEqual(info['level']['gainDb'], level['gainDb'], delta=0.1)
+        self.assertAlmostEqual(true_peak_db(y[:, 0]), -14.0, delta=0.1)
+
+    def test_the_tail_is_per_channel(self):
+        x = self._rising()
+        st = np.stack([x, -0.5 * x], axis=1)
+        y, info = build.process_download(st, SR, 'oneshot', 'switches')
+        self.assertEqual(info['appendedTailMs'], 3.0)
+        self.assertEqual(float(np.abs(y[-1]).max()), 0.0)
+        n = x.shape[0]
+        self.assertAlmostEqual(y[n, 1] / y[n, 0], -0.5, delta=0.02)   # both continue from their own last sample
+
+    def test_a_maximum_before_the_last_30_ms_keeps_the_fade(self):
+        x = np.concatenate([sine(440, 0.3), sine(440, 0.1, amp=0.2)])
+        x[-1] = 0.1
+        y, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        self.assertEqual((info['fadeOutMs'], info['appendedTailMs']), (30.0, 0.0))
+        self.assertEqual(y.shape[0], x.shape[0])
+
+    def test_a_maximum_inside_the_last_30_ms_but_before_a_shorter_fade_keeps_the_fade(self):
+        # 20 ms file: the fade is 10 ms (half the file); the maximum is in the first half
+        x = np.concatenate([np.linspace(0, 0.9, 240), np.linspace(0.9, 0.3, 720)])
+        y, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        self.assertEqual(info['appendedTailMs'], 0.0)
+        self.assertEqual(info['fadeOutMs'], 10.0)
+
+    def test_fade_out_ms_states_the_fade_that_was_applied(self):
+        x = np.concatenate([np.linspace(0, 0.9, 300), np.linspace(0.9, 0.5, 900)])   # 25 ms
+        y, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        self.assertEqual(info['fadeOutMs'], 12.5)
+        self.assertEqual(y.shape[0], x.shape[0])
+        self.assertLess(abs(y[-1, 0]), 1e-12)
+
+    def test_an_end_that_is_silent_gets_neither(self):
+        x = np.concatenate([sine(440, 0.3), np.zeros(1000)])
+        _, info = build.process_download(x, SR, 'oneshot', 'sensors')
+        self.assertEqual((info['fadeOutMs'], info['appendedTailMs']), (0.0, 0.0))
+
+    def test_envelope_peak_index(self):
+        x = np.zeros((4800, 1))
+        x[4000:4010, 0] = 0.8
+        self.assertTrue(3950 <= build.envelope_peak_index(x) <= 4050)
+
+
+def _window_db(y, a, w=2400):
+    idx = np.arange(a, a + w) % y.shape[0]
+    return 10 * np.log10(max(float((y[idx] ** 2).mean()), 1e-12))
+
+
+class TonalLoops(unittest.TestCase):
+    """A steady tone whose tail and head are out of phase (n_ingenuity of the library, 84 Hz)."""
+
+    def _tone(self, n_extra=137, seconds=6.0, f=84.0, noise=0.01, seed=11):
+        rng = np.random.default_rng(seed)
+        n = int(seconds * SR) + n_extra
+        t = np.arange(n) / SR
+        return 0.3 * np.sin(2 * np.pi * f * t + 0.7) + rng.normal(0, noise, n)
+
+    def test_the_old_equal_power_fade_of_the_cut_as_it_was_dipped_and_the_new_one_does_not(self):
+        x = self._tone()
+        y, k = build._loop_crossfade(x[:, None])
+        outside = _window_db(y[:, 0], k + 24000)
+        zone = [_window_db(y[:, 0], a) for a in range(0, k - 2400, 480)]
+        self.assertLess(max(abs(z - outside) for z in zone), 1.5)
+        t = np.arange(k) / k
+        old = x[:k, None] * np.sin(0.5 * np.pi * t)[:, None] + x[-k:, None] * np.cos(0.5 * np.pi * t)[:, None]
+        old_zone = [_window_db(old[:, 0], a) for a in range(0, k - 2400, 480)]
+        self.assertGreater(max(abs(z - outside) for z in old_zone), 1.5)   # the old law was off for this input
+
+    def test_the_cut_moves_to_the_best_alignment_within_30_ms_and_the_law_is_linear(self):
+        x = self._tone()
+        info = {}
+        y, k = build._loop_crossfade(x[:, None], info)
+        self.assertEqual(info['loopLaw'], 'linear')
+        self.assertGreater(info['loopCorrelation'], 0.9)
+        self.assertGreater(info['loopShiftMs'], 0.0)
+        self.assertLessEqual(info['loopShiftMs'], 30.0)
+        s = int(round(info['loopShiftMs'] * 48))
+        self.assertEqual(y.shape[0], x.shape[0] - k - s)
+        best = build._align_tail(x[:, None], k, 1440)
+        self.assertAlmostEqual(float(best.max()), info['loopCorrelation'], places=3)
+        self.assertEqual(int(np.argmax(best)), s)
+
+    def test_the_whole_process_keeps_the_level_in_the_zone_and_the_seam_and_the_joins(self):
+        import measure
+        x = self._tone()
+        y, info = build.process_download(x, SR, 'loop', 'engines')
+        self.assertEqual(info['loopStartMs'], 0.0)
+        k = int(round(info['loopCrossfadeMs'] * 48))
+        zone = [_window_db(y[:, 0], a) for a in range(0, k - 2400 + 1, 480)]
+        outside = [_window_db(y[:, 0], a) for a in range(k, k + 4 * 24000, 2400)]
+        self.assertLess(max(abs(z - np.mean(outside)) for z in zone), 1.5)
+        self.assertLess(abs(info['loopZone']['vsSourcesDb']), 1.5)
+        self.assertTrue(measure.loop_check(y, SR)['pass'])
+        d, joins = _tile_steps(y)
+        for j in joins:
+            self.assertLessEqual(d[j], np.percentile(d, 99.9) * 3.0)
+            self.assertLessEqual(d[j], d[j - 200:j].max() * 3.0)
+
+    def test_uncorrelated_noise_gets_equal_power_and_is_not_shifted(self):
+        rng = np.random.default_rng(3)
+        x = rng.normal(0, 0.1, 5 * SR)
+        info = {}
+        y, k = build._loop_crossfade(x[:, None], info)
+        self.assertEqual((info['loopLaw'], info['loopShiftMs']), ('equal-power', 0.0))
+        self.assertLess(info['loopCorrelation'], 0.5)
+        self.assertEqual(y.shape[0], x.shape[0] - k)
+
+    def test_the_fields_reach_the_info_that_goes_into_the_manifest(self):
+        _, info = build.process_download(self._tone(), SR, 'loop', 'engines')
+        for key in ('loopShiftMs', 'loopCorrelation', 'loopLaw', 'loopZone'):
+            self.assertIn(key, info)
 
 
 class HonestLevel(unittest.TestCase):
@@ -341,7 +485,9 @@ class Resampling(unittest.TestCase):
             x = sine(1000, 1.0, sr=sr)
             y, info = build.process_download(x, sr, 'loop', 'sensors')
             self.assertEqual(info['sourceSr'], sr)
-            self.assertEqual(y.shape[0], SR - SR // 10, sr)   # a loop is shorter by its crossfade
+            # a loop is shorter by its crossfade and by the shift that lines the tail up with the head
+            self.assertLessEqual(y.shape[0], SR - SR // 10, sr)
+            self.assertGreaterEqual(y.shape[0], SR - SR // 10 - 1440, sr)
             n = y.shape[0]
             spec = np.abs(np.fft.rfft(y[:, 0] * np.hanning(n)))
             self.assertAlmostEqual(np.argmax(spec) * SR / n, 1000, delta=2, msg=str(sr))
