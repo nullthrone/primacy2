@@ -20,7 +20,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Open points:
   - No LICENSE file in the model repositories; the licence rests on the card metadata and the paper.
   - The training data (more than 5M hours per the paper) is not itemised.
-  - Speed on the card is slower than real time with this package (RTF 1.66 to 1.96); no streaming, so no first-audio figure.
+  - Speed is slower than real time with this package, on the card (RTF 1.825 to 2.957 over all runs, depending on the load from the owner's desktop programs) and on the CPU (3.65 to 3.84); no streaming, so no first-audio figure.
   - The CustomVoice sibling was not taken (see below).
 
 ### Chatterbox-Nano (key `chatterbox-nano`)
@@ -36,12 +36,12 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
   - The Perth watermark is always on in the package and was left untouched.
   - Perth's weights are a pickle inside the PyPI package, loaded under torch 2.6's weights_only default.
   - The package pins torch 2.6.0 and transformers 5.2.0 (and gradio, not installed). The dossier calls the project retired.
-  - The makers' speed claim (3x real time on 8 cores) was not reproduced: RTF 0.65 at 4 threads, 0.70 at 8.
+  - The makers' speed claim (3x real time on 8 cores) was not reproduced. On the same four lines, 4 threads gave RTF 0.71 to 0.79 and 8 threads 0.53 to 0.59 in four paired re-times (8 threads about a quarter less time, 1.9 times real time at best); only the builder's own pair (0.68 and 0.70) shows no gain. See `RESULTS.md`.
   - Peak RAM 4.5 GB.
 
 ### Kokoro-82M v1.0 (key `kokoro`)
 
-- Repository: `hexgrad/Kokoro-82M`, revision `f3ff3571791e39611d31c381e3a41a3af07b4987`, 341,870,408 bytes: `config.json`, `kokoro-v1_0.pth` and 28 English voice packs (`af_`, `am_`, `bf_`, `bm_`). Model files 0.33 GB, environment 4.6 GB.
+- Repository: `hexgrad/Kokoro-82M`, revision `f3ff3571791e39611d31c381e3a41a3af07b4987`, 341,870,408 bytes (0.34 GB downloaded): `config.json`, `kokoro-v1_0.pth` (327 MB, 0.33 GB: the model file alone) and 28 English voice packs (`af_`, `am_`, `bf_`, `bm_`). Environment 4.6 GB.
 - Packages: `kokoro` 0.9.4 and `misaki[en]` 0.9.4 from PyPI, torch 2.11.0+cu128, spaCy `en_core_web_sm` 3.8.0 (wheel from the explosion GitHub release, MIT, installed beforehand so misaki does not download it at run time).
 - Licence of code: Apache-2.0 for kokoro (https://raw.githubusercontent.com/hexgrad/kokoro/main/LICENSE) and misaki (https://raw.githubusercontent.com/hexgrad/misaki/main/LICENSE).
 - Licence of weights: Apache-2.0 from the card metadata (https://huggingface.co/hexgrad/Kokoro-82M/raw/main/README.md). Not gated. The repository has no LICENSE file.
@@ -65,14 +65,14 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - No real person as template (owner's rule): **stated by the makers.** The voices card says the twelve character voices were made with Gradium Voice Design (the audit re-read the card at the source); that is their statement, not something checked here.
 - How voices are made: a voice is a fixed embedding file. The four cast voices are four of the twelve character embeddings, used as they are (a loose fit: fantasy characters, no man in his thirties). A blend of embeddings was written as safetensors files and run for four lines.
 - Open points:
-  - The Mimi codec that Phonon builds on is CC-BY-4.0 (attribution), read only, nothing downloaded from it.
+  - The Mimi codec that Phonon builds on: CC-BY-4.0 (attribution) according to the card of the separate `kyutai/mimi` repository, which the builder read. The dossier says Mimi's licence was not read for the weights inside the Phonon repository, so the figure is not shown for those; nothing was downloaded from the Mimi repository.
   - No graphics-card run exists.
   - The in-memory `add_voice_from_embedding` call gave different audio from the same embedding loaded from a file; the blend was therefore written as files.
-  - Timing varies between runs (RTF 0.082 and 0.068) because other agents used the CPU.
+  - Timing varies between runs (RTF 0.082 and 0.068 in the builder's two runs; 0.067 to 0.074 over five later runs); the cause was not measured (other agents and the owner's programs were using the machine at times).
 
 ### Kitten TTS 2 Mini (key `kitten`)
 
-- Repository: `KittenML/kitten-tts-2-mini`, revision `c01797caec3967b400da457656e011eb81f530a4`, 94,907,926 bytes (int8 ONNX model, `voices_en.npz`, G2P files). Model files 0.095 GB, environment 0.92 GB.
+- Repository: `KittenML/kitten-tts-2-mini`, revision `c01797caec3967b400da457656e011eb81f530a4`, 94,907,926 bytes (int8 ONNX model, `voices_en.npz`, G2P files). Model files 0.095 GB, environment 0.92 GB. Parameters: 82 million, from `voice-dossiers.json` (Kitten TTS 2 Mini, `params_millions`; the dossier gives no further source, not checked against the card).
 - Packages: `kittenml` 0.9.8 (`--no-deps`), onnxruntime 1.32.0, misaki 0.9.4, torch 2.15.0+cpu and transformers 5.23.0 (needed by the G2P fallback for invented names), spaCy `en_core_web_sm` 3.8.0 from the explosion GitHub release (not PyPI and not the makers' repository: a deviation from rule 3, wheel sha256 in the report).
 - Licence of code: Apache-2.0. Read at https://raw.githubusercontent.com/KittenML/KittenTTS/main/LICENSE ("Apache License / Version 2.0, January 2004").
 - Licence of weights: Apache-2.0, card at https://huggingface.co/KittenML/kitten-tts-2-mini/raw/main/README.md ("license: apache-2.0"; "Apache-2.0 (the models, voice packs and the bundled G2P files)"). Not gated. No LICENSE file in the repository. The en_core_web_sm licence (MIT) rests on its meta file only; the LICENSE URL tried returned 404.
