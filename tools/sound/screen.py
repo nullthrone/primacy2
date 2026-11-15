@@ -172,9 +172,8 @@ def has_flat_top(x: np.ndarray, run: int = CLIP_RUN) -> bool:
         return False
     for ch in range(x.shape[1]):
         c = x[:, ch]
-        for ext in (c.max(), c.min()):
-            if ext == 0:
-                continue
+        top, bottom = c.max(), c.min()
+        for ext in ([top] if top > 0 else []) + ([bottom] if bottom < 0 else []):  # the positive and the negative extreme
             hit = np.concatenate([[0], np.cumsum((c == ext).astype(np.int64))])
             if bool(((hit[run:] - hit[:-run]) == run).any()):
                 return True
@@ -405,16 +404,19 @@ def resample(x: np.ndarray, sr: int, out_sr: int = OUT_SR) -> np.ndarray:
 
 
 def page_lufs(y: np.ndarray) -> float:
-    """Loudness as the audition page plays it in the Stereo stage: BS.1770 integrated over two channels, a
-    one-channel file counted on both. The page adds the energies of the two channels, so a file with two
-    channels of the same file loudness as a one-channel file leaves the page 3.01 dB lower (measured: 3.02 dB)."""
+    """Loudness as the audition page plays it in the Stereo stage: BS.1770 integrated over the two channels of a
+    two-channel file; a one-channel file is counted on both channels, which is its own loudness plus 10*log10(2)
+    (3.01 dB; measured at the page: a two-channel file leaves 3.02 dB lower than a one-channel file of the same
+    file loudness). A one-channel file is not measured by duplicating it: the absolute gate of BS.1770 can
+    count different blocks for the two and the offset is then 1.8 dB, not 3.01, for an event whose tail sits at the
+    gate, so the family target would no longer put one-channel files where it put them in the first run."""
     from synth.levels import lufs
 
     y = np.asarray(y, dtype=np.float64)
     if y.ndim == 1:
         y = y[:, None]
     if y.shape[1] == 1:
-        y = np.concatenate([y, y], axis=1)
+        return lufs(y) + PAGE_OFFSET_DB
     return lufs(y)
 
 
@@ -463,23 +465,47 @@ def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: f
     x = resample(to_channels(event), sr)
     page_target = target_lufs + PAGE_OFFSET_DB
     g = page_target - page_lufs(x)  # first guess; the gate of BS.1770 and the fades make it a little wrong
-    y, fl = _finish(x, g)
-    iters = 1
+    lo = hi = None  # gains that were too quiet / too loud: the loudness jumps where the gate of BS.1770 changes its blocks
+    best = None
+    iters = 0
     for _ in range(LEVEL_ITERATIONS):
-        err = page_target - page_lufs(y)
-        over = true_peak_db(y) - ceiling_db
-        if over > 1e-3:  # above the ceiling: lower the gain by what is over
-            step = -over
-        elif abs(err) <= LEVEL_TOL_DB:
-            break
-        else:
-            room = ceiling_db - true_peak_db(y)
-            if err > 0 and room <= 1e-3:  # at the ceiling and still too quiet: nothing more can be done
-                break
-            step = min(err, room) if err > 0 else err
-        g += step
         y, fl = _finish(x, g)
         iters += 1
+        err = page_target - page_lufs(y)
+        tp = true_peak_db(y)
+        over = tp - ceiling_db
+        bad = (True, over) if over > 1e-3 else (False, abs(err))  # a copy under the ceiling beats one over it; then the nearer to the target
+        if best is None or bad < best[0]:
+            best = (bad, g, y, fl)
+        if over > 1e-3 or err < -LEVEL_TOL_DB:  # too loud (for the ceiling or the target)
+            hi = g if hi is None else min(hi, g)
+            step = -over if over > 1e-3 else err
+            if over > 1e-3 and err < 0:
+                step = min(step, err)
+        elif err > LEVEL_TOL_DB:
+            room = ceiling_db - tp
+            if room <= 1e-3:  # at the ceiling and still too quiet: nothing more can be done
+                break
+            lo = g if lo is None else max(lo, g)
+            step = min(err, room)
+        else:
+            break
+        g_next = g + step
+        if lo is not None and hi is not None:  # the answer lies between: halve it, the loudness only jumps
+            if hi - lo < 0.002:
+                break
+            if not lo < g_next < hi:
+                g_next = 0.5 * (lo + hi)
+        g = g_next
+    else:
+        y, fl = _finish(x, g)
+        iters += 1
+        err = page_target - page_lufs(y)
+        over = true_peak_db(y) - ceiling_db
+        bad = (True, over) if over > 1e-3 else (False, abs(err))
+        if bad < best[0]:
+            best = (bad, g, y, fl)
+    _, g, y, fl = best  # the one that met the target; if none did (the ceiling, or a jump of the gate), the nearest under the ceiling
     reached_page = page_lufs(y)
     err = page_target - reached_page
     tp = true_peak_db(y)
@@ -487,7 +513,8 @@ def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: f
             "lufsTarget": target_lufs, "lufsPageTarget": round(page_target, 3),
             "lufsReached": round(lufs(y), 2), "lufsReachedPage": round(reached_page, 2),
             "levelErrorDb": round(err, 3), "gainDb": round(float(g), 3), "levelIterations": iters,
-            "limitedByPeak": bool(err > LEVEL_TOL_DB), "truePeakDb": round(tp, 2),
+            "limitedByPeak": bool(err > LEVEL_TOL_DB and ceiling_db - tp < 0.05), "truePeakDb": round(tp, 2),
+            "levelMissed": bool(abs(err) > LEVEL_TOL_DB and not (err > 0 and ceiling_db - tp < 0.05)),
             "dcBefore": round(fl["dcBefore"], 6), "dcAfter": round(fl["dcAfter"], 6), "rampIn": fl["ramp"], "fadeOut": fl["fade"],
             "firstSampleDb": round(20 * math.log10(max(float(np.abs(y[0]).max()), 1e-12)), 1),
             "lastSampleDb": round(20 * math.log10(max(float(np.abs(y[-1]).max()), 1e-12)), 1)}

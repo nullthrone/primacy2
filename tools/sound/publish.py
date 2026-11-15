@@ -7,8 +7,11 @@ Takes assets/audio/gen/screen.json (written by screen.py) and the listening copi
 assets/audio/gen/_listen/, writes each as a file of the category "source" (listed first in
 tools/audio/sounds.json as "Klangquellen (Runde 4)"), 16 bit at 48 kHz through the sound library's
 own writer, with spectrogram and record as tools/voice/publish.py does for the voice samples, then
-assembles the manifest and validates it. Runs with the environment of the sound library, which it
-only reads. --root and --out name other folders (the tests use them).
+removes every file in render/source that does not belong to the new set (the manifest is assembled
+from whatever lies there), assembles the manifest and validates it. The order of manifest.json is
+the one of tools/audio/build.py; the page lists the categories in the order of manifest.categories,
+and tools/dev/audition-check.mjs finds its first rows that way. Runs with the environment of the
+sound library, which it only reads. --root and --out name other folders (the tests use them).
 """
 from __future__ import annotations
 
@@ -44,6 +47,9 @@ LICENCE = {
 }
 
 
+LOW_SHARE_HINT = 0.10  # below this share of the energy above 60 Hz the page shows a hint (a measure shown, not a rule)
+
+
 def _first(d: dict, keys: tuple, default: str = "unknown") -> str:
     for k in keys:
         v = d.get(k)
@@ -56,16 +62,21 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
     """(intent, licence) of a chosen candidate."""
     rec = c.get("record", {})
     cut = c["cut"]
-    how = ("Cut out of the raw file (%.2f to %.2f s)%s, set to %s LUFS on the page." % (
-        cut["startS"], cut["endS"], ", at the family's longest length" if cut.get("cappedAtFamilyLength") else "",
-        c["listen"]["lufsTarget"]))
+    lis = c["listen"]
+    how = ("Cut out of the raw file (%.2f to %.2f s)%s. Level: family target %s LUFS (one channel); as the page plays "
+           "it in the Stereo stage, over two channels with a one-channel file counted on both, %s LUFS, reached %s." % (
+               cut["startS"], cut["endS"], ", at the family's longest length" if cut.get("cappedAtFamilyLength") else "",
+               lis["lufsTarget"], lis.get("lufsPageTarget", "?"), lis.get("lufsReachedPage", "?")))
+    share = c.get("energyAbove60Hz")
+    if share is not None:
+        how += " Share of the event's energy above 60 Hz: %d %%." % round(100 * share)
     if c["role"] != "typical" or c["slot"] == 4:
         how += (" Second pick: " + ("the candidate farthest from the other three in the description used for variety."
                                     if c["role"] == "farthest" else "chosen because this family has no candidate from the source of its slot."))
     else:
         how += " Chosen as the most typical candidate of its source in this family."
     if c["listen"].get("limitedByPeak"):
-        how += " The true peak ceiling lowered the gain: the loudness reached is %s LUFS." % c["listen"]["lufsReached"]
+        how += " The true peak ceiling lowered the gain: the loudness reached is %s LUFS on the page." % lis.get("lufsReachedPage", lis["lufsReached"])
     if c["source"] == "oga":
         title = _first(rec, ("title", "name", "itemTitle", "pageTitle"), c["name"])
         author = _first(rec, ("author", "credit", "creator", "user"))
@@ -78,6 +89,21 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
     if c["source"] == "sa3":
         intent += " " + STABLE_NOTE
     return intent, LICENCE[c["source"]]
+
+
+def prune(target: Path, keep_ids: set[str]) -> list[str]:
+    """Delete every file in the folder of the category whose id (the name up to the first dot) is not in the
+    new set: build.assemble_manifest lists whatever record lies there, so a file of an earlier pick would
+    stay on the page. Returns the names removed."""
+    gone = []
+    for p in sorted(target.iterdir()):
+        if p.name.split(".")[0] not in keep_ids:
+            if p.is_dir():
+                shutil.rmtree(p)
+            else:
+                p.unlink()
+            gone.append(p.name)
+    return gone
 
 
 def main(argv=None) -> int:
@@ -96,7 +122,7 @@ def main(argv=None) -> int:
     out = Path(a.out).resolve()
     root = Path(a.root).resolve()
     target = out / CATEGORY
-    if target.exists():
+    if a.remove and target.exists():
         shutil.rmtree(target)
     if not a.remove:
         if CATEGORY not in synth.load_spec()["categories"]:
@@ -108,7 +134,8 @@ def main(argv=None) -> int:
             return 1
         screen = json.loads(sj.read_text(encoding="utf-8"))
         fams = {f["id"]: f for f in json.loads((HERE / "prompts.json").read_text(encoding="utf-8"))["families"]}
-        target.mkdir(parents=True)
+        target.mkdir(parents=True, exist_ok=True)
+        new_ids = {c["id"] for c in screen["chosen"]}
         for c in screen["chosen"]:
             fam = fams[c["family"]]
             sid = c["id"]
@@ -138,9 +165,15 @@ def main(argv=None) -> int:
             second = c["slot"] == 4 or c["role"] != "typical"
             intent, licence = describe_source(c, fam)
             ch = int(data.shape[1])
-            checks = {"pass": not failed, "failed": failed, "hints": [HINT],
+            share = c.get("energyAbove60Hz")
+            hints = [HINT]
+            if share is not None and share < LOW_SHARE_HINT:
+                hints.append("only %d %% of the energy is above 60 Hz: it may play as silence on most loudspeakers" % round(100 * share))
+            checks = {"pass": not failed, "failed": failed, "hints": hints,
                       "peakDb": an["truePeakDb"], "lufs": an["lufs"], "lowShare": an["lowShare"],
                       "highShare": an["highShare"], "centroidHz": an["spectralCentroidHz"]}
+            if share is not None:
+                checks["energyAbove60Hz"] = share
             download = c["source"] == "oga"
             if download:
                 checks["sourceClipped"] = False
@@ -162,15 +195,10 @@ def main(argv=None) -> int:
             print("%-26s %5.2f s %d ch  %6.1f LUFS  tp %5.1f dB  %s" % (
                 sid, entry["duration"], ch, an["lufs"], an["truePeakDb"], "ok" if not failed else "FAILED " + ",".join(failed)))
 
+    if not a.remove:
+        for old in prune(target, new_ids):
+            print("removed %s (not part of the new set)" % old)
     manifest = build.assemble_manifest(out, measure, common)
-    # build.assemble_manifest puts ids it does not know after the known ones, but the page lists the
-    # categories in the order of sounds.json, where "source" is first, and tools/dev/audition-check.mjs
-    # takes manifest.sounds[0] and [1] for the first two rows of the page: the sounds of this category
-    # go to the front of the list (a stable move: everything else keeps its order)
-    first = [x for x in manifest["sounds"] if x["category"] == CATEGORY]
-    if first and [x for x in manifest["sounds"][:len(first)]] != first:
-        manifest["sounds"] = first + [x for x in manifest["sounds"] if x["category"] != CATEGORY]
-        build._atomic_write(out / "manifest.json", json.dumps(manifest, indent=1, ensure_ascii=False))
     bad = build.validate_manifest(manifest, out)
     n = sum(1 for s in manifest["sounds"] if s["category"] == CATEGORY)
     print("manifest: %d sounds, %d in %r" % (len(manifest["sounds"]), n, CATEGORY))
