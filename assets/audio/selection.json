@@ -307,7 +307,7 @@
     "id": "n_plasma_hiss",
     "file": "nasa-plasma-hiss/hiss.wav",
     "category": "sensors",
-    "kind": "loop",
+    "kind": "oneshot",
     "en": "Plasmaspheric hiss",
     "de": "Plasmasphärisches Rauschen",
     "intent": "Natural broadband hiss for the receiver noise floor of the sensor suite.",

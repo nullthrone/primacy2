@@ -31,8 +31,10 @@ downloaded files with a licence list) and the audition page on which the owner l
 The game itself still plays the old procedural sound. Since 2026-11-15 there is also a comparison
 of five open speech models (`tools/voice`), with twenty voice samples on the audition page.
 
-Tests: 779 pass, 2 are marked as expected failures on purpose (see section 4). The audio tools have
-tests of their own in Python (listening tools 22, synthesis 38, downloads 27).
+Tests: 805 pass, 2 are marked as expected failures on purpose (see section 4). The audio tools have
+tests of their own in Python (listening tools 22, synthesis 54, downloads 77, the scoring of the
+voice comparison in `tools/voice/tests`). The browser check of the audition page passes 52 steps,
+among them a recording of everything the page plays with no click added by the page.
 
 ## 2. What the owner has decided and is not built yet
 
@@ -495,7 +497,11 @@ Defects seen and left in:
   same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
   firing is clipped in its source (marked; the owner rated it as fitting), and the recording of
   the laser shots is a row of hard snaps by nature. The speech recogniser finds no words in the
-  eleven NASA recordings that are left, which does not prove that nobody speaks in them.
+  eleven NASA recordings that are left, which does not prove that nobody speaks in them. Three
+  downloads are loops (Cassini, the rover driving, Ingenuity): they wrap without a step, but
+  the recordings of Cassini and of the rover change their own level by 4 to 7 dB near the cut,
+  which may be heard as a pulse once per loop; other excerpts would cure it. The plasma hiss
+  fades in and out by itself and is a one-shot for that reason.
 - The click detector of the audition check (`packages/client/src/dev/audition/capture.ts`)
   compares a step with the steps around it. In loud dense noise a click that fits under full
   scale does not stand out by that measure and is not found; as far as a measurement can say it
