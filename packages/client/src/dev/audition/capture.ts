@@ -288,7 +288,7 @@ let node: AudioWorkletNode | null = null;
 let chunks: { frame: number; l: Float32Array; r: Float32Array }[] = [];
 let stopWaiter: (() => void) | null = null;
 let startWaiter: (() => void) | null = null;
-let last: { rate: number; first: number; l: Float32Array } | null = null;
+let last: { rate: number; first: number; l: Float32Array; r: Float32Array } | null = null;
 
 async function ensureNode(): Promise<AudioWorkletNode> {
   if (node) return node;
@@ -328,6 +328,29 @@ function peakOf(x: Float32Array): number {
   return p;
 }
 
+export interface BothLevel {
+  peak: number;
+  power: number;
+  rms: number;
+  left: number;
+  right: number;
+}
+
+/** Peak and power of samples a..b of two channels together (see capture.windowBoth). */
+export function levelBoth(l: Float32Array, r: Float32Array, a: number, b: number): BothLevel {
+  const n = Math.min(b, l.length, r.length) - a;
+  if (n <= 0) return { peak: 0, power: 0, rms: 0, left: 0, right: 0 };
+  let peak = 0;
+  let sl = 0;
+  let sr = 0;
+  for (let i = a; i < a + n; i++) {
+    peak = Math.max(peak, Math.abs(l[i]), Math.abs(r[i]));
+    sl += l[i] * l[i];
+    sr += r[i] * r[i];
+  }
+  return { peak, power: (sl + sr) / n, rms: Math.sqrt((sl + sr) / n), left: Math.sqrt(sl / n), right: Math.sqrt(sr / n) };
+}
+
 export const capture = {
   /** Starts recording and answers once the first block has been taken, so that nothing played after this is missed. */
   async start(): Promise<number> {
@@ -352,7 +375,7 @@ export const capture = {
     const first = chunks.length ? chunks[0].frame : 0;
     const l = join(chunks.map((c) => c.l));
     const r = join(chunks.map((c) => c.r));
-    last = { rate, first, l };
+    last = { rate, first, l, r };
     const w = window as unknown as { __audition?: { plays?: Play[] } };
     const plays = (w.__audition?.plays ?? []).filter((p) => p.end >= first / rate - 0.1);
     const raw = [...analyseChannel(l, rate, 0), ...analyseChannel(r, rate, 1)].sort((a, b) => a.t - b.t);
@@ -373,6 +396,19 @@ export const capture = {
       sum += last.l[i] * last.l[i];
     }
     return { peak, rms: b > a ? Math.sqrt(sum / (b - a)) : 0 };
+  },
+
+  /**
+   * Level of the last capture between two audio-clock times over BOTH channels: `power` is the sum of the mean squares
+   * of the left and of the right channel (BS.1770 adds the channels' energies like this, so a one-channel file that the
+   * stage puts on both sides reads 3 dB more than the same file in one channel), `rms` its square root, `peak` the
+   * highest absolute sample of either channel, `left` and `right` the RMS of each channel on its own.
+   */
+  windowBoth(from: number, to: number): BothLevel {
+    if (!last) return levelBoth(new Float32Array(0), new Float32Array(0), 0, 0);
+    const a = Math.max(0, Math.round(from * last.rate) - last.first);
+    const b = Math.min(last.l.length, Math.round(to * last.rate) - last.first);
+    return levelBoth(last.l, last.r, a, b);
   },
 
   /** Samples of channel 0 of the last capture between two audio-clock times, for looking at a fault by hand. */

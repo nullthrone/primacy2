@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { auditionPlugin } from '../../../dev/auditionPlugin.ts';
-import { analyseChannel, fileExplains } from './capture.ts';
+import { analyseChannel, fileExplains, levelBoth } from './capture.ts';
 import { bufferEdges, crossfadeWeights, PLAN_LEAD, START_LEAD } from './engine.ts';
 import { DOCKING, SCENES, sceneSoundIds } from './scenes.ts';
 
@@ -338,4 +338,25 @@ describe('the check refuses to start against the wrong ratings file', () => {
     expect(r.code).toBe(2);
     expect(r.requests).toEqual([]);
   }, 60000);
+});
+
+describe('levelBoth', () => {
+  it('adds the energies of the two channels: a one-channel file on both sides reads 3 dB more', () => {
+    const x = sine(0.5, 0.2);
+    const one = levelBoth(x, new Float32Array(x.length), 0, x.length);
+    const both = levelBoth(x, x, 0, x.length);
+    expect(Math.abs(20 * Math.log10(both.rms / one.rms) - 10 * Math.log10(2))).toBeLessThan(1e-9);
+    expect(one.left).toBeCloseTo(0.2 / Math.SQRT2, 4);
+    expect(one.right).toBe(0);
+    expect(both.peak).toBeCloseTo(0.2, 4);
+  });
+
+  it('keeps the window as asked and answers zero for an empty one', () => {
+    const x = sine(0.1, 0.5);
+    const half = levelBoth(x, x, 0, 100);
+    expect(half.power).toBeGreaterThan(0);
+    expect(levelBoth(x, x, 50, 50)).toEqual({ peak: 0, power: 0, rms: 0, left: 0, right: 0 });
+    expect(levelBoth(x, x, 10, 5).power).toBe(0);
+    expect(levelBoth(x, x, 0, x.length + 1000).power).toBeGreaterThan(0);
+  });
 });

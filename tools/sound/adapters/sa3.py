@@ -76,12 +76,26 @@ def load_model(device: str):
 
 
 def make(sam, job: dict, seed: int | None = None):
-    """Returns (float32 array (2, n) as the model gave it, seconds taken)."""
+    """Returns (float32 array (2, n) as the model computed it before the output clamp, seconds taken).
+
+    The makers' generate() ends with .clamp(-1, 1) on the decoded audio. Their own switch
+    return_latents=True returns the sampled latents instead (same seed, same sampler, same
+    conditioning); the decode is then the one sample_diffusion() does itself:
+    pretransform.decode(latents cast to the pretransform dtype, chunked=None), followed by their
+    truncation to the asked duration. No scaling, no clamp, no normalisation here: values above 1
+    stay (the WAV is float32). Their zeroing of the padding region lies beyond the asked duration
+    and is cut off by the truncation; the acceptance test in the report checks that this holds.
+    """
     text = PREFIX + job["text"]
     t0 = time.perf_counter()
-    out = sam.generate(prompt=text, duration=float(job["seconds"]), steps=SETTINGS["steps"],
-                       cfg_scale=SETTINGS["cfg_scale"], sampler_type=SETTINGS["sampler_type"],
-                       seed=int(job["seed"] if seed is None else seed))
+    with torch.no_grad():
+        lat = sam.generate(prompt=text, duration=float(job["seconds"]), steps=SETTINGS["steps"],
+                           cfg_scale=SETTINGS["cfg_scale"], sampler_type=SETTINGS["sampler_type"],
+                           seed=int(job["seed"] if seed is None else seed), return_latents=True)
+        pt = sam.model.pretransform
+        lat = lat.to(next(pt.parameters()).dtype)
+        out = pt.decode(lat, chunked=None)
+        out = out.to(torch.float32)[:, :, :int(float(job["seconds"]) * sam.model.sample_rate)]
     if sam.device == "cuda":
         torch.cuda.synchronize()
     dt = time.perf_counter() - t0
@@ -130,7 +144,9 @@ def main() -> int:
                  steps=SETTINGS["steps"], cfg_scale=SETTINGS["cfg_scale"],
                  sampler=SETTINGS["sampler_type"], apg_scale=SETTINGS["apg_scale"],
                  duration_padding_sec=SETTINGS["duration_padding_sec"], dtype=SETTINGS["dtype"],
-                 duration_given=float(job["seconds"]))
+                 duration_given=float(job["seconds"]),
+                 audio_from="pretransform.decode(latents) before the generate() clamp(-1, 1); no scaling",
+                 peak_before_clamp=round(float(np.max(np.abs(audio))), 6))
         rec.save()  # after every file, so a stop loses nothing
     rec.save(settings=SETTINGS, prefix=PREFIX, peak_gpu_mem_gb=round(torch.cuda.max_memory_allocated() / 1e9, 2)
              if device == "cuda" else None)

@@ -156,11 +156,22 @@ measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
   is not "brighter" but "a shape and weight". He heard crackling: it was in the downloaded
   files (hard cuts, played 10 to 20 dB too loud) and in the page (a compressor as limiter,
   loops that started on a step); both are repaired.
-- Round 3 is on the page and waits for him: eleven direction samples (hull hit, thruster pulse
-  and landing gear in three answers each, shield hit in two) and twenty voice samples. The
-  reworked fold jump, fold exit, shields-down alarm and cruise charge of round 1 are still
-  unrated, and nothing was said yet about the stereo stage. His choice among the direction
-  samples becomes the rule; then the event sounds are rendered anew.
+- Round 3 (2026-11-15: eleven direction samples for hull hit, thruster pulse, landing gear and
+  shield hit, and twenty voice samples), heard: seven ratings, all on voices. "The voices are
+  really good", but the countdown did not count in seconds (measured: 0.18 to 0.75 s from number
+  to number). His proposal is now the rule: speech that must keep time is made of single clips
+  placed by a clock. A countdown built that way stands on the page in four versions (two models;
+  the numbers spoken one by one, or cut out of one sentence; one second from number to number,
+  measured to about 10 ms by three methods). Nobody has heard it yet.
+  Of the direction samples he rated none and chose none: "we are slowly going in the right
+  direction, but everything still sounds too artificial and boring. Are there no better local
+  models for generating audio?" Asked which sample came nearest, he said he liked none of it and
+  can only describe it badly. So no direction became a rule and nothing was rendered anew. He is
+  no longer asked to describe sounds: he gets candidates and accepts or rejects them. Over three
+  rounds the ratings show one pattern: long beds pass and short events fail, from every source
+  (rendered by formula or recorded; the one short event he ever approved is a recorded low boom).
+  The reworked fold jump, fold exit, shields-down alarm and cruise charge of round 1 are still
+  unrated, and nothing was said yet about the stereo stage.
 
 He offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
 
@@ -410,8 +421,9 @@ in the foreground and went on in the background after ten minutes.
 Each step is one work session with its own workflow runs.
 
 1. **Sound library and controller support.** Built on 2026-11-14 (see section 2). What is left of
-   the sound, in this order: the owner's round 3 (he chooses a direction for the short events
-   and judges the voice samples); the event sounds rendered anew to the chosen direction and
+   the sound, in this order: a source of short events that the owner accepts (round 3 chose no
+   direction; in round 4 he accepts or rejects candidates from two generative models and from
+   CC0 recordings, see `tools/sound`); the event sounds made anew from what he accepts and
    heard once more; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
    rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
@@ -511,8 +523,8 @@ Defects seen and left in:
   balance law that keeps a source ahead at the file's level). The intent texts on the page are
   English only.
 - Sound library, since round 2: the rules in `tools/audio/synth/rules.py` still check one-shots
-  of the structure and energy paths the old way (dull); they get new numbers from the direction
-  the owner chooses in round 3. Some rendered one-shots start on a sample that is not silence
+  of the structure and energy paths the old way (dull); round 3 chose no direction, so they get
+  new numbers only when he has accepted a short event. Some rendered one-shots start on a sample that is not silence
   (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
   radio squelch): the audition page fades such a start, the game's runtime will have to do the
   same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
@@ -567,8 +579,9 @@ Never verified:
   missiles and beacons were not looked at in full size. Also not looked at: the ground from 2 km
   at 3840x2160, the grain texture after a lost WebGL context, quality 0 on a weak card (it used
   to draw no ground detail and now draws grain and craters).
-- Any sound by ear, except what the owner rated (49 of 114 after round 2; the direction samples
-  and the voice samples of round 3 not yet). Every other judgement of the sound library and of
+- Any sound by ear, except what the owner rated (49 of 114 after round 2; in round 3 seven voice
+  samples and no direction sample; the countdown samples and the candidates of round 4 not
+  yet). Every other judgement of the sound library and of
   the speech models comes from measurements, spectrogram pictures and models that listen.
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of

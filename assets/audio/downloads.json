@@ -327,6 +327,146 @@
       "credit": "NASA/University of Iowa",
       "archive": false,
       "speech": "none"
+    },
+    {
+      "id": "oga-metal-wood-sfx",
+      "title": "OpenGameArt: 100 CC0 metal and wood SFX",
+      "url": "https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip",
+      "pageUrl": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+      "sha256": "be6eba63b03409ac0c77787a956b1503a7c186403d04aef9725c52644a4b7878",
+      "bytes": 1990361,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/100-cc0-metal-and-wood-sfx, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"rubberduck\"; on provenance: the page does not say how the sounds were made; a comment thread notes a copy of the pack on renderhub.com published later, nothing says the pack derives from other material.",
+      "credit": "rubberduck (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-100-cc0-sfx",
+      "title": "OpenGameArt: 100 CC0 SFX",
+      "url": "https://opengameart.org/sites/default/files/100-CC0-SFX_0.zip",
+      "pageUrl": "https://opengameart.org/content/100-cc0-sfx",
+      "sha256": "a5c135878c132f1c59cca54e60061c296cd0ac27ad031ca2c41b8cd5cab3c706",
+      "bytes": 2921904,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/100-cc0-sfx, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"rubberduck\"; on provenance: the page says \"recorded with an android device\".",
+      "credit": "rubberduck (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-100-cc0-sfx-2",
+      "title": "OpenGameArt: 100 CC0 SFX #2",
+      "url": "https://opengameart.org/sites/default/files/sfx_100_v2.zip",
+      "pageUrl": "https://opengameart.org/content/100-cc0-sfx-2",
+      "sha256": "0fc61b4494e2e893c0c015ced4877b3f689c7d84a48cb61daecd7ddb52db797b",
+      "bytes": 2367871,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/100-cc0-sfx-2, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"rubberduck\"; on provenance: the page does not say how the sounds were made.",
+      "credit": "rubberduck (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-breaking-falling-hit",
+      "title": "OpenGameArt: 75 CC0 breaking / falling / hit sfx",
+      "url": "https://opengameart.org/sites/default/files/sfx_breaking_and_falling.zip",
+      "pageUrl": "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx",
+      "sha256": "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451",
+      "bytes": 1624406,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"rubberduck\"; on provenance: the page says \"i made 75 breaking, falling and hit sounds\" and does not say whether recorded.",
+      "credit": "rubberduck (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-metal-clang",
+      "title": "OpenGameArt: Metal clang sounds",
+      "url": "https://opengameart.org/sites/default/files/clangs.zip",
+      "pageUrl": "https://opengameart.org/content/metal-clang-sounds",
+      "sha256": "153b14cca7d375fa5d1846fc3ae8b21b03ff973f6040b3d78b167f56413d970f",
+      "bytes": 2529890,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/metal-clang-sounds, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"bart\"; on provenance: the page says \"Metal clang sounds at different pitches\" and does not say how they were made.",
+      "credit": "bart (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-steam-release",
+      "title": "OpenGameArt: Steam release sounds",
+      "url": "https://opengameart.org/sites/default/files/steam_hisses.zip",
+      "pageUrl": "https://opengameart.org/content/steam-release-sounds",
+      "sha256": "7dc5ae6f43ef0e9a47b8333e1e1508463cb64877ab06baa0259c643a9ab4677f",
+      "bytes": 622313,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/steam-release-sounds, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"bart\"; on provenance: the page does not say how the sounds were made.",
+      "credit": "bart (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-door-lock",
+      "title": "OpenGameArt: Door Lock Sounds",
+      "url": "https://opengameart.org/sites/default/files/DoorLockSounds.zip",
+      "pageUrl": "https://opengameart.org/content/door-lock-sounds",
+      "sha256": "c23d31653224d70edfcd086d82f2c3d463756b5a66f576e63ed5b819058ea443",
+      "bytes": 371527,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/door-lock-sounds, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"Cough-E\"; on provenance: the page says \"I made my own\", and does not say whether recorded.",
+      "credit": "Cough-E (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-various-sfx",
+      "title": "OpenGameArt: Various Sound Effects",
+      "url": "https://opengameart.org/sites/default/files/sounds_8.zip",
+      "pageUrl": "https://opengameart.org/content/various-sound-effects",
+      "sha256": "82c945e5f3c97e4d38dbf18fa27bcea78dbed73b4078c5bbafc04ad89b4096db",
+      "bytes": 2537204,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/various-sound-effects, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"laleksic\"; on provenance: the page says the sounds were recorded on a phone and cleaned up in Audacity.",
+      "credit": "laleksic (opengameart.org)",
+      "archive": true,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-elevator-door",
+      "title": "OpenGameArt: Elevator_Door",
+      "url": "https://opengameart.org/sites/default/files/elevator_door.wav",
+      "pageUrl": "https://opengameart.org/content/elevatordoor",
+      "sha256": "56307cd725cb7756dd7319487c19b0e5f79968816df228f14803406e875226fa",
+      "bytes": 1261972,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/elevatordoor, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"PagDev\"; on provenance: the page says \"Opening a elevator door Sound Effect\"; a comment thanks the author for recording it.",
+      "credit": "PagDev (opengameart.org)",
+      "archive": false,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
+    },
+    {
+      "id": "oga-tesla-spark",
+      "title": "OpenGameArt: Electricity Sound Effects: spark.wav",
+      "url": "https://opengameart.org/sites/default/files/spark.wav",
+      "pageUrl": "https://opengameart.org/content/electricity-sound-effects-0",
+      "sha256": "9a3d987bdf7f405570aa015f6da42596ce84c5073c18c0561be7cd3ae401bc97",
+      "bytes": 29740,
+      "licence": "CC0 1.0",
+      "licenceEvidence": "Page https://opengameart.org/content/electricity-sound-effects-0, read 2026-11-16: the licence block reads \"License(s): CC0\" and names no other licence; author line \"BMacZero (Brian MacIntosh)\"; on provenance: the page says \"recorded from a small Tesla generator\".",
+      "credit": "BMacZero (Brian MacIntosh) (opengameart.org)",
+      "archive": false,
+      "speech": "none",
+      "restriction": "candidate for the sound listening test (tools/sound), not a sound of the library"
     }
   ],
   "sources": [
@@ -337,6 +477,10 @@
     {
       "name": "NASA, public domain in general",
       "terms": "Recordings hosted on nasa.gov and its subdomains (www.nasa.gov, images-assets.nasa.gov). NASA's Images and Media Usage Guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14, say that NASA content, audio included, \"generally\" is not subject to copyright in the United States and that NASA should be acknowledged as the source. The page then separates two kinds of use. NON-COMMERCIAL use (educational or informational; news outlets, schools, textbook authors) may go ahead without explicit permission when the content is used factually and without implying endorsement. COMMERCIAL use is described more narrowly: clearances may be necessary for material with NASA logos or NASA employees in cover art or promotional content; otherwise NASA material can generally be used editorially in published works that are not promotional in nature; commercial use, advertisements included, must not convey NASA's endorsement of goods or services; a recording with an identifiable person may infringe that person's privacy or publicity rights, so permission should be obtained; and currently employed astronauts and employees cannot have their names, likenesses or other personality traits shown on commercial products, advertisements or promotional material. Two more sections: NASA does not want its material used for NFTs or cryptocurrency, and a section on \"super intelligence\" (SI) applications says that NASA content used with such models must not be attributed to NASA and that the NASA insignia must not appear with their output; these recordings are used for neither. So the guidelines are not a blanket permission for a commercial game. This is the owner's decision to make, and nothing here is legal advice. What it means for this game: (1) nothing may suggest that NASA endorses the game or any product, and a store page or trailer is promotional, so NASA material and the NASA name need clearance there; (2) the NASA insignia, logos and emblems are not part of these files and must not be used without clearance; (3) every file with an identifiable voice, an astronaut or a flight controller, is marked \"speech\" or \"probable\" in downloads.json and in the Notes column below (the marks come from titles and pages, nobody has listened to all of them); these files are test material for the radio filter and for listening, and are not to be shipped without a separate decision, and the two ISS files, with a named astronaut who is currently employed by NASA, must never ship; (4) third-party material that NASA shows on its pages keeps its own rights; nothing of that kind was taken. Where a NASA page names someone besides NASA in the credit, the credit is recorded exactly: \"NASA/University of Iowa\" for the plasma wave recordings (the page states no restriction beyond NASA's guidelines), \"NASA. Courtesy of the Electric and Magnetic Field Instrument Suite and Integrated Science (EMFISIS) team at the University of Iowa\" for the chorus recording, \"NASA/JPL-Caltech/SwRI/Univ of Iowa\" for Juno, and the long Mars credits for Perseverance SuperCam. Pages read: https://www.nasa.gov/historical-sounds/, https://www.nasa.gov/sounds-from-beyond/, https://www.nasa.gov/artemisaudio/ (\"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\"), https://www.nasa.gov/history/apollo-11-audio-highlights/, https://www.nasa.gov/missions/mms/nasa-listens-in-as-electrons-whistle-while-they-work/ and the NASA Image and Video Library."
+    },
+    {
+      "name": "OpenGameArt (opengameart.org), CC0 per item",
+      "terms": "Recordings whose own page on opengameart.org lists the licence as CC0 and nothing else, approved by the owner on 2026-11-15 for the sound listening test (tools/sound/README.md). Each item is a separate download with its own page, author and licence line, read again on 2026-11-16. The exact host only. The speech marks were not made by listening."
     }
   ],
   "notTaken": [
@@ -515,6 +659,10 @@
     {
       "what": "Quindar tone, sound 2 (nasa-quindar-2, https://www.nasa.gov/wp-content/uploads/2015/01/578629main_hawquindar.mp3)",
       "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated. The 10 s excerpts [14, 24] s of both Quindar recordings contain NASA flight-controller speech (Whisper read it back; the speech mark here had said none). A signal tone is synthesised instead"
+    },
+    {
+      "what": "OpenGameArt: SFX - Circuit breaker, Chain winch sounds (sfx-circuit-breaker, chain-winch-sounds)",
+      "why": "circuit breaker: the page names no reason why the uploader may release it (the brief asked for one); chain winch: the author writes in a comment that he synthesised a single clicking noise and arranged it, so it is not a recording"
     }
   ]
 }
