@@ -282,17 +282,20 @@ def choose(cands: list[dict]) -> tuple[list[dict], list[str]]:
     by_src = {s: [i for i, c in enumerate(cands) if c["source"] == s] for s in SOURCES}
     for slot, s in enumerate(SOURCES, 1):
         idx = by_src[s]
+        pickable = [i for i in idx if not cands[i].get("skip")]  # a skipped one still counts for the centre
+        if not pickable:
+            idx = []
         if not idx:
             notes.append("%s has no remaining candidate in this family" % s)
             continue
         centre = z[idx].mean(axis=0)
-        d = [(float(np.linalg.norm(z[i] - centre)), i) for i in idx]
+        d = [(float(np.linalg.norm(z[i] - centre)), i) for i in pickable]
         _, best = min(d)
         chosen.add(best)
         picks.append({"slot": slot, "cand": cands[best], "role": "typical", "_i": best})
 
     def farthest(pool: list[int]) -> int | None:
-        pool = [i for i in pool if i not in chosen]
+        pool = [i for i in pool if i not in chosen and not cands[i].get("skip")]
         if not pool:
             return None
         ref = [z[p["_i"]] for p in picks]
@@ -301,7 +304,7 @@ def choose(cands: list[dict]) -> tuple[list[dict], list[str]]:
 
     free = [s for s in range(1, 4) if s not in {p["slot"] for p in picks}]
     for slot in free:
-        left = {s: [i for i in by_src[s] if i not in chosen] for s in SOURCES}
+        left = {s: [i for i in by_src[s] if i not in chosen and not cands[i].get("skip")] for s in SOURCES}
         richest = max(SOURCES, key=lambda s: (len(left[s]), -SOURCES.index(s)))
         i = farthest(left[richest]) if left[richest] else None
         if i is None:
@@ -391,7 +394,11 @@ def item_family(name: str, item: dict) -> str | None:
     return fam if fam in MAX_LEN_S else None
 
 
-def run(root: Path, use_models: bool, device: str) -> dict:
+def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None = None) -> dict:
+    """skips: {"source/name": reason}. A skipped candidate stays in the pool (it counts for the
+    normalisation and the centre) but is never picked: the next nearest takes its place. Used after
+    looking at the spectrograms of the picks, for plain faults the measures do not see."""
+    skips = skips or {}
     import soundfile as sf
 
     spec = json.loads((HERE / "prompts.json").read_text(encoding="utf-8"))
@@ -439,7 +446,10 @@ def run(root: Path, use_models: bool, device: str) -> dict:
             row["status"] = "kept"
             sources_found[key]["kept"] += 1
             cands[fam].append({"source": key, "name": name, "raw": describe(event, sr),
-                               "cut": cut, "x": x, "sr": sr, "item": item})
+                               "cut": cut, "x": x, "sr": sr, "item": item,
+                               "skip": skips.get("%s/%s" % (key, name))})
+            if skips.get("%s/%s" % (key, name)):
+                row["skippedAsPick"] = skips["%s/%s" % (key, name)]
     listen = root / "_listen"
     listen.mkdir(parents=True, exist_ok=True)
     for old in listen.glob("src_*.wav"):
@@ -468,7 +478,7 @@ def run(root: Path, use_models: bool, device: str) -> dict:
             fam_out[fam]["chosen"].append(sid)
     for key, v in sources_found.items():
         v["perFamily"] = {fam: sum(1 for c in cands[fam] if c["source"] == key) for fam in fams}
-    return {"version": 1,
+    return {"version": 1, "skippedAsPick": skips,
             "settings": {"models": bool(use_models), "modelDevice": device if use_models else None,
                          "note": None if use_models else "speech and music were NOT checked (--no-models)",
                          "maxLengthS": MAX_LEN_S, "startWithinDb": START_DB, "endUnderDb": END_DB, "quietS": QUIET_S,
@@ -490,12 +500,18 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--no-models", action="store_true", help="skip the speech recogniser and CLAP (then speech and music are not checked)")
     ap.add_argument("--root", default=str(GEN), help="the folder with the source folders (default assets/audio/gen)")
+    ap.add_argument("--skip", action="append", default=[], metavar="SOURCE/NAME=REASON",
+                    help="never pick this candidate (it stays in the pool); repeatable; the reason is written to screen.json")
     ap.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="for the two models; cuda only under with_lock.py")
     a = ap.parse_args(argv)
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
     os.environ.setdefault("DO_NOT_TRACK", "1")
     root = Path(a.root).resolve()
-    result = run(root, not a.no_models, a.device)
+    skips = {}
+    for t in a.skip:
+        k, _, why = t.partition("=")
+        skips[k.strip()] = why.strip() or "skipped by hand"
+    result = run(root, not a.no_models, a.device, skips)
     path = root / "screen.json"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(_clean(result), f, indent=1, ensure_ascii=False)
