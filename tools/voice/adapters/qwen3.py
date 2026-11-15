@@ -5,6 +5,10 @@
     .venv-voice/qwen3/Scripts/python.exe tools/voice/adapters/qwen3.py --device cpu --threads 4 \
         --lines radio_clearance,computer_fold,station_dock
 
+The hub is offline (HF_HUB_OFFLINE=1 is set before any library is imported) and both models are
+loaded from the local snapshot of a pinned revision (REVISIONS); a connection that leaves the
+machine is refused and counted in timing.json.
+
 Extra options (read here, before common.parse_args): --cast-device cuda|cpu (default cuda).
 Step 1 (--cast-only): VoiceDesign speaks each reference_text with the voice description as the
 instruction, three takes (seed, seed+1, seed+2); the first sound take becomes cast/<voice>.wav.
@@ -24,8 +28,12 @@ if "--cast-device" in sys.argv:
     _cast_device = sys.argv[i + 1]
     del sys.argv[i:i + 2]
 
-os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
-os.environ.setdefault("DO_NOT_TRACK", "1")
+# Hub offline BEFORE huggingface_hub / transformers / qwen_tts are imported (they read it at import):
+# nothing is fetched, a model that is not in the local cache stops the run instead of being downloaded.
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+os.environ["DO_NOT_TRACK"] = "1"
 os.environ.pop("HF_TOKEN", None)
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
@@ -40,6 +48,7 @@ if _use_cpu:
     os.environ["MKL_NUM_THREADS"] = str(args.threads)
 
 import json  # noqa: E402
+import socket  # noqa: E402
 import threading  # noqa: E402
 import time  # noqa: E402
 
@@ -49,6 +58,38 @@ import torch  # noqa: E402
 KEY = "qwen3"
 DESIGN_REPO = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
 BASE_REPO = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+# pinned revisions (the ones CANDIDATES.md lists); an unpinned "main" can change the model
+REVISIONS = {DESIGN_REPO: "5ecdb67327fd37bb2e042aab12ff7391903235d3",
+             BASE_REPO: "5d83992436eae1d760afd27aff78a71d676296fc"}
+NET_ATTEMPTS: list[str] = []
+LOADED: dict[str, str] = {}  # repo -> local snapshot folder actually loaded
+
+
+def block_network() -> None:
+    """Any connection that leaves this machine is refused and counted (written to timing.json)."""
+    def is_local(address) -> bool:
+        host = address[0] if isinstance(address, tuple) and address else ""
+        return host in ("127.0.0.1", "::1", "localhost")
+
+    real_connect, real_connect_ex = socket.socket.connect, socket.socket.connect_ex
+
+    def refuse(self, address, *a, **k):
+        if is_local(address):
+            return real_connect(self, address, *a, **k)
+        NET_ATTEMPTS.append(repr(address))
+        raise OSError("network blocked by the adapter")
+
+    def refuse_ex(self, address, *a, **k):
+        if is_local(address):
+            return real_connect_ex(self, address, *a, **k)
+        NET_ATTEMPTS.append(repr(address))
+        return 10061
+
+    socket.socket.connect = refuse  # type: ignore[assignment]
+    socket.socket.connect_ex = refuse_ex  # type: ignore[assignment]
+
+
+block_network()
 LANG = "English"
 CAP_LINE_S = 300.0  # five-minute rule for one line on the CPU
 
@@ -70,11 +111,28 @@ def seed_all(s: int) -> None:
         torch.cuda.manual_seed_all(s)
 
 
+def snapshot_of(repo: str) -> str:
+    """Local folder of the pinned revision of a repository: from the cache only, never the network.
+    The package passes only the repo id on to its processor and speech tokenizer, so it is given
+    this folder: every file then comes from exactly this revision."""
+    import huggingface_hub
+    from huggingface_hub import snapshot_download
+
+    assert huggingface_hub.constants.HF_HUB_OFFLINE, "the hub must be offline"
+    rev = REVISIONS[repo]
+    path = snapshot_download(repo, revision=rev, local_files_only=True)
+    if os.path.basename(os.path.normpath(path)) != rev:
+        raise SystemExit("snapshot %s is not revision %s" % (path, rev))
+    LOADED[repo] = path
+    return path
+
+
 def load(repo: str):
     from qwen_tts import Qwen3TTSModel
+    path = snapshot_of(repo)
     t = time.perf_counter()
     # no flash-attn: sdpa; weights are safetensors; no trust_remote_code anywhere
-    m = Qwen3TTSModel.from_pretrained(repo, device_map=DEVICE, dtype=DTYPE, attn_implementation="sdpa")
+    m = Qwen3TTSModel.from_pretrained(path, device_map=DEVICE, dtype=DTYPE, attn_implementation="sdpa")
     sync()
     return m, time.perf_counter() - t
 
@@ -149,7 +207,8 @@ def make_cast() -> None:
                 "description": v["description"], "text": v["reference_text"], "language": LANG,
                 "seed": chosen["seed"], "base_seed": args.seed, "take": chosen["take"], "why": why,
                 "takes": takes, "clip": "assets/audio/voice/qwen3/cast/%s.wav" % vid,
-                "sample_rate": chosen["sr"], "load_s": round(load_s, 2)}
+                "sample_rate": chosen["sr"], "load_s": round(load_s, 2),
+                "hub_offline": os.environ.get("HF_HUB_OFFLINE"), "revision": REVISIONS[DESIGN_REPO]}
         (out / (vid + ".json")).write_text(json.dumps(meta, indent=2), encoding="utf-8")
         summary[vid] = {"take": chosen["take"], "why": why, "duration_s": chosen["duration_s"]}
     if ON_CUDA:
@@ -191,7 +250,9 @@ def speak_lines() -> None:
 
     def too_slow() -> None:  # CPU five-minute rule: keep what exists, report the figure
         run.data["aborted"] = "line %s exceeded %.0f s on %s" % (state["line"], CAP_LINE_S, args.device)
-        run.save(clone_prompt_s=round(prompt_s, 2), first_audio="not available: the package has no audio streaming")
+        run.save(clone_prompt_s=round(prompt_s, 2), first_audio="not available: the package has no audio streaming",
+                 hub_offline=os.environ.get("HF_HUB_OFFLINE"), revision=REVISIONS[BASE_REPO],
+                 snapshot=LOADED.get(BASE_REPO), network_attempts_refused=list(NET_ATTEMPTS))
         print("ABORT:", run.data["aborted"])
         os._exit(3)
 
@@ -213,6 +274,8 @@ def speak_lines() -> None:
             timer.cancel()
         run.line(ln, wavs[0], sr, took)
     extra = {"clone_prompt_s": round(prompt_s, 2), "dtype": str(DTYPE),
+             "hub_offline": os.environ.get("HF_HUB_OFFLINE"), "revision": REVISIONS[BASE_REPO],
+             "snapshot": LOADED.get(BASE_REPO), "network_attempts_refused": list(NET_ATTEMPTS),
              "first_audio": "not available: the package has no audio streaming (non_streaming_mode only simulates streamed text input)"}
     if ON_CUDA:
         extra["peak_gpu_gb"] = round(torch.cuda.max_memory_allocated() / 1e9, 3)

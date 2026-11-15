@@ -4,6 +4,7 @@
   "neg": ["a cheap electronic beep", "an arcade video game sound effect", "white noise hiss", "music", "a person speaking"],
   "categories": [
     {"id": "pilot", "en": "Direction samples (round 3)", "de": "Richtungsproben (Runde 3)", "neg": ["someone knocking on a plastic container", "a sound heard under water", "a toy sound effect", "someone tapping on a taut plastic foil"]},
+    {"id": "voice", "en": "Voice samples (round 3)", "de": "Stimmproben (Runde 3)", "neg": []},
     {"id": "engines", "en": "Engines", "de": "Triebwerke", "neg": ["a car engine revving", "a jet aircraft flying past outdoors"]},
     {"id": "thrusters", "en": "Thrusters", "de": "Steuerdüsen", "neg": ["a gunshot", "a loud air hiss outdoors"]},
     {"id": "impacts", "en": "Hits on hull and shield", "de": "Treffer auf Rumpf und Schild", "neg": ["a film explosion with fire outdoors", "glass breaking", "a film laser pew", "someone knocking on a metal bowl"]},
