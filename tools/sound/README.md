@@ -62,14 +62,69 @@ with the same kind of record (the source file, the cut in seconds, the item's pa
 ## How candidates are chosen
 
 `screen.py` (run with the environment of the sound library, which it only reads) cuts the event
-out of each raw file, and throws out only what is broken: silence, clipping, speech or music
-(the speech recogniser and CLAP say so), several events where one was asked for, an event cut
-off by the end of the file. It does NOT rank by the measures of round 2 (share of energy per
-band, attack): the direction samples of round 3 met those and he still disliked them. Among what
-is left it picks for variety, so that the candidates of a family differ from each other.
+out of each raw file, throws out what is broken, and among what is left picks for variety, so that
+the candidates of a family differ from each other. It does NOT rank by the measures of round 2
+(share of energy per band, attack): the direction samples of round 3 met those and he still
+disliked them. A plain run, `screen.py` and then `publish.py`, gives the published picks: the hand
+skips below are read from a committed file.
 
-On the page every candidate gets the same treatment: the level of its family, no step at either
-end, the cabin not baked in but only lightly added (`dry` false), a fixed place ahead where it
-has one channel. `publish.py` writes them as the category "Klangquellen (Runde 4)".
+**What is thrown out** (reason in `screen.json`, per file): silent; clipped; speech or music (the
+speech recogniser and CLAP say so); several events where one was asked for; cut off; shorter than
+80 ms.
+
+- *Clipped* means a flat top: three or more equal samples in a row at the extreme (the highest or
+  the lowest value) of a channel. A file whose float samples go beyond full scale without a flat
+  top (Stable Audio before its makers' clamp) is not clipped; a file clamped at 1.0 is.
+- *Cut off* means the event is still within 20 dB of its maximum in the last 50 ms, and it holds
+  for two places: the end of the raw file, and the end of the cut where the family's longest length
+  (hull 2.5 s, thruster 1.2 s, gear 3.8 s, shield 2.5 s) stops an event that has not ended by
+  itself. Both use the same 20 dB and the same 50 ms against the same maximum (the loudest 4 ms of
+  the file). `screen.json` says which (`cutOffAt`: `end-of-file` or `family-length`) and, for the
+  cap, how far under the maximum the event was (`lastDbBelowMaxAtCap`). An event that has died away
+  20 dB or more by the cap is kept and only marked as capped. Why two measures of the same event
+  can differ: gear_2 seed 16 of MOSS is a steady sound at about -15 dB for 3.6 s with a latch peak
+  at 3.67 s. At the cap of 3.8 s its last 50 ms are 11.0 dB under the loudest 4 ms (the rule), 7.2 dB
+  under the loudest 50 ms, and 0.1 to 0.5 dB under the loudest 100 ms when a 100 ms window ends at
+  3.77 s, before the fade. The rule's measure is the first.
+
+**Hand skips.** A pick can be skipped by hand after its spectrogram shows a plain fault that the
+rules do not see: steady noise instead of an event, a tone over everything, a second event or
+silence inside the cut. Never for how it sounds. The skipped candidate stays in the pool (it counts
+for the normalisation and the centre), is never picked, and the next nearest takes its place. The
+list is `tools/sound/skips.json` (candidate as `source/name`, reason), committed, and read by
+default; `--skip SOURCE/NAME=REASON` adds to it and `--skips FILE` reads another file. The skips in
+use are written to `screen.json`.
+
+**Level.** Every copy is set to the loudness the audition page plays it at in its Stereo stage,
+which was measured: the page adds the energies of its two channels, a one-channel file is put on
+both, and a two-channel file passes untouched, so a two-channel file of the same BS.1770 loudness
+as a one-channel file leaves the page 3.0 dB lower (`tools/dev/audition-level.mjs`, column
+`file>page dB`: one channel -0.09 to +0.33 dB with a median of -0.08, two channels -3.10 dB in all 6 and 10 files measured). The family target in
+`prompts.json` stays the loudness of a one-channel file, as in rounds 3 and 4. A copy is set to
+the family target plus 10*log10(2) = 3.01 dB measured as BS.1770 integrated over two channels, a
+one-channel file counted on both (its own loudness plus 3.01 dB, so one-channel files stay
+exactly where the family target put them, two-channel files come up by 3.01 dB). No downmix. The
+measure is taken after all processing (resampling, end fade and the silence after it, ramp in,
+mean removal), the gain is corrected and the measure taken again until it is within 0.05 LU of the
+target, or the true-peak ceiling (-1.1 dBFS) stops it. `screen.json` records per copy the family
+target (`lufsTarget`), the page target (`lufsPageTarget`), the level reached by the own-channels
+measure (`lufsReached`) and by the page measure (`lufsReachedPage`), the gain (`gainDb`), the
+error and whether the ceiling stopped it (`limitedByPeak`).
+
+**Measures only, no rules.** `energyAbove60Hz` is the share of the event's energy above 60 Hz
+(over all channels). A candidate with almost nothing above 60 Hz plays as silence on most
+loudspeakers; the page shows the share in the intent line and in the checks, and a hint below 10 %.
+
+**Ids.** A published id names the candidate: `src_<family number>_<family>_<slot>_<source>_<tag>`,
+the tag being prompt number and seed for a generated file (`p2s16`) and a short slug of the
+excerpt's name for a recording, so that an id never comes to mean another sound when a pick is
+replaced. `publish.py` removes every file of the category from `render/source` that is not part of
+the new set, because the manifest is assembled from whatever lies there; it leaves the order of
+`manifest.json` as `tools/audio/build.py` makes it. The page lists the categories in the order of
+`manifest.categories`, and `tools/dev/audition-check.mjs` finds its first rows that way.
+
+On the page every candidate gets the same treatment: the level above, no step at either end, the
+cabin not baked in but only lightly added (`dry` false), a fixed place ahead where it has one
+channel. `publish.py` writes them as the category "Klangquellen (Runde 4)".
 
 Nobody can hear here. Whether a candidate is right is the owner's click.
