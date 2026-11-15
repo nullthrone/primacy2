@@ -274,6 +274,17 @@ def test_listening_copy_mono_44k():
     assert np.abs(y[n]).max() > 10 ** (-60 / 20)
 
 
+def test_listening_copy_removes_a_mean_the_page_would_fail():
+    sr = 48000
+    t = np.arange(int(1.0 * sr)) / sr
+    ev = (0.3 * np.sin(2 * np.pi * 50 * t) * np.exp(-2 * t) + 0.03 * np.exp(-3 * t))[:, None]  # sub-bass plus a one-sided push
+    y, info = screen.listening_copy(ev, sr, -24.0)
+    assert info["dcBefore"] >= 0.001 and info["dcAfter"] < 1e-4, info
+    assert abs(float(y.mean())) < 1e-4
+    assert np.abs(y[0]).max() <= 10 ** (-60 / 20) and np.abs(y[-1]).max() <= 10 ** (-60 / 20)  # no step at either end
+    assert info["truePeakDb"] <= -1.0
+
+
 def test_listening_copy_keeps_two_channels_and_mixes_more_down():
     sr = 32000
     t = np.arange(int(0.6 * sr)) / sr

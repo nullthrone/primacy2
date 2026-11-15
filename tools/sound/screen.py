@@ -63,6 +63,7 @@ SECOND_DB = 20.0 * math.log10(0.5)        # a second onset of at least half the 
 SPEECH_WORDS = 3
 MUSIC_TEXT = "music, a melody, an instrument playing a tune"
 CEILING_DB = -1.1                         # the listening copy; the page's 16-bit copy keeps -1 with room
+DC_LIMIT = 0.001                          # the page's limit for the mean of a file
 STEP_DB = -60.0                           # a sample above this at an end is a step
 RAMP_S = 0.0015
 FADE_S = 0.030
@@ -365,10 +366,24 @@ def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: f
         n = int(round(RAMP_S * OUT_SR))
         r = 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / n)
         y = np.concatenate([y[0][None, :] * r[:, None], y], axis=0)
+    # the page's rules fail a file whose mean is 0.001 or more (about -60 dBFS). A short event that is
+    # mostly sub-bass has such a mean (shield_3 s16 of MOSS: 0.0099); it is taken out with a window that
+    # is 1 in the middle and tapers over the first 1.5 ms and the last 5 ms, so that no step is made
+    dc_before = float(np.abs(y.mean(axis=0)).max())
+    if dc_before >= DC_LIMIT / 2:
+        n = y.shape[0] - tail  # the last 10 ms (the page's tail check) are left as they are: silence after a fade, below -60 dB otherwise
+        a_, b_ = min(int(round(RAMP_S * OUT_SR)), n // 4), min(int(round(0.005 * OUT_SR)), n // 4)
+        w = np.ones(n)
+        w[:a_] = 0.5 - 0.5 * np.cos(np.pi * np.arange(a_) / max(a_, 1))
+        w[n - b_:] = 0.5 + 0.5 * np.cos(np.pi * np.arange(b_) / max(b_, 1))
+        corr = np.zeros_like(y)
+        corr[:n] = (y.mean(axis=0, keepdims=True) * (y.shape[0] / float(w.sum()))) * w[:, None]
+        y = y - corr
+    dc_after = float(np.abs(y.mean(axis=0)).max())
     info = {"sr": OUT_SR, "channels": int(y.shape[1]), "durationS": round(y.shape[0] / OUT_SR, 4),
             "lufsTarget": target_lufs, "lufsReached": round(lufs(y), 2), "gainDb": lv["gainDb"],
             "limitedByPeak": bool(lv["limited"]), "truePeakDb": round(true_peak_db(y), 2),
-            "rampIn": ramp, "fadeOut": fade, "firstSampleDb": round(20 * math.log10(max(float(np.abs(y[0]).max()), 1e-12)), 1),
+            "dcBefore": round(dc_before, 6), "dcAfter": round(dc_after, 6), "rampIn": ramp, "fadeOut": fade, "firstSampleDb": round(20 * math.log10(max(float(np.abs(y[0]).max()), 1e-12)), 1),
             "lastSampleDb": round(20 * math.log10(max(float(np.abs(y[-1]).max()), 1e-12)), 1)}
     return y, info
 
