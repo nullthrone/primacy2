@@ -163,6 +163,14 @@ def main(argv=None) -> int:
                 sid, entry["duration"], ch, an["lufs"], an["truePeakDb"], "ok" if not failed else "FAILED " + ",".join(failed)))
 
     manifest = build.assemble_manifest(out, measure, common)
+    # build.assemble_manifest puts ids it does not know after the known ones, but the page lists the
+    # categories in the order of sounds.json, where "source" is first, and tools/dev/audition-check.mjs
+    # takes manifest.sounds[0] and [1] for the first two rows of the page: the sounds of this category
+    # go to the front of the list (a stable move: everything else keeps its order)
+    first = [x for x in manifest["sounds"] if x["category"] == CATEGORY]
+    if first and [x for x in manifest["sounds"][:len(first)]] != first:
+        manifest["sounds"] = first + [x for x in manifest["sounds"] if x["category"] != CATEGORY]
+        build._atomic_write(out / "manifest.json", json.dumps(manifest, indent=1, ensure_ascii=False))
     bad = build.validate_manifest(manifest, out)
     n = sum(1 for s in manifest["sounds"] if s["category"] == CATEGORY)
     print("manifest: %d sounds, %d in %r" % (len(manifest["sounds"]), n, CATEGORY))
