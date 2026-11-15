@@ -17,18 +17,19 @@ stationary noise before an envelope is applied. Everything is seeded (ctx.rng or
 import numpy as np
 
 from . import (LEVELS, SR, bandpass, burst_env, exp_decay, fade_edges, highpass, lowpass, mid_side, register,
-               rise, rms, seeded, thump)
-from .cat_impacts import (SHIELD, body_scale, crackle_lr, flutter_gain, growl, hiss_lr, knock_noise, lr_from,
+               rise, rms, seeded)
+from .cat_impacts import (SHIELD, body_scale, crackle_lr, growl, hiss_lr, knock_noise, lr_from,
                           no_dc, soft_limit)
 
-# Starting targets (true peak, dBFS). The thruster family is level-matched by integrated loudness
-# (the three variants within 2 dB), the shield family likewise; see the report for the values chosen.
+# True-peak targets (dBFS), chosen so that the variants of one family have the same integrated loudness
+# (mono sum, BS.1770) within 1 dB. Short low thumps count little in that measure, so the peaks of the
+# thruster variants differ by several dB; the report gives the numbers.
 LEVELS.update({
-    "pilot_thruster_a": ("peak", -11.5),
-    "pilot_thruster_b": ("peak", -3.2),
-    "pilot_thruster_c": ("peak", -3.3),
+    "pilot_thruster_a": ("peak", -15.3),
+    "pilot_thruster_b": ("peak", -9.0),
+    "pilot_thruster_c": ("peak", -9.3),
     "pilot_shield_a": ("peak", -5.0),
-    "pilot_shield_b": ("peak", -8.2),
+    "pilot_shield_b": ("peak", -7.2),
 })
 
 
@@ -96,6 +97,9 @@ def falling_thump(n, f0, f1, glide_s, t60, attack_ms, drive=1.0, hp=35.0, lp=Non
 
 # --------------------------------------------------------------------------- thrusters
 
+CLICK_VS_JET = 9.0
+
+
 @register("pilot_thruster_a")
 def pilot_thruster_a(ctx):
     """Gas jet. Valve opens (click), a jet hisses for about 200 ms, valve shuts (click), a small
@@ -103,7 +107,7 @@ def pilot_thruster_a(ctx):
     n = ctx.n
     r = ctx.rng
     t = np.arange(n) / SR
-    t_on, t_off = 0.004, 0.204                       # the jet runs from here to here
+    t_on, t_off = 0.0025, 0.204                       # the jet runs from here to here
     a_on, a_off = int(t_on * SR), int(t_off * SR)
     u = np.maximum(t - t_on, 0.0)
 
@@ -122,7 +126,7 @@ def pilot_thruster_a(ctx):
         fall = np.clip((t_end - t) / (fall_ms / 1000.0), 0.0, 1.0)
         return e * (0.5 - 0.5 * np.cos(np.pi * fall))          # a rounded fall, longer than the swell
 
-    env_hi = swell(9.0, 42.0, t_off) * (1.0 + 0.9 * np.exp(-u / 0.018))
+    env_hi = swell(7.0, 42.0, t_off) * (1.0 + 0.9 * np.exp(-u / 0.018))
     env_hi[:a_on] = 0.0
     env_mid = swell(16.0, 55.0, t_off + 0.012)
     hi = hi_noise * env_hi * alive(n, r("fl-hi"), 25.0, 130.0, 0.38) * alive(n, r("w-hi"), 4.0, 18.0, 0.2)
@@ -136,8 +140,8 @@ def pilot_thruster_a(ctx):
     tail[a_off:] = tail_n * exp_decay(m, 0.07) * smooth_ramp(m, 0, int(0.003 * SR)) * 0.30
 
     # the two valve clicks: bright, 4 ms, the closing one softer and a little duller
-    opening = click(r("click-open"), 4.5, 2200.0, 6200.0, 2.2)
-    closing = click(r("click-shut"), 4.0, 1800.0, 5200.0, 2.0)
+    opening = click(r("click-open"), 4.5, 2200.0, 6200.0, 6.0)
+    closing = click(r("click-shut"), 4.0, 1800.0, 5200.0, 5.0)
     clicks = np.zeros(n)
     put(clicks, opening, 0, 1.0)
     put(clicks, closing, a_off, 0.55)
@@ -148,7 +152,7 @@ def pilot_thruster_a(ctx):
     th = np.zeros(n)
     put(th, thump_y, a_off + int(0.0025 * SR))
 
-    rest = jet + tail + clicks * (rms(jet[a_on + 480:a_off - 480]) * 3.0)
+    rest = jet + tail + clicks * (rms(jet[a_on + 480:a_off - 480]) * CLICK_VS_JET)
     y = rest + th * body_scale(th, rest, 0.17)
     return no_dc(fade_edges(y, 0.0, 12.0))
 
@@ -158,7 +162,7 @@ PUNCH_VS_CRACK, AIR_VS_CRACK = 1.75, 0.6
 
 @register("pilot_thruster_b")
 def pilot_thruster_b(ctx):
-    """Cinema punch. A bright crack, a chesty punch that falls from about 320 Hz to 95 Hz, a short
+    """Cinema punch. A bright crack, a chesty punch that falls from about 330 Hz to 92 Hz, a short
     airy tail. One channel."""
     n = ctx.n
     r = ctx.rng
@@ -187,8 +191,9 @@ def pilot_thruster_b(ctx):
     air_env = smooth_ramp(n, int(0.012 * SR), int(0.04 * SR)) * exp_decay(n, 0.27)
     air = air * air_env * alive(n, r("fl-air"), 25.0, 110.0, 0.35)
 
-    # energies set against the crack: the punch 1.3 of it, the air 0.6 of it, so that the first
-    # 30 ms are about half crack (the attack is bright) and half of the file lies below 500 Hz
+    # energies set against the crack: the punch PUNCH_VS_CRACK times it, the air AIR_VS_CRACK times it,
+    # so that the first 30 ms are about half crack (the attack is bright) and half of the file lies
+    # below 500 Hz
     e_crack = float(np.sum(crack ** 2))
     punch = chest * np.sqrt(PUNCH_VS_CRACK * e_crack / max(float(np.sum(chest ** 2)), 1e-12))
     air = air * np.sqrt(AIR_VS_CRACK * e_crack / max(float(np.sum(air ** 2)), 1e-12))
@@ -196,7 +201,7 @@ def pilot_thruster_b(ctx):
     return no_dc(fade_edges(y, 0.0, 12.0))
 
 
-THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.65, 0.13, 15.0, 12.0
+THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.6, 0.13, 5.0, 4.0
 
 
 @register("pilot_thruster_c")
@@ -206,8 +211,8 @@ def pilot_thruster_c(ctx):
     r = ctx.rng
     # the clack: the armature hits (2.5 to 5 kHz), bounces back and hits again, with a little
     # body of the housing around 700 Hz to 1.5 kHz so that it is material and not a tick
-    hit1 = click(r("hit1"), 6.5, 2300.0, 5200.0, 2.6)
-    hit2 = click(r("hit2"), 4.0, 2000.0, 4600.0, 1.8)
+    hit1 = click(r("hit1"), 7.0, 2300.0, 5200.0, 4.5)
+    hit2 = click(r("hit2"), 4.5, 2000.0, 4600.0, 3.0)
     housing = click(r("housing"), 9.0, 700.0, 1500.0, 4.0, 0.3)
     clack = np.zeros(n)
     put(clack, hit1, 0, 1.0)
@@ -216,7 +221,7 @@ def pilot_thruster_c(ctx):
 
     # the thump: starts just after the clack, mostly between 60 and 125 Hz, gone in 0.15 s
     tm = int(0.30 * SR)
-    th = falling_thump(tm, 150.0, 58.0, 0.045, THUMP_T60, THUMP_RISE_MS, drive=1.35, hp=38.0, lp=420.0)
+    th = falling_thump(tm, 132.0, 56.0, 0.04, THUMP_T60, THUMP_RISE_MS, drive=1.35, hp=38.0, lp=420.0)
     body = np.zeros(n)
     put(body, th, int(THUMP_DELAY_MS * SR / 1000.0))
     y = clack + body * np.sqrt(THUMP_VS_CLACK * float(np.sum(clack ** 2)) / max(float(np.sum(body ** 2)), 1e-12))
@@ -230,11 +235,13 @@ BASS_PAIRS = ((56.0, 8.0, 1.0), (68.0, 9.5, 0.9), (82.0, 7.0, 0.75), (96.0, 6.0,
 
 
 def bass_throb(n, seed, scale=1.0):
-    """The throb of shield A: three close pairs of sines between 45 and 90 Hz. Each pair beats
-    (6 to 12 Hz) with its second partner weaker than the first, so the swing stays near 6 to 8 dB
-    and never drops to silence. The pitch sags by 12 % at the hit and climbs back, and every partner
-    drifts a little, so the spectrum is a few soft humps and not a ruler-straight line. The envelope
-    swells in 30 ms, stays near its top for half a second and falls over about 1.1 s. Mono."""
+    """The throb of shield A: four close pairs of sines between 45 and 100 Hz (BASS_PAIRS) and a steady
+    66 Hz floor. Each pair beats (6 to 9.5 Hz) with its second partner at 0.45 of the first, and the
+    floor keeps a beat from dropping the bass to nothing. The pitch sags by 20 % at the hit and climbs
+    back (tau 0.22 s), and each pair drifts together by a few per cent, so the spectrum is a soft band
+    and not a ruler-straight line. The envelope swells in 30 ms, then falls by -6*(t/0.62)^2 dB, so it
+    is within 12 dB of its top for more than 0.7 s. A tanh drive gives it harmonics at 100 to 250 Hz
+    (small loudspeakers). Mono."""
     rng = seeded(seed)
     t = np.arange(n) / SR
     sag = 1.0 - 0.2 * np.exp(-t / 0.22)
@@ -300,7 +307,8 @@ def pilot_shield_a(ctx):
 
     throb = bass_throb(n, "pilot_shield_a/throb")
 
-    # balance (shares of the mono sum): sparks about 0.30, growl about 0.30, throb the rest
+    # balance: the growl is GROWL_VS_SPARKS times the level of the sparks (RMS over the first 0.5 s), and
+    # the throb is set to THROB_SHARE of the energy of the mono sum
     growl_mono = 0.5 * (growl_lr[:, 0] + growl_lr[:, 1])
     half = slice(0, int(0.5 * SR))
     sg = growl_lr * (rms(spark_mono[half]) / max(rms(growl_mono[half]), 1e-9)) * GROWL_VS_SPARKS
@@ -312,6 +320,7 @@ def pilot_shield_a(ctx):
     return no_dc(fade_edges(y, 0.0, 250.0))
 
 
+WHOOMP_TAU, WHOOMP_T60, RUMBLE_GAIN = 0.075, 0.8, 1.0
 HUM_PARTIALS = ((183.0, 0.55), (268.0, 0.80), (337.0, 0.90), (452.0, 0.80), (617.0, 0.60))
 
 
@@ -324,22 +333,24 @@ def pilot_shield_b(ctx):
     t = np.arange(n) / SR
     w = slice(0, int(0.2 * SR))
 
-    # the whoomp: reaches its top in about 15 ms; the pitch keeps falling while it fades
-    f = 38.0 + 82.0 * np.exp(-t / 0.15)
+    # the whoomp: reaches its top in about 10 ms; the pitch falls from 122 Hz toward 42 Hz (tau WHOOMP_TAU)
+    # and the sound is mostly gone before it settles
+    f = 42.0 + 80.0 * np.exp(-t / WHOOMP_TAU)
     jit = bandpass(seeded("pilot_shield_b/jit").standard_normal(n + 2048), 4.0, 25.0, 2)[2048:]
-    f = f * (1.0 + 0.3 * jit / max(rms(jit), 1e-9))          # the pitch is never a clean line
+    f = f * (1.0 + 0.03 * jit / max(rms(jit), 1e-9))          # a few per cent of wander: never a ruler-straight line
     ph = 2 * np.pi * np.cumsum(f) / SR
     f2 = (70.0 + 190.0 * np.exp(-t / 0.09)) * (1.0 + 0.1 * jit / max(rms(jit), 1e-9))
-    env = smooth_ramp(n, 0, int(0.009 * SR)) * np.exp(-6.9078 * t / 0.6)
+    env = smooth_ramp(n, 0, int(0.009 * SR)) * np.exp(-6.9078 * t / WHOOMP_T60)
     whoomp = (np.sin(ph) + 0.85 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.22)) * env
     # (no saturation here: a clipped sine at 30 to 40 Hz puts a hard line at three times its pitch)
     # the air moved: broad low rumble, 40 to 200 Hz, that blooms under it and fades with it
     rumble = bandpass(seeded("pilot_shield_b/rumble").standard_normal(n + 1024), 40.0, 200.0, 2)[1024:]
     rumble = rumble * smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.55)
-    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 2.0 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
+    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + RUMBLE_GAIN * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
 
     # the sizzle: soft, broad, a lot of it from 1.5 to 6 kHz and little above 8 kHz; the band slides
-    # down while it dissolves. A few weak sparks in it, longer and duller than in A.
+    # down while it dissolves. A very few weak sparks in it, longer and duller than in A (more of them
+    # make it crinkle like foil, fewer make it a synthetic pad).
     envs = (0.55 * np.exp(-6.9078 * t / 0.95) + 0.45 * np.exp(-6.9078 * t / 0.35)) * smooth_ramp(n, 0, int(0.01 * SR))
     fc = 1250.0 + 1650.0 * np.exp(-t / 0.35)
     sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.5, depth=0.5)
@@ -350,7 +361,7 @@ def pilot_shield_b(ctx):
     sizz = sizz + sparks * (0.06 * rms(sizz[w]) / max(rms(sparks[w]), 1e-9))
 
     # the field hum: five partials, each a pair (left and right are detuned a little against each
-    # other, which is where the width comes from) that beats against its neighbour at 2 to 7 Hz.
+    # other, which is where the width comes from) that beats against its partner at 2 to 7 Hz.
     rng = seeded("pilot_shield_b/hum")
     hum = np.zeros((n, 2))
     for (f0, lv) in HUM_PARTIALS:
@@ -364,7 +375,8 @@ def pilot_shield_b(ctx):
     hum_env = smooth_ramp(n, int(0.01 * SR), int(0.14 * SR)) * np.exp(-6.9078 * t / 1.5)
     hum = hum * (hum_env * alive(n, seeded("pilot_shield_b/hum-fl"), 3.0, 14.0, 0.5))[:, None]
 
-    # balance (shares of the mono sum): whoomp and rumble about 0.50, hum about 0.20, sizzle the rest
+    # balance: the hum is 0.75 of the sizzle (RMS over the first 0.2 s); the whoomp and rumble hold 0.45
+    # of the energy of the mono sum
     sizz_m = 0.5 * (sizz[:, 0] + sizz[:, 1])
     hum_m = 0.5 * (hum[:, 0] + hum[:, 1])
     hum = hum * (rms(sizz_m[w]) * 0.75 / max(rms(hum_m[w]), 1e-9))
