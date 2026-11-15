@@ -121,9 +121,11 @@ def check_url(url):
     if parts.username is not None or parts.password is not None or parts.port not in (None, 443):
         raise RuntimeError('refusing url with user info or a port')
     host = parts.hostname or ''
-    allowed = host == 'kenney.nl' or host == 'nasa.gov' or host.endswith('.nasa.gov')
+    # opengameart.org: approved by the owner on 2026-11-15 for recordings whose own page says CC0
+    # (see tools/sound/README.md). The exact host only, no subdomain.
+    allowed = host in ('kenney.nl', 'opengameart.org') or host == 'nasa.gov' or host.endswith('.nasa.gov')
     if not allowed:
-        raise RuntimeError('refusing host %s: only kenney.nl and nasa.gov are approved' % host)
+        raise RuntimeError('refusing host %s: only kenney.nl, nasa.gov and opengameart.org are approved' % host)
     return url
 
 

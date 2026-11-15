@@ -278,10 +278,13 @@ class NamesAndUrls(unittest.TestCase):
 
     def test_urls_are_checked(self):
         good = ('https://kenney.nl/download/abc?expires=1', 'https://www.nasa.gov/x.mp3', 'https://images-assets.nasa.gov/a.mp3',
-                'https://nasa.gov/a')
+                'https://nasa.gov/a', 'https://opengameart.org/sites/default/files/clangs.zip')
         bad = ('http://www.nasa.gov/x', 'ftp://www.nasa.gov/x', 'file:///etc/passwd', 'https://evil.com\\@a.nasa.gov/x',
                'https://nasa.gov.evil.com/x', 'https://nasa.gov@evil.com/x', 'https://www.nasa.gov:8080/x',
-               'https://evilnasa.gov/x', 'https://notkenney.nl/x', 'https://www.nasa.gov/a b', '//www.nasa.gov/x')
+               'https://evilnasa.gov/x', 'https://notkenney.nl/x', 'https://www.nasa.gov/a b', '//www.nasa.gov/x',
+               'http://opengameart.org/x.zip', 'https://www.opengameart.org/x.zip', 'https://cdn.opengameart.org/x.zip',
+               'https://opengameart.org.evil.com/x.zip', 'https://notopengameart.org/x.zip',
+               'https://opengameart.org@evil.com/x.zip', 'https://opengameart.org:8443/x.zip')
         for url in good:
             with self.subTest(url=url):
                 self.assertEqual(fetch.check_url(url), url)
