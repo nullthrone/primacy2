@@ -14,7 +14,9 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
   - Total 7.04 GB. Package `qwen-tts` 0.1.1 from PyPI, torch 2.11.0+cu128. Environment 4.8 GB.
 - Licence of code: Apache-2.0. Read at https://raw.githubusercontent.com/QwenLM/Qwen3-TTS/main/LICENSE (the first line is blank, then "Apache License / Version 2.0, January 2004").
 - Licence of weights: Apache-2.0, from the model-card metadata of both repositories (https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign/raw/main/README.md and https://huggingface.co/Qwen/Qwen3-TTS-12Hz-0.6B-Base/raw/main/README.md: "license: apache-2.0"). Not gated. The model repositories have no LICENSE file.
-- How voices are made: VoiceDesign writes a short reference clip from a text description (no real person). The Base 0.6B model builds a reusable clone prompt from that clip and speaks every line with it. Seeds 20261115 to 20261117; take 1 passed all checks for every voice. The four clips are the shared cast for the Chatterbox run.
+- How voices are made: VoiceDesign writes a short reference clip from a text description (no real person). The Base 0.6B model builds a reusable clone prompt from that clip and speaks every line with it. One seed, 20261115, for all four voices (each voice also had takes 2 and 3 with seeds 20261116 and 20261117, not used); take 1 passed all checks for every voice (`cast/*.json`). The four clips are the shared cast for the Chatterbox run.
+- No real person as template (owner's rule): **met by method.** The voices are VoiceDesign output from a text description; the Base model only clones those clips.
+- Both models are loaded offline (`HF_HUB_OFFLINE=1`) from the local snapshots of the revisions above.
 - Open points:
   - No LICENSE file in the model repositories; the licence rests on the card metadata and the paper.
   - The training data (more than 5M hours per the paper) is not itemised.
@@ -28,6 +30,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Licence of code: MIT. Read at https://raw.githubusercontent.com/resemble-ai/chatterbox/master/LICENSE (first line "MIT License"). Perth watermarker code and weights: MIT, https://raw.githubusercontent.com/resemble-ai/Perth/master/LICENSE.
 - Licence of weights: MIT, card metadata at https://huggingface.co/ResembleAI/chatterbox-nano/raw/main/README.md ("license: mit"). Not gated. No LICENSE file in the repository.
 - How voices are made: the model has no voice design. It speaks in the voice of a reference clip, here the four Qwen3 clips (so the voices stay artificial). The built-in voice, whose origin is not stated, is never used.
+- No real person as template (owner's rule): **met by method**, because it speaks only in those designed clips.
 - Open points:
   - It needs a clip made by another model.
   - The Perth watermark is always on in the package and was left untouched.
@@ -42,6 +45,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Packages: `kokoro` 0.9.4 and `misaki[en]` 0.9.4 from PyPI, torch 2.11.0+cu128, spaCy `en_core_web_sm` 3.8.0 (wheel from the explosion GitHub release, MIT, installed beforehand so misaki does not download it at run time).
 - Licence of code: Apache-2.0 for kokoro (https://raw.githubusercontent.com/hexgrad/kokoro/main/LICENSE) and misaki (https://raw.githubusercontent.com/hexgrad/misaki/main/LICENSE).
 - Licence of weights: Apache-2.0 from the card metadata (https://huggingface.co/hexgrad/Kokoro-82M/raw/main/README.md). Not gated. The repository has no LICENSE file.
+- No real person as template (owner's rule): **not shown.** Every voice is a blend of preset packs whose origin the makers do not document.
 - How voices are made: there is no voice design. A voice is a weighted mean of 2 to 3 preset packs (the package averages packs). Female blends use packs graded B- or better; both male blends rest on packs graded C+ or C.
 - Open points:
   - Weights and packs are pickle files only (the makers ship nothing else); loaded with `weights_only=True`.
@@ -58,6 +62,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Package: `ptts` 0.7.1 from PyPI (Rust extension, no PyTorch). The Windows wheel offers the CPU only.
 - Licence of code: MIT or Apache-2.0. Read at https://raw.githubusercontent.com/gradium-ai/xn-ptts/main/LICENSE-MIT ("Permission is hereby granted, free of charge, to any") and `LICENSE-APACHE` in the same repository.
 - Licence of weights: Apache-2.0, card metadata at https://huggingface.co/gradium/phonon-31m-en/raw/main/README.md. The 40m models of the same maker are CC BY-NC 4.0 and were not touched. Voices repository: Apache-2.0, "English character voices made with Gradium Voice Design" (https://huggingface.co/gradium/phonon-voices/raw/main/README.md); the origin of its 90 catalogue voices is not stated and none was downloaded. Not gated. No LICENSE file in the model repository.
+- No real person as template (owner's rule): **stated by the makers.** The voices card says the twelve character voices were made with Gradium Voice Design (the audit re-read the card at the source); that is their statement, not something checked here.
 - How voices are made: a voice is a fixed embedding file. The four cast voices are four of the twelve character embeddings, used as they are (a loose fit: fantasy characters, no man in his thirties). A blend of embeddings was written as safetensors files and run for four lines.
 - Open points:
   - The Mimi codec that Phonon builds on is CC-BY-4.0 (attribution), read only, nothing downloaded from it.
@@ -71,6 +76,7 @@ The dossier gave each candidate a verdict: pass, unclear or fail, against the ru
 - Packages: `kittenml` 0.9.8 (`--no-deps`), onnxruntime 1.32.0, misaki 0.9.4, torch 2.15.0+cpu and transformers 5.23.0 (needed by the G2P fallback for invented names), spaCy `en_core_web_sm` 3.8.0 from the explosion GitHub release (not PyPI and not the makers' repository: a deviation from rule 3, wheel sha256 in the report).
 - Licence of code: Apache-2.0. Read at https://raw.githubusercontent.com/KittenML/KittenTTS/main/LICENSE ("Apache License / Version 2.0, January 2004").
 - Licence of weights: Apache-2.0, card at https://huggingface.co/KittenML/kitten-tts-2-mini/raw/main/README.md ("license: apache-2.0"; "Apache-2.0 (the models, voice packs and the bundled G2P files)"). Not gated. No LICENSE file in the repository. The en_core_web_sm licence (MIT) rests on its meta file only; the LICENSE URL tried returned 404.
+- No real person as template (owner's rule): **not shown.** The presets, and the blend of two of them, come from voices whose origin the makers do not state.
 - How voices are made: fixed presets chosen by name (Martha, Vincent, Eleanor, Otis). There is no voice design and no seed. A 50/50 blend of two presets was run for four lines.
 - Open points:
   - The makers do not say where the preset voices come from, so the rule "no real person as template" is not shown for them.

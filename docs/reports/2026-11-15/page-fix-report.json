@@ -1,0 +1,87 @@
+{
+  "role": "page-fix",
+  "status": "partial",
+  "summary": "When I started, the work for findings 1 to 3 was already in the checkout, committed by the loop checkpoints (last change to my files: commit c631e3d, 13:39); no page-fix report existed. I wrote no code. I read it, ran tsc and the 20 vitest tests, and ran the audition check on my own vite server (port 5362, scratch ratings file) with the controls and a handful of ids. Finding 3 is shown to hold (5 of 5 runs) and finding 2's controls pass. Finding 1 is proven by vitest against stand-in servers only: the live proof against a real vite server without AUDITION_RATINGS_FILE was blocked by the permission system, and I did not work around it. Two things outside my files need the lead: (a) the sharper detector now reports 9 page-caused clicks (engine group start, see below), so the step 'capture: no click ... comes from the page' fails in the verifier's full run until engine.ts is fixed; (b) the step 'fold scene ... chain honours the cue' failed once in one run (flake in sceneRunner.ts scheduling). ratings.json SHA-256 was identical before and after every run (b3e2ae5c...4cf3); nothing was restored. I started two vite servers (5361 without the variable, 5362 with it) and stopped both.",
+  "perFinding": [
+    {
+      "finding": "1. The check can write the owner's ratings (guard only compared the check's own environment variable)",
+      "whatIChanged": "Nothing in this session: already implemented. packages/client/dev/auditionPlugin.ts answers GET/HEAD /audio-lib/ratings-path with {path: absolute ratings file it writes}. tools/dev/audition-check.mjs asks that before the browser starts and exits 2, having sent nothing else, when the answer is the owner's assets/audio/ratings.json (realpath-resolved, lower-cased compare), when the server does not answer (old server: 403/404/not JSON), when the server's file differs from AUDITION_RATINGS_FILE, or when the shell variable itself names the owner's file.",
+      "before": "Guard compared only the shell variable with the owner's path, case-sensitive; a server started without the variable wrote the owner's file.",
+      "after": "Vitest (audition.test.ts, 6 tests, all pass) runs the real check as a child process against a stand-in HTTP server that answers with the owner's path in three spellings (exact, upper case, lower case), with 404 (old server), with another file, and with the shell variable naming the owner's file: exit code 2 each time, message names the cause, the stand-in server saw only 'GET /audio-lib/ratings-path' (and nothing at all in the last case). Two more tests check that the real plugin answers the scratch path when the variable is set and the owner's path when it is not. Live: my vite on port 5361 started without the variable answered {path: <owner's assets/audio/ratings.json>} to curl (so the plugin side works on a real server). I then tried to run the check against it with the variable set to a scratch file to show the refusal end to end; the permission system denied that command and I did not retry it or find another route. SHA-256 of assets/audio/ratings.json before and after everything: b3e2ae5cf8f41f7ff93738b999edf7745d115032d5e42d30ae884ba557914cf3 (unchanged)."
+    },
+    {
+      "finding": "2. The click detector is blind in quiet sounds and in dense noise",
+      "whatIChanged": "Nothing in this session: already implemented in packages/client/src/dev/audition/capture.ts. A step is a click when it is the largest step within 1 ms either side, exceeds 3 times the 99.9th percentile of the steps in the surrounding 50 ms (the candidate's own +-1 ms left out), exceeds 0.5 times the RMS of that surrounding signal (the floor follows the material), and exceeds -70 dBFS. Sound files are judged with a looser test (ratio 2, level and dust a quarter) so that a page click on top of a file step is still attributed to the file only when the file has a comparable step. The check has a step 'click detector controls' that runs the detector on synthetic signals inside the page.",
+      "before": "Absolute floor 0.05 on the step (nothing found in sounds with peaks below about -32 dBFS, e.g. k_computer_noise_1 at -37 dBFS peak), and 8 times the 99.9th percentile of its own surroundings including the candidate.",
+      "after": "Controls pass in the live check: a -40 dBFS step in a -50 dBFS 440 Hz tone is found (ratio 56) exactly at the cut; a click of 4 times the 99.9th percentile step (12 dB above it) is found in white noise of sigma 0.03, 0.1 and 0.3 (ratios 3.8, 3.8, 4.0); clean noise, a clean -6 dBFS sine and exponential attacks (tau 0.5, 2, 10 ms on tone, noise and a rising DC step) give none. Faults in sound files, detector run on all 107 non-IR sounds of the manifest as the page decodes them (no playback, loops with their first 50 ms appended): 37 sounds with at least one fault, 540 clicks in total (299 of them with ratio >= 3 against the file test's own floor of 2), 0 clipped samples. Sounds: pilot_hull_a/b, pilot_thruster_a/b/c, pilot_gear_a/b/c, pilot_shield_a/b, engine_main_t100, engine_main_boost, thruster_pulse_a/b/c, impact_hull_medium/heavy, impact_shield_light/medium/heavy, debris_patter, touchdown_soft/hard, ground_scrape_loop, dust_patter_loop, fold_jump, fold_exit, weapon_beam_loop, sensor_fire_outside, radio_squelch_open, k_engine_circular_0, k_thruster_0, k_switch_ui_5, k_tick_2, k_computer_noise_1 (34 clicks, previously invisible), n_laser_shots (30 clicks, all ratio >= 23, steps 0.5 to 0.7), n_sls_test_fire (4 weak). Largest counts: k_engine_circular_0 94 (5 strong), pilot_gear_a 41, fold_exit 55, fold_jump 37, impact_shield_heavy 37, pilot_gear_c 29, ground_scrape_loop 29, engine_main_boost 24, pilot_hull_b 23, pilot_shield_a 20. So crackle that is part of the design is in the shield hits, the fold sounds and n_laser_shots, as the lead expected, but this list is longer than that: also gear, hull, thruster, engine_main_boost, ground and dust loops, k_computer_noise_1, k_engine_circular_0. The ratio-2 file test is loose; 299 of the 540 have ratio >= 3. This is the file-level listing, NOT the full capture (not run, as instructed). In the capture subset I ran (6 library sounds in Stereo, Mono and Headphones, plus the four scenes) the library plays produced no page fault; n_laser_shots had 34 file faults per stereo play at 0.33 s spacing; test_step 2 per play (the control), all attributed to the file."
+    },
+    {
+      "finding": "3. The step 'the room is audible' failed in one of two runs",
+      "whatIChanged": "Nothing in this session: already implemented in tools/dev/audition-check.mjs. The step now waits (waitForFunction, 10 s timeout) until the audio clock has passed the end of that very play (found in window.__audition.plays by start >= the clock read before the click) plus 70 ms (the meter window), then resets the peak, waits 300 ms and measures. AUDITION_ROOM_RUNS=n repeats the step n times in one run.",
+      "before": "One of two full runs failed this step in the review (tail 0.2985 at Room 0 against 0.1905 at Room 1) because the one-second test tone was still sounding.",
+      "after": "AUDITION_ROOM_RUNS=5 in one run: 5 of 5 repetitions pass; dry tail at Room 1 0.1001 every time, at Room 0 0.0000 every time, baked tail at Room 1 0.0250, 0.0250, 0.0238, 0.0250, 0.0250. The step is one step of the check, passed in that run. I did not repeat the whole check five times."
+    },
+    {
+      "finding": "NEW, outside my files: the sharper detector finds a page click at the start of the engine group",
+      "whatIChanged": "Nothing. I did not touch engine.ts.",
+      "before": "The old detector reported 0 page faults in the review run.",
+      "after": "In one run of the check (scenes docking, combat, landing, fold written run and event buttons) 9 page-caused clicks were listed, 8 of them at the very start of a scene (t 0.107 to 0.148 s after the capture started, sounds playing: engine_main_t000..t100 and engine_main_boost), sizes 0.011 and 0.014 (about -39 and -37 dBFS) on the two channels, ratios 10 to 19, and 1 in 'scene combat, event buttons' at 2.136 s (size 0.009, ratio 5.7). Reproduced alone with a script on the landing scene (two more runs): at the first non-zero sample the output jumps from exact 0 to -0.0097 and then rises smoothly (-0.0099, -0.0101, ...), 8 ms after the scheduled start of the engine loops. Cause by reading engine.ts playGroup (lines ~770-812): each level's gain node starts at 0 but apply() calls setTargetAtTime(target, ctx.currentTime, 0.03) with ctx.currentTime, while the sources start at when = currentTime + 0.05; by then the gain has already moved about 81 percent of the way, so the group begins with a step instead of a fade-in. A fix would be to schedule the first apply at 'when' (setValueAtTime(0, when) then setTargetAtTime(..., when, 0.03)) or to ramp from 0 over FADE. I did not make it and did not test it. Two further page faults were seen in one of three runs and not reproduced: scene landing 0.148 s, size 0.172 and 0.073, ratios 69 and 40 (with cabin_ambience_loop and cruise_loop playing), and one at 33.53 s of the landing scene (size 0.024, ratio 4; the scene's end) in two of the runs. Cause of these not found. Until engine.ts is fixed, the step 'capture: no click and no clipped sample comes from the page' will fail in the full run."
+    },
+    {
+      "finding": "NEW, outside my files: step 'fold scene: buttons, chain honours the cue' failed once",
+      "whatIChanged": "Nothing.",
+      "before": "Passed in the review's full runs.",
+      "after": "In my capture run it failed: 'jump starts 1.9893 s after the charge, the cue is 2' (tolerance 1 ms, off by 10.7 ms). I did not see it in the room-step repetitions. The machine was busy (a game and another agent's CPU job were running). Cause read from the code, not run: sceneRunner.ts playShots sets base = engine.now() + 0.03 and plans the chain on it, but engine.play puts a start at max(when, currentTime + START_LEAD 0.03); when the async work between those two reads takes more than a moment, the first sound (fold_charge) is pushed later than base while the second keeps base + 2, so the gap shrinks. A larger lead in playShots (for example 0.08 s) would remove it, at the price of a later start; not done and not tested."
+    }
+  ],
+  "filesChanged": [
+    "docs/reports/2026-11-15/page-fix-report.json"
+  ],
+  "soundIdsChanged": [],
+  "checks": [
+    {
+      "command": "npx tsc -p packages/client --noEmit",
+      "result": "exit 0, no errors"
+    },
+    {
+      "command": "npx vitest run packages/client/src/dev",
+      "result": "1 file, 20 tests passed (includes the 4 refusal tests against stand-in servers, 2 plugin tests, detector tests)"
+    },
+    {
+      "command": "curl http://localhost:5361/audio-lib/ratings-path on my vite server started without AUDITION_RATINGS_FILE",
+      "result": "{\"path\": \"<worktree>\\\\assets\\\\audio\\\\ratings.json\"}: the plugin reports the owner's file"
+    },
+    {
+      "command": "AUDITION_URL=http://localhost:5361/dev/audition.html AUDITION_RATINGS_FILE=<scratch> node tools/dev/audition-check.mjs (server started without the variable)",
+      "result": "NOT RUN: the permission system denied the command. Not attempted again. The refusal is shown only by the vitest tests."
+    },
+    {
+      "command": "AUDITION_URL=http://localhost:5362/dev/audition.html AUDITION_RATINGS_FILE=<scratch> AUDITION_ROOM_RUNS=5 AUDITION_CAPTURE_ONLY=k_computer_noise_1,n_laser_shots,k_tick_2,n_dinks_donks,test_edges,test_step python tools/voice/with_lock.py --wait 5400 -- node tools/dev/audition-check.mjs",
+      "result": "49 passed, 2 failed. Failed: 'fold scene: buttons, chain honours the cue' (10.7 ms early, see above) and 'capture: no click and no clipped sample comes from the page' (9 page faults at engine start, see above). Passed in that run: the room step with 5 repetitions, 'click detector controls', 'capture controls' (test_edges all page, test_step all file), limiter and lamp steps, no console errors. 6 library sounds x Stereo plus 6 x Mono and Headphones: no page fault; 548 faults in total attributed to files (scenes plus n_laser_shots plus test_step)."
+    },
+    {
+      "command": "node <scratch>/inv3.mjs landing (own script on port 5362, one capture of the landing scene)",
+      "result": "page fault at 0.1467 s, first non-zero sample -0.0097 after exact zeros, smooth afterwards"
+    },
+    {
+      "command": "node <scratch>/ff.mjs (own script on port 5362: capture.fileFaults on every non-IR sound, no playback)",
+      "result": "107 examined, 37 with faults, 540 clicks (299 ratio >= 3), 0 clips; the list is in finding 2"
+    },
+    {
+      "command": "sha256sum assets/audio/ratings.json before and after each run",
+      "result": "b3e2ae5cf8f41f7ff93738b999edf7745d115032d5e42d30ae884ba557914cf3 every time (unchanged); no restore needed"
+    },
+    {
+      "command": "second run: AUDITION_FILE_FAULTS=1 AUDITION_CAPTURE_SCENES=none through with_lock",
+      "result": "stopped by me after about 25 minutes without progress after the step 'the thrust slider sounds the engine alone while no scene runs' (machine under load from other work); no result from it, which is why I used my own small script ff.mjs for the file listing"
+    }
+  ],
+  "notVerified": [
+    "The refusal of the check against a real vite server started without AUDITION_RATINGS_FILE (blocked by the permission system; shown only against stand-in servers).",
+    "The full capture of all sounds (not to be run); so the number of page faults and file faults over the whole library in real playback is unknown. The file listing (540 clicks in 37 sounds) is from decoding, not from playback, with the looser file test.",
+    "That the three findings hold in a full check run five times: only the room step was repeated five times.",
+    "Whether the engine group start step and the cue misalignment are fixed by the changes suggested; neither was made or tried.",
+    "The origin of the intermittent page faults at landing 0.148 s (ratio 69) and at the end of the landing scene (33.5 s).",
+    "Nothing about how any sound sounds."
+  ]
+}

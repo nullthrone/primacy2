@@ -235,6 +235,70 @@ def test_end_to_end_fake_model():
         assert (d / "computer_fold.wav").read_bytes() == before  # the WAV is untouched
 
 
+# ------------------------------------------------------------------ alignment ties between names and ordinary words
+
+CONVOY_NAMES = ["Tsiolkov", "Xanthe", "Ngozi", "Cael", "Morrow", "Zhenya's", "Brakkenridge"]
+CONVOY_REF = ("Convoy Tsiolkov Gap to Xanthe Drift: escorts Ngozi, Cael Morrow and Zhenya's Rest report ready. "
+              "Pilot Brakkenridge, you have the lead.")
+
+
+def test_tie_keeps_the_errors_on_the_names_qwen3_convoy():
+    # qwen3 on the card, procedural_convoy: Whisper's text. Hand count: 2 ordinary errors (drift is lost
+    # inside xanthodrift, escorts heard as escort); the spoken "and" is right. The plain edit distance has a
+    # second, equally cheap alignment that pairs "and" with "genya" and counted 3.
+    hyp = "Convoy Tsiolkov Gap to Xanthodrift, Escort Snowzie, Kail Maro and Genya's Rest Report ready. Pilot Brackenridge, you have the lead."
+    r = score.score_text(CONVOY_REF, hyp, CONVOY_NAMES)
+    assert r["ordinary_errors"] == 2, r
+    assert r["names_in_reference"] == 7 and r["names_hit"] == 1, r
+    ref, hy = r["ref_tokens"].split(), r["hyp_tokens"].split()
+    npos = score.name_positions(ref, CONVOY_NAMES)
+    ops = score.align(ref, hy, npos)
+    pairs = {(ref[o[1]], hy[o[2]]) for o in ops if o[0] == "eq"}
+    assert ("and", "and") in pairs, ops  # the right word stays on the right word
+    assert not any(o[0] == "sub" and ref[o[1]] == "and" for o in ops), ops
+
+
+def test_tie_other_convoy_lines_by_hand():
+    # hand counts from Whisper's text: kitten-blend 2 (drift lost in zanddrift, escorts as iskorts; the extra
+    # "and" is an insertion inside a name run), phonon 1 (drift lost in santadrift), phonon-blend 1 (pilot as pella)
+    cases = [
+        ("Convoy Tsiolkov Gap to Zanddrift, Iskorts and Gosi, Kiel Moro and Jeaniez Rest Report ready. Pilot Brackenridge you have the lead.", 2),
+        ("Convoy T.S. Ilkov Gap to Santadrift, Escorts Ngozi, KL Moro and Zenya's Rest Report ready. Pilot Brockenridge, you have the lead.", 1),
+        ("Convoy T. Silkov Gap to Zanti Drift, Escorts Ngozi, K. L. Moro and Zina's Rest Report ready. Pella Brockenridge, you have the lead.", 1),
+    ]
+    for hyp, want in cases:
+        r = score.score_text(CONVOY_REF, hyp, CONVOY_NAMES)
+        assert r["ordinary_errors"] == want, (want, r["ordinary_errors"], r["ref_tokens"], r["hyp_tokens"])
+
+
+def test_align_cost_is_never_traded_for_names():
+    # same edit distance as without names, only the choice among equal-cost alignments moves
+    ref = "a b c d e".split()
+    hyp = "a x c y e".split()
+    ops = score.align(ref, hyp, {1: 0})
+    assert [o[0] for o in ops] == ["eq", "sub", "eq", "sub", "eq"]
+    assert sum(o[0] != "eq" for o in score.align(ref, hyp[:3], {1: 0})) == 3  # b to x, d and e gone
+
+
+def test_words_per_second_counts_the_spoken_words_of_a_raw_line():
+    import json
+
+    import soundfile as sf
+
+    raw = {"id": "cargo_raw", "role": "computer", "voice": "computer", "raw": True,
+           "text": "Cargo: 24 t Helium-3", "spoken": "Cargo: twenty-four tons of helium three", "names": []}
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        (td / "lines.json").write_text(json.dumps({"lines": [raw]}), encoding="utf-8")
+        d = td / "m" / "cpu"
+        d.mkdir(parents=True)
+        (d / "timing.json").write_text(json.dumps({"lines": {}}), encoding="utf-8")
+        sf.write(str(d / "cargo_raw.wav"), tone(2.0, sr=24000), 24000)
+        res = score.run(None, False, td, td / "lines.json")
+    wps = res["models"]["m"]["cpu"]["lines"]["cargo_raw"]["level"]["words_per_s"]
+    assert abs(wps - 6 / 2.0) < 0.01, wps  # six spoken words (not the four written tokens, which would give 2.0) in 2 s
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

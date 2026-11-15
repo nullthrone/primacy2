@@ -16,7 +16,8 @@ writes every digit string out as spoken digits, and after it (c) cuts every digi
 "seven four niner", "749", "7 4 9" and "seven four nine" are then the same three tokens. Radio call signs
 ("Alpha Kilo", "AK-447") are made equal the same way. A few spellings that are no speech error are folded
 on both sides (see _spelling_fold: filler "er", "stand by"/"standby", "km", roman "iii", "ore"/"or"). Errors are counted apart: ordinary words and the
-invented names of a line ('names' in lines.json). An error run (substitutions, deletions, insertions in a
+invented names of a line ('names' in lines.json). Among alignments of equal cost the one with the fewest errors on ordinary words is taken (see align).
+An error run (substitutions, deletions, insertions in a
 row) that touches a name position counts for the name, not for the ordinary words.
 """
 from __future__ import annotations
@@ -103,6 +104,7 @@ def silence_profile(x, sr: int, thresh_db: float = SILENCE_DB, win_s: float = WI
 
 
 def level_report(x, sr: int, spoken: str | None = None) -> dict:
+    """Level and shape of one file. `spoken` is the text as it is said (words per second = its words / length)."""
     m = to_mono(x)
     dur = m.size / float(sr) if sr else 0.0
     bad = int(np.sum(~np.isfinite(m)))
@@ -231,23 +233,43 @@ def _nato_fold(ref: list[str], hyp: list[str]) -> tuple[list[str], list[str]]:
     return r, h
 
 
-def align(ref: list[str], hyp: list[str]) -> list[tuple[str, int | None, int | None]]:
+def align(ref: list[str], hyp: list[str], names_at: dict | set | None = None) -> list[tuple[str, int | None, int | None]]:
     """Edit-distance alignment. Ops: ('eq'|'sub', i, j), ('del', i, None), ('ins', None, j).
-    Ties prefer the diagonal, so a wrong word is a substitution, not a deletion plus insertion."""
+    Ties prefer the diagonal, so a wrong word is a substitution, not a deletion plus insertion.
+
+    Among alignments of equal edit cost, the one is taken that puts the fewest errors (substitutions
+    and deletions) on ordinary words: `names_at` holds the reference positions that belong to an
+    invented name (see name_positions), so a tie keeps the errors on name positions and does not book a
+    neighbouring ordinary word that was spoken right (and, escorts, ...) as a substitution against a name.
+    The edit cost itself is never traded: this only decides between alignments that cost the same.
+    Without names_at the tie goes to the alignment with the most matched words."""
     n, m = len(ref), len(hyp)
-    d = np.zeros((n + 1, m + 1), dtype=np.int32)
-    d[:, 0] = np.arange(n + 1)
-    d[0, :] = np.arange(m + 1)
+    names_at = names_at or ()
+    big = n + 1  # the second criterion (at most n) never outweighs one unit of edit cost
+
+    def ordinary(i: int) -> int:  # 1 if reference position i is an ordinary word
+        return 0 if i in names_at else 1
+
+    d = np.zeros((n + 1, m + 1), dtype=np.int64)
+    for i in range(1, n + 1):
+        d[i, 0] = d[i - 1, 0] + big + ordinary(i - 1)
+    d[0, :] = np.arange(m + 1) * big
     for i in range(1, n + 1):
         for j in range(1, m + 1):
-            d[i, j] = min(d[i - 1, j] + 1, d[i, j - 1] + 1, d[i - 1, j - 1] + (ref[i - 1] != hyp[j - 1]))
+            diff = ref[i - 1] != hyp[j - 1]
+            d[i, j] = min(d[i - 1, j] + big + ordinary(i - 1),
+                          d[i, j - 1] + big,
+                          d[i - 1, j - 1] + (big + ordinary(i - 1) if diff else 0))
     ops: list[tuple[str, int | None, int | None]] = []
     i, j = n, m
     while i > 0 or j > 0:
-        if i > 0 and j > 0 and d[i, j] == d[i - 1, j - 1] + (ref[i - 1] != hyp[j - 1]):
-            ops.append(("eq" if ref[i - 1] == hyp[j - 1] else "sub", i - 1, j - 1))
-            i, j = i - 1, j - 1
-        elif i > 0 and d[i, j] == d[i - 1, j] + 1:
+        if i > 0 and j > 0:
+            diff = ref[i - 1] != hyp[j - 1]
+            if d[i, j] == d[i - 1, j - 1] + (big + ordinary(i - 1) if diff else 0):
+                ops.append(("sub" if diff else "eq", i - 1, j - 1))
+                i, j = i - 1, j - 1
+                continue
+        if i > 0 and d[i, j] == d[i - 1, j] + big + ordinary(i - 1):
             ops.append(("del", i - 1, None))
             i -= 1
         else:
@@ -276,7 +298,7 @@ def score_text(reference: str, hypothesis: str, names: list[str] | None = None, 
     hyp = normalise_tokens(hypothesis, names, normalizer)
     ref, hyp = _nato_fold(ref, hyp)
     npos = name_positions(ref, names, normalizer)
-    ops = align(ref, hyp)
+    ops = align(ref, hyp, npos)
     runs: list[list[tuple]] = []  # error runs: consecutive non-equal ops
     cur: list[tuple] = []
     for op in ops:
@@ -508,7 +530,9 @@ def run(models_filter: list[str] | None, use_whisper: bool, root: Path = VOICE, 
             entry: dict = {"file": str(wav)}
             try:
                 x, sr = sf.read(str(wav), dtype="float64", always_2d=False)
-                entry["level"] = level_report(x, sr, ref_text)
+                # words per second counts the words that are actually said (the 'spoken' form), also for a
+                # raw line whose written text ("24 t", "95,000 cr") has fewer tokens than the speech
+                entry["level"] = level_report(x, sr, ln["spoken"])
                 if use_whisper and whisper is not None:
                     hyp = whisper.transcribe(np.nan_to_num(to_mono(x)).astype(np.float32), sr)
                     entry["hypothesis"] = hyp
