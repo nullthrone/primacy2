@@ -1,0 +1,203 @@
+{
+  "role": "kitten (Kitten TTS 2 Mini, int8 ONNX, CPU)",
+  "status": "done",
+  "summary": "All 15 lines run on CPU with 4 threads through onnxruntime 1.32: median real-time factor 0.153 (range 0.147-0.164), load 7.9 s, first audio 0.66-1.52 s, peak RAM 1013 MB. The blend test on the 4 listen lines also ran (median RTF 0.149). No graphics card used, no network use after load. Voices are 4 fixed presets whose origin the makers do not state; output differs from run to run (no seed).",
+  "licences": [
+    {
+      "what": "code kittenml (GitHub KittenML/KittenTTS)",
+      "url": "https://raw.githubusercontent.com/KittenML/KittenTTS/main/LICENSE",
+      "first_line": "Apache License / Version 2.0, January 2004; PyPI metadata of kittenml 0.9.8: 'Apache 2.0'"
+    },
+    {
+      "what": "model, voice packs, G2P files",
+      "url": "https://huggingface.co/KittenML/kitten-tts-2-mini/raw/main/README.md",
+      "first_line": "card line 2 'license: apache-2.0'; line 252 'Apache-2.0 (the models, voice packs and the bundled G2P files).' No LICENSE file in the repository; not gated (API: gated False)."
+    },
+    {
+      "what": "docs read",
+      "url": "https://raw.githubusercontent.com/KittenML/KittenTTS/main/docs/kitten-tts-2-tiny.md and docs/onnx-models.md",
+      "first_line": "'# KittenTTS 2 nano, pico and mini' / '# Lightweight ONNX models'"
+    },
+    {
+      "what": "spaCy pipeline en_core_web_sm 3.8.0 (needed by misaki's English G2P)",
+      "url": "https://raw.githubusercontent.com/explosion/spacy-models/master/meta/en_core_web_sm-3.8.0.json",
+      "first_line": "licence field 'MIT'. The LICENSE file URL I tried returned 404, so the MIT statement rests on the meta file only. The meta lists OntoNotes 5 as 'commercial (licensed by Explosion)' and WordNet 3.0 as training sources."
+    },
+    {
+      "what": "1.7B kitten-tts-2 (Stellon Labs Community License)",
+      "url": "https://huggingface.co/KittenML/kitten-tts-2",
+      "first_line": "not touched, nothing downloaded"
+    }
+  ],
+  "installed": [
+    {
+      "package": "kittenml",
+      "version": "0.9.8",
+      "source": "PyPI, --no-deps"
+    },
+    {
+      "package": "onnxruntime",
+      "version": "1.32.0",
+      "source": "PyPI"
+    },
+    {
+      "package": "torch",
+      "version": "2.15.0+cpu",
+      "source": "PyPI, CPU-only wheel. Needed after all: the English G2P fallback (a 0.75M-parameter BART for words the lexicon lacks, such as invented names) is run with PyTorch and transformers, so the pure ONNX route without torch does not work for English in this version. CUDA is hidden from it; the card is not used."
+    },
+    {
+      "package": "transformers",
+      "version": "5.23.0",
+      "source": "PyPI"
+    },
+    {
+      "package": "misaki",
+      "version": "0.9.4",
+      "source": "PyPI"
+    },
+    {
+      "package": "spacy",
+      "version": "3.8.18",
+      "source": "PyPI"
+    },
+    {
+      "package": "en_core_web_sm",
+      "version": "3.8.0",
+      "source": "GitHub release of explosion/spacy-models (wheel 12,806,118 bytes, sha256 1932429db727d4bff3deed6b34cfc05df17794f4a52eeb26cf8928f7c1a0fb85), installed by hand because misaki otherwise runs spacy.cli.download (a pip install from the network) on first use, and the venv has no pip. Not PyPI and not the makers' repository: a deviation from rule 3."
+    },
+    {
+      "package": "kitten-text-processing, num2words, espeakng-loader, phonemizer, safetensors, numpy, soundfile, huggingface_hub",
+      "version": "see assets/audio/voice/kitten/freeze.txt",
+      "source": "PyPI"
+    }
+  ],
+  "downloaded": [
+    {
+      "repository": "KittenML/kitten-tts-2-mini",
+      "revision": "c01797caec3967b400da457656e011eb81f530a4",
+      "files": [
+        "config.json",
+        "vocab.json",
+        "kitten_tts_2_mini.onnx (82,711,386)",
+        "voices_en.npz (5,747,328)",
+        "g2p/cmu_misaki_us.json (3,418,388)",
+        "g2p/g2p_bart_en_us/model.safetensors (3,011,692)",
+        "g2p/g2p_bart_en_us/config.json, generation_config.json, README.md"
+      ],
+      "bytes": 94907926,
+      "note": "no float32 safetensors, no other languages; token=False, HF_TOKEN unset; default HF cache"
+    }
+  ],
+  "voices": {
+    "how_in_general": "Fixed preset style packs ([510,256] floats, one row per input length), chosen by name. The makers do not say where the voices come from (no statement whether the training speakers are real people); the card gives one line of character description per name. The rule that a voice has no real person as template is therefore not shown for the presets. Choice made from the card descriptions alone; nobody listened. A voice has no seed.",
+    "main_run": {
+      "control_f": {
+        "preset": "martha",
+        "why": "'Weathered radio journalist (female)': the only radio preset"
+      },
+      "pilot_m": {
+        "preset": "vincent",
+        "why": "'Hushed museum guide (male)': calmest of the four male presets; Otis is rough, Max and Danny are performed"
+      },
+      "computer": {
+        "preset": "eleanor",
+        "why": "'Somber historian (female)': measured, even"
+      },
+      "dock_m": {
+        "preset": "otis",
+        "why": "'Rumbling blues musician (male)': the only low, rough male preset"
+      }
+    },
+    "blend_finding": {
+      "key": "kitten-blend",
+      "method": "row-by-row 0.5/0.5 weighted mean of the two nearest presets, float32",
+      "pairs": {
+        "control_f": [
+          "martha",
+          "diana"
+        ],
+        "pilot_m": [
+          "vincent",
+          "danny"
+        ],
+        "computer": [
+          "eleanor",
+          "iris"
+        ],
+        "dock_m": [
+          "otis",
+          "vincent"
+        ]
+      },
+      "lines": [
+        "radio_clearance",
+        "computer_fold",
+        "station_dock",
+        "procedural_convoy"
+      ],
+      "result": "The model ran on all blended packs: files written, finite samples, no error, speed as with presets (median RTF 0.149 vs 0.153). Whether the speech is clean, or sounds like one coherent speaker, was not checked in any way: nobody listened and score.py was not run. pilot_m has no listen line, so its blend was written to cast/ but never spoken.",
+      "vectors_saved": "recipes only (cast/*.json); a blend pack is rebuilt from the weights and the pair"
+    }
+  },
+  "timings": {
+    "cpu": {
+      "threads": 4,
+      "onnxruntime_intra_op_num_threads": 4,
+      "torch_threads": 4,
+      "median_rtf": 0.153,
+      "rtf_min": 0.147,
+      "rtf_max": 0.164,
+      "total_synth_over_total_audio": 0.153,
+      "load_s": 7.89,
+      "load_breakdown_s": {
+        "imports": 3.19,
+        "construct": 0.01,
+        "frontend_spacy_misaki_cmu_bart": 7.52,
+        "onnx_session_and_packs": 0.36
+      },
+      "first_audio_s": "0.66 to 1.52 per line; equals the whole line within 0.001 s: every test line is one chunk, so the package returns nothing earlier than the full line. The text front end (spaCy, misaki, CMUdict, BART fallback) is inside this time.",
+      "peak_gpu_memory": "not applicable: no graphics card used, CUDA_VISIBLE_DEVICES empty",
+      "peak_ram_mb": 1013.1,
+      "blend_run": {
+        "median_rtf": 0.149,
+        "load_s": 7.82,
+        "peak_ram_mb": 971.9
+      }
+    },
+    "cuda": "not run: the int8 ONNX model is meant for the CPU; onnxruntime-gpu not installed; the torch backend would need the float32 safetensors, which were not downloaded"
+  },
+  "sizes": {
+    "environment_gb": 0.92,
+    "model_files_gb": 0.095,
+    "outputs_mb": 12,
+    "hf_cache_gb": 0.091,
+    "free_disk_gb_after": 235
+  },
+  "telemetry": {
+    "found": "No analytics, telemetry, posthog, sentry, requests, urllib or socket code in kittenml 0.9.8, misaki 0.9.4 or kitten-text-processing (grep over the installed sources; the only hits are 'amplitude' of a sine source). The anonymous analytics the docs mention belong to the web SDK, not the Python package. Network paths that do exist: huggingface_hub downloads when the model is given as a repo id, and spacy.cli.download inside misaki on first use if en_core_web_sm is missing.",
+    "switched_off": "HF_HUB_DISABLE_TELEMETRY=1, DO_NOT_TRACK=1, HF_HUB_OFFLINE=1, model read from the local snapshot path, en_core_web_sm pre-installed, HF_TOKEN unset. The adapter blocks socket connections after load: 0 attempts recorded in both runs. Not checked: network behaviour during imports and load (before the block) beyond the source grep and the offline flags; internals of torch, transformers and spaCy were not audited."
+  },
+  "problems": [
+    "Not reproducible: two generate() calls with the same text and voice give different samples (same length, largest sample difference 0.23 in a separate test). The model has no seed input, so --seed is unused. The determinism field in timing.json (stream_join_equals_generate False) is a consequence of this and says nothing about the joining code.",
+    "The ONNX-without-torch route fails for English: the G2P fallback needs torch and transformers (environment 0.92 GB). CPU torch from PyPI, not cu128, because nothing runs on the card.",
+    "en_core_web_sm came from a GitHub release (see installed).",
+    "Lock waits of 6 s and 5 min for other models; the timed runs themselves ran alone under the lock. The load figure includes spaCy and BART start-up (7.5 s); Python imports (3.2 s) are not in it.",
+    "The audio is what the package returns, including its own 0.15 s gaps between chunks, 5 ms fades and clipping to [-1,1]; the adapter adds nothing. The package normalises the text itself before the G2P even for the spoken form; computer_cargo_raw got the raw display text as specified."
+  ],
+  "notVerified": [
+    "How any voice sounds; whether the blend is coherent; whether the presets are artificial (makers silent).",
+    "Intelligibility of invented names and numbers: score.py (Whisper) was not run.",
+    "Other thread counts; the graphics card.",
+    "Time to first audio on longer text with several chunks (all lines are one chunk).",
+    "Behaviour with torch removed (no shim written).",
+    "The MIT licence of en_core_web_sm beyond its meta file."
+  ],
+  "filesWritten": [
+    "tools/voice/adapters/kitten.py",
+    ".venv-voice/kitten/",
+    "assets/audio/voice/kitten/ (freeze.txt, cast/*.json, cpu/*.wav, cpu/timing.json)",
+    "assets/audio/voice/kitten-blend/ (cast/*.json, cpu: 4 wavs, timing.json)",
+    "docs/reports/2026-11-15/voice-kitten-report.json",
+    "outside the repository: HF cache models--KittenML--kitten-tts-2-mini (91 MB), a copy of the en_core_web_sm wheel in the scratchpad"
+  ]
+}
