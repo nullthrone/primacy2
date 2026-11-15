@@ -937,7 +937,9 @@ try {
       await sleep(500);
     };
 
-    for (const scene of ['docking', 'combat', 'landing', 'fold']) {
+    // AUDITION_CAPTURE_SCENES=fold,combat records only those scenes ('none' for no scene).
+    const sceneList = (process.env.AUDITION_CAPTURE_SCENES ?? 'docking,combat,landing,fold').split(',');
+    for (const scene of ['docking', 'combat', 'landing', 'fold'].filter((x) => sceneList.includes(x))) {
       await check(`capture, scene ${scene}: the written run and every event button`, async () => {
         await pc.click(`[data-tab="${scene}"]`);
         await pc.evaluate(() => window.scrollTo(0, 0));
@@ -994,7 +996,9 @@ try {
       return res;
     };
     // AUDITION_CAPTURE_LIMIT=n plays only the first n sounds (for trying the check itself).
-    const playable = cm.sounds.filter((x) => x.kind !== 'ir').slice(0, Number(process.env.AUDITION_CAPTURE_LIMIT) || Infinity);
+    // AUDITION_CAPTURE_ONLY=id,id plays only those sounds.
+    const only = process.env.AUDITION_CAPTURE_ONLY ? process.env.AUDITION_CAPTURE_ONLY.split(',') : null;
+    const playable = cm.sounds.filter((x) => x.kind !== 'ir' && (!only || only.includes(x.id))).slice(0, Number(process.env.AUDITION_CAPTURE_LIMIT) || Infinity);
     const step = Math.max(1, Math.floor(playable.length / 10));
     const sample = playable.filter((_, i) => i % step === 0).slice(0, 10);
     await check(`capture, library: one play of each of ${playable.length} sounds in Stereo, ${sample.length} also in Mono and Headphones`, async () => {

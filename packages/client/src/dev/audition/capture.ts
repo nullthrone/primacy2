@@ -32,6 +32,13 @@ export interface CaptureResult {
 
 export const CLICK_STEP = 0.05;
 export const CLICK_RATIO = 8;
+/**
+ * A sound file is looked at more closely than the output: the page changes its level and adds the room, so a step
+ * that is below the limits in the file can be above them at the output. A step of the output counts as the file's
+ * when the file has a step of a quarter of that size, standing out from its surroundings by half the ratio.
+ */
+const FILE_STEP = CLICK_STEP / 4;
+const FILE_RATIO = CLICK_RATIO / 2;
 /** Half the surrounding window in samples at 48 kHz (50 ms in all). */
 const HALF_WINDOW = 1200;
 const HOP = 600;
@@ -91,7 +98,7 @@ function percentile(steps: Float32Array, lo: number, hi: number, skipLo = 0, ski
 }
 
 /** Clipped samples and clicks of one channel; times in seconds from the first sample. */
-export function analyseChannel(x: Float32Array, rate: number, channel: number): Raw[] {
+export function analyseChannel(x: Float32Array, rate: number, channel: number, minStep = CLICK_STEP, minRatio = CLICK_RATIO): Raw[] {
   const out: Raw[] = [];
   const gap = Math.round(rate * 0.005);
   let lastClip = -Infinity;
@@ -112,7 +119,7 @@ export function analyseChannel(x: Float32Array, rate: number, channel: number): 
   let lastClick = -Infinity;
   for (let i = 1; i < x.length; i++) {
     const d = steps[i];
-    if (d <= CLICK_STEP) continue;
+    if (d <= minStep) continue;
     const block = Math.floor(i / HOP);
     let p = cache.get(block);
     if (p === undefined) {
@@ -122,13 +129,13 @@ export function analyseChannel(x: Float32Array, rate: number, channel: number): 
     }
     // A flat surrounding gives a percentile of 0; the step then only has to clear the absolute threshold.
     let ratio = p > 0 ? d / p : Infinity;
-    if (ratio <= CLICK_RATIO) {
+    if (ratio <= minRatio) {
       // The ringing of the click itself raises the percentile of its own surroundings; judge it against the steps
       // around it instead, with the 1 ms on either side left out.
-      if (ratio <= 2) continue;
+      if (ratio <= minRatio / 4) continue;
       const q = percentile(steps, i - HALF_WINDOW, i + HALF_WINDOW, i - GUARD, i + GUARD);
       ratio = q > 0 ? d / q : Infinity;
-      if (ratio <= CLICK_RATIO) continue;
+      if (ratio <= minRatio) continue;
     }
     if (i - lastClick > gap) out.push({ kind: 'click', channel, t: i / rate, size: d, ratio });
     else {
@@ -160,7 +167,7 @@ export function fileFaults(id: string): Promise<Raw[]> {
         const x = new Float32Array(d.length + extra);
         x.set(d);
         x.set(d.subarray(0, extra), d.length);
-        all.push(...analyseChannel(x, b.sampleRate, c));
+        all.push(...analyseChannel(x, b.sampleRate, c, FILE_STEP, FILE_RATIO));
       }
       return all;
     });

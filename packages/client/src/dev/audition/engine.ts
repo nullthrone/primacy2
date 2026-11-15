@@ -640,6 +640,7 @@ class Engine {
     // A loop fades in over FADE. A one-shot (or one pass of a loop file) starts untouched when its buffer starts on
     // silence, else with a short fade, so that a first sample away from zero never clicks; the end is treated alike.
     const edges = this.edgesOf(buf);
+    const rampEnd = start + (loop ? FADE : 0);
     const fadeIn = loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.min(Math.max(opts.fadeIn ?? EDGE_IN, 0.001), buf.duration / 2);
     const fadeOut = loop || opts.joinOut || edges.endSilent ? 0 : Math.min(Math.max(opts.fadeOut ?? EDGE_OUT, 0.001), buf.duration / 2);
     if (fadeIn > 0) {
@@ -697,7 +698,8 @@ class Engine {
     return {
       sound,
       setGain: (v) => {
-        if (!stopped) g.gain.setTargetAtTime(v * (sound.gain ?? 1), ctx.currentTime, 0.05);
+        // Never inside the fade-in ramp: a target curve that starts in the middle of a ramp makes the gain jump.
+        if (!stopped) g.gain.setTargetAtTime(v * (sound.gain ?? 1), Math.max(ctx.currentTime, rampEnd), 0.05);
       },
       stop: () => {
         if (stopped) return;
