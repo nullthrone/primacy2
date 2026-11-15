@@ -25,6 +25,8 @@ const LIB = '/audio-lib/render/';
 const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
+/** How far ahead of the audio clock a sound is scheduled when it has no start time of its own, in seconds. */
+const START_LEAD = 0.03;
 /** Fade-in of a voice whose buffer does not start on silence, in seconds. */
 const EDGE_IN = 0.003;
 /** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
@@ -627,7 +629,9 @@ class Engine {
     const squelchClose = radio ? this.soundsById.get(SQUELCH_CLOSE) : undefined;
 
     // An explicit `when` (audio clock) is kept exactly, so that chained one-shots overlap by the planned amount.
-    const t0 = Math.max(opts.when ?? 0, ctx.currentTime + 0.005);
+    // The lead must outlast the staleness of currentTime (it moves with the audio callbacks, about 10 ms apart): a start
+    // and its fade-in scheduled in the past are applied at once, and a loud first sample then comes in without the fade.
+    const t0 = Math.max(opts.when ?? 0, ctx.currentTime + START_LEAD);
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
     // Test hook: when each sound was scheduled to start and to end on the audio clock.
