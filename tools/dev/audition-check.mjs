@@ -1049,10 +1049,11 @@ try {
     });
 
     // AUDITION_FILE_FAULTS=1 lists what the detector finds inside each sound file as the page decodes it, without playing
-    // anything (a quick look at where clicks are part of a sound); AUDITION_CAPTURE_ONLY limits it to some sounds.
+    // anything (a quick look at where clicks are part of a sound); AUDITION_FILE_FAULT_IDS=id,id limits it to some sounds. The
+    // file test is looser than the one on the output (ratio 2 instead of 3), so this list holds at least what the capture can attribute to a file.
     if (process.env.AUDITION_FILE_FAULTS === '1') {
       await check('file faults: the clicks the detector finds inside the sound files themselves (listing only)', async () => {
-        const only = process.env.AUDITION_CAPTURE_ONLY ? process.env.AUDITION_CAPTURE_ONLY.split(',') : null;
+        const only = process.env.AUDITION_FILE_FAULT_IDS ? process.env.AUDITION_FILE_FAULT_IDS.split(',') : null;
         const list = await pc.evaluate(async (ids) => {
           const h = window.__audition;
           const rows = [];
@@ -1061,13 +1062,13 @@ try {
             if (s.kind === 'ir' || (ids && !ids.includes(s.id))) continue;
             const f = await h.capture.fileFaults(s.id);
             const clicks = f.filter((x) => x.kind === 'click');
-            rows.push({ id: s.id, kind: s.kind, clicks: clicks.length, clips: f.length - clicks.length, first: clicks.slice(0, 3).map((x) => [Number(x.t.toFixed(3)), Number(x.size.toFixed(3)), Number.isFinite(x.ratio) ? Number(x.ratio.toFixed(1)) : 'inf']) });
+            rows.push({ id: s.id, kind: s.kind, clicks: clicks.length, strong: clicks.filter((x) => x.ratio >= 3).length, clips: f.length - clicks.length, first: clicks.slice(0, 3).map((x) => [Number(x.t.toFixed(3)), Number(x.size.toFixed(3)), Number.isFinite(x.ratio) ? Number(x.ratio.toFixed(1)) : 'inf']) });
           }
           return rows;
         }, only);
         const withFaults = list.filter((x) => x.clicks + x.clips > 0);
-        console.log(`\n      sound files examined: ${list.length}; with at least one fault: ${withFaults.length}; clicks in total: ${list.reduce((s, x) => s + x.clicks, 0)}; clipped runs in total: ${list.reduce((s, x) => s + x.clips, 0)}`);
-        for (const x of withFaults) console.log(`      ${x.id.padEnd(34)} ${x.kind.padEnd(8)} clicks ${String(x.clicks).padStart(4)}  clips ${String(x.clips).padStart(3)}  first [t s, step, ratio] ${JSON.stringify(x.first)}`);
+        console.log(`\n      sound files examined: ${list.length}; with at least one fault: ${withFaults.length}; clicks in total: ${list.reduce((s, x) => s + x.clicks, 0)} (ratio >= 3: ${list.reduce((s, x) => s + x.strong, 0)}); clipped runs in total: ${list.reduce((s, x) => s + x.clips, 0)}`);
+        for (const x of withFaults) console.log(`      ${x.id.padEnd(34)} ${x.kind.padEnd(8)} clicks ${String(x.clicks).padStart(4)} (ratio >= 3: ${String(x.strong).padStart(4)})  clips ${String(x.clips).padStart(3)}  first [t s, step, ratio] ${JSON.stringify(x.first)}`);
       });
     }
 

@@ -56,7 +56,7 @@ const GRAIN_CELLS = 64;
  * The grain texture: noise that repeats at its edges, made here once, for the rolling of the
  * ground and its patches of tone below what the terrain function has. Red and green are the
  * slope of a height, blue the height, alpha a second noise that has nothing to do with the
- * first; all centred on one half. The shader lays it out at seven sizes (see there); its mip
+ * first; all centred on one half. The shader lays it out at six sizes (see there); its mip
  * levels and the anisotropic filter are what keeps slanted and distant ground from flickering.
  */
 export function grainTexture(): DataTexture {
@@ -127,7 +127,7 @@ export function grainTexture(): DataTexture {
   tex.magFilter = LinearFilter;
   tex.minFilter = LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
-  tex.anisotropy = 8;
+  tex.anisotropy = 4;
   tex.needsUpdate = true;
   return tex;
 }
@@ -232,14 +232,11 @@ vec2 alongGround(vec2 d) { return d + gLean * (dot(gLean, d) * gStretch); }
 
 // Random bits for a lattice cell of one layer.
 uint cellHash(vec2 cell, uint seed) {
-  uvec2 q = uvec2(ivec2(cell)) * uvec2(1597334673u, 3812015801u);
-  uint n = (q.x ^ q.y ^ (seed * 2798796415u)) * 1597334673u;
-  n ^= n >> 15;
-  n *= 2246822519u;
-  n ^= n >> 13;
-  n *= 3266489917u;
-  n ^= n >> 16;
-  return n;
+  uvec2 q = uvec2(ivec2(cell));
+  uint n = (q.x * 1597334673u) ^ (q.y * 3812015801u) ^ (seed * 2798796415u);
+  n = (n ^ (n >> 15)) * 2246822519u;
+  n = (n ^ (n >> 13)) * 3266489917u;
+  return n ^ (n >> 16);
 }
 // More bits from the same cell.
 uint hashAgain(uint n) {
@@ -281,47 +278,42 @@ float stoneOutline(vec2 e, vec2 cuts, out vec2 og) {
 // Adds to the slope of the ground and multiplies its reflectance and the star's light.
 //
 // Stone and shadow reach half a cell at most, so the four cells nearest the place hold every
-// stone that matters. Of those the one whose body and the one whose shadow comes nearest are
-// picked first, roughly, and only those two are worked out.
+// stone that matters. Of those one is picked, roughly, and worked out: the one whose body covers
+// the place, else the one whose body or shadow comes nearest.
 void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 sun, vec3 eye, vec2 px, float strength,
     inout vec2 slope, inout float tint, inout float light) {
   float cell = PERIOD / count;
   float reach = 0.5 * cell;
   vec2 p = q / cell;
   vec2 first = floor(p - 0.5);
-  float nearBody = 1e9;
-  float nearShadow = 1e9;
-  vec2 bodyAt = vec2(0.0);
+  float nearest = 1e9;
+  vec2 d = vec2(0.0);
   // Radius of the stone and the number 0..1 that is its own.
-  vec2 bodyIs = vec2(0.0);
-  vec2 shadowIs = vec2(0.0);
-  uint bodyBits = 0u;
+  vec2 what = vec2(0.0);
+  uint bits = 0u;
   for (int j = 0; j < 4; j++) {
     vec2 c = first + vec2(float(j & 1), float(j >> 1));
     uint n = cellHash(mod(c, count), seed);
     vec4 a = hashBytes(n);
     float own = a.z / share;
-    float r = own < 1.0 ? (0.03 + 0.09 * a.w * a.w * a.w) * cell : 0.0;
-    vec2 d = alongGround((p - c - a.xy) * cell);
+    float r = own < 1.0 ? (0.03 + 0.09 * a.w * a.w * a.w) * cell : 1e-6;
+    vec2 dj = alongGround((p - c - a.xy) * cell);
     float tall = (0.45 + 0.65 * own) * r;
     // Metres of ground the stone hides behind itself, and how near the place is to that.
     float rise = min(tall * eye.z, reach - r);
-    float lift = clamp(-dot(d, eye.xy), 0.0, rise);
-    float mb = length(d + eye.xy * lift) / max(r * (1.0 - 0.5 * lift / max(rise, 1e-4)), 1e-6);
-    if (mb < nearBody) { nearBody = mb; bodyAt = d; bodyIs = vec2(r, own); bodyBits = n; }
-    // Under a high star still a sliver of shadow, which is what sets a stone on the ground.
+    float lift = clamp(-dot(dj, eye.xy), 0.0, rise);
+    float mb = length(dj + eye.xy * lift) / (r * (1.0 - 0.5 * lift / max(rise, 1e-4)));
     float len = min(max(tall * sun.z, 0.3 * r), reach - r);
-    float along = clamp(-dot(d, sun.xy), 0.0, len);
-    float ms = length(d + sun.xy * along) / max(r * mix(0.85, 0.47, along / max(len, 1e-5)), 1e-6);
-    if (ms < nearShadow) { nearShadow = ms; shadowIs = vec2(r, own); }
+    float along = clamp(-dot(dj, sun.xy), 0.0, len);
+    float ms = length(dj + sun.xy * along) / (r * mix(0.85, 0.47, along / len));
+    float key = mb < 1.0 ? mb - 4.0 : min(mb, ms);
+    if (key < nearest) { nearest = key; d = dj; what = vec2(r, own); bits = n; }
   }
-
-  float body = 0.0;
-  if (nearBody < 1.5) {
-    float r = bodyIs.x;
-    vec2 d = bodyAt;
-    vec4 b = hashBytes(hashAgain(bodyBits));
-    float rise = min((0.45 + 0.65 * bodyIs.y) * r * eye.z, reach - r);
+  if (nearest < 1.5) {
+    float r = what.x;
+    vec4 b = hashBytes(hashAgain(bits));
+    float tall = (0.45 + 0.65 * what.y) * r;
+    float rise = min(tall * eye.z, reach - r);
     float w = smoothstep(0.8, 2.5, r / px.y) * smoothstep(0.8, 2.5, (r + 0.5 * rise) / px.x) * strength;
     // The stone's own axes; it is up to 1.7 times as long as wide.
     vec2 ax = normalize(b.xy - 0.5 + 0.001);
@@ -343,47 +335,57 @@ void stoneLayer(vec2 q, float count, uint seed, float share, vec2 shade, vec3 su
     float mSide = stoneOutline(vec2(dot(dSide, ax), dot(dSide, ay) * narrow) / r, cuts, og2) / (1.0 - 0.5 * up);
     vec2 rim = normalize(ax * og2.x + ay * (og2.y * narrow));
     soft = clamp(1.5 * mix(px.y, px.x, abs(dot(rim, eye.xy))) / r, 0.08, 0.6);
-    body = 1.0 - smoothstep(1.0 - soft, 1.0, mSide);
+    float body = 1.0 - smoothstep(1.0 - soft, 1.0, mSide);
     float side = body * (1.0 - top);
     // The top is a few faces leaning outward; the flank leans outward more, and where the view
     // meets it head on it faces the camera.
     slope -= lid * (0.4 * top * w);
     slope -= normalize(mix(eye.xy, rim, clamp(mSide, 0.0, 1.0)) + 1e-4) * (1.15 * side * w);
-    tint *= mix(1.0, mix(shade.x, shade.y, bodyIs.y), w * body);
+    tint *= mix(1.0, mix(shade.x, shade.y, what.y), w * body);
     // Darker toward the foot of the stone, and the ground darker around it: little light gets in there.
     tint *= 1.0 - 0.25 * w * side * (1.0 - smoothstep(0.0, 0.6, up)) * smoothstep(0.0, 0.3 * r, rise);
     float ring = length(d) / r;
     tint *= 1.0 - 0.22 * w * (1.0 - body) * smoothstep(0.75, 1.0, ring) * (1.0 - smoothstep(1.0, 1.45, ring));
-    body *= w;
-  }
-  if (nearShadow < 1.4) {
-    float r = shadowIs.x;
-    float rise = min((0.45 + 0.65 * shadowIs.y) * r * eye.z, reach - r);
-    float w = smoothstep(0.8, 2.5, r / px.y) * smoothstep(0.8, 2.5, (r + 0.5 * rise) / px.x) * strength;
+    // The shadow: under a high star still a sliver, which is what sets a stone on the ground.
+    float len = min(max(tall * sun.z, 0.3 * r), reach - r);
+    float along = clamp(-dot(d, sun.xy), 0.0, len);
+    float ms = length(d + sun.xy * along) / (r * mix(0.85, 0.47, along / len));
     float blur = max(1.1 * px.y / r, 0.09);
-    light *= 1.0 - (1.0 - smoothstep(1.0 - blur, 1.0 + blur, nearShadow)) * w * (1.0 - body);
+    light *= 1.0 - (1.0 - smoothstep(1.0 - blur, 1.0 + blur, ms)) * w * (1.0 - body);
   }
 }
 
 // Small craters of one size class: one to a lattice cell (in 'share' of the cells), rim radius
-// 0.09 to 0.3 cells, most of them small; a soft bowl with a low rounded rim, old ones shallow.
-// Only the slope and the tone of the ground change: where the ground is does not.
+// 0.07 to 0.3 cells, most of them small; a soft bowl with a low rounded rim, old ones shallow.
+// Only the slope and the tone of the ground change: where the ground is does not. Of the four
+// cells nearest the place only the crater the place lies deepest in is worked out, so where two
+// overlap, a crease runs between them.
 void craterLayer(vec2 q, float count, uint seed, float share, float deep, float px, float strength, inout vec2 slope, inout float tint) {
   float cell = PERIOD / count;
   vec2 p = q / cell;
   vec2 first = floor(p - 0.5);
+  float nearest = 1e9;
+  vec2 d = vec2(0.0);
+  // Radius of the rim and the number 0..1 that is the crater's own.
+  vec2 what = vec2(1.0, 0.0);
   for (int j = 0; j < 4; j++) {
     vec2 c = first + vec2(float(j & 1), float(j >> 1));
     vec4 a = hashBytes(cellHash(mod(c, count), seed));
     float own = a.z / share;
-    float r = (0.09 + 0.21 * a.w * a.w) * cell;
-    float w = own < 1.0 ? smoothstep(1.0, 3.0, r / px) * strength : 0.0;
-    vec2 d = alongGround((p - c - a.xy) * cell);
-    float rho = length(d) / r;
+    float r = own < 1.0 ? (0.07 + 0.23 * a.w * a.w) * cell : 1e-6;
+    vec2 dj = alongGround((p - c - a.xy) * cell);
+    float key = dot(dj, dj) / (r * r);
+    if (key < nearest) { nearest = key; d = dj; what = vec2(r, own); }
+  }
+  // Beyond 1.6 radii nothing is left of a crater.
+  if (nearest < 2.56) {
+    float r = what.x;
+    float own = what.y;
+    float rho = sqrt(nearest);
+    float w = smoothstep(1.0, 3.0, r / px) * strength;
     // The steepest slope of the wall: a fresh bowl a fifth as deep as wide, most far shallower.
     float wall = (0.22 + 0.63 * own * own) * deep;
     float inside = max(1.0 - rho * rho, 0.0);
-    // Beyond 1.6 radii nothing is left of a crater.
     float t = clamp((rho - 1.0) / 0.6, 0.0, 1.0);
     float rise = rho < 1.0 ? rho * inside * 2.6 : -1.2 * t * (1.0 - t) * (1.0 - t);
     slope += d * (rise * wall * w / max(rho * r, 1e-5));
@@ -437,39 +439,43 @@ void main() {
 
     vec2 slope = vec2(0.0);
     float mottle = 0.0;
-    // Rolling ground and patches of tone: the grain texture laid out seven times, its cells
-    // 5 cm, 16 cm, 0.5 m, 1.6 m, 5.3 m, 16 m and 64 m, every other one turned a quarter. The fine
-    // ones are rough, the coarse ones no rougher than the terrain itself, and the two coarsest
-    // change the tone alone. The texture's own smaller copies blur each as it shrinks; on top of
-    // that each is gone when a cell is under a few pixels, counted by the mean of a pixel's sides.
+    // Rolling ground and patches of tone: the grain texture laid out six times, its cells 6 cm,
+    // 26 cm, 1 m, 4 m, 16 m and 64 m, every other one turned a quarter. The fine ones are rough,
+    // the coarse ones no rougher than the terrain itself, and the two coarsest change the tone
+    // alone. The texture's own smaller copies blur each as it shrinks; on top of that each is
+    // gone when a cell is under a few pixels, counted by the mean of a pixel's two sides.
     vec2 turnX = toPlane(stepX, face).xy;
     vec2 turnY = toPlane(stepY, face).xy;
     float pxMean = sqrt(pixel.x * pixel.y);
     float coarser = 0.0;
-    for (int i = (uDbg == 1.0 || uDbg == 4.0 ? -1 : 6); i >= (full ? 0 : 1); i--) {
-      float count = i == 0 ? 1280.0 : i == 1 ? 400.0 : i == 2 ? 128.0 : i == 3 ? 40.0 : i == 4 ? 12.0 : i == 5 ? 4.0 : 1.0;
+    for (int i = (uDbg == 1.0 || uDbg == 4.0 ? -1 : 5); i >= (full ? 0 : 1); i--) {
+      float count = i == 0 ? 1000.0 : i == 1 ? 250.0 : i == 2 ? 64.0 : i == 3 ? 16.0 : i == 4 ? 4.0 : 1.0;
       float scale = count / PERIOD;
       float cell = PERIOD / (count * ${GRAIN_CELLS}.0);
-      vec2 uv = fract(home * scale) + there * scale;
-      vec2 ux = turnX * scale;
-      vec2 uy = turnY * scale;
-      bool turned = (i & 1) == 1;
-      if (turned) {
-        uv = vec2(uv.y, -uv.x);
-        ux = vec2(ux.y, -ux.x);
-        uy = vec2(uy.y, -uy.x);
+      float show = (1.0 - smoothstep(cell * 0.14, cell * 0.42, pxMean)) * clamp(edge / cell, 0.0, 1.0) * (i > 3 ? uLow : 1.0);
+      float here = 0.0;
+      if (show > 0.0) {
+        vec2 uv = fract(home * scale) + there * scale;
+        vec2 ux = turnX * scale;
+        vec2 uy = turnY * scale;
+        bool turned = (i & 1) == 1;
+        if (turned) {
+          uv = vec2(uv.y, -uv.x);
+          ux = vec2(ux.y, -ux.x);
+          uy = vec2(uy.y, -uy.x);
+        }
+        vec4 g = textureGrad(uGrain, uv + vec2(0.37, 0.61) * float(i), ux, uy) * 2.0 - 1.0;
+        float rough = i == 0 ? 0.30 : i == 1 ? 0.17 : i == 2 ? 0.085 : i == 3 ? 0.04 : 0.0;
+        float patchy = i == 0 ? 0.08 : i == 1 ? 0.065 : i == 2 ? 0.055 : i == 3 ? 0.05 : 0.045;
+        slope += (turned ? vec2(-g.y, g.x) : g.xy) * (rough * show);
+        mottle += g.z * (patchy * show);
+        // Clods and the shadows between them: dark flecks while they are a few pixels, which is
+        // what loose ground looks like at any distance. Nearer, the next finer cells have them.
+        float fleck = smoothstep(0.42, 0.62, g.w + 0.5 * coarser) - 0.06;
+        if (i < 4) mottle -= fleck * (0.11 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
+        here = g.z;
       }
-      vec4 g = textureGrad(uGrain, uv + vec2(0.37, 0.61) * float(i), ux, uy) * 2.0 - 1.0;
-      float show = (1.0 - smoothstep(cell * 0.14, cell * 0.42, pxMean)) * clamp(edge / cell, 0.0, 1.0) * (i > 4 ? uLow : 1.0);
-      float rough = i == 0 ? 0.30 : i == 1 ? 0.19 : i == 2 ? 0.10 : i == 3 ? 0.06 : i == 4 ? 0.036 : 0.0;
-      float patchy = i == 0 ? 0.09 : i == 1 ? 0.07 : i == 2 ? 0.06 : i == 3 ? 0.055 : 0.05;
-      slope += (turned ? vec2(-g.y, g.x) : g.xy) * (rough * show);
-      mottle += g.z * (patchy * show);
-      // Clods and the shadows between them: dark flecks while they are a few pixels, which is
-      // what loose ground looks like at any distance. Nearer, the next finer cells have them.
-      float fleck = smoothstep(0.3, 0.55, g.w + 0.5 * coarser) - 0.1;
-      if (i < 5) mottle -= fleck * (0.2 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
-      coarser = g.z;
+      coarser = here;
     }
 
     // How much there is of what, by the kind of ground: ice has few blocks, brighter than the
@@ -477,12 +483,10 @@ void main() {
     float stones = uKind == 1 ? 0.4 : uKind == 2 ? 0.95 : 0.8;
     float craters = uKind == 1 ? 0.3 : uKind == 2 ? 0.22 : 0.62;
     vec2 shade = uKind == 1 ? vec2(0.95, 1.45) : uKind == 2 ? vec2(0.72, 1.25) : vec2(0.68, 1.42);
+    // Craters of 2 to 10 m and of 0.6 to 2.4 m across.
     if (px < 4.8 && uDbg != 2.0 && uDbg != 4.0) {
       craterLayer(q, 256.0, face + 256u, craters, 0.6, px, uLow * clamp(edge / 16.0, 0.0, 1.0), slope, tint);
-      if (px < 1.54) {
-        craterLayer(q, 800.0, face + 272u, craters, 0.85, px, clamp(edge / 5.12, 0.0, 1.0), slope, tint);
-        if (full && px < 0.48) craterLayer(q, 2560.0, face + 288u, craters, 1.0, px, clamp(edge / 1.6, 0.0, 1.0), slope, tint);
-      }
+      if (px < 1.2) craterLayer(q, 1024.0, face + 272u, craters, 0.9, px, clamp(edge / 4.0, 0.0, 1.0), slope, tint);
     }
     vec2 px2 = vec2(px, min(pixel.x, pixel.y));
     if (px2.y < 0.64 && px < 1.97 && uDbg != 3.0 && uDbg != 4.0) {
@@ -498,7 +502,7 @@ void main() {
       vec3 eye3 = vec3(eyeGround / max(length(eyeGround), 1e-5), sqrt(max(1.0 - eyeUp * eyeUp, 0.0)) / max(eyeUp, 0.02));
       float e4 = clamp(edge / 4.3, 0.0, 1.0);
       // Rocks of 13 to 50 cm, stones of 5 to 20 cm, and gravel of 1 to 5 cm, which lies flat.
-      stoneLayer(q, 960.0, face + 352u, stones * 0.6, shade, sun3, eye3, px2, e4, slope, tint, starlight);
+      if (full) stoneLayer(q, 960.0, face + 352u, stones * 0.6, shade, sun3, eye3, px2, e4, slope, tint, starlight);
       if (px2.y < 0.256 && px < 0.79) {
         stoneLayer(q, 2400.0, face + 304u, stones, shade, sun3, eye3, px2, e4, slope, tint, starlight);
         if (full && px < 0.0615) stoneLayer(q, 10000.0, face + 320u, stones, shade, sun3, vec3(eye3.xy, 0.0), px2, e4, slope, tint, starlight);
