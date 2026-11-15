@@ -1,0 +1,90 @@
+{
+  "role": "pilot-mech",
+  "status": "done",
+  "summary": "Six direction samples written (hull a metal, b cinema, c weight; gear a machinery, b cinema, c dark but clear). Each is built from layers set as shares of the energy and then levelled; all six pass the build's hard rules, the new tests and every numeric target of the brief that I measured. Hull and gear families are levelled to equal integrated loudness. CLAP likes only hull_c; hull a and b score closest to 'taut plastic foil' (broadband noise crack and spray), gear a and c to 'cheap electronic beep' (the whine). I cannot hear; character judgements below are from spectrograms and numbers only.",
+  "filesChanged": [
+    "tools/audio/synth/cat_pilot_mech.py",
+    "tools/audio/synth/tests/test_pilot_mech.py",
+    "docs/reports/2026-11-15/pilot-mech-report.json"
+  ],
+  "sounds": [
+    {
+      "id": "pilot_hull_a",
+      "layers": "All from one event. (1) crack: white noise 1-8 kHz, onset 0.25 ms rise, T60 20 ms, 25 % of energy; plus a duller 1.8-5 kHz layer 3 ms later, 2 %. (2) plate: 22 inharmonic partials 180 Hz to about 4.9 kHz (ratios 1 to 27 over 180 Hz, random +-1.5 %), each a detuned pair (0.2-0.8 %, second member 0.55-0.9 of the first), pitch wander +-0.07 %, T60 2.4 s at 200 Hz falling as (200/f)^0.85 (0.17 s at 4 kHz), 54 %. (3) sub thump 72 falling to 44 Hz, 5.5 ms rise, T60 0.42 s, starts 2 ms after the crack, 25 %. (4) low body noise 90-400 Hz, 1 %. (5) three runs of 11, 14 and 9 uneven noise knocks at 1.5-5 kHz starting at 62, 105 and 170 ms, 1.2 %. Shares are of layer energy before normalisation, so the crack is the loudest moment but only the plate and sub carry the file's energy.",
+      "targetsMet": true,
+      "measured": "Attack (30 ms): centre 2775 Hz (>=2500), 61.6 % above 1 kHz (>=60). Whole file: 42.5 % above 1 kHz (20-45), 23.2 % below 125 Hz (>=20), largest octave band 17.2 % (<=40). Ring: 150-1000 Hz band is -58 dBFS RMS at 0.8-1.0 s (peak -1.2 dBFS), so the 200 Hz line rings the whole 1.6 s in the spectrogram but the ring is faint at 0.8 s; strongest spectral peak 22.5 % at 52.7 Hz (the sub). Onset 0.02 ms, last 10 ms -90 dBFS. 1.6 s, one channel, true peak -1.2 dBFS (highest of the family, see levels), -31.0 LUFS.",
+      "unsure": "(1) Whether it reads as metal or as a bell/bowl: the spectrogram shows a clean comb of low partial lines at 180-700 Hz that ring the longest, and the upper partials die within about 0.2 s as the brief asked, so the long part of the ring is low and tonal. (2) CLAP scores the crack as 'tapping on a taut plastic foil' (0.11-0.14) above 'steel plate clang' (0.01-0.05); removing the noise crack lowered the foil score, adding a modal 'tink' of short 1.6-8 kHz partials did not help (CLAP differences between variants were within its noise). I kept the noise crack because the brief asked for broadband. (3) Ring at 0.8 s is faint (-58 dBFS RMS); if the owner finds it too short, raise the plate share or lengthen the high partials. (4) The sub only comes after a 5.5 ms rise (needed to keep the attack above 60 % high-frequency); 2 ms after the crack it starts, the peak of the sub is about 6-8 ms late."
+    },
+    {
+      "id": "pilot_hull_b",
+      "layers": "Two channels built with synth.mid_side. Mid: sub drop 80 falling to 35 Hz (tau 0.28 s, 4 ms rise, 0.25 s hold, T60 1.5 s) 30 %; chest sine 140 falling to 70 Hz (T60 0.45 s) 7 %; crunch A, noise 300-3000 Hz, 1.5 ms rise, full level for 50 ms then T60 0.11 s (about 0.12 s audible), driven through tanh(3.5 x) and re-filtered 260-3600 Hz, 34 %; debris grains (360 grains of 1.5-6 ms noise, centres log-uniform 2-9 kHz, density exp(-t/0.38 s) over 1.15 s starting at 12 ms, amplitude falling with time) 4.5 %; a 12 ms click 2.5-9 kHz 1 %. Side: crunch B (other seed, same saturation) 22 %, the same grains weighted by random pan (-1..1) 3.5 %, click 0.8 %. Side is high-passed at 170 Hz by mid_side, so bass is identical in both channels.",
+      "targetsMet": true,
+      "measured": "Below 125 Hz 42.8 % (>=30), 250 Hz-2 kHz 29.3 % (>=25; 250-500 2.2 + 500-1k 9.1 + 1-2k 18.0), above 2 kHz 22.6 % (>=8). Sub drop: 20-90 Hz band is -34 dBFS RMS at 0-0.2 s and still -58 at 0.8 s and -74 at 1.2 s (the pitch line is visible 35-80 Hz to about 1.3 s, well past 0.5 s). Channel correlation 0.49 (0.3-0.9), left/right level difference 0.20 dB, correlation below 150 Hz 1.0000. Mono sum is exactly the mid. 2.0 s, true peak -11.1 dBFS, -31.0 LUFS.",
+      "unsure": "(1) It is the brightest of the three hit variants: 40.6 % above 1 kHz, mostly crunch harmonics and debris; the 'taut foil' similarity in CLAP (best neg, margin -0.06) probably comes from the dense noise. (2) Strongest spectral peak is 47.6 % at 52.7 Hz, which is a boom, but the brief's 'single peak' warning concerns resonances; the sub is a gliding sine, not a ringing mode. (3) One stray debris grain sits at about 1.05 s and is visible as a lone streak at 2-5 kHz in the spectrogram; might read as a tink. (4) The sounds ends audibly at about 1.3 s; the last 0.7 s of the 2.0 s file are nearly silent (sub below -80 dB). (5) Peak -11.1 dBFS looks low next to hull a at -1.2; it follows the LUFS rule, but the sub is under-weighted by K-weighting, so b may sound louder than the number says."
+    },
+    {
+      "id": "pilot_hull_c",
+      "layers": "One channel. Boom A: sine 78 falling to 50 Hz (tau 0.20 s, 1.2 % wobble, 6 ms rise, T60 1.9 s) 30 %; boom B: 52 falling to 34 Hz (tau 0.35 s, 1.5 % wobble, 8 ms rise, T60 2.3 s) 24 %; rumble: noise 25-95 Hz, T60 1.7 s, 8 %; body: broad noise 110-600 Hz (Butterworth order 2 band-pass, no resonance), 3 ms rise, T60 0.55 s, 34 %; soft knock: noise 0.8-2 kHz, 30 ms, T60 12 ms, 0.5 %.",
+      "targetsMet": true,
+      "measured": "Below 125 Hz 59.4 % (>=50), below 60 Hz 33.8 % (>=15), octave bands above 125 Hz: 125-250 9.6, 250-500 19.1, 500-1k 9.8 (max 19.1 <= 25), above 1 kHz 2.1 % (<=3), attack 11.6 % above 800 Hz (5-20). Low tail: 20-125 Hz band -45 dBFS RMS at 0.8 s, -55 at 1.2 s, -61 at 1.4 s (peak -7.0). Strongest spectral peak 52 % at 46.9 Hz, which is the intended boom. 2.0 s, true peak -7.0 dBFS, -31.0 LUFS. CLAP: best match 'a deep heavy boom felt through a large metal structure', margin +0.16 (the only one of the six that passes).",
+      "unsure": "Only an ear can say whether depth plus a broad body cures the plastic container; the approved Kenney boom had 67 % at 60-125 Hz and nothing above 1 kHz, this one has less 60-125 Hz (25 %) but more body at 125-600 Hz (about 38 %) and a knock. The sub lines are almost horizontal after 0.6 s (1.2-1.5 % wobble only); the long tail is deep rather than varied. It starts at 78 Hz and settles near 50 Hz, so on small loudspeakers without bass it leaves the body (125-600 Hz, 38 % of the energy) and the knock."
+    },
+    {
+      "id": "pilot_gear_a",
+      "layers": "One channel, all in one sequence. Motor whine: fundamental rises 180 to 420 Hz over 0.85 s (smoothstep) and holds, +-1.2 % wobble at 4.5 and 7.3 Hz plus a slow random drift, eight harmonics (levels 1, .75, .62, .42, .34, .22, .16, .10) each with its own slow level wobble, starts at 0 with an 8 ms rise, winds down over the last 120 ms before the lock; gear-train ratchet as uneven amplitude dips (about 29 per second, depth 55 %); second weaker whine 1.2 % off (harmonics 1, 3, 5) so the two beat; tooth ticks (noise 1.4-4.2 kHz, 1.5-4 ms, about 31 per second, uneven in time and level, swell in and out) and a faint air layer; shares of energy: whine 26 %, second whine 5 %, teeth 10 %, air 1 %. Lock at 1.80 s: clack (noise 2.2-9 kHz, T60 11 ms) 7.5 % plus three short rings at 2.63, 3.47 and 4.31 kHz (T60 45 ms) 2.5 %; 60 ms later (1.86 s) the clunk: body noise 100-400 Hz (T60 0.12 s) 14 %, sub 82 falling to 52 Hz (T60 0.24 s) 20 %, four resonances at 133, 187, 254 and 371 Hz with T60 0.30, 0.26, 0.22 and 0.16 s, 8 %.",
+      "targetsMet": true,
+      "measured": "Above 1 kHz 32.8 % (15-40). Spectrogram and measure.py show the fundamental rising from 180 to about 420 Hz and holding with harmonics at 845, 1269, 1691 and 2103 Hz visible. Lock: first 30 ms centre 6507 Hz (>=2500); clunk 60 ms after the clack; in the 300 ms after the clack 29.6 % below 80 Hz, 33.5 % at 80-250 Hz. Ring: 1-6 kHz band falls from -32 to -56 dBFS in 100 ms; the low ring (133-371 Hz) lasts about 0.3 s. Onset 3.7 ms, last 10 ms -95.7 dBFS. 2.4 s, true peak -6.3 dBFS, -35.0 LUFS.",
+      "unsure": "(1) The tooth ticks show as broadband vertical streaks up to 10 kHz in the spectrogram (noise ticks of 1.5-4 ms are wide); they could sound like a hissy rattle or crackle instead of gears, and could be mistaken for the 'crackle' he heard. (2) The whine holds at 420 Hz for about 1 s with only 1.2 % wobble; it could sound like a tone. (3) CLAP calls it 'a cheap electronic beep' (margin -0.05). (4) A sub (82 to 52 Hz) with no strong peak elsewhere gives a 70 Hz line as the strongest peak at 18.7 %. (5) The whine starts with an 8 ms rise from nothing; there is no contactor click at the start."
+    },
+    {
+      "id": "pilot_gear_b",
+      "layers": "Two channels from mid and side (synth.mid_side). Mid: pneumatic hiss, noise 3-9 kHz, 4 ms rise, 0.10 s hold, T60 0.07 s (audible 0-0.25 s), 4.5 %; servo growl from 70 rising to about 155 Hz (1.2 s smoothstep, 1.2 % wobble at 5.2 Hz), six harmonics, amplitude-modulated by 55 % low-passed noise and 25 % at 31 Hz, low-passed at 650 Hz, runs 0.14 to 1.84 s, 16 %; sweeping whine 300 to 900 Hz (then down 18 % before the slam) with harmonics 2 and 3, left and right detuned +-0.4 %, mid is the sum 10 %, side the difference 3.5 %; slam at 1.85 s: sub 70 falling to 35 Hz (tau 0.16 s, 4 ms rise, 0.08 s hold, T60 0.5 s) 27 %, thud noise 90-450 Hz (T60 0.16 s) 10 %, saturated crack 250-6000 Hz 4 % (side: 900-6000 Hz 1.5 %); metallic ring: 12 inharmonic partials from 230 Hz (ratios 1 to 13.6), detuned pairs, T60 0.95 s at 230 Hz and (230/f)^0.8 faster above, mid is the sum of the pair 14 %, side the difference 6 %, so each ear gets one member; last puff of air at 2.20 s, noise 2.5-7.5 kHz, 35 ms rise, 12 ms hold, T60 80 ms, 1.2 % plus 1.0 % side. Hiss side is independent noise 4.5 %.",
+      "targetsMet": true,
+      "measured": "Hiss occupies 0-0.25 s at 3-9 kHz (the first 30 ms: centre 6.3 kHz, 100 % above 1 kHz). Growl and whine lines visible in the spectrogram; growl 70-155 Hz, whine 300-900 Hz sweeping up and bending down before the slam. Slam at 1.85 s with sub 70-35 Hz (20-90 Hz band -31 dBFS then -36, -48, -59 dBFS per 100 ms, i.e. still visible about 0.6 s). Ring: 200-4000 Hz band falls -31, -41, -50 dBFS over the first 300 ms and stays near -50 until the puff, so the metallic ring is about 0.4 to 0.5 s but 20 dB under the slam. Correlation 0.68 (0.3-0.9), level difference 0.31 dB, correlation below 150 Hz 0.9999, mono sum is the mid. Onset 0.9 ms, last 10 ms -93.7 dBFS. 2.6 s, true peak -10.1 dBFS, -35.0 LUFS.",
+      "unsure": "(1) The ring is quiet next to the slam (about 20 dB under after 0.2 s); if it should be a defining feature, raise the ring share. (2) The growl is a stack of harmonics that shows as parallel horizontal lines; it may sound like a chord or organ drone rather than a servo growl, the 31 Hz and noise amplitude modulation are what make it rough. (3) Hiss and puff are close to identical in character; the puff comes 0.35 s after the slam, partly over the ring. (4) CLAP calls it 'an arcade video game sound effect' (margin -0.18, lowest after gear_c), probably the clean sweeping whine plus the hiss. (5) Low peak (-10.1 dBFS) follows the LUFS rule; its sub is under-weighted by K-weighting."
+    },
+    {
+      "id": "pilot_gear_c",
+      "layers": "One channel. Whine: fundamental 150 rising to 350 Hz over 0.8 s and holding, four harmonics (1, .85, .70, .50), wobble +-1.2 %, ratchet dips about 24 per second at depth 40 %, low-passed at 1.9 kHz (4th order), 50 % of energy; tooth ticks (900-2400 Hz, about 26 per second, low-passed 2.6 kHz) 4 %. Lock at 1.55 s: tick, noise 1-3 kHz low-passed 3 kHz, T60 7 ms, 8 %; 2 ms later the thunk: body noise 80-250 Hz (T60 0.10 s) 16 %, sub 80 falling to 52 Hz (T60 0.16 s) 12 %. No ring layer.",
+      "targetsMet": true,
+      "measured": "500 Hz-1.5 kHz share is at least 10 % (500-1000 Hz alone 21.6 %, 1-2 kHz 15.1 %); above 3 kHz 0.6 % (<=2); lock attack (30 ms): 23.6 % above 1 kHz (15-35); lock 300 ms: 26.9 % below 80 Hz (>=10), 33.0 % at 80-250 Hz, 0.7 % above 3 kHz. Whole file 21.6 % above 1 kHz. No ring: the sound is silent 0.15 s after the lock (the low sub tail is gone by 1.75 s). Onset 3.0 ms, last 10 ms -95.7 dBFS. 2.2 s, true peak -7.1 dBFS, -35.0 LUFS. CLAP margin -0.27, best 'a cheap electronic beep' (the whine is a clean tone with four harmonics).",
+      "unsure": "(1) The whine is the loudest thing for 1.5 s and has no noise around it; CLAP hears a beep. It may sound like a synthesiser rather than a machine behind a wall. (2) The lock is short (thunk about 0.15 s) and the 'tick' spreads over 1-5 kHz in the spectrogram (the 4th-order low-pass at 3 kHz leaves only 0.6 % above 3 kHz overall but the tick edge is broad). (3) It has the highest sub-80 Hz share of the lock but little below 60 Hz overall (2.3 % of the file)."
+    }
+  ],
+  "checks": [
+    {
+      "name": "build of the six ids",
+      "command": ".venv-audio/Scripts/python.exe tools/audio/build.py --only pilot_hull_a,pilot_hull_b,pilot_hull_c,pilot_gear_a,pilot_gear_b,pilot_gear_c",
+      "result": "all six pass the hard rules (peak, DC, onset, last 10 ms); clap-margin hint on five (only hull_c passes it). Integrated loudness hull a/b/c -31.0/-31.0/-31.0 LUFS, gear a/b/c -35.0/-35.0/-35.0 LUFS at true peaks -1.2/-11.1/-7.0 and -6.3/-10.1/-7.1 dBFS."
+    },
+    {
+      "name": "unit tests of tools/audio/synth",
+      "command": ".venv-audio/Scripts/python.exe -m unittest discover -s tools/audio/synth/tests -p \"test_*.py\"",
+      "result": "45 tests OK, including the 9 new ones in test_pilot_mech.py (twice equal, shape, finite, peak, DC, onset, silent end, and key targets of every sound). The README command with -t tools/audio fails here with 'Start directory is not importable' for the existing tests as well; the plain command works."
+    },
+    {
+      "name": "spectrogram pictures looked at",
+      "command": "Read of assets/audio/render/pilot/pilot_hull_a/b/c and pilot_gear_a/b/c .png",
+      "result": "Looked at all six. Hull a, b and gear b/c were re-read after the shares changed only for hull a; the rest are from the second-to-last tuning pass (shares unchanged afterwards except gear_b's ring T60/tilt and the final levels, whose numbers I re-measured)."
+    },
+    {
+      "name": "band shares, attack, lock windows, channel correlation",
+      "command": "scratch numpy script outside the repository (no window, mean removed) plus tools/audio/listen/measure.py",
+      "result": "numbers as in the per-sound entries; measure.py onset 0.02 to 3.7 ms for all six"
+    },
+    {
+      "name": "CLAP with the pilot negatives",
+      "command": "tools/audio/listen/compare.py --spec tools/audio/sounds.json --dir assets/audio/render --only <the six> --out <scratch>",
+      "result": "margins: hull_a -0.08 (best neg: taut plastic foil), hull_b -0.06 (taut plastic foil), hull_c +0.16 (ok), gear_a -0.05 (cheap electronic beep), gear_b -0.18 (arcade game sound), gear_c -0.27 (cheap electronic beep). The scores move by 0.03-0.05 between two renders of the same sound with different level or dither, so only large differences mean anything."
+    }
+  ],
+  "notVerified": [
+    "Nothing was heard: all character claims (metal vs bowl, foil, tone vs machine, how large it sounds) are from numbers, spectrograms and CLAP only.",
+    "The Qwen describe model was not run (the brief forbids --describe).",
+    "No comparison against the reference files (k_hit_lowboom_0, impact_hull_medium.wav, gear_deploy.wav) was run beyond what SOUND_DESIGN.md already states; I did not measure them again.",
+    "The spectrogram of hull_b, hull_c and the three gear sounds was inspected on the second-to-last parameter set; after that I changed the plate share/tilt of hull a (re-inspected), the sub T60 of hull b, the ring of gear b, the hull_c knock/body edge and the levels, and re-measured their numbers but did not look at those pictures again.",
+    "Mono-sum, low-band equality and correlation are checked by number (0.49 and 0.68, bass correlation 1.0000 and 0.9999), not by listening on headphones.",
+    "The hull_a ring of 'at least 0.8 s' is met in the sense that partials ring the whole file, but its level at 0.8 s is about 57 dBFS RMS, so whether it is audible depends on the listening level.",
+    "The audition page and the manifest hash flow were not run; only build.py for my ids."
+  ]
+}

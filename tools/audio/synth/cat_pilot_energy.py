@@ -28,7 +28,7 @@ LEVELS.update({
     "pilot_thruster_b": ("peak", -3.2),
     "pilot_thruster_c": ("peak", -3.3),
     "pilot_shield_a": ("peak", -5.0),
-    "pilot_shield_b": ("peak", -6.7),
+    "pilot_shield_b": ("peak", -8.2),
 })
 
 
@@ -153,7 +153,7 @@ def pilot_thruster_a(ctx):
     return no_dc(fade_edges(y, 0.0, 12.0))
 
 
-PUNCH_VS_CRACK, AIR_VS_CRACK = 1.3, 0.6
+PUNCH_VS_CRACK, AIR_VS_CRACK = 1.75, 0.6
 
 
 @register("pilot_thruster_b")
@@ -341,13 +341,13 @@ def pilot_shield_b(ctx):
     # the sizzle: soft, broad, a lot of it from 1.5 to 6 kHz and little above 8 kHz; the band slides
     # down while it dissolves. A few weak sparks in it, longer and duller than in A.
     envs = (0.55 * np.exp(-6.9078 * t / 0.95) + 0.45 * np.exp(-6.9078 * t / 0.35)) * smooth_ramp(n, 0, int(0.01 * SR))
-    fc = 1400.0 + 1900.0 * np.exp(-t / 0.35)
+    fc = 1250.0 + 1650.0 * np.exp(-t / 0.35)
     sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.5, depth=0.5)
-    sizz = lowpass(sizz, 5200.0, 2)
+    sizz = lowpass(sizz, 4600.0, 2)
     sparks = crackle_lr(n, seeded("pilot_shield_b/sparks"), 10.0 + 80.0 * np.exp(-t / 0.25), 0.4, amp_sigma=0.4,
                         lo=1200.0, hi=4200.0, dur_ms=(2.0, 7.0), first_at=None)
     sparks = lowpass(sparks, 5500.0, 2)
-    sizz = sizz + sparks * (0.0 * rms(sizz[w]) / max(rms(sparks[w]), 1e-9))
+    sizz = sizz + sparks * (0.06 * rms(sizz[w]) / max(rms(sparks[w]), 1e-9))
 
     # the field hum: five partials, each a pair (left and right are detuned a little against each
     # other, which is where the width comes from) that beats against its neighbour at 2 to 7 Hz.
@@ -362,14 +362,14 @@ def pilot_shield_b(ctx):
                 fr = (f0 + sign * beat + 0.9 * (ch - 0.5) + 0.01 * f0 * drift) * (1.0 + 0.012 * np.exp(-t / 0.15))
                 hum[:, ch] += lv * wgt * np.sin(2 * np.pi * np.cumsum(fr) / SR + ph0)
     hum_env = smooth_ramp(n, int(0.01 * SR), int(0.14 * SR)) * np.exp(-6.9078 * t / 1.5)
-    hum = hum * (hum_env * alive(n, seeded("pilot_shield_b/hum-fl"), 3.0, 9.0, 0.25))[:, None]
+    hum = hum * (hum_env * alive(n, seeded("pilot_shield_b/hum-fl"), 3.0, 14.0, 0.5))[:, None]
 
     # balance (shares of the mono sum): whoomp and rumble about 0.50, hum about 0.20, sizzle the rest
     sizz_m = 0.5 * (sizz[:, 0] + sizz[:, 1])
     hum_m = 0.5 * (hum[:, 0] + hum[:, 1])
-    hum = hum * (rms(sizz_m[w]) * 0.85 / max(rms(hum_m[w]), 1e-9))
+    hum = hum * (rms(sizz_m[w]) * 0.75 / max(rms(hum_m[w]), 1e-9))
     rest_m = 0.5 * (sizz[:, 0] + sizz[:, 1] + hum[:, 0] + hum[:, 1])
-    low = low * body_scale(low, rest_m, 0.48)
+    low = low * body_scale(low, rest_m, 0.45)
     y = sizz + hum + lr_from(low)
     y = soft_limit(y, 6.0 * rms(y[w]))
     return no_dc(fade_edges(y, 0.0, 250.0))

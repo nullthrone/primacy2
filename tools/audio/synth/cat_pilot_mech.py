@@ -33,7 +33,7 @@ LEVELS.update({
     "pilot_hull_b": ("peak", -11.1),
     "pilot_hull_c": ("peak", -7.0),
     "pilot_gear_a": ("peak", -6.3),
-    "pilot_gear_b": ("peak", -9.3),
+    "pilot_gear_b": ("peak", -10.1),
     "pilot_gear_c": ("peak", -7.1),
 })
 
