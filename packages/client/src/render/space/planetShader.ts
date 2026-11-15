@@ -402,7 +402,7 @@ vec3 cloudGrain(vec3 cr, float foot, float kind) {
   // The finest are drawn out a little along the latitudes, as cloud streets are.
   vec4 f = fineNoise(cr * vec3(1.0, 1.4, 1.0), FINE, foot * 1.4, 0.72);
   float grain = (mix(0.80, 0.45, kind) * w1 * g1 + mix(0.50, 0.45, kind) * w2 * g2) * 4.4 + mix(0.45, 0.70, kind) * f.x;
-  float humps = (w1 * (abs(g1) - 0.184) + 0.6 * w2 * (abs(g2) - 0.184)) * 7.3 + 0.55 * f.y;
+  float humps = (w1 * (abs(g1) - 0.184) + 0.6 * w2 * (abs(g2) - 0.184)) * 7.3 + mix(0.18, 0.60, kind) * f.y;
   return vec3(grain, humps, f.z);
 }
 // x: how much of the ground the cloud hides, y: the height of its tops, z: its own brightness.
@@ -419,7 +419,7 @@ vec3 cloudDeck(float cover, vec3 g, float kind) {
   // The tops keep rising toward the middle of a front. On them stand the humps of the cells,
   // broad on a layered deck and taller, with finer lumps, where air rises.
   float body = 1.0 - exp(-max(cover + 0.04, 0.0) * 2.6);
-  float h = body + mix(0.055 * g.y, 0.045 * g.y + 0.06 * g.x, kind) + 0.05 * g.z;
+  float h = body + mix(0.065 * g.y, 0.045 * g.y + 0.06 * g.x, kind) + mix(0.015, 0.05, kind) * g.z;
   return vec3(a, h * smoothstep(0.0, 0.45, a), 1.0 + 0.035 * g.y);
 }
 // The sea inside the sun's glint. x: its roughness, around one, with calm water lying in slicks

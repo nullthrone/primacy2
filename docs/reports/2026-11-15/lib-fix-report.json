@@ -1,0 +1,121 @@
+{
+  "role": "lib-fix",
+  "status": "done",
+  "summary": "All five findings of review-lib-page-report.json repaired in tools/audio/build.py with tests. The two Quindar entries are struck (selection.json, downloads.json notTaken, local folders deleted, CREDITS.md regenerated); Whisper on the 11 remaining processed NASA files returned no words (only one-word silence artefacts). One-shots keep their attack (lead-in instead of a fade; envelope t90 within 1.5 ms of the source, was up to 9.33 ms off). The four loops now wrap (equal-power crossfade, plus a wrap-point move for two of them) and every processed loop passes the loop check. Cabin long one-shots are -32 LUFS, the landing long row -24. gainDb now states the applied gain, requestedGainDb the asked one. ratings.json SHA-256 unchanged before and after (b3e2ae5c...914cf3); no server was started, the audition check was not run. Nothing committed.",
+  "perFinding": [
+    {
+      "finding": "1. NASA speech in n_quindar_1 / n_quindar_2",
+      "whatIChanged": "Both entries out of selection.json; nasa-quindar-1 and nasa-quindar-2 out of downloads.json entries and into notTaken with the reason (struck by the owner on 2026-11-15, excerpts contain flight-controller speech, mark had said none), the same wording pattern as the other 30 struck entries; local folders assets/audio/downloads/nasa-quindar-1 and -2 deleted; CREDITS.md regenerated with fetch.py --credits; the rendered n_quindar_*.wav/png/json disappear from assets/audio/render/downloads by the build's own cleanup. No speech-free excerpt was cut. test_fetch.py: struck count 30 -> 32, the two Quindar ids must not be in entries, selection or on disk. README text added.",
+      "numbers": {
+        "entriesBefore": 27, "entriesAfter": 25, "selectionBefore": 35, "selectionAfter": 33, "notTakenStruckByOwner": "30 -> 32",
+        "whisperOnRemainingProcessedNasaFiles": {
+          "n_cassini_saturn_1": "Oh", "n_dinks_donks": "you", "n_emfisis_chorus": "you", "n_ingenuity": "you", "n_insight_arm": "you",
+          "n_juno_ganymede": "you", "n_laser_shots": "you", "n_plasma_hiss": "So", "n_rover_driving": "I", "n_sls_test_fire": "you", "n_voyager_lightning": "you"
+        },
+        "verdict": "11 files, every result is a single word of the kind Whisper produces on noise; no file with words, so no further file struck. No speech mark in downloads.json said none for a file that had speech apart from the two struck entries."
+      }
+    },
+    {
+      "finding": "2. Lost attacks (8 ms fade-in)",
+      "whatIChanged": "process_download: no multiplying fade at the start any more. Only where the first SAMPLE is above -60 dBFS a lead-in of 1.5 ms (72 samples) is put in front: raised cosine from exactly 0 towards the first sample, per channel, then the file as it is. Fade-out unchanged (30 ms where the last millisecond is above -60 dBFS). The step is judged on the 48 kHz excerpt before the level is set. New helper prepare_download (cut, mix-down, clip count, resample) shared with the measurement. checks gained leadInMs; fadeInMs stays in the manifest as 0.0. Tests: Ends class in test_downloads_build.py (lead-in shape, recording untouched, -61/-59 dBFS edge, per channel, t90 within 1.6 ms and gain equal to that of the unprocessed recording).",
+      "numbers": {
+        "method": "t90 = time of the first sample whose envelope (max over channels of |x|) reaches 90 % of the maximum; source = the excerpt at 48 kHz before processing, old and new = the written 16 bit files. The maximum is taken over the file without its last 30 ms (the fade-out region), which only matters for k_door_close_1 (its maximum lies in the faded end).",
+        "nineNamedOneShots_t90_ms_source_old_new": {
+          "k_hit_metal_medium_2": [0.52, 6.44, 2.02],
+          "k_land_metal_light_3": [0.12, 6.85, 1.62],
+          "k_door_open_1": [0.10, 6.50, 1.60],
+          "k_toggle_1": [0.88, 6.56, 0.88],
+          "k_tick_2": [0.58, 4.92, 2.08],
+          "k_hit_metal_heavy_0": [1.81, 5.25, 3.31],
+          "k_hit_plate_heavy_1": [2.65, 7.29, 4.15],
+          "k_land_plate_medium_0": [1.42, 10.75, 2.92],
+          "k_bong_1": [1.12, 5.71, 2.62]
+        },
+        "shiftNewMinusSource_ms": "0.00 to +1.50 for all 29 one-shot downloads (the 1.5 ms is the lead-in itself); largest shift of the old build 9.33 ms (k_land_plate_medium_0). Every one-shot is inside the 1.6 ms limit.",
+        "gainDb_old_new_unprocessedSourceWouldNeed": {
+          "k_tick_2": [-0.97, -16.99, -16.99],
+          "k_hit_metal_medium_2": [4.15, -3.91, -3.91],
+          "k_hit_metal_heavy_0": [6.39, -4.09, -4.09],
+          "k_hit_plate_heavy_1": [-2.85, -4.13, -4.13],
+          "k_land_plate_medium_0": [-4.46, -6.65, -6.65],
+          "k_land_metal_light_3": [-5.25, -6.53, -6.53],
+          "k_door_open_1": [-13.52, -14.17, -14.17],
+          "k_toggle_1": [-13.04, -13.10, -13.10],
+          "k_bong_1": [-10.04, -15.12, -15.12]
+        },
+        "otherOneShots": "k_engine_low_0, k_engine_small_1, k_hit_lowboom_0, k_switch_ui_18 and others whose first sample is below -60 dBFS now start untouched (they had been faded 8 ms because their first millisecond was loud); the others in the 28 got the lead-in. Peak-mode gains of the peak-set one-shots equal the unprocessed-source gain exactly (to 0.01 dB), except k_door_close_1 (see notVerified: unchanged file).",
+        "peakMovedOfK_tick_2": "peak at 0.6 ms of the source is now at 2.1 ms (lead-in 1.5 ms); level step: -0.97 dB before (a 16 dB boost of the remnant), -16.99 dB now."
+      }
+    },
+    {
+      "finding": "3. Loop seams",
+      "whatIChanged": "For kind loop: the tail is crossfaded into the head with equal power (sin/cos), length min(300 ms, a tenth of the file); the file is shorter by that, its last sample runs into its first; no lead-in, no fade-out. Where the first and last 50 ms of the result still differ by more than 2 dB in level, the loop is started at the wrap point (10 ms grid, circular, so still seamless) where the two differ least; this was needed because the loop check also fails on a 3 dB edge level difference, which two recordings (plasma hiss, rover) had by content, not by seam. This move is beyond the brief; it is recorded as checks.loopStartMs. Tests: Loops class (length, no lead-in/fade-out, last sample into first, tiled three times: the step at both joins is not larger than the largest step within +-200 samples and not above 3x the 99th percentile, for three seeds and categories; equal power on noise; loop check passes for a file that is louder at one end).",
+      "numbers": {
+        "n_ingenuity": {"before": {"seamRatio": 102.33, "edgeLevelDiffDb": 1.19, "swingDb": 2.3, "pass": false}, "after": {"seamRatio": 0.71, "edgeLevelDiffDb": 0.49, "swingDb": 5.1, "pass": true}, "durationS": "10.0 -> 9.7", "startMovedMs": 0},
+        "n_plasma_hiss": {"before": {"seamRatio": 2.38, "edgeLevelDiffDb": 15.17, "swingDb": 32.9, "pass": false}, "after": {"seamRatio": 0.61, "edgeLevelDiffDb": 0.0, "swingDb": 29.9, "pass": true}, "durationS": "12.3181 -> 12.0181", "startMovedMs": 6730},
+        "n_rover_driving": {"before": {"seamRatio": 1.6, "edgeLevelDiffDb": 9.43, "swingDb": 26.9, "pass": false}, "after": {"seamRatio": 0.69, "edgeLevelDiffDb": 0.02, "swingDb": 27.4, "pass": true}, "durationS": "10.0 -> 9.7", "startMovedMs": 7860},
+        "n_cassini_saturn_1": {"before": {"seamRatio": 0.47, "edgeLevelDiffDb": 12.02, "swingDb": 19.5, "pass": false}, "after": {"seamRatio": 0.06, "edgeLevelDiffDb": 1.26, "swingDb": 16.9, "pass": true}, "durationS": "19.2334 -> 18.9334", "startMovedMs": 0},
+        "allLoopsInManifestPass": "4 of 4 processed loops pass the loop check read back from the written files (checks.failed has no loop-seam). The level swing of plasma hiss (29.9 dB) and rover (27.4 dB) is a property of the recordings and is not part of the pass rule."
+      }
+    },
+    {
+      "finding": "4. Bed level given to long cabin one-shots",
+      "whatIChanged": "DOWNLOAD_TARGETS: cabin long -45 -> -32 LUFS, cabin loop keeps -45 (new lookup order: (category, 'loop') first, then (category, 'long')). Rule applied to every row: a long one-shot should sit within 8 dB of the loudness of a short one at its peak target, taken as short peak minus 16 dB (the cabin value -32 follows from it); a row more than 8 dB below is a bed level. Found: cabin (13 dB under) and landing long (-32 -> -24, 8 dB under; its loop stays -32). Other rows are within 8 dB (engines -27 vs -24, thrusters -30 vs -28, impacts -26 vs -21, switches -30 vs -30, radio -32 vs -30, weapons -26 vs -24, drive -28 vs -22, sensors and alarms are event defaults) and stay. Comment in build.py says why; test_no_long_one_shot_sits_at_a_bed_level checks the rule on the table. Which rows to move is my judgement, stated here.",
+      "numbers": {
+        "k_computer_noise_1": {"levelOld": "lufs -45", "levelNew": "lufs -32", "truePeakDb": "-37.33 -> -24.33", "gainDb": "-36.39 -> -23.39"},
+        "n_dinks_donks": {"levelOld": "lufs -45", "levelNew": "lufs -32", "truePeakDb": "-23.4 -> -10.4", "gainDb": "-22.06 -> -9.06"},
+        "landing_long_row": "-32 -> -24 LUFS; no download uses it, nothing moved",
+        "otherDownloadsMovedByThisFinding": "none"
+      }
+    },
+    {
+      "finding": "5. gainDb of a limited sound",
+      "whatIChanged": "level.gainDb now is the gain actually applied (20 log10 of the peak after / before), level.requestedGainDb the gain the target asked for, for every download. Test HonestLevel (limited case: requested more than 3 dB above applied, applied equal to the measured ratio; unlimited: both equal).",
+      "numbers": {
+        "n_laser_shots": {"before": {"gainDb": 20.0, "limited": true}, "after": {"gainDb": 11.45, "requestedGainDb": 20.0, "limited": true, "truePeakDb": -1.05, "lufs": -35.55}},
+        "note": "The wav of n_laser_shots is byte-identical to before; only the manifest numbers changed. The sound itself is still 8.5 dB under its loudness target, as the review said; the brief asked only for honest numbers."
+      }
+    }
+  ],
+  "filesChanged": [
+    "tools/audio/build.py",
+    "tools/audio/tests/test_downloads_build.py",
+    "tools/audio/tests/test_fetch.py",
+    "tools/audio/README.md",
+    "assets/audio/selection.json",
+    "assets/audio/downloads.json",
+    "assets/audio/CREDITS.md",
+    "assets/audio/downloads/nasa-quindar-1 (deleted)",
+    "assets/audio/downloads/nasa-quindar-2 (deleted)",
+    "docs/reports/2026-11-15/lib-fix-report.json",
+    "assets/audio/render/downloads/* and assets/audio/render/manifest.json (rebuilt, ignored by git)"
+  ],
+  "soundIdsChanged": [
+    "bytes changed (28): k_engine_large_0, k_engine_low_0, k_engine_circular_0, k_thruster_0, k_thruster_3, k_engine_small_1, k_hit_metal_heavy_0, k_hit_plate_heavy_1, k_hit_metal_medium_2, k_hit_lowboom_0, k_land_plate_medium_0, k_land_metal_light_3, k_door_open_1, k_switch_ui_18, k_toggle_1, k_tick_2, k_computer_noise_1, k_bong_1, n_voyager_lightning, n_cassini_saturn_1, n_emfisis_chorus, n_plasma_hiss, n_juno_ganymede, n_rover_driving, n_dinks_donks, n_insight_arm, n_ingenuity, n_sls_test_fire",
+    "removed (2): n_quindar_1, n_quindar_2",
+    "bytes identical, manifest numbers only (5): k_door_close_1, k_switch_ui_5, k_tone_1, k_two_tone_1, n_laser_shots",
+    "no rendered (synthesised) sound was touched; assets/audio/rounds/round1.json and round2.json still mention n_quindar_* as history and were not edited"
+  ],
+  "checks": [
+    {"command": "sha256sum assets/audio/ratings.json before and after every build and at the end", "result": "b3e2ae5cf8f41f7ff93738b999edf7745d115032d5e42d30ae884ba557914cf3 each time, unchanged. No vite server started, audition check not run."},
+    {"command": "with_lock.py -- .venv-audio/Scripts/python.exe tools/audio/build.py --manifest-only", "result": "108 sounds in the manifest (33 downloads), manifest validates against the contract; only failure flag left: n_sls_test_fire source-clipped (known, honest)"},
+    {"command": "build.py --manifest-only --out <scratch> run twice (under the lock), final code", "result": "all 33 processed wav files byte-identical between the two runs and identical to assets/audio/render/downloads; the two manifests identical"},
+    {"command": "read back of all 33 processed files with numpy (measure.loop_check, synth.levels.true_peak_db)", "result": "48000 Hz everywhere, channels kept, no NaN, no true peak above -1 dBFS (highest -1.05, n_laser_shots), first and last sample of every one-shot below -60 dBFS (highest first sample -73.4 dBFS, highest last sample -90.3 dBFS), 4 of 4 loops pass the loop check (numbers above)"},
+    {"command": ".venv-audio/Scripts/python.exe -I -m unittest discover -s tools/audio/tests", "result": "63 tests OK"},
+    {"command": ".venv-audio/Scripts/python.exe -I -m unittest discover -s tools/audio/listen/tests", "result": "22 tests OK"},
+    {"command": ".venv-audio/Scripts/python.exe -I -m unittest discover -s tools/audio/synth/tests", "result": "54 tests OK"},
+    {"command": ".venv-audio/Scripts/python.exe tools/audio/fetch.py --check", "result": "25 entries, 0 with problems, 162.6 MB on disk"},
+    {"command": "with_lock.py -- .venv-audio/Scripts/python.exe tools/audio/listen/transcribe.py assets/audio/render/downloads/n_*.wav --lang en --json", "result": "11 files, one word each (you, Oh, So, I), no real words"},
+    {"command": "fetch.py --credits", "result": "wrote CREDITS.md, 438 file rows; no Quindar row left in the file table or licence evidence, both listed under 'Considered and not taken'"}
+  ],
+  "notVerified": [
+    "Nothing was listened to; no statement here about how any sound sounds.",
+    "The audition page and its check were not run (no vite server, no capture); the engine's handling of the shorter loops and the 1.5 ms longer one-shots was not tested there. The page reads durations from the manifest.",
+    "k_door_close_1 (bytes unchanged): its source ends loud, the maximum lies inside the last 30 ms that the kept fade-out attenuates, so its applied gain (-10.65 dB) is 3.44 dB higher than the unprocessed recording would need (-14.09 dB). The brief said to keep the fade-out as it is, so this was left and is reported here.",
+    "The start-step rule is judged on the excerpt before the level is set. A source whose first sample is just under -60 dBFS and which is then boosted a lot could end above -60 dBFS; none of the 33 files does (read back), but the build does not enforce it.",
+    "The wrap-point move for plasma hiss (6.73 s) and rover (7.86 s) is an addition to the brief and puts a crossfaded junction in the middle of those recordings; whether that is audible was not judged. The equal-power crossfade of correlated, tonal material can dip or bump in level; only the loop check and a step test were run.",
+    "The choice of which table rows are bed levels (cabin, landing) rests on the rule 'within 8 dB of short peak - 16 dB', which is my reading of the brief, not a measured listening result.",
+    "audition-check.mjs, capture.ts and the page were not touched (other findings of the review); n_sls_test_fire stays in the library as a source-clipped sound.",
+    "assets/audio/cache/render-wip*/manifest.json (other agents' scratch builds) and rounds/round1.json, round2.json still mention n_quindar_*; not edited as outside my files."
+  ]
+}

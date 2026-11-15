@@ -293,12 +293,19 @@ try {
     );
     await scrollTo(page, '#cat-engines .part.downloaded', 375);
     await page.screenshot({ path: path.join(SHOTS, 'library-category-engines.png') });
-    await scrollTo(page, '#cat-radio .part.downloaded', 295);
-    await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
+    // The radio category has a downloaded block only while it keeps a downloaded sound (the NASA speech was struck).
+    if ((await page.locator('#cat-radio .part.downloaded').count()) > 0) {
+      await scrollTo(page, '#cat-radio .part.downloaded', 295);
+      await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
+    }
   });
 
   await check('downloaded files decode and play, and a second press stops them', async () => {
-    for (const id of ['n_voyager_lightning', 'k_toggle_1', 'n_quindar_1']) {
+    // A short clip, then a long one (the last one is pressed again to stop it).
+    const longClip = manifest.sounds.find((x) => x.id === 'n_voyager_lightning') ?? manifest.sounds.find((x) => x.source === 'download' && x.kind === 'oneshot' && x.duration > 3);
+    const shortClip = manifest.sounds.find((x) => x.id === 'k_toggle_1') ?? manifest.sounds.find((x) => x.source === 'download' && x.kind === 'oneshot' && x.duration > 0 && x.duration < 1);
+    assert(longClip && shortClip, 'the manifest has no short and long downloaded one-shot');
+    for (const id of [shortClip.id, longClip.id]) {
       await page.evaluate(() => window.__audition.resetPeak());
       const btn = page.locator(`button[data-sound="${id}"]`);
       await btn.scrollIntoViewIfNeeded();
@@ -306,7 +313,7 @@ try {
       await sleep(900);
       assert((await peakMax(page)) > 0.001, `no signal from ${id}`);
     }
-    const btn = page.locator('button[data-sound="n_quindar_1"]');
+    const btn = page.locator(`button[data-sound="${longClip.id}"]`);
     assert(/^Stop/.test(await btn.getAttribute('aria-label')), 'a long clip does not offer Stop');
     await btn.click();
     await sleep(400);
@@ -650,6 +657,9 @@ try {
     await sleep(300);
   });
 
+  // The output meter reads the last 2048 samples (43 ms at 48 kHz) of the analyser: only after that much more than the end
+  // of the test tone has the tone left the meter, plus a frame of the page for reading it.
+  const METER_WINDOW = 0.07;
   await check('the room is audible: a baked sound leaves a tail after it ends, and none at Room 0', async () => {
     const tail = async (id, room) => {
       await setRange(pageS, 'room', room);
@@ -662,9 +672,9 @@ try {
       await pageS.waitForFunction(
         (a) => {
           const p = (window.__audition.plays ?? []).filter((x) => x.id === a.id && x.start >= a.before).pop();
-          return p !== undefined && p.end !== Infinity && window.__audition.now() > p.end;
+          return p !== undefined && p.end !== Infinity && window.__audition.now() > p.end + a.meter;
         },
-        { id, before },
+        { id, before, meter: METER_WINDOW },
         { timeout: 10000 },
       );
       await pageS.evaluate(() => window.__audition.resetPeak());
@@ -673,13 +683,17 @@ try {
       await sleep(600);
       return t;
     };
-    const open = await tail('test_dry', 1);
-    const shut = await tail('test_dry', 0);
-    assert(open > 0.0005, `no tail with the room open: ${open}`);
-    assert(shut < open * 0.2, `tail ${shut} at room 0 against ${open} at room 1`);
-    // A sound with the cabin baked in gets the smaller send: its tail is there, and quieter.
-    const bakedOpen = await tail('test_right', 1);
-    assert(bakedOpen > 0.00005 && bakedOpen < open, `baked tail ${bakedOpen} against dry tail ${open}`);
+    // AUDITION_ROOM_RUNS=5 repeats the step, to show that it holds.
+    for (let run = 1; run <= (Number(process.env.AUDITION_ROOM_RUNS) || 1); run++) {
+      const open = await tail('test_dry', 1);
+      const shut = await tail('test_dry', 0);
+      assert(open > 0.0005, `no tail with the room open: ${open}`);
+      assert(shut < open * 0.2, `tail ${shut} at room 0 against ${open} at room 1`);
+      // A sound with the cabin baked in gets the smaller send: its tail is there, and quieter.
+      const bakedOpen = await tail('test_right', 1);
+      assert(bakedOpen > 0.00005 && bakedOpen < open, `baked tail ${bakedOpen} against dry tail ${open}`);
+      console.log(`      run ${run}: tail dry at Room 1 ${open.toFixed(4)}, at Room 0 ${shut.toFixed(4)}, baked at Room 1 ${bakedOpen.toFixed(4)}`);
+    }
   });
 
   await check('fold scene: buttons, chain honours the cue, tunnel passes meet without a gap', async () => {
