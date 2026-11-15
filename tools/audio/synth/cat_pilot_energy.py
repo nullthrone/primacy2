@@ -321,18 +321,18 @@ def pilot_shield_b(ctx):
     w = slice(0, int(0.2 * SR))
 
     # the whoomp: reaches its top in about 15 ms; the pitch keeps falling while it fades
-    f = 26.0 + 112.0 * np.exp(-t / 0.17)
+    f = 38.0 + 82.0 * np.exp(-t / 0.15)
     jit = bandpass(seeded("pilot_shield_b/jit").standard_normal(n + 2048), 4.0, 25.0, 2)[2048:]
-    f = f * (1.0 + 0.16 * jit / max(rms(jit), 1e-9))          # the pitch is never a clean line
+    f = f * (1.0 + 0.3 * jit / max(rms(jit), 1e-9))          # the pitch is never a clean line
     ph = 2 * np.pi * np.cumsum(f) / SR
-    env = smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.6)
-    f2 = 40.0 + 150.0 * np.exp(-t / 0.11)
-    whoomp = (np.sin(ph) + 0.6 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.25)) * env
-    whoomp = np.tanh(1.3 * whoomp / max(np.max(np.abs(whoomp)), 1e-9))          # chest: harmonics up to 300 Hz
+    f2 = (70.0 + 190.0 * np.exp(-t / 0.09)) * (1.0 + 0.1 * jit / max(rms(jit), 1e-9))
+    env = smooth_ramp(n, 0, int(0.009 * SR)) * np.exp(-6.9078 * t / 0.6)
+    whoomp = (np.sin(ph) + 0.55 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.22)) * env
+    # (no saturation here: a clipped sine at 30 to 40 Hz puts a hard line at three times its pitch)
     # the air moved: broad low rumble, 40 to 200 Hz, that blooms under it and fades with it
     rumble = bandpass(seeded("pilot_shield_b/rumble").standard_normal(n + 1024), 40.0, 200.0, 2)[1024:]
-    rumble = rumble * smooth_ramp(n, 0, int(0.02 * SR)) * np.exp(-6.9078 * t / 0.7)
-    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 1.5 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
+    rumble = rumble * smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.55)
+    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 1.6 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
 
     # the sizzle: soft, broad, a lot of it from 1.5 to 6 kHz and little above 8 kHz; the band slides
     # down while it dissolves. A few weak sparks in it, longer and duller than in A.
@@ -365,7 +365,7 @@ def pilot_shield_b(ctx):
     hum_m = 0.5 * (hum[:, 0] + hum[:, 1])
     hum = hum * (rms(sizz_m[w]) * 0.85 / max(rms(hum_m[w]), 1e-9))
     rest_m = 0.5 * (sizz[:, 0] + sizz[:, 1] + hum[:, 0] + hum[:, 1])
-    low = low * body_scale(low, rest_m, 0.44)
+    low = low * body_scale(low, rest_m, 0.50)
     y = sizz + hum + lr_from(low)
-    y = soft_limit(y, 3.5 * rms(y[w]))
+    y = soft_limit(y, 6.0 * rms(y[w]))
     return no_dc(fade_edges(y, 0.0, 250.0))

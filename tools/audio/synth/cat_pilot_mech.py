@@ -185,13 +185,13 @@ def pilot_hull_a(ctx):
     # hard); they die much faster instead.
     ratios = [1.0, 1.43, 1.93, 2.31, 2.86, 3.37, 3.94, 4.58, 5.23, 6.05, 6.94, 7.73, 8.86, 10.1,
               11.4, 12.9, 14.6, 16.5, 18.7, 21.2, 23.9, 27.0]
-    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=1.9, ref_hz=200.0, expo=0.85, tilt=-0.3,
+    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=2.4, ref_hz=200.0, expo=0.85, tilt=-0.12,
                     pair=(0.002, 0.008), drift=0.0007)
     plate = pa + pb
     plate[: int(0.0015 * SR)] *= rise(int(0.0015 * SR))   # struck by the crack: starts at once
 
     # 3. the sub thump, 72 falling to 44 Hz, 2 ms behind the crack, and a low body for the clang
-    sub = _falling_sine(n, 72.0, 44.0, 0.07, rng, wobble=0.01) * burst_env(n, 3.5, 0.42)
+    sub = _falling_sine(n, 72.0, 44.0, 0.07, rng, wobble=0.01) * burst_env(n, 5.5, 0.42)
     sub = _placed(n, sub[: n - int(0.002 * SR)], 0.002)
     body = _placed(n, lowpass(_noise_burst(rng, 0.5, 90.0, 400.0, 0.16, 1.5), 450.0, 2), 0.0)
 
@@ -201,8 +201,8 @@ def pilot_hull_a(ctx):
                                   (0.170, 9, 1500.0, 3600.0, 0.022)):
         rattle += _knock_run(rng, start, kn, lo, hi, g0, 1.0, n)
 
-    out = (_frac(crack, 0.235) + _frac(crack2, 0.04) + _frac(plate, 0.45) + _frac(sub, 0.22)
-           + _frac(body, 0.03) + _frac(rattle, 0.012))
+    out = (_frac(crack, 0.27) + _frac(crack2, 0.02) + _frac(plate, 0.43) + _frac(sub, 0.26)
+           + _frac(body, 0.012) + _frac(rattle, 0.012))
     return fade_edges(out, 0.0, 20.0)
 
 

@@ -973,7 +973,8 @@ try {
       }
       return stopCap();
     };
-    const playable = cm.sounds.filter((x) => x.kind !== 'ir');
+    // AUDITION_CAPTURE_LIMIT=n plays only the first n sounds (for trying the check itself).
+    const playable = cm.sounds.filter((x) => x.kind !== 'ir').slice(0, Number(process.env.AUDITION_CAPTURE_LIMIT) || Infinity);
     const step = Math.max(1, Math.floor(playable.length / 10));
     const sample = playable.filter((_, i) => i % step === 0).slice(0, 10);
     await check(`capture, library: one play of each of ${playable.length} sounds in Stereo, ${sample.length} also in Mono and Headphones`, async () => {
