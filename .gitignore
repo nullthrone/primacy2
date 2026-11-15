@@ -34,5 +34,9 @@ assets/audio/downloads/
 # speech stay local.
 .venv-voice/
 assets/audio/voice/
+# The comparison of ways to make sound (tools/sound): one environment per model, and every
+# generated or cut candidate, stay local.
+.venv-sound/
+assets/audio/gen/
 # Raw phone recordings of the owner stay local; what ships is cut, processed and committed apart.
 assets/audio/recordings/
