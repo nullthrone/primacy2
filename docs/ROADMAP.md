@@ -283,12 +283,14 @@ light effects "fairly well". To do, in his order of weight:
     the band at 70 to 110 m. From 2 km the picture is the same as before. Quality 0 draws grain
     and craters without stones.
 
-  Cost at 3840x2160 on the RTX 5080. Plating and cockpit were measured on 2026-11-14 with the
-  card to itself: plating 0.2 to 0.3 ms per frame with a station filling the view and nothing
-  measurable on small ships and asteroids; the cockpit 0.4 to 0.5 ms with its lamps (2.1 ms
-  before, 2.5 to 2.6 after). On 2026-11-15 other programs held the card at about 65 % during
-  every measurement, so the times of that day are too high by an unknown factor and only the
-  comparison within one run counts. Planets, old shader and new in turns: a ship over an ocean
+  Cost at 3840x2160 on the RTX 5080. Plating and cockpit were measured on 2026-11-14 by the
+  worker that built them (a second worker used the same card at times): plating 0.2 to 0.3 ms per
+  frame with a station filling the view and nothing measurable on small ships and asteroids; the
+  cockpit 0.4 to 0.5 ms with its lamps (2.1 ms before, 2.5 to 2.6 after). On 2026-11-15 other
+  programs were using the card: four samples around the measurements read 36 to 81 % load with
+  nothing of this work running, and a sky scene that this work did not touch took 3.2 ms against
+  2.1 ms the day before. The times of that day are too high by a factor that changes from minute
+  to minute, and only the comparison within one run counts. Planets, old shader and new in turns: a ship over an ocean
   planet 13.1 ms before and 8.4 after, an earth-like planet from 1.15 radii 17.1 and 13.7 (work
   that is hidden is now skipped, which saves more than the detail costs), a gas giant 5.4 and
   6.1, a rocky body 6.0 and 6.8. Ground, detail off and on within one page: landed 6.9 and
