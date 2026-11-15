@@ -6,7 +6,7 @@ Reads every source directory under assets/audio/gen/ that has a gen.json (moss, 
 raw file listed in it, and for each file:
 
 1. cuts the event out (first moment within 40 dB of the file's maximum, minus 3 ms; ends where the
-   level has stayed 50 dB under the maximum for 150 ms, or at the family's longest length; for the
+   level has stayed 45 dB under the maximum for 150 ms (50 dB for the gear's last sound), or at the family's longest length; for the
    landing gear from the first sound to the last);
 2. throws out only what is broken, with the reason: silent, clipped, speech, music, more than one
    event where one was asked for, cut off, shorter than 80 ms. It does not look at where the energy
@@ -52,6 +52,7 @@ ONE_EVENT = ("hull", "thruster", "shield")  # the gear is one event from the fir
 OUT_SR = 48000
 HOP_MS, WIN_MS = 1.0, 4.0
 START_DB, END_DB = 40.0, 50.0             # within 40 dB of the maximum starts; 50 dB under ends
+QUIET_DB = 45.0                           # one-event families: the quiet between two events can sit at -45..-49 dB (moss thruster_3), so 50 never ended them
 QUIET_S = 0.150                           # how long the level must stay under for the event to end
 LEAD_S = 0.003
 MIN_EVENT_S = 0.080
@@ -125,7 +126,7 @@ def cut_event(x: np.ndarray, sr: int, family: str) -> dict:
         end = int(loud[-1]) * hop + win
         run = None
     else:
-        run = _first_quiet_run(env <= mx - END_DB, i0, need)
+        run = _first_quiet_run(env <= mx - QUIET_DB, i0, need)
         end = x.shape[0] if run is None else run * hop + win
         if run is not None:  # a second onset after the quiet run
             peak1 = float(env[i0:run].max())
@@ -481,7 +482,7 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
     return {"version": 1, "skippedAsPick": skips,
             "settings": {"models": bool(use_models), "modelDevice": device if use_models else None,
                          "note": None if use_models else "speech and music were NOT checked (--no-models)",
-                         "maxLengthS": MAX_LEN_S, "startWithinDb": START_DB, "endUnderDb": END_DB, "quietS": QUIET_S,
+                         "maxLengthS": MAX_LEN_S, "startWithinDb": START_DB, "endUnderDb": END_DB, "quietUnderDb": QUIET_DB, "quietS": QUIET_S,
                          "leadS": LEAD_S, "minEventS": MIN_EVENT_S, "ceilingDb": CEILING_DB},
             "sources": sources_found, "families": fam_out, "chosen": chosen, "files": files}
 

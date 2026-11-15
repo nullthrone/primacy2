@@ -66,12 +66,22 @@ def test_cut_constant_burst():
     assert not c["capped"] and c["secondOnset"] is None
 
 
-def test_cut_decaying_event_ends_50_db_down():
-    # 150 dB per second: 50 dB down after a third of a second
+def test_cut_decaying_event_ends_45_db_down():
+    # 150 dB per second: 45 dB down after 0.3 s
     x = place(3.0, [(0.4, decaying(1.5, 150.0))])
     c = screen.cut_event(x, SR, "hull")
     near(c["start"] / SR, 0.4 - 0.003, 0.004, "start")
-    near(c["end"] / SR, 0.4 + 50.0 / 150.0, 0.03, "end")
+    near(c["end"] / SR, 0.4 + 45.0 / 150.0, 0.03, "end")
+
+
+def test_gap_at_minus_48_db_still_separates_two_events():
+    # moss thruster_3: two bursts with 0.6 s between them at 48 dB under the maximum; a 50 dB end never fired
+    state = RNG.bit_generator.state  # leave the shared random stream as other tests expect it
+    x = place(2.0, [(0.0, noise(0.5)), (1.2, noise(0.6)), (0.5, noise(0.7, 0.0012))])
+    RNG.bit_generator.state = state
+    c = screen.cut_event(x, SR, "thruster")
+    assert not c["capped"], c
+    near(c["end"] / SR, 0.5, 0.05, "end")
 
 
 def test_cut_ignores_a_precursor_more_than_40_db_down():
