@@ -4,6 +4,12 @@
 // The check writes ratings through the page, so the server must keep them in AUDITION_RATINGS_FILE (the same
 // variable is read here), never in the owner's assets/audio/ratings.json.
 // Saves screenshots to screenshots/audition/ and exits with code 1 on any failure.
+//
+// The last part records the page's real output (after the limiter) and looks for clipped samples and clicks:
+// each of the four scenes (scripted run and every event button), then one play of every sound in the manifest in the
+// Stereo stage, and ten of them also in Mono and Headphones. A fault is a page fault, which fails the check, unless the
+// same fault is in the samples of a sound file that was playing, which is only listed ("file"). Set
+// AUDITION_CAPTURE=skip to leave this part out (it takes about a quarter of an hour).
 import { chromium } from 'playwright';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
@@ -105,6 +111,18 @@ try {
     assert(manifest.sounds.length > 0, 'manifest is empty');
     const banner = await page.locator('#banner-placeholder').count();
     assert(banner === (manifest.placeholder ? 1 : 0), 'placeholder banner does not match the manifest');
+  });
+
+  await check('the category "pilot" is the first one and has its German name (when the manifest has it)', async () => {
+    if (!manifest.categories.some((c) => c.id === 'pilot') || !manifest.sounds.some((x) => x.category === 'pilot')) {
+      console.log('      (the manifest has no pilot category yet: skipped)');
+      return;
+    }
+    assert(manifest.categories[0].id === 'pilot', `the manifest lists "${manifest.categories[0].id}" first`);
+    const first = page.locator('section.cat').first();
+    assert((await first.getAttribute('id')) === 'cat-pilot', `the first category on the page is ${await first.getAttribute('id')}`);
+    const title = await first.locator('h2').innerText();
+    assert(title.startsWith('Richtungsproben (Runde 3)'), `the first category is called "${title}"`);
   });
 
   await check('default language follows the browser (de-DE) and the switch works', async () => {
@@ -211,8 +229,8 @@ try {
     assert((await page.locator('.part.rendered').count()) >= 5, 'categories lack their rendered block');
     const nasa = downloads.find((x) => x.licence === 'Public domain (NASA)');
     const cc0 = downloads.find((x) => x.licence === 'CC0 1.0');
-    assert((await page.locator(`#s-${nasa.id} .badge.licence`).innerText()) === 'Public domain (NASA)', 'NASA licence not shown');
-    assert((await page.locator(`#s-${cc0.id} .badge.licence`).innerText()) === 'CC0 1.0', 'CC0 licence not shown');
+    if (nasa) assert((await page.locator(`#s-${nasa.id} .badge.licence`).innerText()) === 'Public domain (NASA)', 'NASA licence not shown');
+    if (cc0) assert((await page.locator(`#s-${cc0.id} .badge.licence`).innerText()) === 'CC0 1.0', 'CC0 licence not shown');
     // The build leaves the length of downloads at 0; the page measures it by decoding every file.
     await page.waitForFunction(
       (ids) => ids.every((id) => /\d s$/.test(document.querySelector(`#s-${id} .badge.mono`).textContent.trim())),
@@ -225,8 +243,8 @@ try {
     await page.screenshot({ path: path.join(SHOTS, 'library-category-radio.png') });
   });
 
-  await check('downloaded mp3, ogg and wav files decode and play, and a second press stops them', async () => {
-    for (const id of ['n_sts_how_do_you_read', 'k_toggle_1', 'n_quindar_1']) {
+  await check('downloaded files decode and play, and a second press stops them', async () => {
+    for (const id of ['n_voyager_lightning', 'k_toggle_1', 'n_quindar_1']) {
       await page.evaluate(() => window.__audition.resetPeak());
       const btn = page.locator(`button[data-sound="${id}"]`);
       await btn.scrollIntoViewIfNeeded();
@@ -824,6 +842,168 @@ try {
     await page3.close();
   });
   await ctx2.close();
+
+  // ---- The page's real output: limiter, overload lamp, and clicks or clipped samples found in a recording of it.
+  if (process.env.AUDITION_CAPTURE === 'skip') {
+    console.log('skip  capture of the real output (AUDITION_CAPTURE=skip)');
+  } else {
+    const ctxC = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'de-DE' });
+    const pc = await openPage(ctxC);
+    await pc.evaluate(() => (window.__audition.speed = 1));
+    await pc.evaluate(() => window.__audition.settled());
+    const cm = await pc.evaluate(() => fetch('/audio-lib/render/manifest.json').then((r) => r.json()));
+
+    await check('limiter: leaves a -20 dBFS sine alone (within 0.2 dB), holds a +6 dBFS mix at or below 0 dBFS after 20 ms', async () => {
+      const r = await pc.evaluate(async () => {
+        const h = window.__audition;
+        const wait = (ms) => new Promise((x) => setTimeout(x, ms));
+        await h.settled();
+        await h.capture.start();
+        const quiet = h.now() + 0.3;
+        h.injectTone(0.1, 1000, quiet, 1.0);
+        const loud = quiet + 1.4;
+        h.injectTone(2.0, 1000, loud, 1.0);
+        await wait(3000);
+        const res = await h.capture.stop();
+        return { quiet: h.capture.window(quiet + 0.3, quiet + 0.9), loud: h.capture.window(loud + 0.02, loud + 0.9), makeupDb: h.limiterMakeupDb(), faults: res.faults.length };
+      });
+      const gainDb = 20 * Math.log10(r.quiet.rms / (0.1 / Math.SQRT2));
+      console.log(`      make-up gain measured at start-up ${r.makeupDb.toFixed(2)} dB; a -20 dBFS sine passes with ${gainDb.toFixed(3)} dB; +6 dBFS mix leaves at ${(20 * Math.log10(r.loud.peak)).toFixed(2)} dBFS`);
+      assert(Math.abs(gainDb) <= 0.2, `a -20 dBFS sine passes with ${gainDb.toFixed(2)} dB`);
+      assert(r.loud.peak <= 1.0, `a +6 dBFS mix leaves at ${r.loud.peak} (${(20 * Math.log10(r.loud.peak)).toFixed(2)} dBFS) after 20 ms`);
+    });
+
+    await check('overload lamp: lit by a full-scale output, stays lit, goes out when clicked, has German and English titles', async () => {
+      const lamp = pc.locator('#over-lamp');
+      await pc.evaluate(() => window.__audition.clearOverload());
+      await sleep(100);
+      assert(!(await lamp.getAttribute('class')).includes('hot'), 'the lamp is lit before anything overloads');
+      assert(/Übersteuerung/.test(await lamp.getAttribute('title')), 'German title missing');
+      await pc.click('[data-lang="en"]');
+      assert(/Overload/.test(await lamp.getAttribute('title')), 'English title missing');
+      await pc.click('[data-lang="de"]');
+      // With the limiter on, +6 dBFS is held below full scale: the lamp stays dark.
+      await pc.evaluate(() => window.__audition.injectTone(2.0, 1000, window.__audition.now() + 0.05, 0.5));
+      await sleep(900);
+      assert(!(await lamp.getAttribute('class')).includes('hot'), 'the limiter let the output reach 0.999');
+      await pc.uncheck('#sw-limiter');
+      await pc.evaluate(() => window.__audition.injectTone(1.5, 1000, window.__audition.now() + 0.05, 0.3));
+      await sleep(900);
+      assert((await lamp.getAttribute('class')).includes('hot'), 'the lamp did not light at 1.5 with the limiter off');
+      await sleep(3500);
+      assert((await lamp.getAttribute('class')).includes('hot'), 'the lamp did not stay lit');
+      await pc.screenshot({ path: path.join(SHOTS, 'overload-lamp.png'), clip: { x: 0, y: 0, width: 1280, height: 156 } });
+      await lamp.click();
+      await sleep(150);
+      assert(!(await lamp.getAttribute('class')).includes('hot'), 'the lamp did not go out when clicked');
+      await pc.check('#sw-limiter');
+    });
+
+    // A table of what the recordings found, filled by the steps below and printed at the end.
+    const found = [];
+    const addFaults = (where, res) => {
+      for (const f of res.faults) found.push({ where, ...f });
+    };
+    const startCap = () => pc.evaluate(() => window.__audition.capture.start());
+    const stopCap = () => pc.evaluate(() => window.__audition.capture.stop());
+    const playsCount = () => pc.evaluate(() => (window.__audition.plays ?? []).length);
+    // Waits until a sound has been scheduled since `before`, then until every one-shot of the page has ended.
+    const quietNow = async (before, maxMs) => {
+      await pc.waitForFunction((n) => (window.__audition.plays ?? []).length > n, before, { timeout: 8000 }).catch(() => undefined);
+      const t0 = Date.now();
+      while (Date.now() - t0 < maxMs) {
+        const done = await pc.evaluate(() => {
+          const n = window.__audition.now();
+          return (window.__audition.plays ?? []).every((p) => p.end === Infinity || p.end < n - 0.05);
+        });
+        if (done) break;
+        await sleep(200);
+      }
+      await sleep(500);
+    };
+
+    for (const scene of ['docking', 'combat', 'landing', 'fold']) {
+      await check(`capture, scene ${scene}: the written run and every event button`, async () => {
+        await pc.click(`[data-tab="${scene}"]`);
+        await pc.evaluate(() => window.scrollTo(0, 0));
+        await pc.waitForSelector(`#scene-${scene}`);
+        // The written run at real speed.
+        await startCap();
+        const before = await pc.evaluate((sid) => window.__audition.sceneRuns[sid]?.ended ?? 0, scene);
+        await pc.click(`#scene-${scene} [data-act="play-scene"]`);
+        await pc.waitForFunction((a) => window.__audition.sceneRuns[a.sid].ended > a.before, { sid: scene, before }, { timeout: 90000 });
+        await sleep(1500);
+        addFaults(`scene ${scene}, written run`, await stopCap());
+        await pc.click('#stop-all');
+        await sleep(600);
+        // Every event button, one after the other; a toggle is switched on, heard for a moment and off again.
+        await startCap();
+        const buttons = await pc.evaluate(
+          (sid) => [...document.querySelectorAll(`#scene-${sid} .events button[data-event]`)].map((b) => ({ key: b.getAttribute('data-event'), toggle: b.hasAttribute('aria-pressed') })),
+          scene,
+        );
+        for (const ev of buttons) {
+          const n = await playsCount();
+          await press(pc, `#scene-${scene} [data-event="${ev.key}"]`);
+          if (ev.toggle) {
+            await sleep(2500);
+            await press(pc, `#scene-${scene} [data-event="${ev.key}"]`);
+            await sleep(700);
+          } else await quietNow(n, 40000);
+        }
+        addFaults(`scene ${scene}, event buttons`, await stopCap());
+        await pc.click('#stop-all');
+        await sleep(600);
+      });
+    }
+
+    // One play of every sound; a one-shot to its end, a loop for two passes and then stopped.
+    const playOne = async (sound, mode) => {
+      await pc.click(`[data-stage="${mode}"]`);
+      await startCap();
+      const sel = `button[data-sound="${sound.id}"]`;
+      const n = await playsCount();
+      await press(pc, sel);
+      if (sound.kind === 'loop') {
+        await sleep(Math.min(40000, sound.duration * 2 * 1000 + 600));
+        await press(pc, sel);
+        await sleep(600);
+      } else {
+        await quietNow(n, sound.duration * 1000 + 5000);
+      }
+      return stopCap();
+    };
+    const playable = cm.sounds.filter((x) => x.kind !== 'ir');
+    const step = Math.max(1, Math.floor(playable.length / 10));
+    const sample = playable.filter((_, i) => i % step === 0).slice(0, 10);
+    await check(`capture, library: one play of each of ${playable.length} sounds in Stereo, ${sample.length} also in Mono and Headphones`, async () => {
+      await pc.click('[data-tab="library"]');
+      for (const sound of playable) {
+        // A download's real length is measured by the page when the manifest says 0.
+        const dur = sound.duration > 0 ? sound.duration : 3;
+        addFaults(`${sound.id} (Stereo)`, await playOne({ ...sound, duration: dur }, 'stereo'));
+      }
+      for (const mode of ['mono', 'headphones']) {
+        for (const sound of sample) addFaults(`${sound.id} (${mode === 'mono' ? 'Mono' : 'Headphones'})`, await playOne({ ...sound, duration: sound.duration > 0 ? sound.duration : 3 }, mode));
+      }
+      await pc.click('[data-stage="stereo"]');
+    });
+
+    const pageFaults = found.filter((f) => f.origin === 'page');
+    const fileFaultList = found.filter((f) => f.origin === 'file');
+    console.log(`\n      faults found in the recordings: ${pageFaults.length} caused by the page, ${fileFaultList.length} in a sound file itself`);
+    if (found.length) {
+      console.log('      origin  where                                         time s   kind   size   ratio  sounds playing');
+      for (const f of found) {
+        const ratio = f.ratio === undefined ? '     -' : Number.isFinite(f.ratio) ? f.ratio.toFixed(1).padStart(6) : '   inf';
+        console.log(`      ${f.origin.padEnd(7)} ${f.where.padEnd(45)} ${f.t.toFixed(3).padStart(7)}  ${f.kind.padEnd(5)}  ${f.size.toFixed(3)}  ${ratio}  ${f.sounds.join(',')}`);
+      }
+    }
+    await check('capture: no click and no clipped sample comes from the page (faults inside a file are only listed)', async () => {
+      assert(pageFaults.length === 0, `${pageFaults.length} page faults, the first: ${JSON.stringify(pageFaults.slice(0, 3))}`);
+    });
+    await ctxC.close();
+  }
 
   await check('no console errors', async () => {
     // The 404 of the deliberately missing manifest is the one expected network error.

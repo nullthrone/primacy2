@@ -11,18 +11,42 @@ import type { ManifestSound } from './types.ts';
 //                                               +-> large send ---+
 //   radio and "via radio" sounds -> radioIn -> filter chain -> dryIn
 //   both sends -> cabin_ir (two channels) -> bus
-//   bus -> mono mix (Mono setting only) -> volume -> [limiter] -> analyser -> destination
+//   bus -> mono mix (Mono setting only) -> volume -> pre-limiter -> [limiter -> make-up cancel] -> analyser -> destination
 //
 // The stage puts a one-channel sound at a direction: equal-power panning (a source behind is panned like its mirror
 // image ahead and is duller) for loudspeakers, an HRTF panner on a circle of 1.5 m for headphones. Files with two
 // channels are never moved: they play as they are, and in Mono as their sum.
 //
-// The limiter is a default DynamicsCompressor like the game's, so that what is heard here is what the game will do.
+// The limiter is a safety limiter that leaves everything below its threshold alone: a DynamicsCompressorNode set as a
+// limiter, followed by a gain that cancels the node's built-in make-up gain. That make-up gain is measured once at
+// start-up in an OfflineAudioContext, not taken from a formula. The game's audio will be rebuilt on this graph.
 
 const LIB = '/audio-lib/render/';
 const SQUELCH_OPEN = 'radio_squelch_open';
 const SQUELCH_CLOSE = 'radio_squelch_close';
 const FADE = 0.03;
+const BASELINE = new URLSearchParams(location.search).has('baseline'); // BASELINE-TEMP
+/** Fade-in of a voice whose buffer does not start on silence, in seconds. */
+const EDGE_IN = 0.003;
+/** Fade-out before the end of a one-shot buffer that does not end on silence, in seconds. */
+const EDGE_OUT = 0.005;
+/** A first or last sample below this magnitude (about -54 dBFS) counts as silence. */
+const SILENT = 0.002;
+/** The limiter: threshold in dB, knee, ratio, attack and release in seconds. */
+const LIMITER = { threshold: -2, knee: 0, ratio: 20, attack: 0.001, release: 0.1 };
+
+/** Whether a buffer starts and ends on silence; a voice fades in or out only where it does not. */
+export function bufferEdges(buf: AudioBuffer): { startSilent: boolean; endSilent: boolean } {
+  let startSilent = true;
+  let endSilent = true;
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const d = buf.getChannelData(c);
+    if (d.length === 0) continue;
+    if (Math.abs(d[0]) > SILENT) startSilent = false;
+    if (Math.abs(d[d.length - 1]) > SILENT) endSilent = false;
+  }
+  return { startSilent, endSilent };
+}
 
 export interface Voice {
   sound: ManifestSound;
@@ -103,17 +127,32 @@ export function soundUrl(file: string): string {
   return new URL(file, location.origin + LIB).pathname;
 }
 
+function configureLimiter(c: DynamicsCompressorNode): void {
+  if (BASELINE) return; // BASELINE-TEMP
+  c.threshold.value = LIMITER.threshold;
+  c.knee.value = LIMITER.knee;
+  c.ratio.value = LIMITER.ratio;
+  c.attack.value = LIMITER.attack;
+  c.release.value = LIMITER.release;
+}
+
 class Engine {
   /** Ids with at least one voice running; the page marks these rows. */
   readonly playing = signal<ReadonlySet<string>>(new Set());
   readonly irLoaded = signal(false);
   /** Gain reduction of the limiter in dB (0 or negative), for the meter. */
   limiterReduction = 0;
+  /** The compressor node's own make-up gain in dB, measured at start-up; the gain after it cancels exactly this. */
+  readonly limiterMakeupDb = signal(0);
 
   private ctx: AudioContext | null = null;
   private bus!: GainNode;
   private volume!: GainNode;
   private limiter!: DynamicsCompressorNode;
+  private limiterComp!: GainNode;
+  private preLimiter!: GainNode;
+  private limiterRouted: boolean | null = null;
+  private edgeCache = new WeakMap<AudioBuffer, { startSilent: boolean; endSilent: boolean }>();
   private analyser!: AnalyserNode;
   private monoMix!: GainNode;
   private dryIn!: GainNode;
@@ -206,7 +245,10 @@ class Engine {
     // Always two channels out, so that a mono mix reaches both ears equally and the channel meters see both.
     this.volume.channelCount = 2;
     this.volume.channelCountMode = 'explicit';
+    this.preLimiter = ctx.createGain();
     this.limiter = ctx.createDynamicsCompressor();
+    configureLimiter(this.limiter);
+    this.limiterComp = ctx.createGain();
     this.analyser = ctx.createAnalyser();
     this.analyser.fftSize = 2048;
     this.analyser.connect(ctx.destination);
@@ -260,9 +302,41 @@ class Engine {
       d[i] = (s / 4294967296) * 2 - 1;
     }
     this.applyOptions();
-    this.ready = this.loadIr();
+    this.ready = Promise.all([this.loadIr(), this.measureLimiter()]).then(() => undefined);
     void ctx.resume();
     return ctx;
+  }
+
+  /** Measures the compressor's make-up gain with a 1 kHz sine at -20 dBFS (far below the threshold) and cancels it. */
+  private async measureLimiter(): Promise<void> {
+    try {
+      const rate = 48000;
+      const off = new OfflineAudioContext(1, rate, rate);
+      const buf = off.createBuffer(1, rate, rate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = 0.1 * Math.sin((2 * Math.PI * 1000 * i) / rate);
+      const src = off.createBufferSource();
+      src.buffer = buf;
+      const comp = off.createDynamicsCompressor();
+      configureLimiter(comp);
+      src.connect(comp).connect(off.destination);
+      src.start();
+      const out = (await off.startRendering()).getChannelData(0);
+      let sIn = 0;
+      let sOut = 0;
+      // The second half only: the compressor has settled and its pre-delay has passed.
+      for (let i = rate / 2; i < rate; i++) {
+        sIn += d[i] * d[i];
+        sOut += out[i] * out[i];
+      }
+      const gain = Math.sqrt(sOut / sIn);
+      if (!BASELINE && Number.isFinite(gain) && gain > 0.1 && gain < 10) { // BASELINE-TEMP
+        this.limiterComp.gain.value = 1 / gain;
+        this.limiterMakeupDb.value = 20 * Math.log10(gain);
+      }
+    } catch {
+      // Without a measurement the compensation stays at 1; the check reports the gain it finds.
+    }
   }
 
   private async loadIr(): Promise<void> {
@@ -287,10 +361,56 @@ class Engine {
     this.bakedSend.gain.setTargetAtTime(sends.bakedSend, now, 0.03);
     this.monoMix.channelCount = this.stage.value === 'mono' ? 1 : 2;
     this.monoMix.channelCountMode = this.stage.value === 'mono' ? 'explicit' : 'max';
-    this.volume.disconnect();
-    this.limiter.disconnect();
-    if (this.opts.limiter) this.volume.connect(this.limiter).connect(this.analyser);
-    else this.volume.connect(this.analyser);
+    // Rewired only when the limiter is switched, so that moving a slider never touches the signal path.
+    if (this.limiterRouted !== this.opts.limiter) {
+      this.limiterRouted = this.opts.limiter;
+      this.volume.disconnect();
+      this.preLimiter.disconnect();
+      this.limiter.disconnect();
+      this.limiterComp.disconnect();
+      this.volume.connect(this.preLimiter);
+      if (this.opts.limiter) this.preLimiter.connect(this.limiter).connect(this.limiterComp).connect(this.analyser);
+      else this.preLimiter.connect(this.analyser);
+    }
+  }
+
+  /** The node whose output is what the destination receives (after the limiter), for the test recorder. */
+  get tap(): AudioNode {
+    this.ensure();
+    return this.analyser;
+  }
+
+  get context(): AudioContext {
+    return this.ensure();
+  }
+
+  /** Waits until the room and the limiter measurement are ready. */
+  async settled(): Promise<void> {
+    this.ensure();
+    await this.ready;
+  }
+
+  /** Test hook: a sine of linear amplitude `amp` fed in just ahead of the limiter, from `when` for `seconds`. */
+  injectTone(amp: number, freq: number, when: number, seconds: number): void {
+    const ctx = this.ensure();
+    const osc = ctx.createOscillator();
+    osc.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.value = amp;
+    osc.connect(g).connect(this.preLimiter);
+    osc.start(when);
+    osc.stop(when + seconds);
+    osc.onended = () => {
+      osc.disconnect();
+      g.disconnect();
+    };
+  }
+
+  /** Whether a buffer starts and ends on silence (cached). */
+  edgesOf(buf: AudioBuffer): { startSilent: boolean; endSilent: boolean } {
+    let e = this.edgeCache.get(buf);
+    if (!e) this.edgeCache.set(buf, (e = bufferEdges(buf)));
+    return e;
   }
 
   setVolume(v: number): void {
@@ -467,7 +587,20 @@ class Engine {
   /** Plays a sound. A loop runs until stop() is called; a one-shot ends by itself. */
   async play(
     sound: ManifestSound,
-    opts: { gain?: number; viaRadio?: boolean; when?: number; direction?: number; once?: boolean } = {},
+    opts: {
+      gain?: number;
+      viaRadio?: boolean;
+      when?: number;
+      direction?: number;
+      once?: boolean;
+      /** This pass continues the one before it exactly (same periodic file): no fade-in, an exact butt joint. */
+      joinIn?: boolean;
+      /** The next pass continues this one exactly: no fade-out. */
+      joinOut?: boolean;
+      /** Length in seconds of the fade-in / fade-out used where the buffer does not start / end on silence. */
+      fadeIn?: number;
+      fadeOut?: number;
+    } = {},
   ): Promise<Voice | null> {
     const ctx = this.ensure();
     let buf: AudioBuffer;
@@ -493,19 +626,29 @@ class Engine {
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
     // Test hook: when each sound was scheduled to start and to end on the audio clock.
-    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number; azimuth: number | null }[] } };
-    if (w.__audition) {
-      const plays = (w.__audition.plays ??= []);
-      plays.push({ id: sound.id, start, end: loop ? Infinity : start + buf.duration, azimuth: multi ? null : azimuth });
-      if (plays.length > 500) plays.shift();
-    }
+    this.logPlay(sound.id, start, loop ? Infinity : start + buf.duration, multi ? null : azimuth, buf.duration);
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.loop = loop;
     const g = ctx.createGain();
-    g.gain.setValueAtTime(loop ? 0 : level, t0);
-    if (loop) g.gain.linearRampToValueAtTime(level, start + FADE);
+    // A loop fades in over FADE. A one-shot (or one pass of a loop file) starts untouched when its buffer starts on
+    // silence, else with a short fade, so that a first sample away from zero never clicks; the end is treated alike.
+    const edges = this.edgesOf(buf);
+    const fadeIn = BASELINE && !loop ? 0 : loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.max(opts.fadeIn ?? EDGE_IN, 0.001);
+    const fadeOut = BASELINE || loop || opts.joinOut || edges.endSilent ? 0 : Math.min(Math.max(opts.fadeOut ?? EDGE_OUT, 0.001), buf.duration / 2);
+    if (fadeIn > 0) {
+      g.gain.setValueAtTime(0, t0);
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(level, start + fadeIn);
+    } else {
+      g.gain.setValueAtTime(level, t0);
+    }
+    if (fadeOut > 0) {
+      const end = start + buf.duration;
+      g.gain.setValueAtTime(level, end - fadeOut);
+      g.gain.linearRampToValueAtTime(0, end);
+    }
     src.connect(g);
     const placement = this.place(g, this.outputFor(sound, viaRadio), multi, azimuth);
     src.start(start);
@@ -517,7 +660,13 @@ class Engine {
       hiss.buffer = this.noiseBuffer;
       hiss.loop = true;
       hissGain = ctx.createGain();
-      hissGain.gain.value = 0.012;
+      // Ramped in and out, so that the hiss does not start or stop with a step.
+      hissGain.gain.setValueAtTime(0, start);
+      hissGain.gain.linearRampToValueAtTime(0.012, start + 0.005);
+      if (!loop) {
+        hissGain.gain.setValueAtTime(0.012, start + buf.duration + 0.04);
+        hissGain.gain.linearRampToValueAtTime(0, start + buf.duration + 0.05);
+      }
       hiss.connect(hissGain).connect(this.radioIn);
       hiss.start(start);
     }
@@ -560,6 +709,15 @@ class Engine {
     };
   }
 
+  /** Test hook: when each sound was scheduled to start and to end on the audio clock. */
+  private logPlay(id: string, start: number, end: number, azimuth: number | null, length: number): void {
+    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number; azimuth: number | null; length: number }[] } };
+    if (!w.__audition) return;
+    const plays = (w.__audition.plays ??= []);
+    plays.push({ id, start, end, azimuth, length });
+    if (plays.length > 4000) plays.shift();
+  }
+
   /** Fire-and-forget one-shot on the radio path, used for the squelch ends. */
   private async fire(sound: ManifestSound, when: number, gain: number): Promise<void> {
     const ctx = this.ensure();
@@ -568,9 +726,22 @@ class Engine {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       const g = ctx.createGain();
-      g.gain.value = gain * (sound.gain ?? 1);
+      const level = gain * (sound.gain ?? 1);
+      const at = Math.max(when, ctx.currentTime);
+      const edges = this.edgesOf(buf);
+      if (BASELINE || edges.startSilent) g.gain.setValueAtTime(level, at);
+      else {
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(level, at + EDGE_IN);
+      }
+      if (!BASELINE && !edges.endSilent) {
+        const fo = Math.min(EDGE_OUT, buf.duration / 2);
+        g.gain.setValueAtTime(level, at + buf.duration - fo);
+        g.gain.linearRampToValueAtTime(0, at + buf.duration);
+      }
+      this.logPlay(sound.id, at, at + buf.duration, null, buf.duration);
       src.connect(g).connect(this.opts.radio ? this.radioIn : this.dryIn);
-      src.start(Math.max(when, ctx.currentTime));
+      src.start(at);
       src.onended = () => {
         src.disconnect();
         g.disconnect();
@@ -607,6 +778,7 @@ class Engine {
       src.connect(g);
       const placement = this.place(g, this.outputFor(s, false), bufs[i].numberOfChannels > 1, azimuth);
       src.start(when);
+      this.logPlay(s.id, when, Infinity, azimuth, bufs[i].duration);
       this.count(s.id, 1);
       return { src, g, sound: s, placement };
     });

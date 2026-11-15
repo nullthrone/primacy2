@@ -1,6 +1,7 @@
 import { signal, type Signal } from '@preact/signals';
 import { engine, type GroupVoice, type Voice } from './engine.ts';
 import {
+  CHAIN_OVERLAP,
   effectiveThrust,
   initialState,
   sampleTrack,
@@ -259,9 +260,13 @@ export class SceneRunner {
     const picks = shots.map((sh) => engine.get(this.pickId(sh.id)));
     await engine.preload(picks.filter((p): p is NonNullable<typeof p> => !!p).map((p) => p.id));
     const base = engine.now() + 0.03;
+    // First the start times, then the joins: a pass of one periodic file that follows another meets it exactly (no fade
+    // on either side), and two sounds chained with the planned short overlap cross-fade over that overlap.
+    const plan = shots.map(() => ({ at: 0, len: 0, joinIn: false, joinOut: false, fadeIn: undefined as number | undefined, fadeOut: undefined as number | undefined }));
     let prevAt = 0;
     let prevLen = 0;
     let prevCue = 0;
+    let prevIdx = -1;
     shots.forEach((sh, i) => {
       const sound = picks[i];
       if (!sound) return;
@@ -271,10 +276,38 @@ export class SceneRunner {
       let at = (sh.at ?? 0) / speed;
       if (sh.seamless) at = prevAt + prevLen;
       else if (sh.chain) at = Math.max(0, prevAt + prevCue);
+      plan[i].at = at;
+      plan[i].len = len;
+      if (prevIdx >= 0 && (sh.seamless || sh.chain)) {
+        const overlap = prevAt + prevLen - at;
+        if (sh.seamless) {
+          plan[i].joinIn = true;
+          plan[prevIdx].joinOut = true;
+        } else if (overlap > 0 && overlap <= CHAIN_OVERLAP * 1.5) {
+          plan[i].fadeIn = overlap;
+          plan[prevIdx].fadeOut = overlap;
+        }
+      }
       prevAt = at;
       prevLen = len;
       prevCue = engine.cueOf(sound);
-      const voice = engine.play(sound, { gain: sh.gain?.(state) ?? 1, viaRadio: sh.viaRadio, when: base + at, direction: this.directionOf(sh), once: sh.once });
+      prevIdx = i;
+    });
+    shots.forEach((sh, i) => {
+      const sound = picks[i];
+      if (!sound) return;
+      const { at, len, joinIn, joinOut, fadeIn, fadeOut } = plan[i];
+      const voice = engine.play(sound, {
+        gain: sh.gain?.(state) ?? 1,
+        viaRadio: sh.viaRadio,
+        when: base + at,
+        direction: this.directionOf(sh),
+        once: sh.once,
+        joinIn,
+        joinOut,
+        fadeIn,
+        fadeOut,
+      });
       this.shotVoices.add(voice);
       // Forgotten again once it has ended on its own, so that the set does not grow over a long session.
       void voice.then((v) => {

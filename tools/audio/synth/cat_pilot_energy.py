@@ -196,7 +196,7 @@ def pilot_thruster_b(ctx):
     return no_dc(fade_edges(y, 0.0, 12.0))
 
 
-THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.5, 0.13, 12.0, 12.0
+THUMP_VS_CLACK, THUMP_T60, THUMP_RISE_MS, THUMP_DELAY_MS = 1.65, 0.13, 15.0, 12.0
 
 
 @register("pilot_thruster_c")
@@ -225,8 +225,8 @@ def pilot_thruster_c(ctx):
 
 # --------------------------------------------------------------------------- shield hits
 
-GROWL_VS_SPARKS, THROB_SHARE = 1.35, 0.42
-BASS_PAIRS = ((51.0, 8.0, 1.0), (63.0, 9.5, 0.9), (76.0, 7.0, 0.55))   # base Hz, beat Hz, level
+GROWL_VS_SPARKS, THROB_SHARE = 1.25, 0.34
+BASS_PAIRS = ((56.0, 8.0, 1.0), (68.0, 9.5, 0.9), (82.0, 7.0, 0.75), (96.0, 6.0, 0.4))   # base Hz, beat Hz, level
 
 
 def bass_throb(n, seed, scale=1.0):
@@ -237,19 +237,18 @@ def bass_throb(n, seed, scale=1.0):
     swells in 30 ms, stays near its top for half a second and falls over about 1.1 s. Mono."""
     rng = seeded(seed)
     t = np.arange(n) / SR
-    sag = 1.0 - 0.12 * np.exp(-t / 0.09)
+    sag = 1.0 - 0.2 * np.exp(-t / 0.22)
     out = np.zeros(n)
     for base, beat, lv in BASS_PAIRS:
         for k, (sign, w) in enumerate(((-0.5, 1.0), (0.5, 0.42))):
-            drift = 1.0 + 0.012 * np.cumsum(rng.standard_normal(n)) / np.sqrt(n) * 4.0
-            drift = lowpass(drift - 1.0, 3.0, 1) + 1.0
+            drift = 1.0 + 0.07 * lowpass(np.cumsum(rng.standard_normal(n)) / np.sqrt(n), 2.5, 1) * 6.0
             f = (base + sign * beat * (1 + 0.25 * np.sin(2 * np.pi * rng.uniform(0.5, 1.5) * t))) * sag * drift
             out += lv * w * np.sin(2 * np.pi * np.cumsum(f) / SR + rng.uniform(0, 6.28))
     env_db = -6.0 * (t / 0.62) ** 2
     env = 10.0 ** (env_db / 20.0) * smooth_ramp(n, 0, int(0.030 * SR))
     y = out * env
     # a touch of saturation so that the throb has harmonics at 100 to 200 Hz (small loudspeakers)
-    y = np.tanh(1.6 * y / max(np.max(np.abs(y)), 1e-9))
+    y = np.tanh(2.2 * y / max(np.max(np.abs(y)), 1e-9))
     return highpass(y, 30.0, 2) * scale
 
 
@@ -309,7 +308,7 @@ def pilot_shield_a(ctx):
     return no_dc(fade_edges(y, 0.0, 250.0))
 
 
-HUM_PARTIALS = ((187.0, 1.00), (243.0, 0.80), (311.5, 0.85), (468.0, 0.55), (659.0, 0.40))
+HUM_PARTIALS = ((183.0, 0.55), (268.0, 0.80), (337.0, 0.90), (452.0, 0.80), (617.0, 0.60))
 
 
 @register("pilot_shield_b")
@@ -322,22 +321,25 @@ def pilot_shield_b(ctx):
     w = slice(0, int(0.2 * SR))
 
     # the whoomp: reaches its top in about 15 ms; the pitch keeps falling while it fades
-    f = 28.0 + 100.0 * np.exp(-t / 0.20)
+    f = 26.0 + 112.0 * np.exp(-t / 0.17)
+    jit = bandpass(seeded("pilot_shield_b/jit").standard_normal(n + 2048), 4.0, 25.0, 2)[2048:]
+    f = f * (1.0 + 0.16 * jit / max(rms(jit), 1e-9))          # the pitch is never a clean line
     ph = 2 * np.pi * np.cumsum(f) / SR
-    env = smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.85)
-    whoomp = np.sin(ph) * env
-    whoomp = np.tanh(2.0 * whoomp / max(np.max(np.abs(whoomp)), 1e-9))          # chest: harmonics up to 300 Hz
+    env = smooth_ramp(n, 0, int(0.012 * SR)) * np.exp(-6.9078 * t / 0.6)
+    f2 = 40.0 + 150.0 * np.exp(-t / 0.11)
+    whoomp = (np.sin(ph) + 0.6 * np.sin(2 * np.pi * np.cumsum(f2) / SR + 1.0) * np.exp(-t / 0.25)) * env
+    whoomp = np.tanh(1.3 * whoomp / max(np.max(np.abs(whoomp)), 1e-9))          # chest: harmonics up to 300 Hz
     # the air moved: broad low rumble, 40 to 200 Hz, that blooms under it and fades with it
     rumble = bandpass(seeded("pilot_shield_b/rumble").standard_normal(n + 1024), 40.0, 200.0, 2)[1024:]
     rumble = rumble * smooth_ramp(n, 0, int(0.02 * SR)) * np.exp(-6.9078 * t / 0.7)
-    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 0.55 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
+    low = highpass(whoomp / max(rms(whoomp[w]), 1e-9) + 1.5 * rumble / max(rms(rumble[w]), 1e-9), 28.0, 2)
 
     # the sizzle: soft, broad, a lot of it from 1.5 to 6 kHz and little above 8 kHz; the band slides
     # down while it dissolves. A few weak sparks in it, longer and duller than in A.
     envs = (0.55 * np.exp(-6.9078 * t / 0.95) + 0.45 * np.exp(-6.9078 * t / 0.35)) * smooth_ramp(n, 0, int(0.01 * SR))
-    fc = 1500.0 + 2300.0 * np.exp(-t / 0.35)
-    sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.3, depth=0.9)
-    sizz = lowpass(sizz, 6500.0, 2)
+    fc = 1400.0 + 1900.0 * np.exp(-t / 0.35)
+    sizz = hiss_lr(n, "pilot_shield_b", envs, fc, np.full(n, 0.85), rho=0.5, depth=0.9)
+    sizz = lowpass(sizz, 5200.0, 2)
     sparks = crackle_lr(n, seeded("pilot_shield_b/sparks"), 10.0 + 80.0 * np.exp(-t / 0.25), 0.4, amp_sigma=0.6,
                         lo=1200.0, hi=4200.0, dur_ms=(2.0, 7.0), first_at=None)
     sparks = lowpass(sparks, 5500.0, 2)
@@ -348,21 +350,22 @@ def pilot_shield_b(ctx):
     rng = seeded("pilot_shield_b/hum")
     hum = np.zeros((n, 2))
     for (f0, lv) in HUM_PARTIALS:
-        for ch in range(2):
-            for sign, wgt in ((-0.5, 1.0), (0.5, 0.7)):
-                beat = rng.uniform(2.0, 7.0)
-                drift = lowpass(np.cumsum(rng.standard_normal(n)) / np.sqrt(n) * 2.5, 2.0, 1)
-                fr = (f0 + sign * beat + 1.6 * (ch - 0.5) + 0.01 * f0 * drift) * (1.0 + 0.012 * np.exp(-t / 0.15))
-                hum[:, ch] += lv * wgt * np.sin(2 * np.pi * np.cumsum(fr) / SR + rng.uniform(0, 6.28))
+        for sign, wgt in ((-0.5, 1.0), (0.5, 0.7)):
+            beat = rng.uniform(2.0, 7.0)
+            ph0 = rng.uniform(0, 6.28)
+            drift = lowpass(np.cumsum(rng.standard_normal(n)) / np.sqrt(n) * 2.5, 2.0, 1)
+            for ch in range(2):
+                fr = (f0 + sign * beat + 0.9 * (ch - 0.5) + 0.01 * f0 * drift) * (1.0 + 0.012 * np.exp(-t / 0.15))
+                hum[:, ch] += lv * wgt * np.sin(2 * np.pi * np.cumsum(fr) / SR + ph0)
     hum_env = smooth_ramp(n, int(0.01 * SR), int(0.14 * SR)) * np.exp(-6.9078 * t / 1.5)
     hum = hum * (hum_env * alive(n, seeded("pilot_shield_b/hum-fl"), 3.0, 9.0, 0.25))[:, None]
 
     # balance (shares of the mono sum): whoomp and rumble about 0.50, hum about 0.20, sizzle the rest
     sizz_m = 0.5 * (sizz[:, 0] + sizz[:, 1])
     hum_m = 0.5 * (hum[:, 0] + hum[:, 1])
-    hum = hum * (rms(sizz_m[w]) * 0.62 / max(rms(hum_m[w]), 1e-9))
+    hum = hum * (rms(sizz_m[w]) * 0.85 / max(rms(hum_m[w]), 1e-9))
     rest_m = 0.5 * (sizz[:, 0] + sizz[:, 1] + hum[:, 0] + hum[:, 1])
-    low = low * body_scale(low, rest_m, 0.50)
+    low = low * body_scale(low, rest_m, 0.44)
     y = sizz + hum + lr_from(low)
     y = soft_limit(y, 3.5 * rms(y[w]))
     return no_dc(fade_edges(y, 0.0, 250.0))

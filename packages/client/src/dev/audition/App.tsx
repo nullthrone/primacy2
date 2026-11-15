@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import type { JSX } from 'preact';
 import { useEffect, useRef } from 'preact/hooks';
+import { installCaptureHooks } from './capture.ts';
 import { engine, type StageMode } from './engine.ts';
 import { Library, stopLibrary } from './Library.tsx';
 import { exportRatings, general, importRatings, loadRatings, loadRound1, saveStatus, setCurrentHashes, setGeneral, setManifestInfo } from './ratings.ts';
@@ -66,6 +67,8 @@ async function loadManifest(): Promise<void> {
 const peakDb = signal(-Infinity);
 const holdDb = signal(-Infinity);
 const clipUntil = signal(0);
+/** Latched overload lamp: stays lit from the first output sample at 0.999 until it is clicked. */
+const overload = signal(false);
 const reductionDb = signal(0);
 const nowTick = signal(0);
 
@@ -76,6 +79,10 @@ function startMeter(): void {
   h.peakLMax = 0;
   h.peakRMax = 0;
   h.sendLevels = () => engine.sendLevels();
+  installCaptureHooks();
+  const hh = h as unknown as Record<string, unknown>;
+  hh.overload = () => overload.value;
+  hh.clearOverload = () => (overload.value = false);
   h.resetPeak = () => {
     h.peakMax = 0;
     h.peakLMax = 0;
@@ -95,7 +102,10 @@ function startMeter(): void {
       holdDb.value = db;
       holdAt = now;
     }
-    if (p >= 0.999) clipUntil.value = now + 3000;
+    if (p >= 0.999) {
+      clipUntil.value = now + 3000;
+      overload.value = true;
+    }
     reductionDb.value = engine.limiterReduction;
     nowTick.value = now;
     requestAnimationFrame(frame);
@@ -121,6 +131,9 @@ function Meter(): JSX.Element {
       <span class="mono meter-read">{Number.isFinite(hold) ? `${hold.toFixed(1)} dB` : '-∞ dB'}</span>
       <button type="button" class={`clip ${clipped ? 'hot' : ''}`} id="clip-lamp" title={t('clipReset')} onClick={() => (clipUntil.value = 0)}>
         {t('clip')}
+      </button>
+      <button type="button" class={`clip ${overload.value ? 'hot' : ''}`} id="over-lamp" aria-pressed={overload.value} title={t('overHint')} onClick={() => (overload.value = false)}>
+        {t('over')}
       </button>
       <span class="mono dim small meter-reduce" title={t('limiterReduction')}>
         {limiterOn.value && reductionDb.value < -0.1 ? `↓ ${Math.abs(reductionDb.value).toFixed(1)} dB` : ''}

@@ -185,7 +185,7 @@ def pilot_hull_a(ctx):
     # hard); they die much faster instead.
     ratios = [1.0, 1.43, 1.93, 2.31, 2.86, 3.37, 3.94, 4.58, 5.23, 6.05, 6.94, 7.73, 8.86, 10.1,
               11.4, 12.9, 14.6, 16.5, 18.7, 21.2, 23.9, 27.0]
-    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=1.5, ref_hz=200.0, expo=0.85, tilt=-0.05,
+    pa, pb = _plate(n, rng, 180.0, ratios, t60_ref=1.9, ref_hz=200.0, expo=0.85, tilt=-0.3,
                     pair=(0.002, 0.008), drift=0.0007)
     plate = pa + pb
     plate[: int(0.0015 * SR)] *= rise(int(0.0015 * SR))   # struck by the crack: starts at once
@@ -201,8 +201,8 @@ def pilot_hull_a(ctx):
                                   (0.170, 9, 1500.0, 3600.0, 0.022)):
         rattle += _knock_run(rng, start, kn, lo, hi, g0, 1.0, n)
 
-    out = (_frac(crack, 0.075) + _frac(crack2, 0.030) + _frac(plate, 0.46) + _frac(sub, 0.27)
-           + _frac(body, 0.11) + _frac(rattle, 0.012))
+    out = (_frac(crack, 0.235) + _frac(crack2, 0.04) + _frac(plate, 0.45) + _frac(sub, 0.22)
+           + _frac(body, 0.03) + _frac(rattle, 0.012))
     return fade_edges(out, 0.0, 20.0)
 
 
@@ -216,7 +216,7 @@ def pilot_hull_b(ctx):
     # sub drop 80 to 35 Hz, lasting well past half a second; a layer an octave above falls with it
     t = np.arange(n) / SR
     f = 35.0 + 45.0 * np.exp(-t / 0.28)
-    sub = np.sin(2 * np.pi * np.cumsum(f) / SR) * _smooth_env(n, 0.004, 0.18, 1.05)
+    sub = np.sin(2 * np.pi * np.cumsum(f) / SR) * _smooth_env(n, 0.004, 0.25, 1.5)
     f2 = 70.0 + 70.0 * np.exp(-t / 0.18)
     chest = np.sin(2 * np.pi * np.cumsum(f2) / SR + 0.7) * _smooth_env(n, 0.003, 0.02, 0.45)
 
@@ -241,9 +241,9 @@ def pilot_hull_b(ctx):
     click_m = _placed(n, _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2), 0.0)
     click_s = _placed(n, _noise_burst(rng, 0.012, 2500.0, 9000.0, 0.004, 0.2), 0.0)
 
-    mid = (_frac(sub, 0.30) + _frac(chest, 0.07) + _frac(cr_a, 0.26) + _frac(g_mono, 0.075)
-           + _frac(click_m, 0.015))
-    side = (_frac(cr_b, 0.17) + _frac(g_side, 0.06) + _frac(click_s, 0.012))
+    mid = (_frac(sub, 0.30) + _frac(chest, 0.07) + _frac(cr_a, 0.34) + _frac(g_mono, 0.045)
+           + _frac(click_m, 0.010))
+    side = (_frac(cr_b, 0.22) + _frac(g_side, 0.035) + _frac(click_s, 0.008))
     y = mid_side(mid, side, periodic=False)
     return fade_edges(y, 0.0, 25.0)
 
@@ -261,12 +261,12 @@ def pilot_hull_c(ctx):
     # the long low tail: a rumble of low noise, not a tone
     rumble = highpass(lowpass(rng.standard_normal(n), 95.0, 2) * _smooth_env(n, 0.012, 0.0, 1.7), 25.0, 2)
     # the body: broad noise from 125 to 600 Hz, decaying faster than the boom, no resonance
-    body = bandpass(rng.standard_normal(n + 256), 110.0, 650.0, 2)[256:] * _smooth_env(n, 0.003, 0.0, 0.55)
+    body = bandpass(rng.standard_normal(n + 256), 110.0, 600.0, 2)[256:] * _smooth_env(n, 0.003, 0.0, 0.55)
     # the soft knock: 0.8 to 2 kHz, only in the attack
     knock = _placed(n, _noise_burst(rng, 0.030, 800.0, 2000.0, 0.012, 0.8), 0.0)
 
     out = (_frac(boom_a, 0.30) + _frac(boom_b, 0.24) + _frac(rumble, 0.08) + _frac(body, 0.34)
-           + _frac(knock, 0.012))
+           + _frac(knock, 0.005))
     return fade_edges(out, 0.0, 40.0)
 
 
@@ -288,7 +288,7 @@ def _whine(n: int, rng, t0: float, t1: float, f_start: float, f_end: float, rise
     drift = 1.0 + 0.016 * np.cumsum(rng.standard_normal(m)) / np.sqrt(SR)
     f = f * np.clip(drift, 0.98, 1.02)
     amp = np.ones(m)
-    amp[: int(0.03 * SR)] *= rise(int(0.03 * SR))
+    amp[: int(0.008 * SR)] *= rise(int(0.008 * SR))
     if stop_wind > 0:
         w = int(stop_wind * SR)
         f[-w:] *= 1.0 - 0.25 * (np.arange(w) / w) ** 2
@@ -441,7 +441,7 @@ def pilot_gear_b(ctx):
     crack_m = _placed(n, np.tanh(2.5 * _noise_burst(rng, 0.05, 250.0, 6000.0, 0.018, 0.3)), t_slam)
     crack_s = _placed(n, _noise_burst(rng, 0.05, 900.0, 6000.0, 0.02, 0.3), t_slam)
     ratios = [1.0, 1.52, 2.07, 2.61, 3.28, 4.04, 5.0, 6.1, 7.5, 9.1, 11.0, 13.6]
-    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.55, ref_hz=230.0, expo=0.8, tilt=0.1,
+    pa, pb = _plate(mm, rng, 230.0, ratios, t60_ref=0.65, ref_hz=230.0, expo=0.8, tilt=0.1,
                     pair=(0.003, 0.009), drift=0.0009)
     pa[: int(0.001 * SR)] *= rise(int(0.001 * SR))
     pb[: int(0.001 * SR)] *= rise(int(0.001 * SR))
@@ -455,8 +455,8 @@ def pilot_gear_b(ctx):
         return _placed(n, x / np.sqrt(np.mean(x ** 2)) * _smooth_env(k, 0.035, 0.02, 0.08), 2.20)
 
     mid = (_frac(hiss_m, 0.045) + _frac(growl, 0.16) + _frac(whine_m, 0.10) + _frac(sub, 0.27)
-           + _frac(thud, 0.10) + _frac(crack_m, 0.04) + _frac(ring_m, 0.07) + _frac(puff("puff/m"), 0.012))
-    side = (_frac(hiss_s, 0.045) + _frac(whine_s, 0.035) + _frac(crack_s, 0.015) + _frac(ring_s, 0.03)
+           + _frac(thud, 0.10) + _frac(crack_m, 0.04) + _frac(ring_m, 0.14) + _frac(puff("puff/m"), 0.012))
+    side = (_frac(hiss_s, 0.045) + _frac(whine_s, 0.035) + _frac(crack_s, 0.015) + _frac(ring_s, 0.06)
             + _frac(puff("puff/s"), 0.010))
     y = mid_side(mid, side, periodic=False)
     return fade_edges(y, 0.0, 30.0)

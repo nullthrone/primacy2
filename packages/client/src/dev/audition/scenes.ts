@@ -28,7 +28,7 @@ export interface Shot {
   gain?: (s: SceneState) => number;
   /** Starts this many seconds before the end of the shot before it (the files end with about 18 ms of fade and silence). */
   chain?: boolean;
-  /** Plays through the radio filter, with squelch and hiss (downloaded speech is raw and needs it). */
+  /** Plays through the radio filter, with squelch and hiss (a sound that is not a radio sound itself, heard as if over the radio). */
   viaRadio?: boolean;
   /** Starts at the sound before it ends exactly, with no overlap: for passes of one loop file laid end to end. */
   seamless?: boolean;
@@ -122,8 +122,6 @@ const engineAlways = (): number => 1;
 const full = (): number => 1;
 /** Overlap of chained one-shots: the fade and silence at the end of a file are about 18 ms long. */
 export const CHAIN_OVERLAP = 0.02;
-// Downloaded NASA speech is raw (peaks near full scale), so it comes down before the radio filter.
-const RAW_SPEECH_GAIN = 0.4;
 const enginesUnlessOff = (s: SceneState): number => (s.on.engines_off ? 0 : 1);
 const relayClicks = ['relay_click_a', 'relay_click_b'];
 
@@ -145,10 +143,6 @@ export const DOCKING: SceneDef = {
   events: [
     { key: 'power_up', label: { en: 'Power up', de: 'Hochfahren' }, shots: [{ id: 'systems_power_up' }] },
     { key: 'pulse', label: { en: 'Thruster pulse', de: 'Düsenstoß' }, shots: [{ id: PULSES }] },
-    // Real NASA speech through the radio filter; the three clips are 1.5 to 2.5 s long.
-    { key: 'radio_check', label: { en: 'Radio: how do you read', de: 'Funk: Wie hören Sie mich' }, shots: [{ id: 'n_sts_how_do_you_read', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
-    { key: 'radio_go', label: { en: 'Radio: go for deploy', de: 'Funk: Freigabe zum Ausfahren' }, shots: [{ id: 'n_sts_go_for_deploy', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
-    { key: 'radio_roger', label: { en: 'Radio: roger', de: 'Funk: Verstanden' }, shots: [{ id: 'n_sts_roger_roll', viaRadio: true, gain: () => RAW_SPEECH_GAIN }] },
     { key: 'tone', label: { en: 'Radio tone', de: 'Funkton' }, shots: [{ id: 'radio_tone' }] },
     { key: 'ping', label: { en: 'Contact ping', de: 'Kontaktton' }, shots: [{ id: 'sensor_contact_ping' }] },
     { key: 'relay', label: { en: 'Relay', de: 'Relais' }, shots: [{ id: relayClicks }] },
@@ -163,18 +157,15 @@ export const DOCKING: SceneDef = {
   },
   script: [
     { t: 0.5, event: 'power_up' },
-    { t: 3, event: 'radio_check' },
+    { t: 3, event: 'tone' },
     { t: 7, event: 'pulse' },
-    { t: 11, event: 'radio_roger' },
     { t: 14, event: 'pulse' },
     { t: 18, event: 'pulse' },
     { t: 19, event: 'ping' },
-    { t: 21, event: 'radio_go' },
     { t: 25, event: 'pulse' },
     { t: 27, event: 'gear' },
     { t: 31, event: 'pulse' },
     { t: 33, event: 'touchdown' },
-    { t: 35, event: 'radio_roger' },
     { t: 36.5, event: 'power_down' },
   ],
   duration: 40,
