@@ -280,7 +280,7 @@ above all we have to judge the big picture anew."
   the downloads were clicked a few seconds apart; they say "nothing wrong here" more than "heard
   through".)
 - "Crackling can be heard; can it be that it is too loud? Sounds overdriven." Found in the files,
-  not in the mix: the downloaded excerpts were cut without a fade (thirteen end or start on a
+  not in the mix: the downloaded excerpts were cut without a fade (fourteen end or start on a
   sample between 0.1 and 0.86 of full scale), `n_sls_test_fire` holds about two thousand clipped
   samples in the recording itself, and all downloads played at full scale. The page's limiter was
   a default compressor that lifts the beds by 2 to 3 dB. Both were repaired after this round.

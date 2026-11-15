@@ -331,6 +331,24 @@ class ListsAgree(unittest.TestCase):
         for e in self.downloads['entries']:
             self.assertIn(e.get('speech'), ('speech', 'probable', 'none'), e['id'])
 
+    def test_no_recorded_voice_is_left(self):
+        # The owner struck all recorded speech on 2026-11-15: voices are generated, not recorded.
+        for e in self.downloads['entries']:
+            self.assertEqual(e.get('speech', 'none'), 'none', e['id'])
+        for x in self.selection:
+            self.assertFalse(x.get('speech'), x['id'])
+        kept = {e['id'] for e in self.downloads['entries']}
+        for x in self.selection:
+            self.assertIn(x['file'].split('/')[0], kept, x['id'])
+
+    def test_struck_entries_are_recorded_as_not_taken(self):
+        why = [n for n in self.downloads['notTaken'] if 'struck by the owner on 2026-11-15' in n['why']]
+        self.assertEqual(len(why), 30)
+        self.assertTrue(all(set(n) == {'what', 'why'} for n in why))
+        # the two Quindar tones have no voice and stay
+        kept = {e['id'] for e in self.downloads['entries']}
+        self.assertLessEqual({'nasa-quindar-1', 'nasa-quindar-2'}, kept)
+
     def test_nasa_evidence_does_not_present_the_guidelines_as_a_commercial_permission(self):
         for e in self.downloads['entries']:
             if e['id'].startswith('nasa-'):

@@ -125,14 +125,146 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
     return manifest_entry
 
 
+# Where a processed download sits, so that it plays at the level of a rendered sound of its
+# category. Keys are (category, "short" | "long"): short is a one-shot of up to SHORT_ONESHOT_S,
+# set by true peak; long one-shots and loops are set by loudness (LUFS). The values come from
+# CATEGORY_DEFAULTS and LEVELS in synth/levels.py. Where levels.py has no value for the pair the
+# nearest sensible one is taken and says so here:
+#   engines  short: no one-shot value; between thruster_pulse (-12) and impact_hull_medium (-5)
+#            for a burst of an engine, so -8 (the weapons one-shot default).
+#   engines  long / loop: the engine loop default, -27 LUFS (engine_main_t050).
+#   thrusters short -12 peak (thruster_pulse_*), long -30 LUFS (thruster loop default).
+#   impacts  short -5 peak (impact_*_medium). Long: no value; an impact of medium strength that
+#            lasts a couple of seconds measures about -26 LUFS, taken as -26.
+#   landing  short -8 peak (landing one-shot default), long -32 LUFS (landing loop default).
+#   switches short -14 peak (relay_click_*, breaker_thunk); long: no value, -30 LUFS (as thrusters).
+#   cabin    short: no value, -16 peak (button_press); long / loop -45 LUFS (cabin_ambience_loop).
+#   sensors  default is -27 LUFS for any one-shot; for the short ones that is about -17 dB peak
+#            of a blip, taken as -16 peak. Loops: no value, -27 LUFS as the one-shots.
+#   radio    short -14 peak, long / loop -32 LUFS (radio defaults).
+#   alarms   loudspeaker, -20 LUFS (the alarm defaults); short -10 peak, nearest to a short beep.
+#   drive, weapons: the category defaults; long one-shots of weapons: -26 LUFS (weapons loop).
+DOWNLOAD_TARGETS: dict[tuple[str, str], tuple[str, float]] = {
+    ("engines", "short"): ("peak", -8.0), ("engines", "long"): ("lufs", -27.0),
+    ("thrusters", "short"): ("peak", -12.0), ("thrusters", "long"): ("lufs", -30.0),
+    ("impacts", "short"): ("peak", -5.0), ("impacts", "long"): ("lufs", -26.0),
+    ("landing", "short"): ("peak", -8.0), ("landing", "long"): ("lufs", -32.0),
+    ("switches", "short"): ("peak", -14.0), ("switches", "long"): ("lufs", -30.0),
+    ("cabin", "short"): ("peak", -16.0), ("cabin", "long"): ("lufs", -45.0),
+    ("sensors", "short"): ("peak", -16.0), ("sensors", "long"): ("lufs", -27.0),
+    ("radio", "short"): ("peak", -14.0), ("radio", "long"): ("lufs", -32.0),
+    ("alarms", "short"): ("peak", -10.0), ("alarms", "long"): ("lufs", -20.0),
+    ("drive", "short"): ("peak", -6.0), ("drive", "long"): ("lufs", -28.0),
+    ("weapons", "short"): ("peak", -8.0), ("weapons", "long"): ("lufs", -26.0),
+}
+DOWNLOAD_FALLBACK = {"short": ("peak", -12.0), "long": ("lufs", -30.0)}  # a category without a row
+SHORT_ONESHOT_S = 1.5
+DOWNLOAD_SR = 48000
+# ceiling for the level setting: -1 dBFS true peak, with a little room for the rounding to 16 bit
+DOWNLOAD_CEILING_DB = -1.05
+SILENT_EDGE_DB = -60.0      # an edge millisecond below this needs no fade
+FADE_IN_MS = 8.0
+FADE_OUT_MS = 30.0
+CLIP_SHARE = 0.001          # "within 0.1 % of the maximum"
+CLIP_MIN_PEAK = 0.98        # the maximum must be at least this much of full scale
+CLIP_MIN_RUN = 3
+
+
+def download_target(category: str, kind: str, duration_s: float) -> tuple[str, float]:
+    """Level target (mode, value) for a download: a loop or a one-shot longer than SHORT_ONESHOT_S
+    is set by loudness, a shorter one-shot by true peak."""
+    length = "short" if kind == "oneshot" and duration_s <= SHORT_ONESHOT_S else "long"
+    return DOWNLOAD_TARGETS.get((category, length), DOWNLOAD_FALLBACK[length])
+
+
+def detect_source_clipping(x: np.ndarray) -> int:
+    """Samples that sit in a run of at least CLIP_MIN_RUN consecutive samples within 0.1 % of the
+    file's maximum (per channel), when that maximum is at least 0.98 of full scale. x is (n, ch)."""
+    x = np.asarray(x, dtype=np.float64)
+    if x.ndim == 1:
+        x = x[:, None]
+    if x.size == 0:
+        return 0
+    a = np.abs(x)
+    top = float(a.max())
+    if top < CLIP_MIN_PEAK:
+        return 0
+    hit = a >= top * (1.0 - CLIP_SHARE)
+    total = 0
+    for c in range(hit.shape[1]):
+        h = np.concatenate(([False], hit[:, c], [False]))
+        edges = np.flatnonzero(h[1:] != h[:-1])
+        runs = edges[1::2] - edges[0::2]
+        total += int(runs[runs >= CLIP_MIN_RUN].sum())
+    return total
+
+
+def _fade_curve(n: int) -> np.ndarray:
+    """Raised cosine rising from exactly 0 to exactly 1 over n samples."""
+    if n < 2:
+        return np.ones(max(n, 0))
+    return 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / (n - 1))
+
+
+def process_download(data: np.ndarray, sr: int, kind: str, category: str,
+                     excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
+    """Turn a decoded download into the file that is shipped: arrays in, array out.
+
+    data is (n, channels) or (n,). Steps: cut the excerpt (seconds), keep 1 or 2 channels (more are
+    mixed down to 2), count clipped samples of that cut as it is, resample to 48 kHz, fade the
+    ends of a one-shot where the first or last millisecond is not silent (8 ms in, 30 ms out,
+    raised cosine; none for a loop), set the level. Returns (float array (n, ch) at 48 kHz, info);
+    nothing here is random, so the same input gives the same output."""
+    from math import gcd
+
+    from scipy.signal import resample_poly
+    from synth import set_level
+
+    x = np.array(data, dtype=np.float64)  # a copy: the fades work in place
+    if x.ndim == 1:
+        x = x[:, None]
+    if excerpt is not None:
+        x = x[int(excerpt[0] * sr): int(excerpt[1] * sr)]
+    if x.shape[0] == 0:
+        raise ValueError("empty excerpt")
+    if x.shape[1] > 2:  # even channels to the left, odd ones to the right
+        x = np.stack([x[:, 0::2].mean(axis=1), x[:, 1::2].mean(axis=1)], axis=1)
+    info: dict = {"sourceClipped": detect_source_clipping(x), "sourceSr": int(sr)}
+    if sr != DOWNLOAD_SR:
+        g = gcd(int(sr), DOWNLOAD_SR)
+        x = resample_poly(x, DOWNLOAD_SR // g, int(sr) // g, axis=0)
+    info["fadeInMs"] = info["fadeOutMs"] = 0.0
+    if kind == "oneshot":
+        n = x.shape[0]
+        ms = DOWNLOAD_SR // 1000
+        silent = 10.0 ** (SILENT_EDGE_DB / 20.0)
+        if np.abs(x[:ms]).max() > silent:
+            k = min(int(round(FADE_IN_MS * ms)), n // 2)
+            x[:k] *= _fade_curve(k)[:, None]
+            info["fadeInMs"] = FADE_IN_MS
+        if np.abs(x[-ms:]).max() > silent:
+            k = min(int(round(FADE_OUT_MS * ms)), n // 2)
+            x[n - k:] *= _fade_curve(k)[::-1][:, None]
+            info["fadeOutMs"] = FADE_OUT_MS
+    mode, value = download_target(category, kind, x.shape[0] / DOWNLOAD_SR)
+    x, level = set_level(x, mode, value, ceiling_db=DOWNLOAD_CEILING_DB)
+    info["level"] = level
+    return x, info
+
+
 def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
-    """Downloaded files chosen in assets/audio/selection.json (schema as far as known: a list, or
-    {"selected": [...]}, of {id, category, file, licence, en, de, intent, kind, excerpt}; file is
-    relative to assets/audio/downloads; excerpt is [start, end] seconds or {start, end})."""
+    """Downloaded files chosen in assets/audio/selection.json (a list, or {"selected": [...]}, of
+    {id, category, file, licence, en, de, intent, kind, excerpt}; file is relative to
+    assets/audio/downloads; excerpt is [start, end] seconds or {start, end}). Every one is written
+    as a processed copy <out>/downloads/<id>.wav (see process_download) with a spectrogram, and
+    the manifest entry points to that copy. A download missing on disk is reported and skipped."""
+    from synth import write_wav
+
     if not SELECTION.is_file():
         return []
     raw = json.loads(SELECTION.read_text(encoding="utf-8"))
     items = raw if isinstance(raw, list) else raw.get("selected", raw.get("sounds", []))
+    folder = out / "downloads"
     entries = []
     for it in items:
         try:
@@ -142,27 +274,47 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
                 continue
             ex = it.get("excerpt")
             sid = it.get("id") or Path(it["file"]).stem
-            path = src
+            kind = it.get("kind", "oneshot")
+            category = it.get("category", "downloads")
             if ex:
-                a, b = (ex["start"], ex["end"]) if isinstance(ex, dict) else (ex[0], ex[1])
-                data, sr = common.load_audio(src)
-                cut = data[int(a * sr): int(b * sr)]
-                path = out / "downloads" / (sid + ".wav")
-                import soundfile as sf
-
-                path.parent.mkdir(parents=True, exist_ok=True)
-                sf.write(str(path), cut, sr, subtype="PCM_16")
-            rel = os.path.relpath(path, out).replace(os.sep, "/")
+                ex = (ex["start"], ex["end"]) if isinstance(ex, dict) else (ex[0], ex[1])
+            data, sr = common.load_audio(src)
+            y, info = process_download(data, sr, kind, category, ex or None)
+            wav = folder / (sid + ".wav")
+            write_wav(wav, y, dither_seed="download/" + sid)
+            back, back_sr = common.load_audio(wav)
+            an = measure_mod.analyse(back, back_sr, loop=kind == "loop")
+            failed = []
+            if info["sourceClipped"]:
+                failed.append("source-clipped")
+            if kind == "loop" and not an.get("loop", {}).get("pass", True):
+                failed.append("loop-seam")
+            png = wav.with_suffix(".png")
+            measure_mod.write_png(png, sid, back, back_sr, an)
+            checks = {
+                "pass": not failed, "failed": failed, "sourceClipped": info["sourceClipped"],
+                "peakDb": an["truePeakDb"], "lufs": an["lufs"],
+                "lowShare": an["lowShare"], "highShare": an["highShare"],
+                "centroidHz": an["spectralCentroidHz"], "level": info["level"],
+                "fadeInMs": info["fadeInMs"], "fadeOutMs": info["fadeOutMs"],
+            }
+            if "loop" in an:
+                checks["loop"] = {k: an["loop"].get(k) for k in ("seamRatio", "levelSwingDb", "edgeLevelDiffDb", "pass")}
             entries.append({
-                "id": sid, "file": rel, "spectrogram": it.get("spectrogram", ""),
-                "category": it.get("category", "downloads"), "kind": it.get("kind", "oneshot"),
+                "id": sid, "file": "downloads/%s.wav" % sid, "spectrogram": "downloads/%s.png" % sid,
+                "category": category, "kind": kind,
                 "path": it.get("path", "structure"), "en": it.get("en", sid), "de": it.get("de", sid),
                 "intent": it.get("intent", ""), "source": "download", "licence": it.get("licence", "unknown"),
-                "duration": it.get("duration", 0), "channels": it.get("channels", 1), "gain": 1.0,
-                "dry": True, "hash": file_hash(path), "checks": {"pass": True, "failed": []},
+                "duration": round(back.shape[0] / back_sr, 4), "channels": int(back.shape[1]), "gain": 1.0,
+                "dry": True, "hash": file_hash(wav), "checks": checks,
             })
         except Exception as e:
             print("  selection entry skipped (%s): %s" % (type(e).__name__, e))
+    # processed copies of downloads that are no longer selected must not stay behind
+    keep = {e["id"] for e in entries}
+    for old in sorted(folder.glob("*")) if folder.is_dir() else []:
+        if old.suffix in (".wav", ".png", ".json") and old.stem not in keep:
+            old.unlink()
     return entries
 
 
@@ -171,6 +323,8 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
     order = {sid: i for i, sid in enumerate(spec["order"])}
     sounds = []
     for p in sorted(out.glob("*/*.json")):
+        if p.parent.name == "downloads":  # processed downloads are added from selection.json below
+            continue
         try:
             rec = json.loads(p.read_text(encoding="utf-8"))
         except Exception:
@@ -223,14 +377,24 @@ def validate_manifest(manifest: dict, out: Path) -> list[str]:
             bad.append("%s: source %r" % (name, s.get("source")))
         if s.get("file") and not (out / s["file"]).is_file():
             bad.append("%s: file %s not found" % (name, s["file"]))
-        if s.get("source") == "synth" and s.get("spectrogram") and not (out / s["spectrogram"]).is_file():
+        if s.get("spectrogram") and not (out / s["spectrogram"]).is_file():
             bad.append("%s: spectrogram not found" % name)
+        if s.get("source") == "download" and not s.get("spectrogram"):
+            bad.append("%s: download without a spectrogram" % name)
         if s.get("hash") and not (isinstance(s["hash"], str) and len(s["hash"]) == 12):
             bad.append("%s: hash is not twelve hex digits" % name)
         c = s.get("checks", {})
-        for k in ("pass", "failed", "peakDb", "lufs", "lowShare", "highShare"):
-            if s.get("source") == "synth" and k not in c:
+        required = ("pass", "failed", "peakDb", "lufs", "lowShare", "highShare")
+        if s.get("source") == "download":  # a processed download is measured like a rendered sound
+            required += ("centroidHz", "sourceClipped")
+        for k in required:
+            if k not in c:
                 bad.append("%s: checks.%s missing" % (name, k))
+        if s.get("source") == "download":
+            if not s.get("duration"):
+                bad.append("%s: duration is 0" % name)
+            if c.get("peakDb") is not None and c["peakDb"] > -1.0:
+                bad.append("%s: true peak %.2f dB is above -1" % (name, c["peakDb"]))
     return bad
 
 

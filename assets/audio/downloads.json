@@ -69,253 +69,6 @@
       "speech": "none"
     },
     {
-      "id": "nasa-apollo11-eagle-landed",
-      "title": "Apollo 11: The Eagle has landed",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/569462main_eagle_has_landed.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "c2cf9c2754ec3c2f7315acd4fcdd7d892fb2027919c1a80adf90a49f63c0316c",
-      "bytes": 26388,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-apollo13-houston-problem",
-      "title": "Apollo 13: Houston, we have had a problem",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/574928main_houston_problem.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "d71d23e3a166277d13e414cb45d495da4eba793d975430f34471003e16f0afb1",
-      "bytes": 412815,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-mercury6-zero-g",
-      "title": "Mercury 6: Zero G",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582367main_Mercury-6_Zero-G.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "3bc40254af3ed1b2b674cf9a0356344014159125f44169374460d1b146d7d969",
-      "bytes": 172032,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-mercury6-god-speed",
-      "title": "Mercury 6: God speed",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582368main_Mercury-6_God-Speed.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "ddcf633bb7aef6d222be2098b4cefed909452d1c935f0fee67208c6588c0e8c0",
-      "bytes": 100352,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-mercury4-clock-started",
-      "title": "Mercury 4: Clock started",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582369main_Mercury-4_Clock-Started.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "8cc9cb2cccc08ee3d213df133d9b2d7fa06decccf54cb0e38dffafa70c0aa0a4",
-      "bytes": 196608,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-mercury7-liftoff",
-      "title": "Mercury 7: Liftoff",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582371main_Aurora-7_Liftoff.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "400b09d26a25d73f972f8de6e9d80744ab0ce9652d8669666d1db11d5547278d",
-      "bytes": 178176,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-mercury7-fireflies",
-      "title": "Mercury 7: Fireflies",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582374main_Aurora-7_Fireflies.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "3864be6d763220a6768090b777c3680531d9ec49a40a5222530c779f40b21db2",
-      "bytes": 110592,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-mercury7-guaymas",
-      "title": "Mercury 7: Guaymas greeting",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582382main_Aurora-7_Guyamas-Greeting.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "3eb3751b22d12cac858ff69ef0a718bdf6a6b381ad54e79f0522165fe2be598a",
-      "bytes": 235520,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-mercury9-cooper-orbit",
-      "title": "Mercury 9: Astronaut Cooper comments",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/582370main_mercury_Cooper_Orbit-Comments.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "1a4d3f8fe32bcc780f6f49cef6f5ceb72e378a894e02c9701a1e04cccadbfd72",
-      "bytes": 202752,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-houston-discovery",
-      "title": "Discovery: Houston, Discovery",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639898main_Houston_Discovery.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "5ee991caee6420226cec7f0b3ae8a38c46d54ce2536716ec19b3fa92e6588031",
-      "bytes": 34944,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-houston-discovery-2",
-      "title": "Discovery: Houston, Discovery (2)",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639896main_Houston_Discovery_2.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "fd213e57c52113f781f70c298ffccac27ff67b4723a7239496358f39a7d316d0",
-      "bytes": 43136,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-how-do-you-read",
-      "title": "Discovery: How do you read",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/639900main_How_do_you_Read.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "23e677a14f38b3d8068151d78b87d62f8ad92407f2ab5422e79a5b1b807e54b9",
-      "bytes": 41088,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-roger-roll",
-      "title": "Discovery: Roger roll",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640170main_Roger20Roll.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "076ff99af3600613e1aa1f78963a74b82516a9d655070a4ff13b99b916c07180",
-      "bytes": 36992,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-go-for-deploy",
-      "title": "Discovery: Go for deploy",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640164main_Go20for20Deploy.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "aa5c797bed0741c7d4b49e52c37cf5701facea4cd9cd431dab23b24dbd16453e",
-      "bytes": 61568,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-vector-transfer",
-      "title": "Discovery: Vector transfer",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640173main_Vector20Transfer.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "c2c82283a289354f53489d4ee9f80fb0683fef0bcf61aa5f717924bf7ebdf8f5",
-      "bytes": 90240,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-sts-wheelstop",
-      "title": "Discovery: Wheelstop",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640174main_Wheel20Stop.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "c2b799aad829536502606ebbb15006900463a462aa431b1e4d1af389d750770c",
-      "bytes": 141440,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-sts-computers-in-control",
-      "title": "Discovery: Computers are in control",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640149main_Computers20are20in20Control.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "80b6f29711189fa33fe9e3692690b34248aa11d7d82ad5429c6edfad89d11a70",
-      "bytes": 100480,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-sts-apu-shutdown",
-      "title": "Discovery: APU shutdown",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/640148main_APU20Shutdown.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "fc537e314ec517ed8677b71659b47e9f3682d881848176c5e4581a6a621023a2",
-      "bytes": 75904,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-sts1-dust-it-off",
-      "title": "STS-1: We are going to dust it off first",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/01/581097main_STS-1_Dust-it-Off.mp3",
-      "pageUrl": "https://www.nasa.gov/historical-sounds/",
-      "sha256": "4c817648fcc4b864d279dbd3159818e4235653b86de18c055894e3dce69e4b7b",
-      "bytes": 241664,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/historical-sounds/ says: \"For sound file use policy, please see Media Usage Guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
       "id": "nasa-quindar-1",
       "title": "Quindar tone, sound 1",
       "url": "https://www.nasa.gov/wp-content/uploads/2015/01/578628main_hskquindar.mp3",
@@ -444,123 +197,6 @@
       "credit": "NASA",
       "archive": false,
       "speech": "none"
-    },
-    {
-      "id": "nasa-apollo11-day03-highlights",
-      "title": "Apollo 11 audio highlights, flight day 3",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-03-Highlights.mp3",
-      "pageUrl": "https://www.nasa.gov/history/apollo-11-audio-highlights/",
-      "sha256": "6ca82f4e4026e5f9557a78d55437949561b331de2894528b929263bb91128e98",
-      "bytes": 83606107,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/history/apollo-11-audio-highlights/ offers the MP3 files for download; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-apollo11-day05-highlights",
-      "title": "Apollo 11 audio highlights, flight day 5",
-      "url": "https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-05-Highlights.mp3",
-      "pageUrl": "https://www.nasa.gov/history/apollo-11-audio-highlights/",
-      "sha256": "28673f7f3ecaece96221fb04e2291f9b94692bc580f4026adaca990bbcf9119d",
-      "bytes": 58491861,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/history/apollo-11-audio-highlights/ offers the MP3 files for download; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-orion-comm-check",
-      "title": "Artemis II launch: Orion communications check",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-orion-communications-check.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "3031acc4253501e9b131cd62ebe4a39d7f761d0001a8cfe6be2173eea924a9fa",
-      "bytes": 1737155,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-integrity-voice-check",
-      "title": "Artemis II launch: Integrity voice checks",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-integrity-voice-check.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "f226db5def9f034b493b5633af1df51934a07841bd83fa7d237c0d0c08185616",
-      "bytes": 1176045,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-loud-and-clear",
-      "title": "Artemis II: Houston, we have you loud and clear",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-houston-we-have-you-loud-and-clear-1.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "ebfd898826f3684a3fc8af062280e66d3d4a6e4bbd14cfe0d98e60fa6d104d73",
-      "bytes": 555995,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-go-for-tli",
-      "title": "Artemis II: Go for translunar injection",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-go-for-translunar-injection.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "5a5a3a3db276f6573ff5bc6b919662c7c5981f13c92f39ede9f2691289cb128f",
-      "bytes": 740538,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-good-burn",
-      "title": "Artemis II in flight: good burn",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-good-burn.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "36f930fdbaab3e2a91d5d9a45fde0a7e329628e22407946b80da70a81a75927c",
-      "bytes": 234148,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
-    },
-    {
-      "id": "nasa-artemis2-go-no-go-poll",
-      "title": "Artemis II launch: go/no-go poll",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-go-no-go-poll.mp3",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "9dde45c293ef1a8c7f7395227fe9c95b164077ca18deb41742c35db11b7dfe96",
-      "bytes": 4111746,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech"
-    },
-    {
-      "id": "nasa-artemis2-closest-point",
-      "title": "Artemis II lunar flyby: closest to the Moon",
-      "url": "https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-closest-point-to-moon.wav",
-      "pageUrl": "https://www.nasa.gov/artemisaudio/",
-      "sha256": "e91b7bdd8c81d27749f843474b18a3201f34ca5990fefb2ce25d14f666684ec1",
-      "bytes": 8631042,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Page https://www.nasa.gov/artemisaudio/ says: \"All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines.\" NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "probable"
     },
     {
       "id": "nasa-mars-supercam-lasers",
@@ -717,34 +353,6 @@
       "credit": "NASA/University of Iowa",
       "archive": false,
       "speech": "none"
-    },
-    {
-      "id": "nasa-iss-safe-haven-start",
-      "title": "ISS: capcom calls Expedition 74 to begin safe haven procedures",
-      "url": "https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-safe-haven/06-05-26_MCC-H-calls-ISS-to-safe-haven~128k.mp3",
-      "pageUrl": "https://images.nasa.gov/details/06-05-26_MCC-H-calls-ISS-to-safe-haven",
-      "sha256": "f751bafdc2a698af0f155ec4e4f238c3d726544da8c4f8cd047d9dd9019bf2e2",
-      "bytes": 736444,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Item 06-05-26_MCC-H-calls-ISS-to-safe-haven of the NASA Image and Video Library (images-api.nasa.gov/search?nasa_id=06-05-26_MCC-H-calls-ISS-to-safe-haven) is hosted on images-assets.nasa.gov, from the Johnson Space Center; its library record has no credit or rights field (centre, date, description and keywords only), so NASA is credited as the guidelines ask; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech",
-      "restriction": "voices a capsule communicator and a named astronaut who was employed by NASA in June 2026; NASA does not allow currently employed astronauts in commercial products: never ship this file"
-    },
-    {
-      "id": "nasa-iss-safe-haven-end",
-      "title": "ISS: capcom calls Expedition 74 to exit safe haven configuration",
-      "url": "https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-end-safe-haven/06-05-26_MCC-H-calls-ISS-to-end-safe-haven~128k.mp3",
-      "pageUrl": "https://images.nasa.gov/details/06-05-26_MCC-H-calls-ISS-to-end-safe-haven",
-      "sha256": "882907cf3dad04deb79686ef1dabab8482cd971b3b6a5777f7ef68d9c8398786",
-      "bytes": 2948284,
-      "licence": "Public domain (NASA)",
-      "licenceEvidence": "Item 06-05-26_MCC-H-calls-ISS-to-end-safe-haven of the NASA Image and Video Library (images-api.nasa.gov/search?nasa_id=06-05-26_MCC-H-calls-ISS-to-end-safe-haven) is hosted on images-assets.nasa.gov, from the Johnson Space Center; its library record has no credit or rights field (centre, date, description and keywords only), so NASA is credited as the guidelines ask; NASA media usage guidelines (https://www.nasa.gov/nasa-brand-center/images-and-media/), read again on 2026-11-14: NASA content, audio included, \"generally\" is not subject to copyright in the United States and NASA should be acknowledged as the source. The permission to use it without asking is written for non-commercial, educational or informational use. The COMMERCIAL USE section is narrower: editorial use in published works that are not promotional, no implied endorsement, clearances for NASA logos and employees, permission of identifiable persons, and no currently employed astronauts or employees on commercial products (see the NASA entry under Sources and their terms).",
-      "credit": "NASA",
-      "archive": false,
-      "speech": "speech",
-      "restriction": "voices a capsule communicator and a named astronaut who was employed by NASA in June 2026; NASA does not allow currently employed astronauts in commercial products: never ship this file"
     }
   ],
   "sources": [
@@ -805,6 +413,126 @@
     {
       "what": "Kenney arcade-like material (laser, forceField, powerUp, zap, phaser sounds) inside the downloaded packs",
       "why": "downloaded as part of the archives but not selected: the sound concept excludes anything that sounds like an arcade"
+    },
+    {
+      "what": "Apollo 11: The Eagle has landed (nasa-apollo11-eagle-landed, https://www.nasa.gov/wp-content/uploads/2015/01/569462main_eagle_has_landed.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Apollo 13: Houston, we have had a problem (nasa-apollo13-houston-problem, https://www.nasa.gov/wp-content/uploads/2015/01/574928main_houston_problem.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 6: Zero G (nasa-mercury6-zero-g, https://www.nasa.gov/wp-content/uploads/2015/01/582367main_Mercury-6_Zero-G.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 6: God speed (nasa-mercury6-god-speed, https://www.nasa.gov/wp-content/uploads/2015/01/582368main_Mercury-6_God-Speed.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 4: Clock started (nasa-mercury4-clock-started, https://www.nasa.gov/wp-content/uploads/2015/01/582369main_Mercury-4_Clock-Started.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 7: Liftoff (nasa-mercury7-liftoff, https://www.nasa.gov/wp-content/uploads/2015/01/582371main_Aurora-7_Liftoff.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 7: Fireflies (nasa-mercury7-fireflies, https://www.nasa.gov/wp-content/uploads/2015/01/582374main_Aurora-7_Fireflies.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 7: Guaymas greeting (nasa-mercury7-guaymas, https://www.nasa.gov/wp-content/uploads/2015/01/582382main_Aurora-7_Guyamas-Greeting.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Mercury 9: Astronaut Cooper comments (nasa-mercury9-cooper-orbit, https://www.nasa.gov/wp-content/uploads/2015/01/582370main_mercury_Cooper_Orbit-Comments.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Houston, Discovery (nasa-sts-houston-discovery, https://www.nasa.gov/wp-content/uploads/2015/01/639898main_Houston_Discovery.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Houston, Discovery (2) (nasa-sts-houston-discovery-2, https://www.nasa.gov/wp-content/uploads/2015/01/639896main_Houston_Discovery_2.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: How do you read (nasa-sts-how-do-you-read, https://www.nasa.gov/wp-content/uploads/2015/01/639900main_How_do_you_Read.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Roger roll (nasa-sts-roger-roll, https://www.nasa.gov/wp-content/uploads/2015/01/640170main_Roger20Roll.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Go for deploy (nasa-sts-go-for-deploy, https://www.nasa.gov/wp-content/uploads/2015/01/640164main_Go20for20Deploy.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Vector transfer (nasa-sts-vector-transfer, https://www.nasa.gov/wp-content/uploads/2015/01/640173main_Vector20Transfer.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Wheelstop (nasa-sts-wheelstop, https://www.nasa.gov/wp-content/uploads/2015/01/640174main_Wheel20Stop.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: Computers are in control (nasa-sts-computers-in-control, https://www.nasa.gov/wp-content/uploads/2015/01/640149main_Computers20are20in20Control.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Discovery: APU shutdown (nasa-sts-apu-shutdown, https://www.nasa.gov/wp-content/uploads/2015/01/640148main_APU20Shutdown.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "STS-1: We are going to dust it off first (nasa-sts1-dust-it-off, https://www.nasa.gov/wp-content/uploads/2015/01/581097main_STS-1_Dust-it-Off.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Apollo 11 audio highlights, flight day 3 (nasa-apollo11-day03-highlights, https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-03-Highlights.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Apollo 11 audio highlights, flight day 5 (nasa-apollo11-day05-highlights, https://www.nasa.gov/wp-content/uploads/2015/03/Apollo-11_Day-05-Highlights.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II launch: Orion communications check (nasa-artemis2-orion-comm-check, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-orion-communications-check.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II launch: Integrity voice checks (nasa-artemis2-integrity-voice-check, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-integrity-voice-check.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II: Houston, we have you loud and clear (nasa-artemis2-loud-and-clear, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-houston-we-have-you-loud-and-clear-1.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II: Go for translunar injection (nasa-artemis2-go-for-tli, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-go-for-translunar-injection.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II in flight: good burn (nasa-artemis2-good-burn, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-good-burn.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II launch: go/no-go poll (nasa-artemis2-go-no-go-poll, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-launch-go-no-go-poll.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "Artemis II lunar flyby: closest to the Moon (nasa-artemis2-closest-point, https://www.nasa.gov/wp-content/uploads/2026/01/artemis-ii-closest-point-to-moon.wav)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "ISS: capcom calls Expedition 74 to begin safe haven procedures (nasa-iss-safe-haven-start, https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-safe-haven/06-05-26_MCC-H-calls-ISS-to-safe-haven~128k.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
+    },
+    {
+      "what": "ISS: capcom calls Expedition 74 to exit safe haven configuration (nasa-iss-safe-haven-end, https://images-assets.nasa.gov/audio/06-05-26_MCC-H-calls-ISS-to-end-safe-haven/06-05-26_MCC-H-calls-ISS-to-end-safe-haven~128k.mp3)",
+      "why": "struck by the owner on 2026-11-15: no recorded voices of real people in the game; voices are generated"
     }
   ]
 }
