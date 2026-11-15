@@ -469,10 +469,10 @@ void main() {
         float patchy = i == 0 ? 0.10 : i == 1 ? 0.08 : i == 2 ? 0.07 : i == 3 ? 0.06 : 0.05;
         slope += (turned ? vec2(-g.y, g.x) : g.xy) * (rough * show);
         mottle += g.z * (patchy * show);
-        // Clods and the shadows between them: dark flecks while they are a few pixels, which is
-        // what loose ground looks like at any distance. Nearer, the next finer cells have them.
+        // Clods and the shadows between them: dark flecks in the two finest layouts, while they
+        // are a few pixels; nearer than that they would be stains.
         float fleck = smoothstep(0.25, 0.8, g.w + 0.5 * coarser) - 0.08;
-        if (i < 4) mottle -= fleck * (0.2 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
+        if (i < 2) mottle -= fleck * (0.22 * show * smoothstep(cell * 0.02, cell * 0.07, pxMean));
         here = g.z;
       }
       coarser = here;
