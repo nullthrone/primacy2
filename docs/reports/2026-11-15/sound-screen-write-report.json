@@ -1,0 +1,37 @@
+{
+ "role": "screen and publish scripts for the sound-source listening test",
+ "status": "done",
+ "summary": "tools/sound/screen.py cuts the event out of every raw file of every source under assets/audio/gen with a gen.json, throws out only the broken ones (silent, clipped, speech, music, several events, cut off, too short) with the reason per file, describes the rest for variety only, chooses four per family (typical of each source in the order moss, sa3, oga, then the farthest of the two generative sources), writes listening copies under _listen/ and screen.json. tools/sound/publish.py writes them as category 'source' (ids src_<n>_<family>_<m>_<key>) and assembles and validates the manifest. audition-check.mjs now asserts that the manifest's first category is the first on the page with its German name. 21 plain-assert tests in tools/sound/tests/test_screen.py pass (about 7 s, synthetic files in a temporary directory, nothing written under assets/audio/render or gen). Not run on real candidates: none existed when I started.",
+ "licences": "None downloaded or read: this part is code only; it uses the Whisper small and CLAP models already in the cache of .venv-audio (the library's own, read offline).",
+ "installed": "nothing; runs with .venv-audio/Scripts/python.exe (read only)",
+ "downloaded": "nothing",
+ "settings": {
+  "cut": "level = RMS of 4 ms every 1 ms (mean power over channels); onset = first sample inside the first frame within 40 dB of the maximum frame; start = onset minus 3 ms; end = start of the first 150 ms stretch 50 dB under the maximum (plus one 4 ms window), capped at onset + family length (hull 2.5, thruster 1.2, gear 3.8, shield 2.5 s); gear: end = last frame within 50 dB of the maximum inside the cap",
+  "faults": "silent: sample peak under -40 dBFS; clipped: 3 or more consecutive samples at |x| >= 0.999 in any channel; too-short: cut under 80 ms; cut-off: RMS of the last 50 ms within 20 dB of the maximum; several-events (hull, thruster, shield only): after the 150 ms quiet stretch a later frame at least 6.02 dB (half amplitude) under the first event's peak level or above; speech: Whisper small returns 3 or more words (English, on the cut event); music: CLAP score of 'music, a melody, an instrument playing a tune' above every prompt of the family. Models run on the processor by default (--device cuda only under with_lock.py) and only on files that passed the other checks; --no-models skips them and records that in screen.json.",
+  "variety vector": "29 third-octave bands (31 Hz to 16 kHz) x 3 parts (first 60 ms; the rest split into two halves) as dB relative to the event's mean power, plus log length and the energy share of the first 60 ms; z-scored per family over all remaining candidates; band block weight 1 in total, length and share 0.5 each",
+  "choice": "typical = nearest to the mean of the source's vectors; fourth = from moss and sa3 only, the remaining candidate whose distance to the nearest of the chosen is largest; a source without candidates has its slot filled by the farthest-from-chosen candidate of the source with most remaining (noted in screen.json); ties go to the lower source then lower name",
+  "listening copy": "to_channels (1 or 2 kept, more mixed to 2: odd channels left, even right), resample_poly to 48 kHz, tools/audio/synth/levels.set_level in lufs mode (library loudness function, tiling fallback for clips under 400 ms) with ceiling -1.1 dBFS true peak (room for the 16-bit dither of the page copy), then if the last 10 ms exceed -60 dBFS a 30 ms raised-cosine fade plus 10 ms of digital silence (so the page's tail-not-silent check passes), and if the first sample exceeds -60 dBFS a 1.5 ms raised-cosine ramp is prepended; the loudness reached, gain, limited flag, true peak are recorded per file",
+  "publish": "16-bit 48 kHz through synth.write_wav (dither seed = id), spectrogram and record as the voice publish; oga entries use source 'download' (it validates without a selection entry: checks carry centroidHz and sourceClipped=false), moss and sa3 'synth'; mono files get place 0, two-channel files none"
+ },
+ "sizes": "no environment created; the scripts and tests are about 45 KB; free disk after: 543 GB on C: (df -h .)",
+ "safety": "no pickle loaded, no download, no network use; models are loaded through the library's offline settings (HF_HUB_OFFLINE, TRANSFORMERS_OFFLINE); screen.py also sets HF_HUB_DISABLE_TELEMETRY=1 and DO_NOT_TRACK=1; no GPU used, so no lock needed (cpu default)",
+ "problems": [
+  "The oga item record keys are unknown to me: publish.py looks for title (title/name/itemTitle/pageTitle), author (author/credit/creator/user) and page (pageUrl/page/pageURL/page_url/url) in the gen.json item and writes 'unknown' where none is found; the oga agent should use these names.",
+  "The raw file of an item is looked up as <root>/<key>/raw/<item key>.wav; family is read from item['family'] or from the item key's prefix before '__'.",
+  "A 10 ms digital-silence pad follows the 30 ms end fade when a fade is needed; this is my addition so the page's tail check passes."
+ ],
+ "notVerified": [
+  "Nothing was run on real candidates: thresholds (40/50 dB, 150 ms, 20 dB cut-off) were only tested on synthetic files.",
+  "Whisper and CLAP were run once on a synthetic noise file (loaded offline, cpu, about 9 s); their verdicts on real candidates were not seen.",
+  "tools/dev/audition-check.mjs was only syntax-checked (node --check), not run against the page.",
+  "Whether the page shows the oga entries well as 'download' entries (it hides the checks box for them and toggles stop on a second press) was not looked at in a browser.",
+  "Nothing was heard."
+ ],
+ "filesWritten": [
+  "tools/sound/screen.py",
+  "tools/sound/publish.py",
+  "tools/sound/tests/test_screen.py",
+  "tools/dev/audition-check.mjs (one step changed, CRLF kept)",
+  "docs/reports/2026-11-15/sound-screen-write-report.json"
+ ]
+}
