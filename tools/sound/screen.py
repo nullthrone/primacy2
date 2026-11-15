@@ -8,16 +8,28 @@ raw file listed in it, and for each file:
 1. cuts the event out (first moment within 40 dB of the file's maximum, minus 3 ms; ends where the
    level has stayed 45 dB under the maximum for 150 ms (50 dB for the gear's last sound), or at the family's longest length; for the
    landing gear from the first sound to the last);
-2. throws out only what is broken, with the reason: silent, clipped, speech, music, more than one
-   event where one was asked for, cut off, shorter than 80 ms. It does not look at where the energy
-   sits in the spectrum, at brightness or at attack: the owner disliked sounds that met such
-   measures;
+2. throws out only what is broken, with the reason: silent, clipped (a flat top: three or more equal
+   samples in a row at the extreme of a channel), speech, music, more than one event where one was
+   asked for, cut off (still within 20 dB of the maximum in the last 50 ms of the raw file, or in the
+   last 50 ms before the cut that the family's longest length makes), shorter than 80 ms. It does not
+   look at where the energy sits in the spectrum, at brightness or at attack: the owner disliked
+   sounds that met such measures. The share of the event's energy above 60 Hz is recorded per file as
+   a measure only (a sound with almost nothing above 60 Hz plays as silence on most loudspeakers);
 3. describes what is left by a vector for variety only (third-octave band levels in three parts of
    the event, the length, the share of the energy in the first 60 ms), normalised per family;
 4. chooses four per family: per source the candidate nearest to the middle of that source's
    candidates, then, from the two generative sources, the one farthest from the three chosen;
-5. writes the listening copies (48 kHz, family loudness, true peak at most -1 dBFS, no step at
-   either end) under assets/audio/gen/_listen/ and the whole account to assets/audio/gen/screen.json.
+5. writes the listening copies (48 kHz, no step at either end, true peak at most -1.1 dBFS) under
+   assets/audio/gen/_listen/ and the whole account to assets/audio/gen/screen.json. The loudness of a
+   copy is the one the audition page plays in its Stereo stage: BS.1770 over two channels, a
+   one-channel file counted on both, set to the family's target plus 10*log10(2) dB, so that a
+   one-channel file stays exactly where the family target put it and a two-channel file leaves the
+   page as loud as a one-channel one. It is measured after all processing (resampling, fades, ramp,
+   mean removal, the appended silence), the gain corrected and measured again until it is within
+   0.05 LU or the true-peak ceiling stops it (recorded);
+
+Candidates that a person has skipped after looking at a spectrogram for a plain fault are listed in
+tools/sound/skips.json and read by default (--skips names another file, --skip adds one).
 
 The speech recogniser (Whisper small) and CLAP are the models of the sound library, read from the
 local cache only. They run on the processor by default (they are small); with --device cuda the
@@ -30,6 +42,7 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 from math import gcd
 from pathlib import Path
@@ -43,6 +56,7 @@ GEN = ROOT / "assets" / "audio" / "gen"
 for _p in (AUDIO, AUDIO / "listen"):  # in front of the folder of this script, which has its own common.py
     sys.path.insert(0, str(_p))
 
+SKIPS_FILE = HERE / "skips.json"          # hand skips, read by default
 SOURCES = ("moss", "sa3", "oga")          # the order of the slots on the page
 GENERATIVE = ("moss", "sa3")              # the fourth pick comes from these
 SOURCE_NAMES = {"moss": "MOSS-SoundEffect", "sa3": "Stable Audio 3", "oga": "OpenGameArt"}
@@ -57,13 +71,17 @@ QUIET_S = 0.150                           # how long the level must stay under f
 LEAD_S = 0.003
 MIN_EVENT_S = 0.080
 SILENT_PEAK_DB = -40.0
-CLIP_LEVEL, CLIP_RUN = 0.999, 3
-CUTOFF_S, CUTOFF_DB = 0.050, 20.0
+CLIP_RUN = 3                              # this many equal samples in a row at the extreme of a channel: a flat top
+CUTOFF_S, CUTOFF_DB = 0.050, 20.0         # an event still within 20 dB of its maximum in the last 50 ms was cut off
 SECOND_DB = 20.0 * math.log10(0.5)        # a second onset of at least half the first one's level
 SPEECH_WORDS = 3
 MUSIC_TEXT = "music, a melody, an instrument playing a tune"
 CEILING_DB = -1.1                         # the listening copy; the page's 16-bit copy keeps -1 with room
 DC_LIMIT = 0.001                          # the page's limit for the mean of a file
+PAGE_OFFSET_DB = 10.0 * math.log10(2.0)   # a one-channel file is counted on both channels by the page: +3.01 dB in BS.1770
+LEVEL_TOL_DB = 0.05                       # the loudness of a copy must come this close to its target
+LEVEL_ITERATIONS = 30
+LOW_HZ = 60.0                             # the share of the energy above this is recorded (a measure, no rule)
 STEP_DB = -60.0                           # a sample above this at an end is a step
 RAMP_S = 0.0015
 FADE_S = 0.030
@@ -143,6 +161,39 @@ def cut_event(x: np.ndarray, sr: int, family: str) -> dict:
 # ----------------------------------------------------------------------------------------------
 # throwing out what is broken
 
+def has_flat_top(x: np.ndarray, run: int = CLIP_RUN) -> bool:
+    """True when `run` or more samples in a row of one channel are equal and sit at the extreme (the highest
+    or the lowest value) of that channel. A file whose float samples go beyond full scale without such a
+    flat top is not clipped; a file the maker clamped at 1.0 is."""
+    x = np.asarray(x)
+    if x.ndim == 1:
+        x = x[:, None]
+    if x.shape[0] < run:
+        return False
+    for ch in range(x.shape[1]):
+        c = x[:, ch]
+        for ext in (c.max(), c.min()):
+            if ext == 0:
+                continue
+            hit = np.concatenate([[0], np.cumsum((c == ext).astype(np.int64))])
+            if bool(((hit[run:] - hit[:-run]) == run).any()):
+                return True
+    return False
+
+
+def energy_share_above(event: np.ndarray, sr: int, hz: float = LOW_HZ) -> float:
+    """Share of the energy of an event (n, channels) at or above `hz`, over all channels (rectangular window)."""
+    x = np.asarray(event, dtype=np.float64)
+    if x.ndim == 1:
+        x = x[:, None]
+    if x.shape[0] == 0:
+        return 0.0
+    spec = np.abs(np.fft.rfft(x, axis=0)) ** 2
+    freq = np.fft.rfftfreq(x.shape[0], 1.0 / sr)
+    total = float(spec.sum())
+    return float(spec[freq >= hz].sum() / total) if total > 0 else 0.0
+
+
 def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
     """Every fault that needs no model. Returns (reasons in a fixed order, the cut and numbers)."""
     reasons: list[str] = []
@@ -151,9 +202,7 @@ def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
     info: dict = {"peakDb": round(peak_db, 2)}
     if x.shape[0] == 0 or peak_db < SILENT_PEAK_DB:
         return ["silent"], info
-    full = (np.abs(x) >= CLIP_LEVEL).any(axis=1).astype(np.int64)
-    c = np.concatenate([[0], np.cumsum(full)])
-    if x.shape[0] >= CLIP_RUN and bool(((c[CLIP_RUN:] - c[:-CLIP_RUN]) == CLIP_RUN).any()):
+    if has_flat_top(x):
         reasons.append("clipped")
     cut = cut_event(x, sr, family)
     info["cut"] = {"startS": round(cut["start"] / sr, 4), "endS": round(cut["end"] / sr, 4),
@@ -165,6 +214,16 @@ def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
     info["lastDbBelowMax"] = round(cut["maxDb"] - last_db, 1)
     if last_db >= cut["maxDb"] - CUTOFF_DB:
         reasons.append("cut-off")
+        info["cutOffAt"] = "end-of-file"
+    elif cut["capped"]:
+        # the same rule for an event that the family's longest length cuts: the last 50 ms before the cut
+        # against the same maximum, with the same 20 dB
+        e = cut["end"]
+        cap_db = 10.0 * math.log10(max(float(_power(x[max(0, e - last):e]).mean()), 1e-20))
+        info["lastDbBelowMaxAtCap"] = round(cut["maxDb"] - cap_db, 1)
+        if cap_db >= cut["maxDb"] - CUTOFF_DB:
+            reasons.append("cut-off")
+            info["cutOffAt"] = "family-length"
     if family in ONE_EVENT and cut["secondOnset"] is not None:
         reasons.append("several-events")
         info["secondOnsetS"] = round(cut["secondOnset"] / sr, 3)
@@ -345,12 +404,24 @@ def resample(x: np.ndarray, sr: int, out_sr: int = OUT_SR) -> np.ndarray:
     return resample_poly(x.astype(np.float64), out_sr // g, sr // g, axis=0)
 
 
-def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: float = CEILING_DB) -> tuple[np.ndarray, dict]:
-    """event: the cut (n, channels) at the source's rate. Returns (48 kHz copy, numbers)."""
-    from synth.levels import lufs, set_level, true_peak_db
+def page_lufs(y: np.ndarray) -> float:
+    """Loudness as the audition page plays it in the Stereo stage: BS.1770 integrated over two channels, a
+    one-channel file counted on both. The page adds the energies of the two channels, so a file with two
+    channels of the same file loudness as a one-channel file leaves the page 3.01 dB lower (measured: 3.02 dB)."""
+    from synth.levels import lufs
 
-    x = resample(to_channels(event), sr)
-    y, lv = set_level(x, "lufs", target_lufs, ceiling_db=ceiling_db)
+    y = np.asarray(y, dtype=np.float64)
+    if y.ndim == 1:
+        y = y[:, None]
+    if y.shape[1] == 1:
+        y = np.concatenate([y, y], axis=1)
+    return lufs(y)
+
+
+def _finish(x: np.ndarray, gain_db: float) -> tuple[np.ndarray, dict]:
+    """Everything that is done to a resampled event after its level: the gain, the end fade and the silence
+    after it, the ramp in, the mean removal. What the page plays is what comes out; the level is measured on it."""
+    y = x * 10.0 ** (gain_db / 20.0)
     thr = 10 ** (STEP_DB / 20.0)
     tail = int(round(TAIL_CHECK_S * OUT_SR))  # the page's check looks at the last 10 ms
     fade = bool(np.abs(y[-tail:]).max() > thr)
@@ -379,13 +450,79 @@ def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: f
         corr = np.zeros_like(y)
         corr[:n] = (y.mean(axis=0, keepdims=True) * (y.shape[0] / float(w.sum()))) * w[:, None]
         y = y - corr
-    dc_after = float(np.abs(y.mean(axis=0)).max())
+    return y, {"fade": fade, "ramp": ramp, "dcBefore": dc_before, "dcAfter": float(np.abs(y.mean(axis=0)).max())}
+
+
+def listening_copy(event: np.ndarray, sr: int, target_lufs: float, ceiling_db: float = CEILING_DB) -> tuple[np.ndarray, dict]:
+    """event: the cut (n, channels) at the source's rate; target_lufs: the family's target, which a
+    one-channel file reaches in its own BS.1770 loudness. Every copy is set to the page's loudness
+    (page_lufs) of that target plus PAGE_OFFSET_DB, measured after all processing and corrected until it is
+    within LEVEL_TOL_DB, or until the true-peak ceiling stops it. Returns (48 kHz copy, numbers)."""
+    from synth.levels import lufs, true_peak_db
+
+    x = resample(to_channels(event), sr)
+    page_target = target_lufs + PAGE_OFFSET_DB
+    g = page_target - page_lufs(x)  # first guess; the gate of BS.1770 and the fades make it a little wrong
+    y, fl = _finish(x, g)
+    iters = 1
+    for _ in range(LEVEL_ITERATIONS):
+        err = page_target - page_lufs(y)
+        over = true_peak_db(y) - ceiling_db
+        if over > 1e-3:  # above the ceiling: lower the gain by what is over
+            step = -over
+        elif abs(err) <= LEVEL_TOL_DB:
+            break
+        else:
+            room = ceiling_db - true_peak_db(y)
+            if err > 0 and room <= 1e-3:  # at the ceiling and still too quiet: nothing more can be done
+                break
+            step = min(err, room) if err > 0 else err
+        g += step
+        y, fl = _finish(x, g)
+        iters += 1
+    reached_page = page_lufs(y)
+    err = page_target - reached_page
+    tp = true_peak_db(y)
     info = {"sr": OUT_SR, "channels": int(y.shape[1]), "durationS": round(y.shape[0] / OUT_SR, 4),
-            "lufsTarget": target_lufs, "lufsReached": round(lufs(y), 2), "gainDb": lv["gainDb"],
-            "limitedByPeak": bool(lv["limited"]), "truePeakDb": round(true_peak_db(y), 2),
-            "dcBefore": round(dc_before, 6), "dcAfter": round(dc_after, 6), "rampIn": ramp, "fadeOut": fade, "firstSampleDb": round(20 * math.log10(max(float(np.abs(y[0]).max()), 1e-12)), 1),
+            "lufsTarget": target_lufs, "lufsPageTarget": round(page_target, 3),
+            "lufsReached": round(lufs(y), 2), "lufsReachedPage": round(reached_page, 2),
+            "levelErrorDb": round(err, 3), "gainDb": round(float(g), 3), "levelIterations": iters,
+            "limitedByPeak": bool(err > LEVEL_TOL_DB), "truePeakDb": round(tp, 2),
+            "dcBefore": round(fl["dcBefore"], 6), "dcAfter": round(fl["dcAfter"], 6), "rampIn": fl["ramp"], "fadeOut": fl["fade"],
+            "firstSampleDb": round(20 * math.log10(max(float(np.abs(y[0]).max()), 1e-12)), 1),
             "lastSampleDb": round(20 * math.log10(max(float(np.abs(y[-1]).max()), 1e-12)), 1)}
     return y, info
+
+
+def candidate_tag(source: str, name: str, item: dict | None = None) -> str:
+    """What names a candidate in its id: prompt number and seed for a generated file ("p2s16"), a short slug of
+    the excerpt's name for a recording. The same candidate always gives the same tag, so an id never comes to
+    mean another sound when a pick is replaced."""
+    item = item or {}
+    if source in GENERATIVE:
+        m = re.search(r"(\d+)__s(\d+)$", name)
+        if m:
+            return "p%ss%s" % (m.group(1), m.group(2))
+        pm = re.search(r"(\d+)$", str(item.get("prompt", "")))
+        if pm and item.get("seed") is not None:
+            return "p%ss%s" % (pm.group(1), item["seed"])
+    part = name.split("__", 1)[1] if "__" in name else name
+    slug = re.sub(r"[^a-z0-9]+", "-", part.lower()).strip("-")[:32].strip("-")
+    return slug or "x"
+
+
+ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{0,80}$")  # the manifest's rule for an id (tools/audio/fetch.py: it becomes a file name)
+
+
+def load_skips(path: Path | None) -> dict[str, str]:
+    """{"source/name": reason} from a skips file ({"skips": [{"candidate": ..., "reason": ...}]})."""
+    if path is None or not Path(path).is_file():
+        return {}
+    rec = json.loads(Path(path).read_text(encoding="utf-8"))
+    out = {}
+    for e in rec.get("skips", []):
+        out[str(e["candidate"]).strip()] = str(e.get("reason") or "skipped by hand")
+    return out
 
 
 # ----------------------------------------------------------------------------------------------
@@ -445,6 +582,8 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             reasons, info = raw_faults(x, sr, fam)
             cut = info.pop("_cut", None)
             row.update(info)
+            if cut is not None:
+                row["energyAbove60Hz"] = round(energy_share_above(x[cut["start"]:cut["end"]], sr), 4)
             if cut is not None and models is not None and not reasons:
                 ev = x[cut["start"]:cut["end"]].mean(axis=1)
                 texts = [p["text"] for p in fams[fam]["prompts"]]
@@ -479,14 +618,19 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
         fam_out[fam] = {"number": fam_no[fam], "candidates": counts, "notes": notes, "chosen": []}
         for p in picks:
             c = p["cand"]
-            sid = "src_%d_%s_%d_%s" % (fam_no[fam], fam, p["slot"], c["source"])
+            tag = candidate_tag(c["source"], c["name"], c["item"])
+            sid = "src_%d_%s_%d_%s_%s" % (fam_no[fam], fam, p["slot"], c["source"], tag)
+            if not ID_PATTERN.match(sid):
+                raise ValueError("%r is not a valid id of the manifest" % sid)
             cut = c["cut"]
             event = c["x"][cut["start"]:cut["end"]]
             y, info = listening_copy(event, c["sr"], float(f["lufs"]))
             out = listen / (sid + ".wav")
             sf.write(str(out), y.astype(np.float32), OUT_SR, subtype="FLOAT")
+            row = next(r for r in files if r["source"] == c["source"] and r["name"] == c["name"])
             chosen.append({"id": sid, "family": fam, "familyNumber": fam_no[fam], "slot": p["slot"], "role": p["role"],
-                           "source": c["source"], "name": c["name"], "raw": next(r["file"] for r in files if r["source"] == c["source"] and r["name"] == c["name"]),
+                           "source": c["source"], "name": c["name"], "tag": tag, "raw": row["file"],
+                           "energyAbove60Hz": row.get("energyAbove60Hz"),
                            "cut": {"startS": round(cut["start"] / c["sr"], 4), "endS": round(cut["end"] / c["sr"], 4),
                                    "cappedAtFamilyLength": cut["capped"]},
                            "listen": dict(info, file=_rel(out, ROOT)),
@@ -498,7 +642,9 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             "settings": {"models": bool(use_models), "modelDevice": device if use_models else None,
                          "note": None if use_models else "speech and music were NOT checked (--no-models)",
                          "maxLengthS": MAX_LEN_S, "startWithinDb": START_DB, "endUnderDb": END_DB, "quietUnderDb": QUIET_DB, "quietS": QUIET_S,
-                         "leadS": LEAD_S, "minEventS": MIN_EVENT_S, "ceilingDb": CEILING_DB},
+                         "leadS": LEAD_S, "minEventS": MIN_EVENT_S, "ceilingDb": CEILING_DB,
+                         "pageOffsetDb": round(PAGE_OFFSET_DB, 4), "levelToleranceDb": LEVEL_TOL_DB,
+                         "cutOffDb": CUTOFF_DB, "cutOffS": CUTOFF_S, "flatTopRun": CLIP_RUN, "lowHz": LOW_HZ},
             "sources": sources_found, "families": fam_out, "chosen": chosen, "files": files}
 
 
@@ -516,14 +662,16 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--no-models", action="store_true", help="skip the speech recogniser and CLAP (then speech and music are not checked)")
     ap.add_argument("--root", default=str(GEN), help="the folder with the source folders (default assets/audio/gen)")
+    ap.add_argument("--skips", default=str(SKIPS_FILE), metavar="FILE",
+                    help="the committed list of hand skips (default tools/sound/skips.json); pass an empty name to read none")
     ap.add_argument("--skip", action="append", default=[], metavar="SOURCE/NAME=REASON",
-                    help="never pick this candidate (it stays in the pool); repeatable; the reason is written to screen.json")
+                    help="never pick this candidate either (it stays in the pool); repeatable; adds to the file; the reason is written to screen.json")
     ap.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="for the two models; cuda only under with_lock.py")
     a = ap.parse_args(argv)
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
     os.environ.setdefault("DO_NOT_TRACK", "1")
     root = Path(a.root).resolve()
-    skips = {}
+    skips = load_skips(Path(a.skips)) if a.skips else {}
     for t in a.skip:
         k, _, why = t.partition("=")
         skips[k.strip()] = why.strip() or "skipped by hand"

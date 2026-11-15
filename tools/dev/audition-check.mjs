@@ -50,6 +50,16 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
+// The rows of the page in the order the page lists them: by category in the order of manifest.categories and, inside a
+// category, the rendered sounds before the downloaded ones, each part in the order of manifest.sounds. manifest.sounds
+// itself is in the order of tools/audio/build.py (the sounds of sounds.json first, ids it does not know after them), so
+// its first entries are not the first rows of the page when a category the build does not know comes first.
+const pageOrder = (m) =>
+  m.categories.flatMap((c) => {
+    const inCat = m.sounds.filter((s) => s.category === c.id);
+    return [...inCat.filter((s) => s.source !== 'download'), ...inCat.filter((s) => s.source === 'download')];
+  });
+
 // A browser tidies '..' away before sending, so the traversal probes go out as they are written.
 const rawStatus = (p) =>
   new Promise((resolve, reject) => {
@@ -886,8 +896,9 @@ try {
           const res = await r.fetch();
           const m = await res.json();
           m.sounds = m.sounds.filter((s) => s.id !== 'sensor_proximity_tick');
-          const first = m.sounds[0];
-          m.sounds[1].checks = { ...m.sounds[1].checks, hints: ['clap-margin'], described: 'a test description' };
+          const rows = pageOrder(m); // the first and the second row of the page
+          const first = rows[0];
+          rows[1].checks = { ...rows[1].checks, hints: ['clap-margin'], described: 'a test description' };
           first.checks = { ...first.checks, pass: false, failed: ['at least 85 % of the energy below 500 Hz', 'true peak above -1 dBFS'], peakDb: -0.4 };
           await r.fulfill({ response: res, json: m });
         }),
