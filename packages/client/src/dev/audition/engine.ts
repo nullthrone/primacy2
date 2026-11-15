@@ -168,6 +168,8 @@ class Engine {
   private noiseBuffer!: AudioBuffer;
   private buffers = new Map<string, Promise<AudioBuffer>>();
   private soundsById = new Map<string, ManifestSound>();
+  /** Length of each decoded file in seconds, exact to the sample, so that passes laid end to end meet exactly. */
+  private decoded = new Map<string, number>();
   private counts = new Map<string, number>();
   private meterBuf = new Float32Array(2048);
   private opts = { volume: 0.7, cabin: true, limiter: true, radio: true, room: 1 };
@@ -184,6 +186,7 @@ class Engine {
   setSounds(sounds: ManifestSound[]): void {
     this.soundsById = new Map(sounds.map((s) => [s.id, s]));
     this.buffers.clear();
+    this.decoded.clear();
     this.irLoaded.value = false;
     void this.measureUnknown(sounds.filter((s) => !(s.duration > 0)));
   }
@@ -205,7 +208,7 @@ class Engine {
 
   /** Length of a sound: from the manifest, else measured, else 0. */
   lengthOf(s: ManifestSound): number {
-    return s.duration > 0 ? s.duration : (this.measured.value[s.id] ?? 0);
+    return this.decoded.get(s.id) ?? (s.duration > 0 ? s.duration : (this.measured.value[s.id] ?? 0));
   }
 
   /** Seconds after a sound's start at which the next sound of a chain starts: its cue, else 20 ms before its end. */
@@ -481,7 +484,11 @@ class Engine {
           if (!r.ok) throw new Error(`${r.status} ${sound.file}`);
           return r.arrayBuffer();
         })
-        .then((a) => ctx.decodeAudioData(a));
+        .then((a) => ctx.decodeAudioData(a))
+        .then((b) => {
+          this.decoded.set(sound.id, b.duration);
+          return b;
+        });
       p.catch(() => this.buffers.delete(sound.id));
       this.buffers.set(sound.id, p);
     }
@@ -626,7 +633,7 @@ class Engine {
     const lead = squelchOpen ? squelchOpen.duration * 0.7 : 0;
     const start = t0 + lead;
     // Test hook: when each sound was scheduled to start and to end on the audio clock.
-    this.logPlay(sound.id, start, loop ? Infinity : start + buf.duration, multi ? null : azimuth, buf.duration);
+    const playRecord = this.logPlay(sound.id, start, loop ? Infinity : start + buf.duration, multi ? null : azimuth, buf.duration);
 
     const src = ctx.createBufferSource();
     src.buffer = buf;
@@ -635,7 +642,7 @@ class Engine {
     // A loop fades in over FADE. A one-shot (or one pass of a loop file) starts untouched when its buffer starts on
     // silence, else with a short fade, so that a first sample away from zero never clicks; the end is treated alike.
     const edges = this.edgesOf(buf);
-    const fadeIn = BASELINE && !loop ? 0 : loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.max(opts.fadeIn ?? EDGE_IN, 0.001);
+    const fadeIn = BASELINE && !loop ? 0 : loop ? FADE : opts.joinIn || edges.startSilent ? 0 : Math.min(Math.max(opts.fadeIn ?? EDGE_IN, 0.001), buf.duration / 2);
     const fadeOut = BASELINE || loop || opts.joinOut || edges.endSilent ? 0 : Math.min(Math.max(opts.fadeOut ?? EDGE_OUT, 0.001), buf.duration / 2);
     if (fadeIn > 0) {
       g.gain.setValueAtTime(0, t0);
@@ -697,6 +704,7 @@ class Engine {
       stop: () => {
         if (stopped) return;
         const now = ctx.currentTime;
+        playRecord.end = Math.min(playRecord.end, now + FADE + 0.01);
         g.gain.cancelScheduledValues(now);
         g.gain.setValueAtTime(g.gain.value, now);
         g.gain.linearRampToValueAtTime(0, now + FADE);
@@ -710,12 +718,15 @@ class Engine {
   }
 
   /** Test hook: when each sound was scheduled to start and to end on the audio clock. */
-  private logPlay(id: string, start: number, end: number, azimuth: number | null, length: number): void {
-    const w = window as unknown as { __audition?: { plays?: { id: string; start: number; end: number; azimuth: number | null; length: number }[] } };
-    if (!w.__audition) return;
-    const plays = (w.__audition.plays ??= []);
-    plays.push({ id, start, end, azimuth, length });
-    if (plays.length > 4000) plays.shift();
+  private logPlay(id: string, start: number, end: number, azimuth: number | null, length: number): { end: number } {
+    const record = { id, start, end, azimuth, length };
+    const w = window as unknown as { __audition?: { plays?: (typeof record)[] } };
+    if (w.__audition) {
+      const plays = (w.__audition.plays ??= []);
+      plays.push(record);
+      if (plays.length > 4000) plays.shift();
+    }
+    return record;
   }
 
   /** Fire-and-forget one-shot on the radio path, used for the squelch ends. */
@@ -778,9 +789,9 @@ class Engine {
       src.connect(g);
       const placement = this.place(g, this.outputFor(s, false), bufs[i].numberOfChannels > 1, azimuth);
       src.start(when);
-      this.logPlay(s.id, when, Infinity, azimuth, bufs[i].duration);
+      const record = this.logPlay(s.id, when, Infinity, azimuth, bufs[i].duration);
       this.count(s.id, 1);
-      return { src, g, sound: s, placement };
+      return { src, g, sound: s, placement, record };
     });
     const state: GroupVoice['levels'] = sorted.map((s, i) => ({ id: s.id, thrust: points[i], gain: 0 }));
     let lastThrust = thrust;
@@ -808,6 +819,7 @@ class Engine {
         stopped = true;
         const now = ctx.currentTime;
         for (const n of nodes) {
+          n.record.end = Math.min(n.record.end, now + FADE + 0.01);
           n.g.gain.cancelScheduledValues(now);
           n.g.gain.setValueAtTime(n.g.gain.value, now);
           n.g.gain.linearRampToValueAtTime(0, now + FADE);

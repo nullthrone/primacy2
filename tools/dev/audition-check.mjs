@@ -437,6 +437,10 @@ try {
   const TEST_FILES = {
     'test/mono.wav': wav(1, tone),
     'test/left_only.wav': wav(2, tone, silence),
+    // Controls of the capture: a cosine at half scale, so that the first and the last sample are far from zero (a fault
+    // only the page can cause), and a faded tone with a step in the middle (a fault that is in the file itself).
+    'test/edges.wav': wav(1, Float32Array.from({ length: 48000 }, (_, i) => 0.5 * Math.cos((2 * Math.PI * 440 * i) / 48000))),
+    'test/step.wav': wav(1, Float32Array.from({ length: 48000 }, (_, i) => 0.3 * Math.sin((2 * Math.PI * 440 * i) / 48000) * Math.min(1, i / 480, (48000 - i) / 480) + (i >= 24000 ? 0.4 : 0))),
   };
   const testSound = (id, file, extra) => ({
     id,
@@ -634,7 +638,7 @@ try {
     const exit = get('fold_exit')[0];
     assert(Math.abs(jump.start - charge.start - 2) < 0.001, `jump starts ${(jump.start - charge.start).toFixed(4)} s after the charge, the cue is 2`);
     assert(passes.length === 2, `${passes.length} tunnel passes`);
-    assert(Math.abs(passes[1].start - passes[0].end) < 0.001, 'the second tunnel pass does not start where the first ends');
+    assert(Math.abs(passes[1].start - passes[0].end) < 0.00002, 'the second tunnel pass does not start where the first ends, to the sample');
     // The jump may carry a cue of its own in the real manifest; the tunnel starts there, else 20 ms before its end.
     const jumpCue = manifest.sounds.find((x) => x.id === 'fold_jump').cue;
     const jumpLen = jump.end - jump.start;
@@ -849,7 +853,17 @@ try {
     console.log('skip  capture of the real output (AUDITION_CAPTURE=skip)');
   } else {
     const ctxC = await browser.newContext({ viewport: { width: 1280, height: 720 }, locale: 'de-DE' });
-    const pc = await openPage(ctxC);
+    const pc = await openPage(ctxC, {
+      route: async (p) => {
+        await p.route('**/audio-lib/render/test/*.wav', (r) => r.fulfill({ body: TEST_FILES[`test/${new URL(r.request().url()).pathname.split('/').pop()}`], contentType: 'audio/wav' }));
+        await p.route('**/audio-lib/render/manifest.json', async (r) => {
+          const res = await r.fetch();
+          const m = await res.json();
+          m.sounds.push(testSound('test_edges', 'test/edges.wav', { place: 0 }), testSound('test_step', 'test/step.wav', { place: 0 }));
+          await r.fulfill({ response: res, json: m });
+        });
+      },
+    });
     await pc.evaluate(() => (window.__audition.speed = 1));
     await pc.evaluate(() => window.__audition.settled());
     const cm = await pc.evaluate(() => fetch('/audio-lib/render/manifest.json').then((r) => r.json()));
@@ -1001,6 +1015,14 @@ try {
         console.log(`      ${f.origin.padEnd(7)} ${f.where.padEnd(45)} ${f.t.toFixed(3).padStart(7)}  ${f.kind.padEnd(5)}  ${f.size.toFixed(3)}  ${ratio}  ${f.sounds.join(',')}`);
       }
     }
+    await check('capture controls: a tone cut off away from zero is a page fault, a step inside a file is only listed', async () => {
+      const edges = found.filter((f) => f.where.startsWith('test_edges (Stereo)'));
+      const step = found.filter((f) => f.where.startsWith('test_step (Stereo)'));
+      assert(edges.every((f) => f.origin === 'page'), 'a fault of the edge control was blamed on a file');
+      assert(step.some((f) => f.kind === 'click' && f.origin === 'file'), `the step inside test_step was not found and blamed on the file: ${JSON.stringify(step)}`);
+      assert(step.every((f) => f.origin === 'file'), `the page was blamed for a fault of test_step: ${JSON.stringify(step.filter((f) => f.origin === 'page'))}`);
+      console.log(`      controls: test_edges ${edges.length} page faults, test_step ${step.length} file faults`);
+    });
     await check('capture: no click and no clipped sample comes from the page (faults inside a file are only listed)', async () => {
       assert(pageFaults.length === 0, `${pageFaults.length} page faults, the first: ${JSON.stringify(pageFaults.slice(0, 3))}`);
     });

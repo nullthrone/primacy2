@@ -139,7 +139,15 @@ export function fileFaults(id: string): Promise<Raw[]> {
     if (!sound) return Promise.resolve([]);
     p = engine.buffer(sound).then((b) => {
       const all: Raw[] = [];
-      for (let c = 0; c < b.numberOfChannels; c++) all.push(...analyseChannel(b.getChannelData(c), b.sampleRate, c));
+      // A loop is heard going round, so its first 50 ms are appended: a loop point that jumps counts as a fault of the file.
+      const extra = sound.kind === 'loop' ? Math.min(b.length, Math.round(b.sampleRate * 0.05)) : 0;
+      for (let c = 0; c < b.numberOfChannels; c++) {
+        const d = b.getChannelData(c);
+        const x = new Float32Array(d.length + extra);
+        x.set(d);
+        x.set(d.subarray(0, extra), d.length);
+        all.push(...analyseChannel(x, b.sampleRate, c));
+      }
       return all;
     });
     fileCache.set(id, p);
