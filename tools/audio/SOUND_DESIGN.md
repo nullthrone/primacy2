@@ -338,9 +338,29 @@ So dull is not what he rejects (the low boom and every bed are dull), and bright
 asks for (the small metal hits are bright). The rejected events are boxy: one resonance, no
 attack, no depth. Round 3 puts that to the test with the direction samples.
 
-### Round 3 (on the page since 2026-11-15, not yet rated)
+### Round 3, 2026-11-15 (heard the same evening; 7 ratings, none on a direction sample)
 
-What he is asked to judge, at the top of the audition page:
+What he heard is in `assets/audio/rounds/round3.json` (file hashes) and `round3-ratings.json`.
+
+- On the sounds, in the chat: "We are slowly going in the right direction. But everything still
+  sounds too artificial and boring. Are there no better local models for generating audio?" He
+  rated none of the eleven direction samples and chose no direction among A, B and C. So no
+  rule follows from this round: the event sounds are not rendered anew, and the rules for
+  one-shots stay as they are, until there is a way of making sound that he does not hear as
+  artificial. What he approved in every round is recorded sound (the Kenney engines and
+  thrusters, the NASA recordings; `k_engine_large_0` again this round); what he calls artificial
+  is sound made by formula.
+- On the voices: "The voices are really good, but the rhythm of the countdown is still broken.
+  Perhaps the numbers should be recorded one by one and played back deterministically." On the
+  page he rated the five ship-computer lines "close", each with the same note: "the countdown is
+  not really counted in seconds, the gaps are irregular and shorter". Four stars for the Qwen3
+  computer line; the Qwen3 dock line "close" without a note. He named no model as the one to
+  take, and did not say whether the preset voices of undocumented origin count as artificial.
+- What follows for speech: anything that must keep time (a countdown) is not left to the
+  model's own rhythm. The words are single clips and a clock places them. A sample of that went
+  onto the page after this round.
+
+What he was asked to judge, at the top of the audition page:
 
 - Eleven direction samples (category `pilot`). Hull hit, thruster pulse and landing gear, each in
   three answers: A metal or machinery, B larger than life as a film would do it, C dark but with
@@ -355,5 +375,6 @@ What he is asked to judge, at the top of the audition page:
 - Every download changed (level, edges, loops), so his round-2 verdicts on downloads show as
   given on an older file.
 
-His choice among the direction samples becomes the rule for one-shots of the structure and energy
-paths; the event sounds are then rendered anew, and the samples are removed.
+The plan had been that his choice among the direction samples becomes the rule for one-shots of
+the structure and energy paths. He made no choice (see above); the samples stay on the page
+until the question of how the sounds are made is settled.

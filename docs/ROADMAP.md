@@ -283,20 +283,23 @@ light effects "fairly well". To do, in his order of weight:
     the band at 70 to 110 m. From 2 km the picture is the same as before. Quality 0 draws grain
     and craters without stones.
 
-  Cost at 3840x2160 on the RTX 5080. Plating and cockpit were measured on 2026-11-14 by the
-  worker that built them (a second worker used the same card at times): plating 0.2 to 0.3 ms per
-  frame with a station filling the view and nothing measurable on small ships and asteroids; the
-  cockpit 0.4 to 0.5 ms with its lamps (2.1 ms before, 2.5 to 2.6 after). On 2026-11-15 other
-  programs were using the card: four samples around the measurements read 36 to 81 % load with
-  nothing of this work running, and a sky scene that this work did not touch took 3.2 ms against
-  2.1 ms the day before. The times of that day are too high by a factor that changes from minute
-  to minute, and only the comparison within one run counts. Planets, old shader and new in turns: a ship over an ocean
-  planet 13.1 ms before and 8.4 after, an earth-like planet from 1.15 radii 17.1 and 13.7 (work
-  that is hidden is now skipped, which saves more than the detail costs), a gas giant 5.4 and
-  6.1, a rocky body 6.0 and 6.8. Ground, detail off and on within one page: landed 6.9 and
-  7.5 ms; 30 m up and looking down by 30 degrees 3.9 and 4.8 ms in one run and 7.4 and 11.9 ms in
-  another under more load. That view is over what the ground detail was meant to cost (0.5 ms)
-  and has to be measured again on an idle card.
+  Cost at 3840x2160 on the RTX 5080, in ms per frame. The "after" values were measured again on
+  the evening of 2026-11-15 on an idle card (4 % load before the run); the "before" values come
+  from the workers, who measured old and new in turns.
+  - Plating: 0.2 to 0.3 with a station filling the view (2.4 in all), nothing measurable on small
+    ships and asteroids (an asteroid field 2.5).
+  - Cockpit: 0.4 to 0.5 with its lamps (2.1 before, 2.6 after).
+  - Planets: a ship over an ocean planet 13.1 before and 8.5 after (7.6 at quality 1), an
+    earth-like planet from 1.15 radii 17.1 and 13.7. Work that is hidden is now skipped, which
+    saves more than the detail costs. A gas giant 5.4 and 6.1, a rocky body 6.0 and 6.8 (the
+    workers' values, not measured again). Frame times are even: the 99th percentile lies within
+    12 % of the median.
+  - Ground, detail switched off and on within one page: landed 3.23 and 3.54 (+0.31); 30 m up
+    and looking down by 30 degrees 3.57 and 4.31 (+0.74), which is more than the 0.5 the detail
+    was meant to cost. The tier of quality 0 costs +0.20 and +0.44 in the same two views.
+
+  A measurement an hour earlier, while other programs held the card at 36 to 81 %, read up to
+  four times these values; see section 5 for how to tell.
 - After his next test he wants to be asked what to improve in light, sky and textures, with
   proposals of what more is possible.
 
@@ -448,8 +451,8 @@ Defects seen and left in:
 - The ground near the ship, after the detail of 2026-11-15: the stones are painted, so the ship
   neither touches them nor is hidden by them, and a large one seen from close by is a block with
   a flat top. From the cockpit the ground beyond about 30 m stays smooth. The edge of a base's
-  apron is hard against the new grain. What the detail costs in a low approach is not settled
-  (see the first play session).
+  apron is hard against the new grain. In a low approach the detail costs 0.74 ms per frame at
+  3840x2160, more than the 0.5 ms it was meant to.
 - After a hard landing dark streaks fan across the sky (probably the dust burst).
 - The ground casts no shadows on itself: no long crater and hill shadows at the terminator.
 - A pale disc of 800 m radius around every base at noon (the pad's fixed tone); ice ridges read
@@ -481,10 +484,10 @@ Defects seen and left in:
   radii the clouds are softer than from a ship in low orbit, and at 1600x900 with quality 1 the
   cloud deck has texture of one scale only. Quality 0 keeps the old surface. Ice bodies with an
   atmosphere, the lights of the night side and everything on the baked maps are untouched.
-- A planet that fills the view is the most expensive picture of the game: at 3840x2160 a ship
-  over an ocean planet took about twice as long per frame as a station filling the view in the
-  same run (15.4 against 7.2 ms on 2026-11-15, on a card that other programs were using). Not
-  measured on an idle card, and nobody has looked at what it means on a weak one.
+- A planet that fills the view is the most expensive picture of the game: at 3840x2160 on the
+  RTX 5080 a ship over an ocean planet takes 8.5 ms per frame and an earth-like planet from 1.15
+  radii 13.7 ms, against 2.4 ms for a station filling the view. That is less than before the
+  close-up work, but nobody has looked at what it means on a weak graphics card.
 - The stars of the neighbouring systems are still soft discs without rays; only the sun of the
   system and the brightest points of the sky have the new glare.
 - The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
@@ -603,6 +606,11 @@ Other notes:
   `npm run dev:client`, port given as `5173:` in front of the url). It switches the frame limit
   off and reads a pixel back after every frame, so the interval is what CPU and graphics card need
   together; without the read-back the browser only queues frames and the number says nothing.
+  The card must be idle: sample `nvidia-smi --query-gpu=utilization.gpu,power.draw --format=csv`
+  before the run and measure a scene the change did not touch in the same run
+  (`space.html?scene=menu&clock=20` takes 1.3 ms at 3840x2160 on the RTX 5080). The owner's
+  browser and the tests of other sessions load the card, and on 2026-11-15 that read as up to
+  four times the true frame time.
 - The HUD's direction indicators and the station screen without a server:
   `node tools/dev/orient-check.mjs` (own Vite server, screenshots in `screenshots/orient/`), on the
   page `/dev/local.html?scene=orient&hud=1&cam=cockpit&universe=16`; `sys=1` is a system with 19
