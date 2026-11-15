@@ -166,17 +166,15 @@ try {
     assert(banner === (manifest.placeholder ? 1 : 0), 'placeholder banner does not match the manifest');
   });
 
-  await check('the category "pilot" is the first one and has its German name (when the manifest has it)', async () => {
-    if (!manifest.categories.some((c) => c.id === 'pilot') || !manifest.sounds.some((x) => x.category === 'pilot')) {
-      console.log('      (the manifest has no pilot category yet: skipped)');
-      return;
-    }
-    assert(manifest.categories[0].id === 'pilot', `the manifest lists "${manifest.categories[0].id}" first`);
+  await check('the first category of the manifest is the first on the page and has its German name', async () => {
+    const firstCat = manifest.categories.find((c) => manifest.sounds.some((x) => x.category === c.id));
+    assert(firstCat, 'the manifest has no category with a sound');
+    assert(manifest.categories[0].id === firstCat.id, `the manifest lists "${manifest.categories[0].id}" first, which has no sound`);
     const first = page.locator('section.cat').first();
-    assert((await first.getAttribute('id')) === 'cat-pilot', `the first category on the page is ${await first.getAttribute('id')}`);
+    assert((await first.getAttribute('id')) === `cat-${firstCat.id}`, `the first category on the page is ${await first.getAttribute('id')}, the manifest lists ${firstCat.id} first`);
     // The heading is set in capitals by the style sheet; the text itself is the German name.
     const title = (await first.locator('h2').textContent()) ?? '';
-    assert(title.startsWith('Richtungsproben (Runde 3)'), `the first category is called "${title}"`);
+    assert(title.startsWith(firstCat.de), `the first category is called "${title}", expected "${firstCat.de}"`);
   });
 
   await check('default language follows the browser (de-DE) and the switch works', async () => {
