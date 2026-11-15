@@ -1,0 +1,146 @@
+{
+  "role": "page",
+  "status": "done",
+  "summary": "Struck NASA speech removed from the page; the page's real output is now recorded and analysed by the check; limiter replaced by a measured, make-up-free safety limiter with a latched OVER lamp; page-caused clicks repaired. Final check: 50 passed, 0 failed, 0 faults caused by the page, 44 fault entries that are inside sound files (listed, not failed).",
+  "filesChanged": [
+    "packages/client/src/dev/audition/engine.ts",
+    "packages/client/src/dev/audition/scenes.ts",
+    "packages/client/src/dev/audition/sceneRunner.ts",
+    "packages/client/src/dev/audition/App.tsx",
+    "packages/client/src/dev/audition/strings.ts",
+    "packages/client/src/dev/audition/capture.ts (new)",
+    "packages/client/src/dev/audition/audition.test.ts (new)",
+    "tools/dev/audition-check.mjs"
+  ],
+  "before_repairs_table": {
+    "how": "Same check with a temporary switch (?baseline=1, since removed) that put back the old behaviour: no fades on one-shots, no joins, default compressor. Not byte-for-byte the old page: the hiss ramp, the rewire-only-on-limiter-switch change, the 30 ms start lead and the loop setGain fix were not switched. The first two baseline runs missed sound starts because the recorder began asynchronously; the table below is the third run (recorder waits for its first block).",
+    "page_faults": [
+      {
+        "where": "fold_jump (Stereo, Mono, Headphones) and every fold scene run",
+        "time_s": "0.011 to 0.030 after start (about 11.9 s into each fold chain)",
+        "kind": "click",
+        "size": 0.062,
+        "cause": "fold_jump buffer starts away from zero and played at full gain with no fade"
+      },
+      {
+        "where": "test_edges control (first and last sample at half scale)",
+        "time_s": "0.030 and 1.030",
+        "kind": "click",
+        "size": 0.33,
+        "cause": "no fade at start or end (control, by design)"
+      },
+      {
+        "where": "n_laser_shots (Stereo)",
+        "time_s": "10 clicks, 0.057 to 9.726",
+        "kind": "click",
+        "size": "0.14-0.27",
+        "cause": "Reported as page in that run only because the file match then used the strict file limits; with the looser file limits used in the final check the same clicks are the file's own (steps in the recording). Not re-run under the old behaviour."
+      }
+    ],
+    "limiter": "default compressor lifted a -20 dBFS sine by +3.55 dB",
+    "clipped_samples": "none found in any run (limiter on)",
+    "file_faults_listed": "fold_jump (0.17 s, 1.65 s), fold_exit (1.66 s, size 0.25, ratio 187), impact_shield_light/medium/heavy, pilot_shield_a, pilot_gear_a"
+  },
+  "after_repairs_table": {
+    "page_faults": [],
+    "controls": "test_edges 0 page faults (was 4 under old behaviour), test_step 4 file faults, none blamed on the page",
+    "file_faults_listed_for_the_library_agent": [
+      {
+        "sound": "fold_exit",
+        "times_s": [
+          1.66,
+          2.29
+        ],
+        "size": "0.17 / 0.05",
+        "note": "largest: ratio about 187 against its surroundings"
+      },
+      {
+        "sound": "fold_jump",
+        "times_s": [
+          0.17,
+          1.65
+        ],
+        "size": 0.07
+      },
+      {
+        "sound": "impact_shield_light",
+        "times_s": [
+          0.14
+        ],
+        "size": 0.34
+      },
+      {
+        "sound": "impact_shield_medium",
+        "times_s": [
+          0.415,
+          0.574
+        ],
+        "size": 0.065
+      },
+      {
+        "sound": "impact_shield_heavy",
+        "times_s": [
+          1.007,
+          1.048,
+          1.524
+        ],
+        "size": "0.07-0.11"
+      },
+      {
+        "sound": "pilot_shield_a",
+        "times_s": [
+          0.357,
+          0.532,
+          0.585
+        ],
+        "size": "0.06-0.14"
+      },
+      {
+        "sound": "n_laser_shots",
+        "times_s": "about every second, 11 s",
+        "size": "0.1-0.18",
+        "note": "steps in the NASA recording itself"
+      }
+    ]
+  },
+  "repairs": [
+    "Task 1: the three radio speech buttons, their three script steps, RAW_SPEECH_GAIN and the n_sts id in the check are gone (script keeps one radio tone at 3 s); the via-radio filter stays.",
+    "Fade-in of 3 ms for a voice whose first sample is above 0.002, fade-out of 5 ms before the end of a one-shot whose last sample is above 0.002 (untouched attack where the file starts on silence); both capped at half the buffer; squelch one-shots and the radio hiss are treated alike.",
+    "Chained passes: an exact butt joint for passes of one periodic file (no fade either side, start planned from the decoded length), a linear crossfade over the overlap for chained sounds that overlap by about CHAIN_OVERLAP, long designed overlaps untouched.",
+    "Start lead raised from 5 ms to 30 ms: currentTime is stale by one audio callback, and a start plus fade-in scheduled in the past was applied at once, which made loud loop starts (cruise_loop) click in the full run although not in isolation.",
+    "setGain of a voice never schedules inside its fade-in ramp (a target curve inside a ramp makes the gain jump).",
+    "Task 3: limiter = DynamicsCompressor (-2 dB, knee 0, ratio 20, attack 1 ms, release 0.1 s) followed by a gain that cancels its make-up gain, measured at start-up in an OfflineAudioContext (measured 1.14 dB). A -20 dBFS sine passes with -0.000 dB; a +6 dBFS sine leaves at -1.42 dBFS after 20 ms. Header comment of engine.ts updated. Latched OVER lamp (#over-lamp) next to the meter, lit at 0.999 after the limiter, stays until clicked, German and English titles.",
+    "Wiring is changed only when the limiter is switched, not on every slider move."
+  ],
+  "task4": "Check confirms the first category on the page is cat-pilot, titled Richtungsproben (Runde 3); it skips when the manifest has no pilot category. It ran against the real manifest (pilot present, 11 sounds) and passed.",
+  "checks": [
+    {
+      "name": "tsc",
+      "command": "npx tsc -p packages/client --noEmit",
+      "result": "no errors"
+    },
+    {
+      "name": "vitest",
+      "command": "npx vitest run packages/client/src/dev",
+      "result": "1 file, 9 tests passed (new audition.test.ts: bufferEdges, analyseChannel, crossfadeWeights, scenes)"
+    },
+    {
+      "name": "audition check",
+      "command": "AUDITION_URL=http://localhost:5193/dev/audition.html AUDITION_RATINGS_FILE=<scratch> node tools/dev/audition-check.mjs against my own vite on 5193",
+      "result": "50 passed, 0 failed; 0 page faults; the check fails when a page fault exists (seen: 3 failed in the baseline run)"
+    }
+  ],
+  "notVerified": [
+    "Nothing was listened to; the clicks are detected in a headless Chromium recording, not heard.",
+    "The click criterion misses clicks hidden in dense material (it needs a step above 0.05 and 8 times the surrounding 99.9th percentile); the room tail hides some, which is why the controls are played with Room 0.",
+    "The cruise_loop start click and its fix (30 ms lead) are explained by timing, confirmed only in that the full run went from 2 page faults to 0; it is timing dependent and was not proven in isolation.",
+    "Live stage switching mid-sound (rebuild of the panning chain) was not checked for clicks.",
+    "Windows only; headless audio device; the page was not checked in a headed browser."
+  ],
+  "notes": [
+    "The existing CLIP lamp (3 s) is kept next to the new OVER lamp (latched).",
+    "Env switches of the check for trying it: AUDITION_CAPTURE=skip, AUDITION_CAPTURE_ONLY=id,id, AUDITION_CAPTURE_SCENES=fold,none, AUDITION_CAPTURE_LIMIT=n. The full capture takes about 17 minutes.",
+    "Docking scene: its scripted radio steps are removed, so the scripted run changed.",
+    "My dev server on 5193 is stopped; the owner's 5190 was not touched; no ratings file was written."
+  ]
+}
