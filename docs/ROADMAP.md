@@ -274,15 +274,27 @@ light effects "fairly well". To do, in his order of weight:
     giants get fine structure sheared along their bands; the glow of a lava planet resolves into
     rafts with glowing seams; rocky bodies get small craters. From 3.1 radii outward the picture
     is the same as before (compared at a frozen clock).
-  - The ground while landing: in work on 2026-11-15.
+  - The ground while landing (`packages/client/src/render/local/terrain/material.ts`): from about
+    100 m down to standing on it the ground has grain at five sizes from 6 cm to 16 m (a noise
+    texture made in code), soft craters of 0.6 to 3.8 m, patches of tone, and stones of 10 to
+    80 cm across, most of them small, that stand up, cast a shadow and show their flank to a low
+    camera; close to the camera lies flat gravel. All of it is shading: the surface the ship lands
+    on has not moved. Each size fades by the size of a pixel on the ground, which also removed
+    the band at 70 to 110 m. From 2 km the picture is the same as before. Quality 0 draws grain
+    and craters without stones.
 
-  Cost at 3840x2160 on the RTX 5080, measured by the workers that built each part: plating
-  0.2 to 0.3 ms per frame with a station filling the view and nothing measurable on small ships
-  and asteroids; the cockpit 0.4 to 0.5 ms with its lamps. A planet that fills the view was and is
-  the most expensive picture of the game: 5 to 17 ms before, 6 to 14 ms after. The new detail
-  costs an estimated 2 to 3 ms there, and skipping work that is hidden saves more than that on
-  planets with clouds (a ship over an ocean planet 13.1 ms before and 8.4 ms after; an earth-like
-  planet from 1.15 radii 17.1 and 13.7; a gas giant 5.4 and 6.1; a rocky body 6.0 and 6.8).
+  Cost at 3840x2160 on the RTX 5080. Plating and cockpit were measured on 2026-11-14 with the
+  card to itself: plating 0.2 to 0.3 ms per frame with a station filling the view and nothing
+  measurable on small ships and asteroids; the cockpit 0.4 to 0.5 ms with its lamps (2.1 ms
+  before, 2.5 to 2.6 after). On 2026-11-15 other programs held the card at about 65 % during
+  every measurement, so the times of that day are too high by an unknown factor and only the
+  comparison within one run counts. Planets, old shader and new in turns: a ship over an ocean
+  planet 13.1 ms before and 8.4 after, an earth-like planet from 1.15 radii 17.1 and 13.7 (work
+  that is hidden is now skipped, which saves more than the detail costs), a gas giant 5.4 and
+  6.1, a rocky body 6.0 and 6.8. Ground, detail off and on within one page: landed 6.9 and
+  7.5 ms; 30 m up and looking down by 30 degrees 3.9 and 4.8 ms in one run and 7.4 and 11.9 ms in
+  another under more load. That view is over what the ground detail was meant to cost (0.5 ms)
+  and has to be measured again on an idle card.
 - After his next test he wants to be asked what to improve in light, sky and textures, with
   proposals of what more is possible.
 
@@ -404,15 +416,14 @@ Each step is one work session with its own workflow runs.
 2. **First-play feedback** (see the list above). Two parts, both on the strongest model. Light and
    sky: star glare and rays, the sky box, textures, cruise streaks hidden by the cockpit; this
    touches only `packages/client/src/render` and can run beside step 1. Of it the streaks, the
-   light and the sky are built (2026-11-14) and wait for the owner's next test; of the textures
-   the hulls, the cockpit, the asteroids and the planets from close up are built (2026-11-15) and
-   wait for the same test, the ground while landing is in work. Orientation (a target that is chosen without opening a panel, an indicator that
+   light and the sky are built (2026-11-14) and wait for the owner's next test; the textures are built
+   (2026-11-15) and wait for the same test. Orientation (a target that is chosen without opening a panel, an indicator that
    always leads back to it, the system's contents on the HUD, one window size for the station
    menus) is built (2026-11-14) and waits for the owner's next test. The radar sphere, the last
    part of what he chose for it, is built as well (2026-11-14) and waits for the same test.
-3. **Docking.** Starts with two graphics repairs that landing on a pad by eye depends on: the
-   ground near the ship is soft and smeared (see section 4), and the dust burst of a hard landing
-   draws streaks across the sky. Then the core (clearance, pads, lift, autopilot, the turning ring
+3. **Docking.** Starts with a graphics repair that landing on a pad by eye depends on: the dust
+   burst of a hard landing draws streaks across the sky. (The other one, the soft ground near the
+   ship, was done with the textures on 2026-11-15.) Then the core (clearance, pads, lift, autopilot, the turning ring
    station as a co-rotating frame, gate ids), the ring station model with an interior, police,
    customs, fines and debt, NPC docking.
 4. **The world lives.** NPC behaviour, freighters and events, interdiction, faction reputation.
@@ -432,8 +443,11 @@ downgrade.
 
 Defects seen and left in:
 
-- The ground near the ship (300 m and below, and landed) looks soft and smeared at high sun, while
-  the base is sharp. The small relief also ends in a visible band 70 to 110 m from a low camera.
+- The ground near the ship, after the detail of 2026-11-15: the stones are painted, so the ship
+  neither touches them nor is hidden by them, and a large one seen from close by is a block with
+  a flat top. From the cockpit the ground beyond about 30 m stays smooth. The edge of a base's
+  apron is hard against the new grain. What the detail costs in a low approach is not settled
+  (see the first play session).
 - After a hard landing dark streaks fan across the sky (probably the dust burst).
 - The ground casts no shadows on itself: no long crater and hill shadows at the terminator.
 - A pale disc of 800 m radius around every base at noon (the pad's fixed tone); ice ridges read
@@ -465,8 +479,10 @@ Defects seen and left in:
   radii the clouds are softer than from a ship in low orbit, and at 1600x900 with quality 1 the
   cloud deck has texture of one scale only. Quality 0 keeps the old surface. Ice bodies with an
   atmosphere, the lights of the night side and everything on the baked maps are untouched.
-- A planet that fills the view costs 6 to 14 ms per frame at 3840x2160 on the RTX 5080. Nobody
-  has looked at what that means on a weak graphics card.
+- A planet that fills the view is the most expensive picture of the game: at 3840x2160 a ship
+  over an ocean planet took about twice as long per frame as a station filling the view in the
+  same run (15.4 against 7.2 ms on 2026-11-15, on a card that other programs were using). Not
+  measured on an idle card, and nobody has looked at what it means on a weak one.
 - The stars of the neighbouring systems are still soft discs without rays; only the sun of the
   system and the brightest points of the sky have the new glare.
 - The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
@@ -541,8 +557,11 @@ Never verified:
   target and the final pass reads it in its vertex shader: tried in Chromium only.
 - The surfaces of 2026-11-15 in motion: whether plates and grain shimmer or pop as they fade with
   distance, whether the relief of the clouds crawls and their shadows slide as a planet comes
-  near, the limb of ocean worlds and giants from low orbit. Judged from still pictures of the dev
-  pages only. Wrecks, pods, missiles and beacons were not looked at in full size.
+  near, the limb of ocean worlds and giants from low orbit, whether grain and stones of the ground
+  shimmer during a descent. Judged from still pictures of the dev pages only. Wrecks, pods,
+  missiles and beacons were not looked at in full size. Also not looked at: the ground from 2 km
+  at 3840x2160, the grain texture after a lost WebGL context, quality 0 on a weak card (it used
+  to draw no ground detail and now draws grain and craters).
 - Any sound by ear, except what the owner rated (49 of 114 after round 2; the direction samples
   and the voice samples of round 3 not yet). Every other judgement of the sound library and of
   the speech models comes from measurements, spectrogram pictures and models that listen.
