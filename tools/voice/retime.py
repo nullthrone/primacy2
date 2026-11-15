@@ -247,7 +247,8 @@ def audit_runs() -> list[dict]:
     loads: dict[str, dict] = {}
     if log.exists():
         cur = None
-        for ln in log.read_text(encoding="utf-8", errors="replace").splitlines():
+        text = re.sub(r"MiB\s+\]", "MiB ]", log.read_text(encoding="utf-8", errors="replace"))  # nvidia-smi output broke some lines
+        for ln in text.splitlines():
             m = re.match(r"== (\S+) (\S+) queued (\S+) cpu=(\d+)% gpu=\[(\d+) %, (\d+) MiB \]", ln)
             if m:
                 cur = (m.group(1), m.group(2))
@@ -259,8 +260,8 @@ def audit_runs() -> list[dict]:
     out = []
     for p in sorted(AUDIT_DIR.glob("*.json")):
         stem = p.stem
-        base, _, rep = stem.partition("_")
-        key, _, dev = base.partition("__")
+        key, _, rest = stem.partition("__")
+        dev, _, rep = rest.partition("_")
         t = json.loads(p.read_text(encoding="utf-8"))
         ls = t.get("lines", {})
         l = loads.get((key, dev)) if not rep else None
