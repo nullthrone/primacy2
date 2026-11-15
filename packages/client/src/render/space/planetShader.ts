@@ -322,21 +322,29 @@ Surf surface(vec3 nb, vec3 sunB) {
   float heat = clamp(crack * 0.8 + fine * 0.35 + seas * (0.15 + 0.75 * churn * churn), 0.0, 1.0);
   float geo = dot(nb, sunB);
   vec4 f = fineNoise(nb, FINE, gSlant, 0.7);
+  // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between:
+  // 'lit' is the share of the far glow that this spot gives off. Over any stretch of crust it
+  // comes to one, so the planet glows as much, and in the same colour, as it does from afar.
+  // A molten sea gathers nearly all of its light into the seams; a crack, narrow as it is, less.
+  float lit = 1.0;
   if (gNear > 0.0) {
-    // What glows evenly from afar is, close up, a crust of rafts with fire in the seams between.
     float seams = smoothstep(0.60, 0.80, ridged(nb * 46.0 + w * 2.0 + uSeed, 3) + 0.05 * f.y);
-    heat = clamp(heat * mix(1.0, 0.20 + 1.20 * seams, gNear), 0.0, 1.0);
+    float molten = seas * (0.15 + 0.75 * churn * churn);
+    float share = molten / max(molten + crack * 0.8 + fine * 0.35, 1e-4);
+    lit = mix(1.0, mix(0.50 + 2.2 * seams, 0.06 + 4.1 * seams, share), gNear);
   }
+  // A raft is cooled crust: dark, and with relief in the sunlight.
+  float cool = heat * min(lit, 1.0);
   float crust = fbm(p * 6.0, uOct);
-  s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * heat);
+  s.albedo = mix(vec3(0.035, 0.032, 0.03), uBase * 0.55 + 0.02, clamp(0.5 + crust, 0.0, 1.0)) * (1.0 - 0.7 * cool);
   s.albedo *= clamp(1.0 + 0.22 * f.x, 0.5, 1.6);
   float flick = 0.88 + 0.12 * gnoise(p * 5.0 + vec3(uTime * 0.2));
   vec3 glow = mix(vec3(0.9, 0.06, 0.0), vec3(2.2, 0.55, 0.04), smoothstep(0.15, 0.6, heat));
   glow = mix(glow, vec3(5.0, 2.6, 0.7), smoothstep(0.6, 1.0, heat));
-  s.emission = glow * heat * heat * flick * 1.1;
+  s.emission = glow * heat * heat * flick * 1.1 * lit;
   s.height = crust * 0.25 + plates * 0.15 - (crack * 0.9 + fine * 0.45) * 0.4;
   // The relief shows on sunlit crust only: not under the glow, not in the night.
-  s.bump = heat < 0.8 && geo > -0.35 ? 1.2 : 0.0;
+  s.bump = cool < 0.8 && geo > -0.35 ? 1.2 : 0.0;
   return s;
 }
 #elif TYPE == 3
@@ -562,33 +570,38 @@ Surf surface(vec3 nb, vec3 sunB) {
   float b1 = sin(v * 3.14159);
   float b2 = sin(v * 1.37 + uSeed * 2.0);
   float b3 = sin(v * 5.2 + 1.0 + uSeed);
-  // Close up there is fine structure in the deck: laid out along the bands and bent by two slow
-  // swirls into filaments and curls. The turbulence between the bands also stands out more than
-  // a planet seen whole could show.
+  // Close up there is fine structure in the deck, and the flow of the bands shapes it: drawn
+  // out along the latitudes, carried along by each band at its own speed, which slants it into
+  // filaments and festoons, and curled into eddies where two bands rub. The turbulence between
+  // the bands also stands out more than a planet seen whole could show.
   float fine = 0.0;
   vec2 curl = vec2(0.0);
+  float drift = 0.0;
   float reach = 1.0 - smoothstep(0.30, 0.50, gSlant * uView * FINE);
   if (reach > 0.0) {
-    vec3 wq = vec3(nr.x * 22.0, lat * 40.0, nr.z * 22.0) + so;
-    curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.025 * reach);
+    float rub = 1.0 - abs(b1);
+    vec3 wq = vec3(nr.x * 14.0, lat * 26.0, nr.z * 14.0) + so;
+    curl = vec2(gnoise(wq), gnoise(wq + 37.0)) * (0.03 * reach * (0.25 + 0.75 * rub * rub));
+    drift = 0.035 * reach * cos(v * 3.14159);
   }
   vec3 east = vec3(-nr.z, 0.0, nr.x);
-  vec3 q = vec3(nr.x, lat * 1.8, nr.z) + east * curl.x + cross(nr, east) * curl.y;
+  vec3 q = vec3(nr.x, lat * 3.2, nr.z) + east * (curl.x + drift) + cross(nr, east) * curl.y;
   vec3 qx = dFdx(q), qy = dFdy(q);
   float qfoot = uFine > 0.0 ? uFine * max(length(qx), length(qy)) : 1e3;
   if (qfoot * uView * FINE < 0.36) {
-    vec4 f = fineNoise(q, FINE, qfoot, 0.78);
-    fine = 0.8 * f.x + 0.15 * f.y;
+    // More of it where the deck is turbulent, less where it lies calm.
+    float lively = 0.45 + 1.1 * clamp(0.5 + 1.5 * t3, 0.0, 1.0);
+    fine = lively * fineNoise(q, FINE, qfoot, 0.65).x;
     // The relief of the deck shows where the sun stands low over it; one more sample tells
     // which way the tops slope.
     float geo = dot(nb, sunB);
     float low = gNear * (1.0 - smoothstep(0.30, 0.55, geo));
     if (low > 0.0 && geo > -0.1) {
-      vec4 fSun = fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.78);
-      s.shade = clamp(1.0 - 0.16 * low * (0.8 * fSun.x + 0.15 * fSun.y - fine), 0.85, 1.1);
+      float fineSun = lively * fineNoise(q + qx * gSunPix.x + qy * gSunPix.y, FINE, qfoot, 0.65).x;
+      s.shade = clamp(1.0 - 0.14 * low * (fineSun - fine), 0.87, 1.08);
     }
   }
-  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.10 * (0.4 + 0.6 * contrast) * fine;
+  float turb = (t3 * 0.6 + t4 * 0.45) * contrast * (1.0 + 1.3 * gNear) + 0.08 * (0.4 + 0.6 * contrast) * fine;
   float zone = clamp(0.5 + 0.42 * b1 + 0.2 * b3 + turb, 0.0, 1.0);
   zone = mix(zone, smoothstep(0.15, 0.85, zone), 0.6);
   float luma = dot(uBase, vec3(0.3333));
@@ -608,7 +621,7 @@ Surf surface(vec3 nb, vec3 sunB) {
   }
   col = mix(col, uBase * vec3(0.55, 0.62, 0.75), smoothstep(0.72, 0.98, abs(lat)) * 0.6);
   // The fine structure also shows inside a zone or a belt, where the banding itself is even.
-  s.albedo = col * (1.0 + 0.07 * (0.4 + 0.6 * contrast) * fine);
+  s.albedo = col * (1.0 + 0.05 * (0.4 + 0.6 * contrast) * fine);
   s.limb = 0.9;
   return s;
 }

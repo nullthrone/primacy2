@@ -101,16 +101,27 @@ voice is missing; the speech file is made in a temporary folder and deleted).
 without downloading, `--credits` rewrites `CREDITS.md`). Recorded speech is not used: the owner
 struck all NASA voice recordings on 2026-11-15 ("voices are generated"); the entries are listed
 under `notTaken`, and a test fails if an entry marked as speech is left in `downloads.json` or in
-`selection.json`.
+`selection.json`. The two Quindar recordings went the same day: their excerpts carried
+flight-controller speech (Whisper read it back although the mark said none). Whisper
+(`listen/transcribe.py`) was run on every remaining processed NASA file; a word in the result
+strikes the file, and marks in `downloads.json` come from titles, not from listening.
 
 `build.py` writes every download of `selection.json` as a processed copy
 `<out>/downloads/<id>.wav` (with a spectrogram) and the manifest points to that copy
 (`process_download`, tested in `tests/test_downloads_build.py`): excerpt, at most two channels,
-48 kHz, 16 bit; a one-shot gets an 8 ms fade in and a 30 ms fade out (raised cosine) where its
-first or last millisecond is above -60 dBFS, a loop gets none and its seam is measured
+48 kHz, 16 bit. The recording is never multiplied at its start, so no attack is lost: where a
+one-shot's first SAMPLE is above -60 dBFS (a real step) a lead-in of 1.5 ms is put in front (raised
+cosine from zero to that sample, per channel, `checks.leadInMs`); where its last millisecond is above
+-60 dBFS the last 30 ms are faded out (raised cosine). A loop gets neither: its tail is crossfaded
+into its head with equal power (300 ms or a tenth of the file, whichever is less, so the file is
+that much shorter and its last sample runs into its first; `checks.loopCrossfadeMs`), and where the
+first and last 50 ms still differ by more than 2 dB in level the start is moved to the wrap point,
+on a 10 ms grid, where they differ least (`checks.loopStartMs`). The seam is measured
 (`loop-seam` in `checks.failed`); clipping of the source is counted (`checks.sourceClipped`, flag
 `source-clipped`; runs of three or more samples within 0.1 % of the maximum, magnitudes above
 full scale counted as full scale; a loud low sine can trip it); the level comes from
 `DOWNLOAD_TARGETS` (short one-shots by true peak, longer ones and loops by LUFS, ceiling
--1 dBFS true peak). The manifest entry carries the real duration and channels and the same
+-1 dBFS true peak; a long one-shot is an event and does not get the level of a bed, see the table).
+`checks.level.gainDb` is the gain that was applied and `requestedGainDb` the one the target asked
+for; they differ where the ceiling limited it (`limited`). The manifest entry carries the real duration and channels and the same
 measured numbers as a rendered sound.
