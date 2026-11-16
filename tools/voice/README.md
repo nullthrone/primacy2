@@ -74,3 +74,23 @@ it):
 Numbers sort the field. Whether a voice is right is the owner's judgement: the lines marked
 `listen` go onto the audition page, radio lines through the radio loudspeaker filter
 (`tools/audio/synth/radio.py`).
+
+## The countdown
+
+`countdown.py` makes four listening samples of a countdown on an exact one-second grid (a sample, not
+the game's runtime): the numbers "five" to "one" are spoken apart or cut out of one spoken line and
+placed by computer, so that the vowel onsets lie 48,000 samples apart. Run it from the repository
+root with the environment of the sound library:
+
+    .venv-audio/Scripts/python.exe tools/voice/countdown.py all
+    .venv-audio/Scripts/python.exe tools/voice/countdown.py compose
+
+The argument is one stage or `all`: `generate`, `analyse`, `embed`, `compose`, `embed2`, `measure`
+(in this order); `--force` makes `generate` speak again where takes exist. `all` runs the stages as
+separate processes, each model run through the lock, so the driver itself is not started under it.
+`generate` starts `say_qwen3.py` and `say_chatterbox-nano.py` in the voice `computer`. It writes
+under `assets/audio/voice/_countdown/` (ignored by git): the takes in `raw/<model>/`, cut pieces and
+embeddings in `work/<model>/`, `analysis_<model>.json` and `originals.json`, the four samples as
+`<model>__<variant>.wav` with a `.json` each (the takes chosen, the anchors, the loudness), and
+`measure.json`, the blind re-measurement of the finished files. What was measured and what was not:
+`RESULTS.md`, section "Countdown on a one-second grid". Nobody has heard the samples.

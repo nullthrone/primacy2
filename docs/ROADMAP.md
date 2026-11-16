@@ -25,16 +25,31 @@ Built on 2026-11-14 and played in the browser with a simulated controller by
 `scripts/pad-check.mjs` (114 checks): controller support for flight, menus, station screens, maps
 and a binding screen. No real controller has been used yet.
 
-Built on 2026-11-14 beside the game and not yet in it: the sound library (on 2026-11-15: 75 sounds
-rendered by scripts, eleven of them direction samples for the owner to choose between, and 33
-downloaded files with a licence list) and the audition page on which the owner listens and rates.
-The game itself still plays the old procedural sound. Since 2026-11-15 there is also a comparison
-of five open speech models (`tools/voice`), with twenty voice samples on the audition page.
+Built on 2026-11-14 beside the game and not yet in it: the sound library and the audition page on
+which the owner listens and rates. On 2026-11-16 its manifest (`assets/audio/render/manifest.json`)
+lists 148 sounds. Sixteen of them are the candidates of round 4, the category `source` (see section
+2). Counted by the field `source` of each entry, the other 132 are 99 `synth` (rendered by scripts:
+75 sounds, eleven of them direction samples for the owner to choose between, and 24 voice samples,
+the twenty of the speech comparison and four countdown samples) and 33 `download` (files with a
+licence list). The sixteen carry the same field: twelve `synth` (made by the two models) and four
+`download` (the recordings), so the whole manifest reads 111 `synth` and 37 `download`. The game
+itself still plays the old procedural sound. Since 2026-11-15 there is also a comparison of five
+open speech models (`tools/voice`), with twenty voice samples on the audition page, and since
+2026-11-16 a listening test of two sound models and CC0 recordings (`tools/sound`), with its
+sixteen candidates as the first category of the page.
 
-Tests: 805 pass, 2 are marked as expected failures on purpose (see section 4). The audio tools have
-tests of their own in Python (listening tools 22, synthesis 54, downloads 77, the scoring of the
-voice comparison in `tools/voice/tests`). The browser check of the audition page passes 52 steps,
-among them a recording of everything the page plays with no click added by the page.
+Tests, run on 2026-11-16: `npx vitest run` passes 807 tests in 47 files, with 2 more marked as
+expected failures on purpose (see section 4). The audio tools have tests of their own in Python:
+`unittest discover` passes 22 tests of the listening tools, 54 of the synthesis and 77 of the
+downloads and the build (`tools/audio/tests`); the screening of sound candidates has 32
+(`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
+`.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`); the scoring of the voice
+comparison is in `tools/voice/tests` and was not counted today. The browser check of the audition
+page (`tools/dev/audition-check.mjs`, last run by the builder of the second round-4 run on
+2026-11-16) passed 48 steps in a run limited to the sixteen candidates and two test files, with no
+scenes. The last full run, on 2026-11-15, passed 52 steps, among them a recording of everything the
+page plays with no click added by the page; the check has changed since and was not run in full
+again (see section 4).
 
 ## 2. What the owner has decided and is not built yet
 
@@ -125,13 +140,15 @@ The sound library, all of it outside the game's runtime:
   loudness, spectrum, envelope, loop seam, two channels, a spectrogram picture), compares it with
   descriptions (CLAP), transcribes speech (Whisper) and has it described (Qwen2-Audio).
 - `tools/audio/synth` and `tools/audio/build.py`: the synthesis library and one script per
-  category; `tools/audio/sounds.json` is the list of the 64 sounds and what each is meant to be.
-  The build renders them, checks every rule and writes the manifest. Rendered files are not in
-  git; the build is deterministic and makes them again.
+  category; `tools/audio/sounds.json` is the list of the 75 sounds (64 before the direction samples
+  of round 3) and what each is meant to be. The build renders them, checks every rule and writes
+  the manifest. Rendered files are not in git; the build is deterministic and makes them again.
 - `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
   from kenney.nl and NASA recordings without voices (25 entries, about 160 MB, not in git,
   fetched again by the script with checksums), every file with its licence and where it was
-  read. 32 NASA entries with speech were struck on 2026-11-15 and are listed with the reason. 33
+  read. On 2026-11-16 ten CC0 items from opengameart.org were added for the sound-source test (35
+  entries in all, 16 MB of archives; they are not in `selection.json`). 32 NASA entries with
+  speech were struck on 2026-11-15 and are listed with the reason. 33
   files are picked for listening (`assets/audio/selection.json`). The build processes every
   picked file before anyone hears it: level from the table of the rendered sounds, no step at
   either end, loops crossfaded, a clipped source marked.
@@ -218,6 +235,92 @@ curve and invert per axis, a throttle lever); menus, station screens and maps ar
 D-pad and A, B, LB, RB (`packages/client/src/ui/padnav.ts`); hints name the control of the device
 last used; English and German. `docs/CLIENT.md`, section Controls, has the layout. A review found
 21 defects, a second pass confirmed 19, and all 19 are fixed with tests.
+
+### Sound sources: a listening test of two models and recordings (round 4, 2026-11-15 and 16)
+
+`tools/sound` holds a listening test and no new library. Nobody listened to anything in it.
+
+Why. After round 3 the owner said on 2026-11-15: "Wir gehen langsam in die richtige Richtung. Aber
+es klingt alles noch zu künstlich und langweilig. Gibt es keine besseren lokalen Modelle zur
+Audioton-Genese?" He is no longer asked to describe sounds; he gets candidates and accepts or
+rejects them.
+
+Approved. Asked whether two sound models and CC0 recordings (about 27 GB) may be downloaded for a
+listening test, he answered "Ja, alle laden". That covers exactly three sources, and anything
+beyond them needs a new yes: MOSS-SoundEffect v2.0 (Apache-2.0), Stable Audio 3 Small-SFX Base
+(Stability AI Community License; its output is test material until he decides) and CC0 recordings
+from OpenGameArt. No gated repository, no login, no token.
+
+Delivered, for four families (hull hit, thruster pulse, landing gear, shield hit):
+
+- MOSS: 72 candidates (3 prompts x seeds 11 to 16 per family), 48 kHz, one channel, 17 to 18 s each.
+- Stable Audio 3: 72 candidates, 44.1 kHz, two channels, about 2 s each. The checkpoint is the one
+  before the makers' last training stage (the finished one is gated).
+- OpenGameArt: none in the first run, 21 excerpts of nine items in the second. In the first run
+  `fetch.py` allowed only kenney.nl and nasa.gov, and the recordings agent's attempt to add the
+  host was refused as a change to a safety control outside its file list. The orchestrator added
+  the exact host (no subdomain) with tests, because the owner's approval named this source, and
+  told him. An allow-list is changed by the orchestrator, visibly, never by a sub-agent.
+
+First run (2026-11-15): of 144 files 53 were thrown out, sixteen were published. Its audit found
+the generators sound (scope, licences, weight loading, four of four files made again identical)
+and six faults in the choice: (a) at the page a two-channel file came out 3 dB quieter than a
+one-channel file of the same loudness, so every Stable Audio pick was quieter than every MOSS pick;
+(b) one gear pick was cut by the family's longest length while still loud; (c) one copy was 0.8 LU
+off its target, the gain not measured again; (d) six hand skips were recorded only in a
+git-ignored file; (e) 41 of 72 Stable Audio files were thrown out as clipped, by a clamp in the
+makers' code after the decoder; (f) `publish.py` reordered the manifest to satisfy a page check.
+
+Second run (2026-11-16), four builders. Stable Audio was made again, same seeds, decoded without
+the clamp (50 of 72 files peak above 1, the highest 1.94). Screening changed: three equal samples
+at the extreme count as clipped, the cut-off rule also holds at the family length, the hand skips
+are a committed file (`tools/sound/skips.json`), and a copy is set by measurement to within 0.05
+LU of the page level. Ten OpenGameArt items were fetched through `fetch.py`, each page read for
+"License(s): CC0". Of 165 candidates 38 were thrown out (31 cut off, 6 several events, 1 music)
+and 127 kept (MOSS 41, Stable Audio 66, recordings 20). The sixteen were published.
+
+Independent check (`docs/reports/2026-11-16/sound-verify2-report.json`), seven points. Held by its
+own measurements: level (page output estimated from loudness and measured gain: the family target
+within 0.1 dB, one 0.41 s file 0.33 dB), the cuts (smallest margin 26.8 dB against 20 dB), Stable
+Audio without the clamp (two files made again, bit-identical), the recordings (ten pages read, CC0
+on each), the choice (a plain run gave the same sixteen) and scope (`ratings.json` unchanged by its
+hash, the manifest of 148 sounds validates). It found one failing test (`test_screen.py` pinned the
+six old skips) and eleven wrong or over-reaching sentences in the documents. Not verified by it:
+how anything sounds, the page check (not re-run), whether the pack authors may release their packs
+as CC0, whether the recordings are recordings, the route of the bytes through `fetch.py`.
+
+The orchestrator then repaired the test (it checks the form of the skips; 32 of 32 pass), corrected
+the sentences the check listed, looked at the sixteen spectrograms (no pick changed), measured that
+MOSS presses loud output against full scale inside its decoder (a tanh: 49 of 72 raw files peak
+above 0.99, the shield files have a crest of 3.6 to 11.1 dB, the published pick 7.7 dB; no pick was
+changed, it is the model's own output), and changed the page so that the block of the four
+recordings no longer says that they play at their own loudness.
+
+The sixteen, per family a MOSS pick, a Stable Audio pick, a recording and one more generated pick
+(ids and figures in `tools/sound/RESULTS.md`; "s16" is seed 16 of that prompt):
+
+- Hull: MOSS hull_1 s16; Stable Audio hull_2 s11 and hull_1 s13; metal hit (rubberduck, 0.74 s).
+- Thruster: MOSS thruster_2 s11 and thruster_1 s11; Stable Audio thruster_2 s12; steam hiss (bart).
+- Gear: MOSS gear_2 s12; Stable Audio gear_3 s15 and gear_2 s15; lock click (rubberduck, 0.49 s).
+- Shield: MOSS shield_3 s14; Stable Audio shield_3 s11 and shield_2 s16; spark (BMacZero, 0.26 s).
+
+State on 2026-11-16. They stand on the audition page as its first category, "Klangquellen (Runde
+4)", 0 of 16 rated: the twelve generated ones under "Von uns erzeugt", the four recordings in a
+block below. He is asked to accept or reject each ("Passt" / "Falsch") and to describe nothing. The
+four countdown samples (`voice_5_countdown_*`) are unheard as well. While he rates,
+`assets/audio/render/source` is frozen: `screen.py`, `publish.py` and `tools/audio/build.py` are
+not run on the real tree until his ratings are recorded the way round 3 was
+(`assets/audio/rounds/round4.json` with the file hashes, `round4-ratings.json` with the ratings),
+since a new publish changes ids or hashes and orphans ratings.
+
+What follows, the orchestrator's plan and not his decision. If he accepts candidates of a source
+for a family, the event sounds of that family are made anew from that source (more candidates from
+the accepted prompts or items), and only then do the rules in `tools/audio` get new numbers, taken
+from what he accepted. If Stable Audio wins anywhere, he first decides on its licence (registration
+and a revenue cap for commercial use; the finished checkpoint is gated and needs a login, which is
+his decision too). If he accepts nothing: Freesound CC0 with his own account, recordings made at
+home, or other models, each needing a new yes. Not to be started without his word: the voice
+pipeline, the game's runtime audio, a re-render of the event sounds, other downloads, music.
 
 ### The owner's first play session (2026-11-14)
 
@@ -583,6 +686,24 @@ Never verified:
   samples and no direction sample; the countdown samples and the candidates of round 4 not
   yet). Every other judgement of the sound library and of
   the speech models comes from measurements, spectrogram pictures and models that listen.
+- Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
+  - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
+    rule and the spectrograms show only plain faults.
+  - Whether three of the four published recordings are recordings. Of them only the page of the
+    spark says "recorded"; for the metal hit, the lock click and the steam hiss it is not
+    established, though the page names them "Aufnahme". That the pack authors may release their
+    packs as CC0 was not checked beyond the licence line of each page.
+  - The licence of Stable Audio 3 is the owner's decision (see section 2). Its checkpoint is the
+    one before the makers' last training stage, so a weak showing does not settle the model.
+  - MOSS presses loud output against full scale inside its decoder (a tanh). The flat-top rule does
+    not see it, it cannot be taken off afterwards, and how it sounds in the shield candidates was
+    not judged.
+  - Whether 20 dB at 50 ms is the right cut-off threshold for steady sounds: five MOSS files sit
+    between 17 and 20 dB at the cap, and one kept file lies 1.8 dB from the rule.
+  - The loudness matching of events under about 0.5 s rests on a convention: BS.1770 measures them
+    in one or two 400 ms blocks, and a 1.5 ms ramp moved one value by 2.5 dB.
+  - The capture part of `tools/dev/audition-check.mjs` for all 148 sounds and the four scenes was
+    not run after the second publish of 2026-11-16 (only the sixteen and two test files, 48 steps).
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
@@ -652,6 +773,26 @@ Other notes:
   (`assets/audio/voice/venv-audio-freeze-before.txt`) proves it. `tools/voice/README.md` has the
   rules and how a model is run; timed runs go through `tools/voice/with_lock.py`. After the
   comparison 231 GB of 1.9 TB were free (the owner's limit is 10 %, so about 40 GB of room).
+- The sound-source tools of round 4 (2026-11-15 and 16; `tools/sound/README.md` has the rules and
+  `tools/sound/RESULTS.md` the figures). Each model has its own environment under
+  `.venv-sound/<key>/` (keys `moss` and `sa3`, made with `uv`, ignored by git, about 16 GB in all);
+  the MOSS model (11 GB) lies under `assets/audio/gen/moss/model`, the Stable Audio weights (4.5
+  GB) under `.venv-sound/sa3/weights`, the recordings (16 MB of archives) in
+  `assets/audio/downloads/oga-*`. Candidates lie under `assets/audio/gen/<key>/raw` with a
+  `gen.json` of what was asked (ignored by git). A source is run with
+  `.venv-sound/<key>/Scripts/python.exe tools/sound/adapters/<key>.py` (optional `--family hull`,
+  `--seeds 11,12`; adapters `moss.py` and `sa3.py`; `oga.py` cuts the recordings and runs in
+  `.venv-audio`). Every use of the graphics card goes through
+  `.venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- <command>`. Then
+  `.venv-audio/Scripts/python.exe tools/sound/screen.py` throws out what is broken and picks four
+  per family (the hand skips are in `tools/sound/skips.json`), and `tools/sound/publish.py` puts
+  the picks on the page as the category `source`. While the owner rates round 4,
+  `assets/audio/render/source` is frozen: `screen.py`, `publish.py` and `tools/audio/build.py` are
+  not run on the real tree until his ratings are recorded (see section 2), because a new publish
+  orphans them. `tools/audio/fetch.py` fetches only from https hosts on its list: kenney.nl,
+  nasa.gov with its subdomains and, since 2026-11-15, opengameart.org (the exact host); the list
+  is changed by the orchestrator, visibly, never by a sub-agent. Disk on 2026-11-16: 508 GB of 1.9
+  TB free (the stop line of this work is 200 GB; the owner's condition is at least 10 %).
 - The sound library: `tools/audio/README.md` (the listening tools), `tools/audio/synth/README.md`
   (how a sound is written), `tools/audio/SOUND_DESIGN.md` (the direction and the rules).
   Render everything: `.venv-audio/Scripts/python.exe tools/audio/build.py` (add `--describe` for

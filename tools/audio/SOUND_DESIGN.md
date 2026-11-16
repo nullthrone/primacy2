@@ -360,14 +360,22 @@ What he heard is in `assets/audio/rounds/round3.json` (file hashes) and `round3-
   said so and was wrong), and the aim of the next round is the first short event he accepts,
   from any source.
 - On the voices: "The voices are really good, but the rhythm of the countdown is still broken.
-  Perhaps the numbers should be recorded one by one and played back deterministically." On the
+  Perhaps the numbers should be recorded one by one and played back deterministically." (In German:
+  "Die Stimmen sind wirklich gut, allerdings ist der Countdown-Rhythmus noch kaputt. Vielleicht
+  sollte man die Zahlen einzeln aufnehmen und deterministisch abspielen lassen.") On the
   page he rated the five ship-computer lines "close", each with the same note: "the countdown is
   not really counted in seconds, the gaps are irregular and shorter". Four stars for the Qwen3
   computer line; the Qwen3 dock line "close" without a note. He named no model as the one to
   take, and did not say whether the preset voices of undocumented origin count as artificial.
-- What follows for speech: anything that must keep time (a countdown) is not left to the
-  model's own rhythm. The words are single clips and a clock places them. A sample of that went
-  onto the page after this round.
+- What follows for speech, as a design rule: speech that must keep time (a countdown) is not left
+  to the model's own rhythm; it is made of single clips placed by a clock. Four countdown samples
+  built that way went onto the page after this round (category `voice`):
+  `voice_5_countdown_1_qwen3_single`, `_2_qwen3_list`, `_3_chatterbox_single` and
+  `_4_chatterbox_list`. The numbers are spoken apart (single) or cut out of one spoken line (list)
+  and placed on a grid of one second by computer. What was measured, and what the independent check
+  confirmed and could not: `tools/voice/RESULTS.md`, section "Countdown on a one-second grid"
+  (facts in `docs/reports/2026-11-15/voice-countdown-report.json` and
+  `voice-countdown-verify-report.json`). Nobody has heard these four; he has not rated them.
 
 What he was asked to judge, at the top of the audition page:
 
@@ -387,3 +395,57 @@ What he was asked to judge, at the top of the audition page:
 The plan had been that his choice among the direction samples becomes the rule for one-shots of
 the structure and energy paths. He made no choice (see above); the samples stay on the page
 until the question of how the sounds are made is settled.
+
+### Round 4, 2026-11-16 (sixteen candidates on the page, not heard yet)
+
+Why this round differs. After round 3 he wrote: "Wir gehen langsam in die richtige Richtung. Aber es
+klingt alles noch zu künstlich und langweilig. Gibt es keine besseren lokalen Modelle zur
+Audioton-Genese?" He had chosen no direction and could not describe what is wrong, so he is not
+asked to describe or rank: he gets candidates from other sources and accepts or rejects each
+(Passt / Falsch). The measures of round 2 are not used to rank them; the files are screened only
+for plain faults (clipped, cut off while loud, several events, speech, music), and the sources are
+not ranked. He approved three sources ("Ja, alle laden"): MOSS-SoundEffect v2.0 (Apache-2.0),
+Stable Audio 3 Small-SFX Base (Stability AI Community License; output is test material until he
+decides) and CC0 recordings from OpenGameArt. How they were run: `GENERATORS.md`.
+
+On the page, first category "Klangquellen (Runde 4)": per family one MOSS, one Stable Audio, one
+recording and one further generated pick. The twelve generated ones are under "Von uns erzeugt",
+the four recordings in a second block below (prompts: `tools/sound/prompts.json`).
+
+| id | source | prompt, seed / item | s |
+|---|---|---|---|
+| src_1_hull_1_moss_p1s16 | MOSS | hull_1, seed 16 | 2.51 |
+| src_1_hull_2_sa3_p2s11 | Stable Audio 3 | hull_2, seed 11 | 2.51 |
+| src_1_hull_3_oga_sfx2-metal-hit-01 | recording | 100 CC0 SFX #2, metal_hit_01, cut 0.01-0.75 s | 0.74 |
+| src_1_hull_4_sa3_p1s13 | Stable Audio 3, second pick | hull_1, seed 13 | 1.73 |
+| src_2_thruster_1_moss_p2s11 | MOSS | thruster_2, seed 11 | 0.50 |
+| src_2_thruster_2_sa3_p2s12 | Stable Audio 3 | thruster_2, seed 12 | 0.98 |
+| src_2_thruster_3_oga_steam-hiss-3 | recording | Steam release sounds, hiss 3, cut 0.00-0.92 s | 0.92 |
+| src_2_thruster_4_moss_p1s11 | MOSS, second pick | thruster_1, seed 11 | 0.41 |
+| src_3_gear_1_moss_p2s12 | MOSS | gear_2, seed 12 | 3.81 |
+| src_3_gear_2_sa3_p3s15 | Stable Audio 3 | gear_3, seed 15 | 3.03 |
+| src_3_gear_3_oga_sfx2-lock-open-01 | recording | 100 CC0 SFX #2, lock_open_01, cut 0.02-0.50 s | 0.49 |
+| src_3_gear_4_sa3_p2s15 | Stable Audio 3, second pick | gear_2, seed 15 | 3.47 |
+| src_4_shield_1_moss_p3s14 | MOSS | shield_3, seed 14 | 2.00 |
+| src_4_shield_2_sa3_p3s11 | Stable Audio 3 | shield_3, seed 11 | 2.15 |
+| src_4_shield_3_oga_tesla-spark | recording | Electricity Sound Effects, spark, cut 0.09-0.34 s | 0.26 |
+| src_4_shield_4_sa3_p2s16 | Stable Audio 3, second pick | shield_2, seed 16 | 2.29 |
+
+Level. Every copy is set so that the candidates of a family leave the page at the same BS.1770
+loudness (the target of each family, within 0.1 dB by the independent check, 0.33 dB for the 0.41 s
+MOSS thruster file). The page plays a one-channel file on both channels and a two-channel file as
+it is, so the level is matched at the page, not in the file: `tools/sound/README.md`, "Level". By a
+plain measure the sounding level still differs inside a family by 3.0 to 5.7 dB; no gain was changed.
+
+Not established (`tools/sound/RESULTS.md`, "What could not be judged"): how any candidate sounds;
+nobody has heard one, and the spectrograms find only plain faults. Whether a recording is a
+recording: of the four, only the spark's page says "recorded"; the gear one is a short lock click,
+not a motor ending in a latch, the shield one a 0.26 s spark. MOSS presses loud output against full
+scale inside its decoder (49 of 72 raw files peak above 0.99; the published shield pick has a crest
+of 7.7 dB); no pick was changed for it. Loudness of events under about 0.5 s moves by a few dB with
+the block positions. The Stable Audio checkpoint is the one before its last training stage.
+
+His ratings: none yet (0 of 16 rated). Until the ratings of round 4 are recorded the way round 3
+was (`assets/audio/rounds/round4.json` with the file hashes, `round4-ratings.json` with the
+ratings), `assets/audio/render/source` is frozen, and `screen.py`, `publish.py` and `build.py` are
+not run on the real tree: a new publish changes ids or hashes and orphans his ratings.
