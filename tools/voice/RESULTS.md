@@ -1,6 +1,6 @@
 # Voice comparison: results
 
-Measured on 2026-11-15 with `tools/voice/score.py` (Whisper small reads each line back) and `tools/voice/identity.py` (speaker embedding of the Chatterbox package). Scored again after the fixes of the audit (alignment ties, words per second of raw lines); all figures below come from the new `scores.json`, `identity.json`, the `timing.json` of each run and `assets/audio/voice/retime.json`. Nobody had heard any of these files when they were measured (the owner heard the listening copies that evening, see "What was not measured"). Nothing here says how a voice sounds. Whether a voice is right is for the owner to decide on the listening copies in `assets/audio/voice/_listen/`.
+Measured on 2026-11-15 with `tools/voice/score.py` (Whisper small reads each line back) and `tools/voice/identity.py` (speaker embedding of the Chatterbox package). Scored again after the fixes of the audit (alignment ties, words per second of raw lines); all figures below come from the new `scores.json`, `identity.json`, the `timing.json` of each run and `assets/audio/voice/retime.json`. Nobody had heard any of these files when they were measured (the owner rated six of the listening copies that evening, see "What was not measured"). Nothing here says how a voice sounds. Whether a voice is right is for the owner to decide on the listening copies in `assets/audio/voice/_listen/`.
 
 ## Table
 
@@ -318,7 +318,7 @@ What could not be confirmed: that the onset of the vowel is the beat a listener 
 
 ## What was not measured
 
-- How any voice sounds, and whether a voice fits its role. Nobody who made or measured the files listened. The owner heard the twenty samples in round 3 on the evening of 2026-11-15 and rated six of them "close" (the five ship-computer lines and the Qwen3 docking line); he named no model.
+- How any voice sounds, and whether a voice fits its role. Nobody who made or measured the files listened. The twenty samples were on the audition page in round 3; on the evening of 2026-11-15 the owner rated six of them "close" (the five ship-computer lines and the Qwen3 docking line) and named no model. Which of the other fourteen he played is not recorded.
 - Whether a Phonon, Kokoro or Kitten blend is one coherent speaker. The similarity figures only say the embeddings stay close.
 - Whisper small is one recogniser. A name it cannot spell is no proof that the model said it wrongly.
 - Timings: every timing was taken on a busy machine. The graphics card is shared with the owner's desktop programs (about half busy when idle at the time of the audit, 95 to 100 percent in some audit runs, 15 to 72 percent before the later runs), and other agents' checks held the same lock for up to 40 minutes. The processor was loaded by other agents at times (up to 88 percent in the audit's Qwen3 run). The ranges in the table show how far a figure moved; the lowest figure is the best case, not the typical one. The Kokoro and Qwen3 figures on the card moved most (Kokoro 0.011 to 0.173, Qwen3 1.825 to 2.957). A run with the desktop programs closed was not made. Phonon f32 gave 0.082 and 0.068 in the builder's two runs; the cause of that spread was not measured.
