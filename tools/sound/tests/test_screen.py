@@ -676,6 +676,342 @@ def test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order()
         assert order[0] == "engine_main_t000" and order[1:] == sorted(order[1:]) and len(order) == 17, order[:3]
 
 
+# ---- round 5: another prompts file, family settings, picks, carried candidates ---------------------
+
+def test_jobs_follow_the_prompts_file_and_the_family_seeds():
+    common = load("common")
+    try:
+        old = common.jobs()
+        spec4 = json.loads((SOUND / "prompts.json").read_text(encoding="utf-8"))
+        assert len(old) == sum(len(f["prompts"]) for f in spec4["families"]) * len(spec4["seeds"])
+        assert {j["seed"] for j in old} == set(spec4["seeds"])  # the defaults are round 4
+        common.configure(str(SOUND / "prompts5.json"), None)
+        spec5 = json.loads((SOUND / "prompts5.json").read_text(encoding="utf-8"))
+        jobs = common.jobs()
+        valve = [j for j in jobs if j["family"] == "thruster_valve"]
+        assert [j["seed"] for j in valve] == [21, 22, 23, 24, 25, 26], valve
+        others = {j["seed"] for j in jobs if j["family"] != "thruster_valve"}
+        assert others == set(spec5["seeds"])
+        assert len(jobs) == sum(len(f["prompts"]) * len(f.get("seeds") or spec5["seeds"]) for f in spec5["families"])
+        assert all(j["seconds"] == next(f for f in spec5["families"] if f["id"] == j["family"])["seconds"] for j in jobs)
+        assert [j["seed"] for j in common.jobs("thruster_valve", None, "3,4")] == [3, 4]  # --seeds wins
+        assert [j["name"] for j in common.jobs("hull_light", "hull_light_2", None)][0] == "hull_light_2__s11"
+    finally:
+        common.configure(str(SOUND / "prompts.json"), str(common.DEFAULT_OUT))
+
+
+def test_the_record_goes_under_the_output_root():
+    common = load("common")
+    with tempfile.TemporaryDirectory() as td:
+        common.configure(str(SOUND / "prompts5.json"), str(Path(td) / "r5"))
+        job = common.jobs("hull_light", "hull_light_1", "11")[0]
+        rec = common.Record("moss", model="m")
+        rec.item(job, np.zeros(480, dtype=np.float32) + 0.1, 48000, 1.0)
+        rec.save()
+        gj = json.loads((Path(td) / "r5" / "moss" / "gen.json").read_text(encoding="utf-8"))
+        assert (Path(td) / "r5" / "moss" / "raw" / "hull_light_1__s11.wav").is_file()
+        assert gj["promptsFile"].endswith("prompts5.json") and gj["items"]["hull_light_1__s11"]["family"] == "hull_light"
+        # a second record adds to the first, and keeps items it did not make (those carried from round 4)
+        gj["items"]["thruster_1__s12"] = {"fromRound4": True, "family": "thruster_valve"}
+        (Path(td) / "r5" / "moss" / "gen.json").write_text(json.dumps(gj), encoding="utf-8")
+        rec2 = common.Record("moss", model="m")
+        assert set(rec2.data["items"]) == {"hull_light_1__s11", "thruster_1__s12"}
+        # with the defaults nothing new is written to gen.json
+        common.configure(str(SOUND / "prompts.json"), str(Path(td) / "r4"))
+        assert "promptsFile" not in common.Record("moss").data
+
+
+def test_family_settings_fall_back_to_round_4():
+    for fid, cap in (("hull", 2.5), ("thruster", 1.2), ("gear", 3.8), ("shield", 2.5)):
+        s = screen.family_settings({"id": fid, "lufs": -34.0})
+        assert s["maxS"] == cap and s["picks"] is None and s["minAbove60Hz"] is None
+        assert s["oneEvent"] == (fid != "gear") and s["lufs"] == -34.0
+    s = screen.family_settings({"id": "hull_light", "lufs": -34, "maxS": 1.2, "oneEvent": False,
+                                "picks": ["moss", "sa3"], "minAbove60Hz": 0.4})
+    assert s == {"maxS": 1.2, "oneEvent": False, "lufs": -34.0, "picks": ["moss", "sa3"], "minAbove60Hz": 0.4}
+    try:
+        screen.family_settings({"id": "hull_light", "lufs": -34})
+        raise AssertionError("a new family needs maxS")
+    except ValueError:
+        pass
+    # every family of prompts5.json has all the settings it needs
+    for f in json.loads((SOUND / "prompts5.json").read_text(encoding="utf-8"))["families"]:
+        assert screen.family_settings(f)["picks"], f["id"]
+
+
+def test_cut_and_faults_take_the_family_length_and_the_one_event_rule():
+    x = place(6.0, [(0.5, noise(5.0))])
+    c = screen.cut_event(x, SR, "hull_heavy", 1.2, False)
+    near((c["end"] - c["onset"]) / SR, 1.2, 0.001, "maxS")
+    assert screen.cut_event(x, SR, "hull") == screen.cut_event(x, SR, "hull", 2.5, False)
+    two = place(3.0, [(0.3, decaying(0.3, 150.0)), (1.5, decaying(0.3, 150.0))])
+    r, info = screen.raw_faults(two, SR, "hull_light", 1.2, True)
+    assert "several-events" in r, r
+    r2, _ = screen.raw_faults(two, SR, "hull_light", 1.2, False)
+    assert "several-events" not in r2, r2
+    # the settings of round 4 are what the defaults give
+    for fam in ("hull", "thruster", "gear", "shield"):
+        a, ia = screen.raw_faults(two, SR, fam)
+        b, ib = screen.raw_faults(two, SR, fam, screen.MAX_LEN_S[fam], fam in screen.ONE_EVENT)
+        assert a == b and ia["cut"] == ib["cut"], fam
+
+
+def test_picks_order_the_slots_and_a_further_pick_of_a_source_is_the_farthest():
+    f = fake_family()
+    picks, notes = screen.choose(f, ["moss", "sa3", "moss"])
+    assert [p["slot"] for p in picks] == [1, 2, 3] and notes == []
+    assert [p["cand"]["source"] for p in picks] == ["moss", "sa3", "moss"]
+    assert [p["role"] for p in picks] == ["typical", "typical", "farthest"]
+    assert [p["sourceRank"] for p in picks] == [1, 1, 2]
+    # the first pick of a source is the one of round 4 (the most typical)
+    legacy, _ = screen.choose(fake_family())
+    assert picks[0]["cand"]["name"] == legacy[0]["cand"]["name"] and picks[1]["cand"]["name"] == legacy[1]["cand"]["name"]
+    # the third is the moss candidate farthest from the two picks already made, found the slow way
+    ordered = sorted(f, key=lambda c: (screen.SOURCES.index(c["source"]), c["name"]))
+    z = screen.normalise(np.array([c["raw"] for c in ordered]))
+    at = {c["name"]: i for i, c in enumerate(ordered)}
+    made = [at[picks[0]["cand"]["name"]], at[picks[1]["cand"]["name"]]]
+    best = max((min(np.linalg.norm(z[i] - z[m]) for m in made), -i) for i, c in enumerate(ordered)
+               if c["source"] == "moss" and i not in made)
+    assert at[picks[2]["cand"]["name"]] == -best[1]
+    # the same candidates in another order give the same choice
+    shuffled = [f[i] for i in RNG.permutation(len(f))]
+    again, _ = screen.choose(shuffled, ["moss", "sa3", "moss"])
+    assert [p["cand"]["name"] for p in again] == [p["cand"]["name"] for p in picks]
+    # three of one source, and a source nobody has
+    p3, n3 = screen.choose(fake_family(), ["sa3", "sa3", "sa3", "oga"])
+    assert len({p["cand"]["name"] for p in p3}) == 4 and [p["sourceRank"] for p in p3] == [1, 2, 3, 1]
+    p4, n4 = screen.choose(fake_family(skip=("sa3",)), ["moss", "sa3"])
+    assert [p["slot"] for p in p4] == [1] and any("slot 2 (sa3)" in n for n in n4), n4
+    assert screen.choose([], ["moss"]) == ([], ["no candidate in this family"])
+
+
+def test_picks_skip_what_is_skipped_or_too_low_and_keep_it_in_the_pool():
+    f = fake_family()
+    base, _ = screen.choose(f, ["moss", "moss"])
+    first = base[0]["cand"]["name"]
+    f2 = fake_family()
+    for c in f2:
+        if c["name"] == first:
+            c["lowShare"] = True  # below minAbove60Hz: never picked, still in the pool
+    p2, _ = screen.choose(f2, ["moss", "moss"])
+    names = [p["cand"]["name"] for p in p2]
+    assert first not in names and len(names) == 2
+    # the pool still counts for the centre: the pick is the nearest to the centre of ALL of moss, not of the rest
+    ordered = sorted(f2, key=lambda c: (screen.SOURCES.index(c["source"]), c["name"]))
+    z = screen.normalise(np.array([c["raw"] for c in ordered]))
+    idx = [i for i, c in enumerate(ordered) if c["source"] == "moss"]
+    centre = z[idx].mean(axis=0)
+    rest = [i for i in idx if ordered[i]["name"] != first]
+    assert ordered[min(rest, key=lambda i: (np.linalg.norm(z[i] - centre), i))]["name"] == names[0]
+
+
+def test_ids_of_round_5_and_carried_tags():
+    assert screen.candidate_tag("moss", "thruster_1__s12", {"fromRound4": True}) == "r4p1s12"
+    assert screen.candidate_tag("moss", "thruster_valve_1__s21", {}) == "p1s21"
+    assert screen.candidate_tag("moss", "shield_1__s11", {"fromRound4": True}) != screen.candidate_tag("moss", "shield_bright_1__s11", {})
+    for sid in ("ev5_3_thruster_valve_1_moss_r4p1s12", "ev5_5_shield_bright_3_sa3_p2s16"):
+        assert screen.ID_PATTERN.match(sid), sid
+
+
+def fake_round4(root: Path) -> None:
+    """A round-4 folder: raw files, gen.json per source, and a screen.json that says what was kept, skipped and published."""
+    items = {"moss": {}, "sa3": {}}
+    files, chosen = [], []
+    for source in ("moss", "sa3"):
+        (root / source / "raw").mkdir(parents=True)
+        for prompt, fam in (("thruster_1", "thruster"), ("thruster_2", "thruster"), ("shield_1", "shield"), ("shield_3", "shield")):
+            for seed in (11, 12, 13):
+                name = "%s__s%d" % (prompt, seed)
+                sf.write(str(root / source / "raw" / (name + ".wav")), decaying(1.0, 90.0).astype(np.float32), SR, subtype="FLOAT")
+                items[source][name] = {"file": str(root / source / "raw" / (name + ".wav")), "sr": SR, "channels": 1, "family": fam,
+                                       "prompt": prompt, "seed": seed, "text_given": "t " + prompt}
+                row = {"source": source, "name": name, "family": fam, "status": "kept", "reason": None, "reasons": [],
+                       "file": items[source][name]["file"]}
+                if seed == 13:
+                    row.update({"status": "thrown-out", "reason": "cut-off", "reasons": ["cut-off"]})
+                if (source, prompt, seed) == ("moss", "shield_1", 12):
+                    row["skippedAsPick"] = "plain fault"
+                files.append(row)
+        (root / source / "gen.json").write_text(json.dumps({"source": source, "items": items[source]}), encoding="utf-8")
+    chosen.append({"id": "src_x", "source": "moss", "name": "thruster_1__s12"})  # heard in round 4
+    (root / "screen.json").write_text(json.dumps({"version": 1, "chosen": chosen, "files": files}), encoding="utf-8")
+
+
+SPEC5 = {"category": {"id": "events5", "de": "d", "en": "e", "idPrefix": "ev5"}, "seeds": [11, 12, 13],
+         "families": [
+             {"id": "valve", "de": "Ventil", "en": "Valve", "proven": True, "seconds": 2, "maxS": 1.2, "oneEvent": True, "lufs": -34.0,
+              "picks": ["moss", "sa3", "moss"], "seeds": [21, 22],
+              "fromRound4": {"prompt": "thruster_1", "exclude": ["sa3/thruster_1__s11"]},
+              "prompts": [{"id": "valve_1", "text": "Short burst of compressed gas from a valve"}]},
+             {"id": "shield_zap", "de": "Funke", "en": "Zap", "proven": False, "seconds": 3, "maxS": 2.5, "oneEvent": True, "lufs": -24.0,
+              "minAbove60Hz": 0.4, "picks": ["moss", "moss"],
+              "fromRound4": {"prompt": ["shield_1", "shield_3"], "sources": ["moss"]},
+              "prompts": [{"id": "shield_zap_1", "text": "Sharp electric zap and crackle"}]},
+             {"id": "plain", "de": "Schlicht", "en": "Plain", "proven": False, "seconds": 2, "maxS": 1.2, "oneEvent": True, "lufs": -34.0,
+              "picks": ["moss"], "prompts": [{"id": "plain_1", "text": "A plain click"}]}]}
+
+
+def test_from_round4_brings_the_kept_unheard_candidates_and_is_safe_to_run_twice():
+    r4 = load("from_round4")
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        round4, out = td / "gen", td / "r5"
+        fake_round4(round4)
+        pf = td / "prompts5.json"
+        pf.write_text(json.dumps(SPEC5), encoding="utf-8")
+        before = {p: p.read_bytes() for p in round4.rglob("*") if p.is_file()}
+        assert r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(out), "--dry-run"]) == 0
+        assert not out.exists()
+        assert r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(out)]) == 0
+        moss = json.loads((out / "moss" / "gen.json").read_text(encoding="utf-8"))["items"]
+        sa3 = json.loads((out / "sa3" / "gen.json").read_text(encoding="utf-8"))["items"]
+        # valve: kept thruster_1 of both sources (s11, s12; s13 was thrown out), without the published moss s12 and the excluded sa3 s11
+        assert sorted(moss) == ["shield_1__s11", "shield_1__s12", "shield_3__s11", "shield_3__s12", "thruster_1__s11"], sorted(moss)
+        assert sorted(sa3) == ["thruster_1__s12"], sorted(sa3)  # zap is restricted to moss
+        assert moss["thruster_1__s11"]["family"] == "valve" and moss["shield_3__s12"]["family"] == "shield_zap"
+        assert all(it["fromRound4"] is True for it in list(moss.values()) + list(sa3.values()))
+        assert moss["shield_1__s12"]["round4Skip"] == "plain fault" and "round4Skip" not in moss["shield_1__s11"]
+        assert moss["thruster_1__s11"]["file"] == str(round4 / "moss" / "raw" / "thruster_1__s11.wav")  # points at the raw file
+        assert not list(out.rglob("*.wav"))  # nothing was copied
+        assert {p: p.read_bytes() for p in round4.rglob("*") if p.is_file()} == before  # round 4 is untouched
+        first = {p: p.read_bytes() for p in out.rglob("*") if p.is_file()}
+        assert r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(out)]) == 0
+        assert {p: p.read_bytes() for p in out.rglob("*") if p.is_file()} == first  # twice: the same
+        # an adapter's own items and facts stay, and a changed prompts file takes back what no longer matches
+        g = json.loads((out / "moss" / "gen.json").read_text(encoding="utf-8"))
+        g["items"]["valve_1__s21"] = {"family": "valve", "prompt": "valve_1", "seed": 21}
+        g["model"] = "m"
+        (out / "moss" / "gen.json").write_text(json.dumps(g), encoding="utf-8")
+        spec = json.loads(json.dumps(SPEC5))
+        spec["families"][1]["fromRound4"]["exclude"] = ["moss/shield_1__s11", "moss/shield_3__s11"]
+        pf.write_text(json.dumps(spec), encoding="utf-8")
+        assert r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(out)]) == 0
+        g = json.loads((out / "moss" / "gen.json").read_text(encoding="utf-8"))
+        assert sorted(g["items"]) == ["shield_1__s12", "shield_3__s12", "thruster_1__s11", "valve_1__s21"] and g["model"] == "m"
+        # a name that is taken by a file that is not from round 4 is an error, never overwritten
+        g["items"]["thruster_1__s11"] = {"family": "valve"}
+        (out / "moss" / "gen.json").write_text(json.dumps(g), encoding="utf-8")
+        try:
+            r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(out)])
+            raise AssertionError("an item of round 5 was overwritten")
+        except ValueError:
+            pass
+        assert r4.main(["--prompts-file", str(pf), "--round4", str(round4), "--out-root", str(round4)]) == 2
+
+
+def build_round5(root: Path) -> None:
+    """A fake round-5 root: raw files in each source, items of the mini prompts file, and carried files from a fake round 4."""
+    round4 = root.parent / "gen4"
+    fake_round4(round4)
+    for source, sr in (("moss", 48000), ("sa3", 44100)):
+        (root / source / "raw").mkdir(parents=True)
+        items = {}
+        for fi, fam in enumerate(SPEC5["families"]):
+            for pr in fam["prompts"]:
+                for k, seed in enumerate(fam.get("seeds") or SPEC5["seeds"]):
+                    n = "%s__s%d" % (pr["id"], seed)
+                    t = np.arange(int((0.8 + 0.2 * k) * sr)) / sr
+                    f0 = (150 + 90 * k + 40 * fi) * (1 + (source == "sa3"))
+                    if fam["id"] == "shield_zap" and source == "moss" and k == 0:
+                        f0 = 35.0  # almost nothing above 60 Hz
+                    x = 0.5 * np.sin(2 * np.pi * f0 * t) * np.exp(-9 * t) + 0.1 * RNG.standard_normal(t.size) * np.exp(-12 * t)
+                    sf.write(str(root / source / "raw" / (n + ".wav")), x.astype(np.float32), sr, subtype="FLOAT")
+                    items[n] = {"file": "raw/%s.wav" % n, "family": fam["id"], "prompt": pr["id"], "seed": seed,
+                                "text_given": pr["text"] + " duration: 2s"}
+        (root / source / "gen.json").write_text(json.dumps({"source": source, "items": items}), encoding="utf-8")
+    load("from_round4").main(["--prompts-file", str(root.parent / "prompts5.json"), "--round4", str(round4), "--out-root", str(root)])
+
+
+def test_round_5_run_and_publish_on_a_fake_tree():
+    with tempfile.TemporaryDirectory() as td:
+        td = Path(td)
+        root, out = td / "r5", td / "render"
+        (td / "prompts5.json").write_text(json.dumps(SPEC5), encoding="utf-8")
+        build_round5(root)
+        # a sound of round 4 in its own category must survive the pruning of round 5
+        keep = out / "source"
+        keep.mkdir(parents=True)
+        (keep / "src_1_hull_1_moss_p1s11.txt").write_text("round 4", encoding="utf-8")
+        pf = str(td / "prompts5.json")
+        no_skips = str(td / "none.json")
+        assert screen.main(["--no-models", "--root", str(root), "--prompts-file", pf, "--skips", no_skips]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        assert res["category"]["id"] == "events5" and res["skippedAsPick"] == {}
+        ids = [c["id"] for c in res["chosen"]]
+        assert len(ids) == len(set(ids)) and all(screen.ID_PATTERN.match(i) for i in ids)
+        valve = [c for c in res["chosen"] if c["family"] == "valve"]
+        assert valve[0]["id"].startswith("ev5_1_valve_1_moss_")
+        assert [c["slot"] for c in valve] == [1, 2, 3] and [c["source"] for c in valve] == ["moss", "sa3", "moss"]
+        assert [c.get("sourceRank") for c in valve] == [1, 1, 2]
+        assert sorted(p.name for p in (root / "_listen").glob("*.wav")) == sorted(i + ".wav" for i in ids)
+        assert not (root.parent / "gen4" / "_listen").exists()  # round 4's folders get nothing
+        # the carried files are in the pool; the skip of round 4 is carried; the low-share ones are not picked
+        rows = {(f["source"], f["name"]): f for f in res["files"]}
+        assert rows[("moss", "shield_1__s12")]["skippedAsPick"] == "plain fault"
+        assert rows[("moss", "thruster_1__s11")]["family"] == "valve" and rows[("moss", "thruster_1__s11")]["status"] == "kept"
+        low = [r for r in res["files"] if r.get("notPickedLowShare")]
+        assert low and all(r["family"] == "shield_zap" and r["energyAbove60Hz"] < 0.4 for r in low), low
+        assert not any((c["source"], c["name"]) in {(r["source"], r["name"]) for r in low} for c in res["chosen"])
+        zap = [c for c in res["chosen"] if c["family"] == "shield_zap"]
+        assert all(c["energyAbove60Hz"] >= 0.4 and c["name"] != "shield_1__s12" for c in zap), zap
+        assert not any(c["family"] == "plain" and c["slot"] > 1 for c in res["chosen"])
+        # the settings of the family are used: lufs, and the cut stops at maxS
+        for c in res["chosen"]:
+            fam = next(f for f in SPEC5["families"] if f["id"] == c["family"])
+            assert c["listen"]["lufsTarget"] == fam["lufs"] and c["cut"]["endS"] - c["cut"]["startS"] <= fam["maxS"] + 0.01
+        import build as b  # noqa: E402
+
+        b.SELECTION = td / "no-selection.json"
+        pub = load("publish")
+        assert pub.main(["--root", str(root), "--out", str(out)]) == 1  # the default prompts file is not the one of this screen.json
+        assert pub.main(["--prompts-file", pf, "--root", str(root), "--out", str(out)]) == 0
+        assert sorted(p.stem for p in (out / "events5").glob("*.wav")) == sorted(ids)
+        assert (keep / "src_1_hull_1_moss_p1s11.txt").is_file()
+        manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+        sounds = {s["id"]: s for s in manifest["sounds"] if s["category"] == "events5"}
+        assert set(sounds) == set(ids)
+        v = [sounds[c["id"]] for c in valve]
+        assert v[0]["de"] == "Ventil · MOSS-SoundEffect" and v[1]["de"] == "Ventil · Stable Audio 3 (nur Test)"
+        assert v[2]["de"] == "Ventil · MOSS-SoundEffect, zweite Auswahl" and v[2]["en"] == "Valve · MOSS-SoundEffect, second pick"
+        assert all("rests on a prompt the owner accepted in round 4" in s["intent"] for s in v)
+        assert all("first try" in sounds[c["id"]]["intent"] for c in zap)
+        assert "seed" in v[0]["intent"] and "Short burst of compressed gas" in v[0]["intent"]
+        carried = [sounds[c["id"]] for c in res["chosen"] if c["tag"].startswith("r4")]
+        assert carried and all("made in round 4" in s["intent"] and "not heard then" in s["intent"] for s in carried)
+        assert not any("made in round 4" in s["intent"] for s in sounds.values() if not s["id"].count("_r4"))
+        assert all("test material" in s["licence"] for s in sounds.values() if s["candidate"]["source"] == "sa3")
+        assert all(s["path"] == ("energy" if s["id"].startswith("ev5_2_shield_zap") else "structure") for s in sounds.values())
+        # a third pick of a source is numbered
+        assert pub.pick_suffix(2) == (", zweite Auswahl", ", second pick") and pub.pick_suffix(3) == (", dritte Auswahl", ", third pick")
+        assert pub.pick_suffix(1) == ("", "")
+        # removing takes only the new category away
+        assert pub.main(["--prompts-file", pf, "--root", str(root), "--out", str(out), "--remove"]) == 0
+        assert not (out / "events5").exists() and (keep / "src_1_hull_1_moss_p1s11.txt").is_file()
+
+
+def test_round_4_files_have_none_of_the_new_keys():
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "gen"
+        build_tree(root)
+        assert screen.main(["--no-models", "--root", str(root), "--skips", str(Path(td) / "none.json")]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        assert "category" not in res and "promptsFile" not in res
+        assert all("sourceRank" not in c for c in res["chosen"])
+        assert all("notPickedLowShare" not in f for f in res["files"])
+        assert all(c["id"].startswith("src_") for c in res["chosen"])
+
+
+def test_the_new_category_comes_first_in_sounds_json():
+    spec = json.loads((SOUND.parent / "audio" / "sounds.json").read_text(encoding="utf-8"))
+    cats = [c["id"] for c in spec["categories"]]
+    assert cats[0] == "events5" and cats[1] == "source", cats[:3]
+    c0 = spec["categories"][0]
+    assert c0["de"] == "Ereignisklänge (Runde 5)" and c0["en"] == "Event sounds (round 5)"
+    assert json.loads((SOUND / "prompts5.json").read_text(encoding="utf-8"))["category"]["id"] == "events5"
+    assert json.loads((SOUND / "skips5.json").read_text(encoding="utf-8"))["skips"] == []
+
+
 def main() -> int:
     tests = [(k, v) for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     bad = 0

@@ -31,6 +31,11 @@ raw file listed in it, and for each file:
 Candidates that a person has skipped after looking at a spectrogram for a plain fault are listed in
 tools/sound/skips.json and read by default (--skips names another file, --skip adds one).
 
+Round 5: --prompts-file FILE (default tools/sound/prompts.json) with --root assets/audio/gen/r5 screens the
+families of that file. Per family it reads "maxS", "oneEvent", "lufs", "picks" and the optional "minAbove60Hz" when
+they are there, and does what round 4 did when they are not; see "Round 5" in tools/sound/README.md. Ids are
+<idPrefix>_<family number>_<family>_<slot>_<source>_<tag> with the idPrefix of the category of that file.
+
 The speech recogniser (Whisper small) and CLAP are the models of the sound library, read from the
 local cache only. They run on the processor by default (they are small); with --device cuda the
 whole command has to be run through tools/voice/with_lock.py. Runs with the environment of the sound

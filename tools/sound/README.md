@@ -147,3 +147,69 @@ cabin not baked in but only lightly added (`dry` false), a fixed place ahead whe
 channel. `publish.py` writes them as the category "Klangquellen (Runde 4)".
 
 Nobody can hear here. Whether a candidate is right is the owner's click.
+
+## Round 5
+
+Round 5 makes the event sounds the game needs from what the owner accepted in round 4, from
+`tools/sound/prompts5.json` (its "note" says what each family is for). It runs beside round 4 and
+changes nothing of it: the raw candidates lie under `assets/audio/gen/r5/<source>/raw` with
+`assets/audio/gen/r5/<source>/gen.json`, the screening output (`screen.json`, `_listen/`) under
+`assets/audio/gen/r5/`, the published files under `assets/audio/render/events5/` (category `events5`,
+"Ereignisklänge (Runde 5)", listed first), ids `ev5_<family number>_<family>_<slot>_<source>_<tag>`.
+A plain `screen.py` or `publish.py` without arguments still means round 4; run them for round 5 only
+with the options below.
+
+What the prompts file adds, per family (a key that is missing falls back to round 4): `maxS` (the longest
+cut), `oneEvent` (a second event is a fault; `false` also cuts from the first sound to the last, as for the
+gear), `lufs`, `picks` (the sources of the slots on the page, in order: the first pick of a source is its most
+typical candidate, each further pick of that source the candidate farthest from the picks already made in the
+family), `minAbove60Hz` (a kept candidate under this share of energy above 60 Hz stays in the pool for the
+statistics but is not picked; `screen.json` says so per file as `notPickedLowShare`), `seeds` (the family's own),
+`fromRound4` (see below). `skips5.json` is read for `prompts5.json` instead of `skips.json`.
+
+The whole run, in order (each line can be copied; the two generating steps go through the lock):
+
+1. Bring the unheard, kept candidates of round 4 into the pool (writes only `gen/r5/<source>/gen.json`; copies and moves nothing; safe to run twice; before or after the generation, as the adapters keep these items):
+
+       .venv-audio/Scripts/python.exe tools/sound/from_round4.py
+
+2. Look at the jobs without making anything (`--list-jobs` loads no model):
+
+       .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5 --list-jobs
+
+3. Make the candidates, MOSS (78 files):
+
+       .venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5
+
+4. Make the candidates, Stable Audio (78 files, test material):
+
+       .venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5
+
+5. Screen and choose (Whisper and CLAP on the processor):
+
+       .venv-audio/Scripts/python.exe tools/sound/screen.py --prompts-file tools/sound/prompts5.json --root assets/audio/gen/r5 --device cpu
+
+6. Look at the spectrograms of the picks; skip a pick for a plain fault with `--skip SOURCE/NAME=REASON` or by an entry in `skips5.json`, and run step 5 again.
+
+7. Publish to the audition page (only `render/events5` is written and pruned; then the manifest is assembled and validated):
+
+       .venv-audio/Scripts/python.exe tools/sound/publish.py --prompts-file tools/sound/prompts5.json --root assets/audio/gen/r5
+
+8. The manifest alone, if it has to be assembled again (`events5` comes first, the existing entries keep their hashes):
+
+       .venv-audio/Scripts/python.exe tools/audio/build.py --manifest-only
+
+To take the round off the page: `publish.py --prompts-file tools/sound/prompts5.json --root assets/audio/gen/r5 --remove`.
+
+`fromRound4` of a family names the round-4 prompt or prompts (`"prompt"`), optionally `"sources"` and
+`"exclude"` (as `source/name`). A candidate is taken when it is kept in `assets/audio/gen/screen.json`, was not
+published in round 4 (so the owner has not heard it) and is not excluded. Its item in the round-5 `gen.json`
+points at the raw file where it lies, carries `fromRound4: true` and has the round-5 family. A hand skip it had
+in round 4 comes along as `round4Skip` and is honoured (it is the same file with the same cut). Its id tag starts
+with `r4` (`ev5_3_thruster_valve_3_moss_r4p1s12`), so that it is never taken for a file of the same prompt number
+made in round 5, and its intent line on the page says that the file was made in round 4 and not heard then.
+A family's intent line also says whether it is `proven` (rests on a prompt the owner accepted) or a first try.
+A further pick of a source is named "zweite Auswahl" / "second pick", then "dritte Auswahl" / "third pick".
+
+Stable Audio output stays test material under the Stability AI Community License: the page keeps its "test
+only" label and licence note. Nobody can hear here; whether a candidate is right is the owner's click.
