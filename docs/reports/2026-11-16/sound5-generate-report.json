@@ -1,0 +1,385 @@
+{
+ "role": "generate",
+ "date": "2026-11-16",
+ "preconditions": {
+  "diskFreeGB": 506,
+  "gpuBeforeFirstRun": "0 % utilization, 1152 MiB used (nvidia-smi); compute-apps list held only desktop processes (explorer, CurseForge, Epic launcher, Discord, Claude, Edge WebView, shell hosts, Antigravity, Okta, Snipping Tool); no game process seen",
+  "gpuDuring": "one sample during MOSS: 95 % and 12227 MiB, later 85 % and 10147 MiB, with only my python process as a new compute app; no other heavy user seen. Epic launcher helper processes were present at the end"
+ },
+ "made": {
+  "moss": {
+   "files": 90,
+   "promptsFile": "15 prompts x 6 seeds (not 13 x 6 = 78 as the task said; --list-jobs of both adapters also lists 90 jobs)",
+   "wallS": 1555.9,
+   "meanSynthS": 17.3,
+   "maxSynthS": 24.34,
+   "note": "hull_light_1 s11 took 24.34 s, all others 17.0 to 17.4 s; card was free"
+  },
+  "sa3": {
+   "files": 90,
+   "wallS": 174.4,
+   "loadS": 25.3,
+   "meanSynthS": 1.9,
+   "maxSynthS": 10.55,
+   "note": "first item 10.55 s (warm-up), others 1.6 to 2.5 s; clamp off (audio_from pretransform.decode before clamp)"
+  }
+ },
+ "carriedFromRound4": {
+  "moss": 9,
+  "detail": "valve 3 (thruster_1 s12 s15 s16, s16 has round-4 skip), shield_bright 6 (shield_1 s11 s14 s15 s16, shield_3 s15 s16, s16 has round-4 skip)",
+  "sa3": 0,
+  "note": "prompts5.json fromRound4 names sources [moss] only, so the tools report's 6 sa3 carried items is not what the tree holds: sa3/gen.json has none"
+ },
+ "perFamily": {
+  "moss": {
+   "total": 99,
+   "families": {
+    "thruster_valve": {
+     "files": 9,
+     "made": 6,
+     "carried": 3,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.209,
+     "peak_max": 0.8486,
+     "synth_mean": 17.19,
+     "synth_max": 17.23
+    },
+    "shield_bright": {
+     "files": 18,
+     "made": 12,
+     "carried": 6,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 3.0,
+     "len_max": 3.0,
+     "peak_min": 0.8644,
+     "peak_max": 0.9996,
+     "synth_mean": 17.18,
+     "synth_max": 17.3
+    },
+    "hull_light": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.9515,
+     "peak_max": 0.9996,
+     "synth_mean": 17.84,
+     "synth_max": 24.34
+    },
+    "hull_heavy": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.9786,
+     "peak_max": 0.9995,
+     "synth_mean": 17.2,
+     "synth_max": 17.34
+    },
+    "thruster_bang": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.4274,
+     "peak_max": 0.9995,
+     "synth_mean": 17.22,
+     "synth_max": 17.36
+    },
+    "thruster_gatling": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.9165,
+     "peak_max": 0.9996,
+     "synth_mean": 17.18,
+     "synth_max": 17.31
+    },
+    "fold_jump": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.9714,
+     "peak_max": 0.9996,
+     "synth_mean": 17.17,
+     "synth_max": 17.29
+    },
+    "fold_exit": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      48000
+     ],
+     "ch": [
+      1
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.6428,
+     "peak_max": 0.9991,
+     "synth_mean": 17.17,
+     "synth_max": 17.32
+    }
+   },
+   "problems": [],
+   "keys": {
+    "source": "moss",
+    "model": "OpenMOSS-Team/MOSS-SoundEffect-v2.0",
+    "model_revision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "code_commit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "torch": "2.9.0+cu128",
+    "compile": "disabled (TORCHDYNAMO_DISABLE=1)",
+    "promptsFile": "tools/sound/prompts5.json",
+    "total_s": 1555.9
+   }
+  },
+  "sa3": {
+   "total": 90,
+   "families": {
+    "hull_light": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.5928,
+     "peak_max": 0.9556,
+     "synth_mean": 2.52,
+     "synth_max": 10.55
+    },
+    "hull_heavy": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.7227,
+     "peak_max": 1.9033,
+     "synth_mean": 1.73,
+     "synth_max": 2.09
+    },
+    "thruster_valve": {
+     "files": 6,
+     "made": 6,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.8379,
+     "peak_max": 1.2363,
+     "synth_mean": 1.93,
+     "synth_max": 2.2
+    },
+    "thruster_bang": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.7886,
+     "peak_max": 1.4258,
+     "synth_mean": 1.79,
+     "synth_max": 2.42
+    },
+    "thruster_gatling": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 2.0,
+     "len_max": 2.0,
+     "peak_min": 0.9067,
+     "peak_max": 2.4297,
+     "synth_mean": 1.96,
+     "synth_max": 2.5
+    },
+    "shield_bright": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 3.0,
+     "len_max": 3.0,
+     "peak_min": 0.9028,
+     "peak_max": 1.4424,
+     "synth_mean": 1.84,
+     "synth_max": 2.47
+    },
+    "fold_jump": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.6997,
+     "peak_max": 1.1162,
+     "synth_mean": 1.79,
+     "synth_max": 2.18
+    },
+    "fold_exit": {
+     "files": 12,
+     "made": 12,
+     "carried": 0,
+     "sr": [
+      44100
+     ],
+     "ch": [
+      2
+     ],
+     "len_min": 4.0,
+     "len_max": 4.0,
+     "peak_min": 0.8647,
+     "peak_max": 1.2656,
+     "synth_mean": 1.89,
+     "synth_max": 2.27
+    }
+   },
+   "problems": [],
+   "keys": {
+    "source": "sa3",
+    "model": "stabilityai/stable-audio-3-small-sfx-base",
+    "model_revision": "b332479a012f83c24c4381f331ce594284ec8a81",
+    "code": "Stability-AI/stable-audio-3",
+    "code_commit": "790793b89ddceea612be9ce42ff6830d18f6fa57",
+    "terms": "Stability AI Community License: test material, not to be shipped until the owner has decided. Testing is free; product use needs registration with Stability AI and ends above USD 1,000,000 of yearly revenue; the text encoder is under Google's Gemma terms.",
+    "load_s": 25.3,
+    "promptsFile": "tools/sound/prompts5.json",
+    "total_s": 174.4,
+    "settings": {
+     "steps": 50,
+     "cfg_scale": 7.0,
+     "sampler_type": "euler",
+     "apg_scale": 1.0,
+     "duration_padding_sec": 6.0,
+     "dtype": "float16"
+    },
+    "prefix": "TrackType: SFX, ",
+    "peak_gpu_mem_gb": 2.28
+   }
+  }
+ },
+ "checks": {
+  "silent": "none (min peak over all files per list above, threshold 1e-4); no non-finite samples",
+  "gen.json": "every item has prompt, seed, family, text_given, steps, cfg, synth_s, file; sa3 also settings, terms and peak_before_clamp; moss also model revision and code commit; no problems reported by script",
+  "sampleRates": "moss 48000 Hz mono; sa3 44100 Hz stereo",
+  "peaks": "moss 0.209 (carried valve) to 0.9996; sa3 0.5928 to 2.4297 (thruster_gatling_1 s16), clamp off as intended",
+  "lengths": "files are the length asked: 2 s (hull_light, valve, bang, gatling), 3 s (shield), 4 s (hull_heavy, fold_jump, fold_exit)"
+ },
+ "reproducibility": {
+  "files": [
+   "moss hull_light_1 s11",
+   "moss fold_exit_1 s11",
+   "sa3 hull_light_1 s11",
+   "sa3 fold_exit_1 s11"
+  ],
+  "result": "sample data bit-identical in all four (float read, max abs difference 0.0, same frame count); the files differ by 2 bytes in the header (checked on moss hull_light_1 s11: offsets 61 and 62, the PEAK chunk timestamp written by the audio library), so a byte hash of the file is not equal but the audio is",
+  "redoFolder": "C:/Users/Thomas/AppData/Local/Temp/claude/c9297f7a0d106409/07b978c7-5e17-4c62-8163-b07dfd2048d2/scratchpad/r5-generate/redo",
+  "redoSynthS": {
+   "moss hull_light_1 s11": 21.84,
+   "moss fold_exit_1 s11": 18.35,
+   "sa3 hull_light_1 s11": 3.29,
+   "sa3 fold_exit_1 s11": 1.72
+  }
+ },
+ "odd": [
+  "Counts are 90 per model, not 78.",
+  "top-level 'sources' of prompts5.json is [moss] but Stable Audio candidates were made for all families, as the task and README ask; whether screen.py honours 'sources' for picks was not checked.",
+  "from_round4.py was run again after generation: no change.",
+  "The three MOSS carried round-4 files with a hand skip are never picked."
+ ],
+ "notVerified": [
+  "Nothing was listened to; no statement on sound.",
+  "screen.py, publish.py, page not run (not my role).",
+  "Byte-identity of the other 3 redo pairs was not byte-compared, only sample data."
+ ]
+}
