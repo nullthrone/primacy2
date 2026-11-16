@@ -360,11 +360,13 @@ What he heard is in `assets/audio/rounds/round3.json` (file hashes) and `round3-
   said so and was wrong), and the aim of the next round is the first short event he accepts,
   from any source.
 - On the voices: "The voices are really good, but the rhythm of the countdown is still broken.
-  Perhaps the numbers should be recorded one by one and played back deterministically." (In German:
-  "Die Stimmen sind wirklich gut, allerdings ist der Countdown-Rhythmus noch kaputt. Vielleicht
-  sollte man die Zahlen einzeln aufnehmen und deterministisch abspielen lassen.") On the
+  Perhaps the numbers should be recorded one by one and played back deterministically." (His words
+  in the chat: "Die Stimmen sind wirklich gut, allerdings ist der Countdown-Rhythmus noch kaputt.
+  Vielleicht sollte man die Zahlen einzeln aufnehmen und deterministisch abspielen lassen") On the
   page he rated the five ship-computer lines "close", each with the same note: "the countdown is
-  not really counted in seconds, the gaps are irregular and shorter". Four stars for the Qwen3
+  not really counted in seconds, the gaps are irregular and shorter" (as saved in
+  `round3-ratings.json`: "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind
+  unregelmäßig und kürzer"). Four stars for the Qwen3
   computer line; the Qwen3 dock line "close" without a note. He named no model as the one to
   take, and did not say whether the preset voices of undocumented origin count as artificial.
 - What follows for speech, as a design rule: speech that must keep time (a countdown) is not left
@@ -448,4 +450,6 @@ the block positions. The Stable Audio checkpoint is the one before its last trai
 His ratings: none yet (0 of 16 rated). Until the ratings of round 4 are recorded the way round 3
 was (`assets/audio/rounds/round4.json` with the file hashes, `round4-ratings.json` with the
 ratings), `assets/audio/render/source` is frozen, and `screen.py`, `publish.py` and `build.py` are
-not run on the real tree: a new publish changes ids or hashes and orphans his ratings.
+not run on the real tree: a new publish changes ids or hashes and orphans his ratings. What is
+planned for each outcome of his ratings, and what is not to be started without his word, is in
+`docs/ROADMAP.md`, section 2, "Sound sources".

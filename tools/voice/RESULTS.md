@@ -1,6 +1,6 @@
 # Voice comparison: results
 
-Measured on 2026-11-15 with `tools/voice/score.py` (Whisper small reads each line back) and `tools/voice/identity.py` (speaker embedding of the Chatterbox package). Scored again after the fixes of the audit (alignment ties, words per second of raw lines); all figures below come from the new `scores.json`, `identity.json`, the `timing.json` of each run and `assets/audio/voice/retime.json`. Nobody has heard any of these files. Nothing here says how a voice sounds. Whether a voice is right is for the owner to decide on the listening copies in `assets/audio/voice/_listen/`.
+Measured on 2026-11-15 with `tools/voice/score.py` (Whisper small reads each line back) and `tools/voice/identity.py` (speaker embedding of the Chatterbox package). Scored again after the fixes of the audit (alignment ties, words per second of raw lines); all figures below come from the new `scores.json`, `identity.json`, the `timing.json` of each run and `assets/audio/voice/retime.json`. Nobody had heard any of these files when they were measured (the owner heard the listening copies that evening, see "What was not measured"). Nothing here says how a voice sounds. Whether a voice is right is for the owner to decide on the listening copies in `assets/audio/voice/_listen/`.
 
 ## Table
 
@@ -302,7 +302,7 @@ The audit found that a tie in the alignment inside a name run gave a neighbourin
 
 ## Countdown on a one-second grid (2026-11-15)
 
-After the round-3 samples the owner wrote: "Die Stimmen sind wirklich gut, allerdings ist der Countdown-Rhythmus noch kaputt. Vielleicht sollte man die Zahlen einzeln aufnehmen und deterministisch abspielen lassen." On the page he rated the five ship-computer lines "close", each with a note that the countdown is not counted in seconds and that the gaps are irregular and shorter. `tools/voice/countdown.py` is the answer to that; it makes listening samples, not the game's runtime.
+After the round-3 samples the owner wrote in the chat: "Die Stimmen sind wirklich gut, allerdings ist der Countdown-Rhythmus noch kaputt. Vielleicht sollte man die Zahlen einzeln aufnehmen und deterministisch abspielen lassen" On the page he rated the five ship-computer lines "close", each with the same note (`assets/audio/rounds/round3-ratings.json`): "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer". `tools/voice/countdown.py` is the answer to that; it makes listening samples, not the game's runtime.
 
 What was measured in the two lines he heard (`computer_fold`, the vowel onsets of "five" to "one", intervals in ms, target 1000): Qwen3 630.4, 462.6, 466.0, 181.2; Chatterbox-Nano 745.7, 642.9, 657.2, 598.4 (the builder). The independent check measured the same files with three detectors (`voicing`, `band15` and `env50` in its report) and found the same pattern: Qwen3 between 180 and 633 ms, Chatterbox-Nano between 568 and 752 ms.
 
@@ -318,7 +318,7 @@ What could not be confirmed: that the onset of the vowel is the beat a listener 
 
 ## What was not measured
 
-- How any voice sounds, and whether a voice fits its role. Nobody listened.
+- How any voice sounds, and whether a voice fits its role. Nobody who made or measured the files listened. The owner heard the twenty samples in round 3 on the evening of 2026-11-15 and rated six of them "close" (the five ship-computer lines and the Qwen3 docking line); he named no model.
 - Whether a Phonon, Kokoro or Kitten blend is one coherent speaker. The similarity figures only say the embeddings stay close.
 - Whisper small is one recogniser. A name it cannot spell is no proof that the model said it wrongly.
 - Timings: every timing was taken on a busy machine. The graphics card is shared with the owner's desktop programs (about half busy when idle at the time of the audit, 95 to 100 percent in some audit runs, 15 to 72 percent before the later runs), and other agents' checks held the same lock for up to 40 minutes. The processor was loaded by other agents at times (up to 88 percent in the audit's Qwen3 run). The ranges in the table show how far a figure moved; the lowest figure is the best case, not the typical one. The Kokoro and Qwen3 figures on the card moved most (Kokoro 0.011 to 0.173, Qwen3 1.825 to 2.957). A run with the desktop programs closed was not made. Phonon f32 gave 0.082 and 0.068 in the builder's two runs; the cause of that spread was not measured.

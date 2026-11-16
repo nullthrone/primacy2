@@ -49,7 +49,9 @@ page (`tools/dev/audition-check.mjs`, last run by the builder of the second roun
 2026-11-16) passed 48 steps in a run limited to the sixteen candidates and two test files, with no
 scenes. The last full run, on 2026-11-15, passed 52 steps, among them a recording of everything the
 page plays with no click added by the page; the check has changed since and was not run in full
-again (see section 4).
+again (see section 4). The number of steps depends on what a run records: 41 without the
+recording, 47 or 48 with the recording limited to named sounds and no scenes (the runs of
+2026-11-16), so 48 beside 52 is a shorter run and not four steps lost.
 
 ## 2. What the owner has decided and is not built yet
 
@@ -174,12 +176,15 @@ measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
   files (hard cuts, played 10 to 20 dB too loud) and in the page (a compressor as limiter,
   loops that started on a step); both are repaired.
 - Round 3 (2026-11-15: eleven direction samples for hull hit, thruster pulse, landing gear and
-  shield hit, and twenty voice samples), heard: seven ratings, all on voices. "The voices are
+  shield hit, and twenty voice samples), heard: seven ratings, six on voice samples (the five
+  ship-computer lines and one docking line, all "close") and one on a downloaded engine file that
+  he had rated before. "The voices are
   really good", but the countdown did not count in seconds (measured: 0.18 to 0.75 s from number
   to number). His proposal is now the rule: speech that must keep time is made of single clips
   placed by a clock. A countdown built that way stands on the page in four versions (two models;
-  the numbers spoken one by one, or cut out of one sentence; one second from number to number,
-  measured to about 10 ms by three methods). Nobody has heard it yet.
+  the numbers spoken one by one, or cut out of one sentence; one second from number to number by
+  construction; measured, the median of three detectors lies within 10 ms of that and a single
+  detector is up to 57.5 ms off). Nobody has heard it yet.
   Of the direction samples he rated none and chose none: "we are slowly going in the right
   direction, but everything still sounds too artificial and boring. Are there no better local
   models for generating audio?" Asked which sample came nearest, he said he liked none of it and
@@ -202,8 +207,9 @@ licence read at the source (`tools/voice/CANDIDATES.md`; the dossiers are in
 `docs/reports/2026-11-15/voice-dossiers.json`). Most fail a rule of the owner: non-commercial
 terms, a gated repository, or only voices of real speakers. Five were run, each in its own
 environment under `.venv-voice/`, on fifteen test lines (radio, ship computer, station staff,
-invented names, numbers) in four invented voices. `tools/voice/RESULTS.md` has every figure;
-nobody has heard a voice yet.
+invented names, numbers) in four invented voices. `tools/voice/RESULTS.md` has every figure.
+When the comparison was made nobody had heard a voice; the owner heard the samples in round 3 on
+2026-11-15 (six ratings, see above) and named no model. The four countdown samples are unheard.
 
 | model | voices | speed (below 1 is faster than real time) | open point |
 |---|---|---|---|
@@ -253,9 +259,11 @@ from OpenGameArt. No gated repository, no login, no token.
 
 Delivered, for four families (hull hit, thruster pulse, landing gear, shield hit):
 
-- MOSS: 72 candidates (3 prompts x seeds 11 to 16 per family), 48 kHz, one channel, 17 to 18 s each.
-- Stable Audio 3: 72 candidates, 44.1 kHz, two channels, about 2 s each. The checkpoint is the one
-  before the makers' last training stage (the finished one is gated).
+- MOSS: 72 candidates (3 prompts x seeds 11 to 16 per family), 48 kHz, one channel, 2 to 4 s of
+  sound each (the length asked for per family). One takes 17 to 18 s to make on a free card.
+- Stable Audio 3: 72 candidates, 44.1 kHz, two channels, 2 to 4 s of sound each. One takes 1.6 to
+  2.8 s to make after a first call of 18 s. The checkpoint is the one before the makers' last
+  training stage (the finished one is gated).
 - OpenGameArt: none in the first run, 21 excerpts of nine items in the second. In the first run
   `fetch.py` allowed only kenney.nl and nasa.gov, and the recordings agent's attempt to add the
   host was refused as a change to a safety control outside its file list. The orchestrator added
@@ -780,9 +788,10 @@ Other notes:
   GB) under `.venv-sound/sa3/weights`, the recordings (16 MB of archives) in
   `assets/audio/downloads/oga-*`. Candidates lie under `assets/audio/gen/<key>/raw` with a
   `gen.json` of what was asked (ignored by git). A source is run with
-  `.venv-sound/<key>/Scripts/python.exe tools/sound/adapters/<key>.py` (optional `--family hull`,
-  `--seeds 11,12`; adapters `moss.py` and `sa3.py`; `oga.py` cuts the recordings and runs in
-  `.venv-audio`). Every use of the graphics card goes through
+  `.venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py` or
+  `.venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py` (optional `--family hull`,
+  `--seeds 11,12`; the two environments differ in where their interpreter lies; `oga.py` cuts the
+  recordings and runs in `.venv-audio`). Every use of the graphics card goes through
   `.venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- <command>`. Then
   `.venv-audio/Scripts/python.exe tools/sound/screen.py` throws out what is broken and picks four
   per family (the hand skips are in `tools/sound/skips.json`), and `tools/sound/publish.py` puts
@@ -793,6 +802,16 @@ Other notes:
   nasa.gov with its subdomains and, since 2026-11-15, opengameart.org (the exact host); the list
   is changed by the orchestrator, visibly, never by a sub-agent. Disk on 2026-11-16: 508 GB of 1.9
   TB free (the stop line of this work is 200 GB; the owner's condition is at least 10 %).
+- What round 4 taught about comparing sound sources. Match loudness where the listener hears it:
+  the audition page plays a one-channel file on both channels and a two-channel file as it is, so
+  equal file loudness is 3 dB apart at the page (`tools/sound/README.md`, "Level"), and a gain is
+  measured again after it is set. A model's code may clamp its output after the decoder (Stable
+  Audio; decoding without the clamp undoes it) or saturate inside the decoder (MOSS; that cannot be
+  undone), so look at the raw peaks of a new model before screening. BS.1770 loudness of an event
+  under about 0.5 s moves by a few dB with the block positions, so a LUFS target says little there.
+  A test must not pin a list that a run legitimately changes (the hand skips). A scratch ratings
+  file for a page check is an own empty file in an own folder, never a copy of the owner's. An
+  agent that runs inside a workflow is never sent a message: it starts a second copy.
 - The sound library: `tools/audio/README.md` (the listening tools), `tools/audio/synth/README.md`
   (how a sound is written), `tools/audio/SOUND_DESIGN.md` (the direction and the rules).
   Render everything: `.venv-audio/Scripts/python.exe tools/audio/build.py` (add `--describe` for

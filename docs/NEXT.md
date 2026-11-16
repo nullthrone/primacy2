@@ -57,7 +57,9 @@ Asked which direction sample came nearest, he said he liked none and can only de
 Where the candidates come from: three sources he approved on 2026-11-15 ("Ja, alle laden"): MOSS
 (Apache-2.0), Stable Audio 3 Small-SFX Base (Stability AI Community License; its output is test
 material until he decides) and CC0 recordings from OpenGameArt. Anything beyond them needs a new
-yes. The second run made 165 files; `tools/sound/screen.py` threw out only what is broken, picked
+yes. The pool of the second run is 165 files (MOSS 72 from the first run, Stable Audio 72 made
+again without the makers' clamp, 21 excerpts of recordings); `tools/sound/screen.py` threw out only
+what is broken, picked
 for variety and set each copy to its family's loudness at the page; `publish.py` put the sixteen
 on the page. Rules and numbers: `tools/sound/README.md` and `RESULTS.md`. The independent check
 (`docs/reports/2026-11-16/sound-verify2-report.json`) measured the levels, cut rules and licence
@@ -177,6 +179,10 @@ with his own account. Also open:
   response, dead zone, the default layout, the chords on Y).
 - Recordings made at home (`tools/audio/RECORDINGS.md`), if he makes them: raw material.
 - Things outside the ship as real sound: "not for now". Do not raise it again unasked.
+- The eleven direction samples of round 3 (category `pilot`, "Richtungsproben (Runde 3)") are still
+  on the page, none rated; he liked none of them. The earlier plan was to remove the category and
+  its modules after his choice. He made none, so they stay until round 4 is recorded; then ask
+  him in one line whether they can go, and remove them with the next build.
 
 Not to be started without his word:
 

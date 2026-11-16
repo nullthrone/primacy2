@@ -48,7 +48,11 @@ weak showing does not settle the model.
 
 ## How a source is run
 
-    .venv-sound/<key>/Scripts/python.exe tools/sound/adapters/<key>.py [--family hull] [--seeds 11,12]
+    .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py [--family hull] [--seeds 11,12]
+    .venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py [--family hull] [--seeds 11,12]
+
+(The two environments differ in where their interpreter lies. Every run that uses the graphics
+card goes through `tools/voice/with_lock.py`.)
 
 It makes every prompt of `prompts.json` with every seed and writes, under
 `assets/audio/gen/<key>/` (ignored by git):
