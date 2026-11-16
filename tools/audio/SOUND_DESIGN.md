@@ -398,7 +398,7 @@ The plan had been that his choice among the direction samples becomes the rule f
 the structure and energy paths. He made no choice (see above); the samples stay on the page
 until the question of how the sounds are made is settled.
 
-### Round 4, 2026-11-16 (sixteen candidates on the page, not heard yet)
+### Round 4, 2026-11-16 (sixteen candidates, rated the same day)
 
 Why this round differs. After round 3 he wrote: "Wir gehen langsam in die richtige Richtung. Aber es
 klingt alles noch zu künstlich und langweilig. Gibt es keine besseren lokalen Modelle zur
@@ -447,9 +447,89 @@ scale inside its decoder (49 of 72 raw files peak above 0.99; the published shie
 of 7.7 dB); no pick was changed for it. Loudness of events under about 0.5 s moves by a few dB with
 the block positions. The Stable Audio checkpoint is the one before its last training stage.
 
-His ratings: none yet (0 of 16 rated). Until the ratings of round 4 are recorded the way round 3
-was (`assets/audio/rounds/round4.json` with the file hashes, `round4-ratings.json` with the
-ratings), `assets/audio/render/source` is frozen, and `screen.py`, `publish.py` and `build.py` are
-not run on the real tree: a new publish changes ids or hashes and orphans his ratings. What is
-planned for each outcome of his ratings, and what is not to be started without his word, is in
-`docs/ROADMAP.md`, section 2, "Sound sources".
+His ratings (record: `assets/audio/rounds/round4.json` and `round4-ratings.json`; the sixteen as he
+heard them are kept in `assets/audio/gen/_kept/round4`, ignored by git). He rated all sixteen on
+2026-11-16: ten fit ("Passt"), three are close ("Nah dran"), three are wrong ("Falsch"). These are
+the first short events he has accepted in four rounds. With 7, 5 and 4 candidates per source, the
+counts are: Stable Audio 6 of 7 fit and 1 is close; MOSS 3 of 5 fit and 2 are close; the recordings
+1 of 4 fit and 3 are wrong. Read by family and prompt, not as a ranking of sources:
+
+- Hull: MOSS hull_1 s16 fits; Stable Audio hull_2 s11 and hull_1 s13 fit; the recorded metal hit is
+  wrong.
+- Thruster: MOSS thruster_1 s11 (the valve prompt) fits; the recorded steam hiss fits; MOSS
+  thruster_2 s11 and Stable Audio thruster_2 s12 (the air-cannon prompt) are close. His notes:
+  "Grundidee passt, es muss aber doller, knalliger klingen" and, on the second, "Grundidee passt, es
+  muss aber doller, knalliger klingen. Aktuell klingt es eher \"hauchig\"". The verdict followed the
+  prompt.
+- Gear: MOSS gear_2 s12 fits; Stable Audio gear_3 s15 and gear_2 s15 fit; the recorded lock click is
+  wrong.
+- Shield: Stable Audio shield_3 s11 and shield_2 s16 fit; MOSS shield_3 s14 is close, with the note
+  "Klingt hochwertiger als die letzten Samples, allerdings klingt es etwas zu bass-lastig. ich
+  würde ein minimales knistern/wummern mit einbauen"; the recorded spark is wrong. The verdict
+  followed the model.
+
+So hull and gear fit from both models, the thruster by prompt, the shield by model, and of the
+recordings only the steam hiss fits. What it means: the rule that froze `render/source` while he
+rated has ended with the record, but the files of round 4, `prompts.json` and `skips.json` stay as
+they are and round 5 is built beside them. On the evidence of round 4 only the shield depended on
+Stable Audio (MOSS, Apache-2.0, fits for hull, thruster and gear), so its licence became a real
+question; he answered it on the same day by choosing MOSS only for round 5 (the field `decision` of
+`tools/sound/prompts5.json`). Recordings are no longer pursued as the main source. What follows is
+in `docs/ROADMAP.md`, section 2, "Sound sources".
+
+### Round 5, 2026-11-16 (seventeen event sounds on the page, not heard yet)
+
+Why this round differs. Round 4 gave him the first short events he accepted, so round 5 makes the
+event sounds the game needs from that: other strengths and variants of what fitted, his two notes
+answered, and two events he has rejected since round 1 tried again. It is made with MOSS only, as he
+decided. He is asked again only to accept or reject each (Passt / Falsch). The plan, per family, is
+`tools/sound/prompts5.json` (its field `proven` says whether a family rests on a prompt he
+accepted); the screening is the one of round 4 with the family's own length, level and seeds
+(`tools/sound/README.md`, "Round 5"), and the figures are in `tools/sound/RESULTS5.md`.
+
+| family | slots (planned / on the page) | why it is in the round |
+|---|---|---|
+| hull_light, hull_heavy | 2 / 2 each | hull hits fit in round 4; a light and a heavy strength are needed; first tries |
+| thruster_valve | 3 / 2 | the one prompt he accepted (valve); variants so that repeated pulses differ; "proven" |
+| thruster_bang | 2 / 2 | his note on the air cannon: harder, more of a bang, less breathy; first try |
+| thruster_gatling | 2 / 2 | his hint to take a Gatling gun as the reference; a short burst; first try |
+| shield_bright | 3 / 3 | his note on the MOSS shield (too bass-heavy, some crackle or throb); decides whether MOSS can make the shield |
+| fold_jump, fold_exit | 2 / 2 each | two events he has rejected since round 1; first tries |
+
+On the page, first category "Ereignisklänge (Runde 5)": 17 of the 18 planned slots, all MOSS, one
+channel, ids `ev5_<family number>_<family>_<slot>_moss_<tag>`. The valve family has two slots filled:
+all six new valve files were thrown out and the third carried file is a hand skip of round 4. The pool
+was 99 MOSS files (90 made, 9 unheard kept files of round 4); 73 were kept and 26 thrown out (23 cut
+off, 3 several events). Two picks were skipped by hand for a plain fault (`tools/sound/skips5.json`:
+thruster_bang_1 s12 and shield_bright_2 s12) and replaced. Round 4 follows on the page as "Klangquellen
+(Runde 4)". The manifest has 165 entries: the 148 of before, unchanged, and the 17.
+
+Level. Every copy is set to its family's target at the page (hull and thruster -34.0 LUFS, shield and
+fold -24.0). Of the 17, 16 are within 0.021 LU of it in their own channel (the independent check); the
+valve files leave the page 0.50 dB and 0.29 dB above it, dry. Not repaired: shield_bright_2 s11 leaves
+the page 4.0 dB under its two family mates (-28.05 against -24.05 and -24.07), because the true-peak
+ceiling stopped its gain (raw crest 35.0 dB).
+
+Checks. The page check on a port of its own: 48 passed, 0 failed, 0 page faults (28 faults lie in
+sound files, 22 of them in shield_bright_2 s11). The independent check
+(`docs/reports/2026-11-16/sound5-verify-report.json`) found round 4 untouched and almost every number
+of `RESULTS5.md` reproduced. It named three things to repair, none repaired when this was written: a
+failing test in `tools/sound/tests/test_screen.py` (43 tests, 1 failed, it pins `skips5.json` as
+empty), the level of shield_bright_2 s11 above, and the first valve pick, which ends within 20 dB of
+its maximum in its last 50 ms (16.7 dB; the raw cut 14.2 dB). It also lists wrong sentences in the
+README section "Round 5" and in `RESULTS5.md`, not corrected.
+
+Not established (`tools/sound/RESULTS5.md`, "What could not be judged"): how any of the 17 sounds;
+nobody has heard one, and the spectrograms and levels find only plain faults. Whether the thruster now
+has more bang, whether the shield has the crackle or throb he asked for or is still bass-heavy, and
+whether the two fold events are energetic and rushing and not a dull thud. Whether the clicks in
+shield_bright_2 s11 are crackle or a fault. The decoder's pressing against full scale was measured by
+crest only. The 20 dB cut-off threshold was not tested on steady sounds. The two valve files were made
+in round 4 and are unheard.
+
+His ratings: none yet (0 of 17 rated). Until they are recorded the way round 4 was
+(`assets/audio/rounds/round5.json` with the file hashes, `round5-ratings.json` with the ratings),
+`assets/audio/render/events5` is frozen, and `screen.py`, `publish.py` and `build.py` are not run on
+the real tree: a new publish changes ids or hashes and orphans his ratings. What is planned for each
+outcome, and what is not to be started without his word, is in `docs/ROADMAP.md`, section 2, "Sound
+sources", and `docs/NEXT.md`.
