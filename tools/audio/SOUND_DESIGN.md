@@ -506,18 +506,24 @@ thruster_bang_1 s12 and shield_bright_2 s12) and replaced. Round 4 follows on th
 
 Level. Every copy is set to its family's target at the page (hull and thruster -34.0 LUFS, shield and
 fold -24.0). Of the 17, 16 are within 0.021 LU of it in their own channel (the independent check); the
-valve files leave the page 0.50 dB and 0.29 dB above it, dry. Not repaired: shield_bright_2 s11 leaves
+valve files leave the page 0.50 dB and 0.29 dB above it, dry. shield_bright_2 s11 leaves
 the page 4.0 dB under its two family mates (-28.05 against -24.05 and -24.07), because the true-peak
-ceiling stopped its gain (raw crest 35.0 dB).
+ceiling stopped its gain (raw crest 35.0 dB). It stays on the page as it is: its peaks sit at
+-1.1 dBFS, so it cannot be set louder without changing the sound; a LUFS gap on a train of clicks is a
+weak measure of how loud it seems; the page entry states target and reached level; he is told.
 
 Checks. The page check on a port of its own: 48 passed, 0 failed, 0 page faults (28 faults lie in
 sound files, 22 of them in shield_bright_2 s11). The independent check
 (`docs/reports/2026-11-16/sound5-verify-report.json`) found round 4 untouched and almost every number
-of `RESULTS5.md` reproduced. It named three things to repair, none repaired when this was written: a
-failing test in `tools/sound/tests/test_screen.py` (43 tests, 1 failed, it pins `skips5.json` as
-empty), the level of shield_bright_2 s11 above, and the first valve pick, which ends within 20 dB of
-its maximum in its last 50 ms (16.7 dB; the raw cut 14.2 dB). It also lists wrong sentences in the
-README section "Round 5" and in `RESULTS5.md`, not corrected.
+of `RESULTS5.md` reproduced. It named three things to repair, and the orchestrator settled them on
+2026-11-16: the test in `tools/sound/tests/test_screen.py` pinned `skips5.json` as empty and failed
+(43 tests, 1 failed); it now checks the form of the list and passes 43 of 43. The level of
+shield_bright_2 s11 stays as above. The first valve pick ends within 20 dB of its maximum in its last
+50 ms (16.7 dB; the raw cut 14.2 dB) because the raw file drops by about 39 dB within one frame at
+1.004 s; it is accepted explicitly as a burst with a hard end, and he is told. The wrong sentences in
+the README section "Round 5" and in `RESULTS5.md` were corrected. The generate step also made 90
+Stable Audio files against his decision; they were never screened, published or heard, and the
+folder `assets/audio/gen/r5/sa3` was deleted.
 
 Not established (`tools/sound/RESULTS5.md`, "What could not be judged"): how any of the 17 sounds;
 nobody has heard one, and the spectrograms and levels find only plain faults. Whether the thruster now
@@ -527,7 +533,7 @@ shield_bright_2 s11 are crackle or a fault. The decoder's pressing against full 
 crest only. The 20 dB cut-off threshold was not tested on steady sounds. The two valve files were made
 in round 4 and are unheard.
 
-His ratings: none yet (0 of 17 rated). Until they are recorded the way round 4 was
+His ratings: none yet (0 of 17 rated). Round 5 was handed to him on 2026-11-16 with these 17 candidates and is frozen until he has rated them. Until they are recorded the way round 4 was
 (`assets/audio/rounds/round5.json` with the file hashes, `round5-ratings.json` with the ratings),
 `assets/audio/render/events5` is frozen, and `screen.py`, `publish.py` and `build.py` are not run on
 the real tree: a new publish changes ids or hashes and orphans his ratings. What is planned for each

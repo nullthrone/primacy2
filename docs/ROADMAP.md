@@ -43,10 +43,11 @@ seventeen event sounds are the first category of the page.
 Tests, run on 2026-11-16: `npx vitest run` passes 807 tests in 47 files, with 2 more marked as
 expected failures on purpose (see section 4). The audio tools have tests of their own in Python:
 `unittest discover` passes 22 tests of the listening tools, 54 of the synthesis and 77 of the
-downloads and the build (`tools/audio/tests`); the screening of sound candidates has 43, of which
-1 fails (`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
-`.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`; the failing one pins
-`skips5.json` as empty and broke when round 5 added two hand skips, see section 4); the scoring of the voice
+downloads and the build (`tools/audio/tests`); the screening of sound candidates has 43, and all 43 pass
+(`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
+`.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`; one test had pinned
+`skips5.json` as empty and broke when round 5 added two hand skips, so it now checks the form of the
+list); the scoring of the voice
 comparison is in `tools/voice/tests` and was not counted today. The browser check of the audition
 page (`tools/dev/audition-check.mjs`, last run by the select step of round 5 on 2026-11-16)
 passed 48 steps in a run limited to the 17 event sounds and two test files, with no scenes. The last full run, on 2026-11-15, passed 52 steps, among them a recording of everything the
@@ -360,20 +361,26 @@ On the page: 17 of the 18 planned slots (the valve family has two of three, beca
 files were thrown out and the third carried file is a round-4 hand skip); two picks were skipped by
 hand for plain faults and replaced (`tools/sound/skips5.json`); the manifest has 165 entries, the 148
 of before unchanged. He is asked again only for Passt / Falsch, and the four countdown samples are
-still unheard. 0 of 17 rated on 2026-11-16.
+still unheard. 0 of 17 rated on 2026-11-16. Round 5 was handed to him on 2026-11-16 with these 17
+candidates and is frozen until he has rated them.
 
 Independent check (`docs/reports/2026-11-16/sound5-verify-report.json`). Held by its own
 measurements: round 4 untouched (all 148 hashes, the 48 files of `render/source`, `ratings.json`), the
 page entries consistent with `screen.json` and `prompts5.json`, the figures of `RESULTS5.md` (almost
 all reproduced), the page check (48 passed, 0 failed, 0 page faults; 28 faults lie in sound files, 22
 of them in shield_bright_2 s11), the suites (77 audio tests, 807 vitest, tsc without output). Not
-clean, and not repaired when this was written: (a) `test_screen.py` pins `skips5.json` as empty and
-now fails (43 tests, 1 failed); (b) shield_bright_2 s11 leaves the page 4.0 dB under its two family
-mates, because the true-peak ceiling stopped its gain (raw crest 35.0 dB); (c) the first valve pick
-ends within 20 dB of its maximum in its last 50 ms (16.7 dB; 14.2 dB on the raw cut), which the
-cut-off rule does not see; (d) the README section "Round 5" says 78 files where there are 90 per
-model and tells the reader to generate Stable Audio, against his decision; `RESULTS5.md` has four
-sentences the check lists as wrong or over-reaching. Of four files made again, three were
+clean, and settled by the orchestrator on 2026-11-16: (a) `test_screen.py` pinned `skips5.json` as
+empty and failed (43 tests, 1 failed); the assertion now checks the form of the list and the test
+passes 43 of 43; (b) shield_bright_2 s11 leaves the page 4.0 dB under its two family mates, because
+the true-peak ceiling stopped its gain (raw crest 35.0 dB); it stays on the page as it is (its peaks
+sit at -1.1 dBFS, a LUFS gap on a train of clicks is a weak measure, the page entry states target and
+reached level, he is told); (c) the first valve pick ends within 20 dB of its maximum in its last 50
+ms (16.7 dB; 14.2 dB on the raw cut), which the cut-off rule does not see; it is accepted as a burst
+with a hard end and he is told; (d) the README section "Round 5" said 78 files where there are 90 per
+model and told the reader to generate Stable Audio, against his decision; it is corrected, and so
+are the four sentences of `RESULTS5.md` the check listed. The 90 Stable Audio files of the generate
+step were never screened or published; the folder `assets/audio/gen/r5/sa3` was deleted. Of four
+files made again, three were
 bit-identical; one MOSS file differs at about -79 dB.
 
 What follows, the orchestrator's plan and not his decision. When he has rated round 5, the round is
@@ -792,11 +799,11 @@ Never verified:
     re-measured.
   - The "no console errors" claim of the page check was not examined beyond `audition-check.mjs`
     reporting 48 passed; the page check ran with the 17 ids and two controls, no scenes.
-  - Not repaired when this was written: the failing test `test_screen.py` (it pins `skips5.json`
-    as empty), the README section "Round 5" (78 files for 90, a step that generates Stable Audio),
-    four sentences of `RESULTS5.md`, and the 90 Stable Audio files that the generate step made
-    against his decision (`assets/audio/gen/r5/sa3/gen.json` is renamed to `gen.json.not-screened`;
-    renaming it back would change the MOSS picks).
+  - Settled on 2026-11-16 after the check: the test `test_screen.py` passes 43 of 43, the README
+    section "Round 5" and four sentences of `RESULTS5.md` are corrected, and the 90 Stable Audio
+    files that the generate step made against his decision were never screened or published and
+    the folder `assets/audio/gen/r5/sa3` was deleted. Round 5 was handed to him on 2026-11-16 and
+    is frozen until he has rated it.
   - A MOSS file made again differs from the first at about -79 dB, so a run is not reproducible bit
     for bit. `publish.py`, `build.py` on the real tree and `from_round4.py` were not run by the
     check, which only read their output.
