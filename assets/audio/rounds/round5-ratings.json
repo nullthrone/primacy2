@@ -1,0 +1,647 @@
+{
+  "version": 1,
+  "savedAt": "2026-11-16T16:54:56.939Z",
+  "manifest": {
+    "placeholder": false,
+    "count": 165
+  },
+  "ratings": {
+    "engine_main_t000": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:39:55.090Z"
+    },
+    "impact_shield_light": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben",
+      "at": "2026-11-15T08:37:24.420Z",
+      "history": [
+        {
+          "stars": 0,
+          "verdict": "wrong",
+          "note": "Es sollte energetisch klingen. Das hier klingt eher als ob jemand auf eine Salatschüssel klopft. Das gleiche gilt für die anderen Schildtreffer",
+          "at": "2026-11-14T13:41:24.644Z",
+          "hash": "5ffb6b97e8ef"
+        }
+      ],
+      "hash": "2e541154aac5"
+    },
+    "impact_shield_medium": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben",
+      "at": "2026-11-15T08:37:28.202Z",
+      "history": [
+        {
+          "stars": 0,
+          "verdict": "wrong",
+          "note": "",
+          "at": "2026-11-14T13:41:28.424Z",
+          "hash": "335d0b52eb79"
+        }
+      ],
+      "hash": "a333e62b1578"
+    },
+    "impact_shield_heavy": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben",
+      "at": "2026-11-15T08:37:32.244Z",
+      "history": [
+        {
+          "stars": 0,
+          "verdict": "wrong",
+          "note": "",
+          "at": "2026-11-14T13:41:29.114Z",
+          "hash": "b8d1054f42ce"
+        }
+      ],
+      "hash": "0d933c5d190f"
+    },
+    "k_hit_lowboom_0": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:41:44.993Z"
+    },
+    "k_land_plate_medium_0": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:42:08.551Z"
+    },
+    "k_land_metal_light_3": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:42:09.090Z"
+    },
+    "alarm_shields_down": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Klingt wie eine Bahnhofsansage statt wie ein kritischer Zustand...",
+      "at": "2026-11-14T13:43:08.027Z"
+    },
+    "alarm_missile": {
+      "stars": 4,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:43:11.478Z"
+    },
+    "cruise_charge": {
+      "stars": 4,
+      "verdict": "fits",
+      "note": "Sollte nach hinten raus etwas länger sein",
+      "at": "2026-11-14T13:44:02.045Z"
+    },
+    "cruise_engage": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:44:10.184Z"
+    },
+    "cruise_loop": {
+      "stars": 5,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T13:44:13.926Z"
+    },
+    "fold_charge": {
+      "stars": 5,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T13:44:35.018Z"
+    },
+    "fold_jump": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:12.174Z"
+    },
+    "fold_tunnel_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:15.999Z"
+    },
+    "fold_exit": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag",
+      "at": "2026-11-14T13:45:29.522Z"
+    },
+    "cabin_ambience_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:36.873Z"
+    },
+    "silent_running_loop": {
+      "stars": 5,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-14T13:45:42.319Z"
+    },
+    "k_computer_noise_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:45:58.472Z"
+    },
+    "n_dinks_donks": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T13:46:09.237Z"
+    },
+    "k_engine_circular_0": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-14T16:58:44.685Z",
+      "hash": "8ab85f9fa85e"
+    },
+    "weapon_pulse_fire": {
+      "stars": 0,
+      "verdict": "",
+      "note": "",
+      "at": "2026-11-14T20:14:35.886Z",
+      "hash": "233ee0d3bd38"
+    },
+    "engine_main_t025": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:03.210Z",
+      "hash": "16b0dd7805ff"
+    },
+    "engine_main_t050": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:03.780Z",
+      "hash": "9cde2b6ac46d"
+    },
+    "engine_main_t075": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:07.358Z",
+      "hash": "0ad5613857a2"
+    },
+    "engine_main_t100": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:10.442Z",
+      "hash": "e63add0cf183"
+    },
+    "engine_main_boost": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:12.429Z",
+      "hash": "577776920b6a"
+    },
+    "k_engine_large_0": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T19:36:04.593Z",
+      "history": [
+        {
+          "stars": 0,
+          "verdict": "fits",
+          "note": "",
+          "at": "2026-11-15T08:34:47.365Z",
+          "hash": "885aeda16116"
+        }
+      ],
+      "hash": "5a50213f8c3f"
+    },
+    "k_engine_low_0": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:51.880Z",
+      "hash": "d7deee8d7217"
+    },
+    "n_rover_driving": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:34:58.705Z",
+      "hash": "b1d5ec274619"
+    },
+    "n_ingenuity": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:35:02.388Z",
+      "hash": "2fc816f4d9ac"
+    },
+    "n_sls_test_fire": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:35:10.249Z",
+      "hash": "fb63c2045cc0"
+    },
+    "thruster_pulse_a": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:35:40.895Z",
+      "hash": "70c34e47c281"
+    },
+    "thruster_pulse_b": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:35:44.576Z",
+      "hash": "5de126733a4d"
+    },
+    "thruster_pulse_c": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:35:46.625Z",
+      "hash": "de6d3e003a72"
+    },
+    "thruster_burn_loop": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:35:49.511Z",
+      "hash": "f49195aa142f"
+    },
+    "k_thruster_0": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:35:54.680Z",
+      "hash": "0fdc474d93f2"
+    },
+    "k_thruster_3": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:35:57.755Z",
+      "hash": "04f558ca5abf"
+    },
+    "k_engine_small_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt wie ein flugzeugpropeller",
+      "at": "2026-11-15T08:36:07.773Z",
+      "hash": "a87d5d8b2233"
+    },
+    "impact_hull_light": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:36:11.982Z",
+      "hash": "1a2e6c9a2fad"
+    },
+    "impact_hull_medium": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:36:13.618Z",
+      "hash": "473ffdc76707"
+    },
+    "impact_hull_heavy": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt als ob jemand auf einen dumpen plastikbehälter klopft",
+      "at": "2026-11-15T08:36:16.642Z",
+      "hash": "c6990ccefa5a"
+    },
+    "hull_stress_groan": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-15T08:38:57.386Z",
+      "hash": "9e5976b3b8cd"
+    },
+    "debris_patter": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt wie unterwasser und nicht wie im Raum",
+      "at": "2026-11-15T08:39:11.867Z",
+      "hash": "4527216df035"
+    },
+    "k_hit_metal_heavy_0": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-15T08:39:15.941Z",
+      "hash": "e07045693e4a"
+    },
+    "k_hit_plate_heavy_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-15T08:39:24.349Z",
+      "hash": "142fd6c77f13"
+    },
+    "k_hit_metal_medium_2": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-15T08:39:24.927Z",
+      "hash": "7e89ce2ca0db"
+    },
+    "gear_deploy": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..",
+      "at": "2026-11-15T08:42:10.013Z",
+      "hash": "9917ed58a678"
+    },
+    "gear_retract": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..",
+      "at": "2026-11-15T08:42:13.764Z",
+      "hash": "f4926ce9e560"
+    },
+    "voice_2_computer_1_qwen3": {
+      "stars": 4,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:02.489Z",
+      "hash": "d55338b574fe"
+    },
+    "voice_2_computer_2_chatterbox": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:11.836Z",
+      "hash": "1b14c0e5111e"
+    },
+    "voice_2_computer_3_kokoro": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:17.099Z",
+      "hash": "4e0fe5d5b23f"
+    },
+    "voice_2_computer_4_kitten": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:21.824Z",
+      "hash": "96248b58e0c5"
+    },
+    "voice_2_computer_5_phonon": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+      "at": "2026-11-15T19:34:29.135Z",
+      "hash": "b7cd8a0e8d3b"
+    },
+    "voice_3_dock_1_qwen3": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "",
+      "at": "2026-11-15T19:34:39.180Z",
+      "hash": "719b445c3be2"
+    },
+    "src_1_hull_1_moss_p1s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:44.160Z",
+      "hash": "7cf8f6c6cf1e"
+    },
+    "src_1_hull_2_sa3_p2s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:46.897Z",
+      "hash": "7470137308c8"
+    },
+    "src_1_hull_4_sa3_p1s13": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:50.835Z",
+      "hash": "78cde7df25b8"
+    },
+    "src_2_thruster_1_moss_p2s11": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Grundidee passt, es muss aber doller, knalliger klingen",
+      "at": "2026-11-16T06:04:53.294Z",
+      "hash": "c9476fb22eea"
+    },
+    "src_2_thruster_2_sa3_p2s12": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Grundidee passt, es muss aber doller, knalliger klingen. Aktuell klingt es eher \"hauchig\"",
+      "at": "2026-11-16T06:05:06.083Z",
+      "hash": "748d0a0919b6"
+    },
+    "src_2_thruster_4_moss_p1s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:19.029Z",
+      "hash": "4ac8220c92f1"
+    },
+    "src_3_gear_1_moss_p2s12": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:23.972Z",
+      "hash": "0d16c9ec6815"
+    },
+    "src_3_gear_2_sa3_p3s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:28.593Z",
+      "hash": "278453d8fca4"
+    },
+    "src_3_gear_4_sa3_p2s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:33.528Z",
+      "hash": "4de593636127"
+    },
+    "src_4_shield_1_moss_p3s14": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt hochwertiger als die letzten Samples, allerdings klingt es etwas zu bass-lastig. ich würde ein minimales knistern/wummern mit einbauen",
+      "at": "2026-11-16T06:06:43.790Z",
+      "hash": "1a6953d6c020"
+    },
+    "src_4_shield_2_sa3_p3s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:06:54.593Z",
+      "hash": "891acfabe6b4"
+    },
+    "src_1_hull_3_oga_sfx2-metal-hit-01": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:15.712Z",
+      "hash": "91323a2e572f"
+    },
+    "src_4_shield_4_sa3_p2s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:07:27.286Z",
+      "hash": "5d2e63241533"
+    },
+    "src_2_thruster_3_oga_steam-hiss-3": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:07:40.959Z",
+      "hash": "401493b4e270"
+    },
+    "src_3_gear_3_oga_sfx2-lock-open-01": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:45.782Z",
+      "hash": "571bc03e06e3"
+    },
+    "src_4_shield_3_oga_tesla-spark": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:48.160Z",
+      "hash": "51d099e29269"
+    },
+    "ev5_1_hull_light_1_moss_p2s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T16:49:57.364Z",
+      "hash": "3930e1b4ce55"
+    },
+    "ev5_1_hull_light_2_moss_p1s11": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "klingt als ob es mehrere kurze Töne hintereinander wären, wie ein Echo ohne doppler effekt. Ansonsten ok",
+      "at": "2026-11-16T16:50:37.448Z",
+      "hash": "4edc958201cc"
+    },
+    "ev5_2_hull_heavy_1_moss_p2s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T16:50:41.009Z",
+      "hash": "23bc374c2650"
+    },
+    "ev5_2_hull_heavy_2_moss_p1s14": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T16:50:44.249Z",
+      "hash": "59fccc4404cd"
+    },
+    "ev5_3_thruster_valve_1_moss_r4p1s12": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T16:50:51.142Z",
+      "hash": "cd546f8ab8bb"
+    },
+    "ev5_3_thruster_valve_2_moss_r4p1s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T16:50:54.936Z",
+      "hash": "c7bdb1983435"
+    },
+    "ev5_4_thruster_bang_1_moss_p2s11": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun",
+      "at": "2026-11-16T16:51:25.779Z",
+      "hash": "72c5ff8cca92"
+    },
+    "ev5_4_thruster_bang_2_moss_p1s11": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T16:51:51.783Z",
+      "hash": "20494ded9a73"
+    },
+    "ev5_5_thruster_gatling_1_moss_p2s12": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt wie eine kleine Plastikkanone",
+      "at": "2026-11-16T16:52:13.457Z",
+      "hash": "eefc51834728"
+    },
+    "ev5_5_thruster_gatling_2_moss_p1s11": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun",
+      "at": "2026-11-16T16:52:27.159Z",
+      "hash": "791fa6d6eec3"
+    },
+    "ev5_6_shield_bright_1_moss_p1s15": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer sein",
+      "at": "2026-11-16T16:53:02.028Z",
+      "hash": "f13d7c9da826"
+    },
+    "ev5_6_shield_bright_2_moss_p2s11": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt wie ein Knistern eines kaputten Kabels",
+      "at": "2026-11-16T16:53:20.164Z",
+      "hash": "10a82851f95c"
+    },
+    "ev5_6_shield_bright_3_moss_p2s14": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "übersteuert, zu lang, zu viel rauschen",
+      "at": "2026-11-16T16:54:14.360Z",
+      "hash": "45601ce031e0"
+    },
+    "ev5_7_fold_jump_1_moss_p1s13": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "zu übersteuert",
+      "at": "2026-11-16T16:53:42.274Z",
+      "hash": "288dbfb4f96d"
+    },
+    "ev5_7_fold_jump_2_moss_p2s14": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "zu übersteuert",
+      "at": "2026-11-16T16:54:20.119Z",
+      "hash": "41a1a20619a1"
+    },
+    "ev5_8_fold_exit_1_moss_p1s15": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "zu viel hochtöniges Rauscshen",
+      "at": "2026-11-16T16:54:41.481Z",
+      "hash": "3b984a5f2e6a"
+    },
+    "ev5_8_fold_exit_2_moss_p2s15": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt gehaucht, nach Luft, die es im Vakuum nicht gibt..",
+      "at": "2026-11-16T16:54:56.436Z",
+      "hash": "db81ac89ae4f"
+    }
+  },
+  "scenes": {},
+  "general": "Die Töne klingen alle sehr mono, haben wir die Chance, die Tonengine etwas mehr auf Stereo-/Raumklang zu tunen?\nEs sind knackeffekte zu hören, kann das sein, dass es zu laut ist? Klingt übersteuert\n\nLass uns die NASA Funksprüche bitte komplett streichen, wir müssen eine eigene Pipeline zur natürlichen Voice-Erzeugung erfinden, auch damit wir alle beliebigen Texte aussprechen können, wenn wir wollen\n\nWir haben generell das Problem, dass viele Klänge zu dumpf klingen. Es wirkt dann wie eine U-boot-Simulation und nicht wie eine Space Sim. Mag sein, dass das halbwegs realistisch ist, aber wir spielen immer noch ein Spiel. Wir dürfen bei der Klangerzeugung kreativer sein und müssen uns nicht 100% an die Physik halten"
+}
