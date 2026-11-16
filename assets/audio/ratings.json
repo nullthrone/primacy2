@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-16T06:05:19.532Z",
+  "savedAt": "2026-11-16T06:07:48.661Z",
   "manifest": {
     "placeholder": false,
     "count": 148
@@ -451,6 +451,76 @@
       "note": "",
       "at": "2026-11-16T06:05:19.029Z",
       "hash": "4ac8220c92f1"
+    },
+    "src_3_gear_1_moss_p2s12": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:23.972Z",
+      "hash": "0d16c9ec6815"
+    },
+    "src_3_gear_2_sa3_p3s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:28.593Z",
+      "hash": "278453d8fca4"
+    },
+    "src_3_gear_4_sa3_p2s15": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:33.528Z",
+      "hash": "4de593636127"
+    },
+    "src_4_shield_1_moss_p3s14": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt hochwertiger als die letzten Samples, allerdings klingt es etwas zu bass-lastig. ich würde ein minimales knistern/wummern mit einbauen",
+      "at": "2026-11-16T06:06:43.790Z",
+      "hash": "1a6953d6c020"
+    },
+    "src_4_shield_2_sa3_p3s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:06:54.593Z",
+      "hash": "891acfabe6b4"
+    },
+    "src_1_hull_3_oga_sfx2-metal-hit-01": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:15.712Z",
+      "hash": "91323a2e572f"
+    },
+    "src_4_shield_4_sa3_p2s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:07:27.286Z",
+      "hash": "5d2e63241533"
+    },
+    "src_2_thruster_3_oga_steam-hiss-3": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:07:40.959Z",
+      "hash": "401493b4e270"
+    },
+    "src_3_gear_3_oga_sfx2-lock-open-01": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:45.782Z",
+      "hash": "571bc03e06e3"
+    },
+    "src_4_shield_3_oga_tesla-spark": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-16T06:07:48.160Z",
+      "hash": "51d099e29269"
     }
   },
   "scenes": {},
