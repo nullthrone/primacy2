@@ -1,0 +1,27 @@
+{
+ "status": "done",
+ "summary": "Round 5 is screened, published and checked, MOSS only, as prompts5.json's later decision says. The pool is 99 MOSS files (90 new, 9 carried from round 4): 73 kept, 26 thrown out (23 cut off, 3 several events). 17 of the 18 planned slots are published as category events5 (first on the page); the valve family has 2 of 3 because none of its six new files survived and the third carried file is a round-4 hand skip. Two picks were hand-skipped after spectrogram review (thruster_bang_1 s12: second events and a 0.95 s run-up; shield_bright_2 s12: about 40 clicks, a second event at 1.507 s at -1.9 dB) and their places were taken and looked at. Page checks on port 5311: audition-check 48 passed, 0 failed, 0 page faults (28 faults in files, 22 of them in shield_bright_2 s11); audition-level: all one-channel, file>page -0.09 to +0.50 dB dry. Level misses, not repaired: shield_bright_2 s11 leaves the page about 4.0 dB under its family (true-peak ceiling, crest 35.0 dB); valve s12 is 0.50 dB high. shield_bright share above 60 Hz / raw crest: s15 88.9 % / 11.7 dB, s11 99.0 % / 35.0 dB, s14 44.6 % / 17.7 dB. Manifest 165 entries; the 148 old hashes and the 48 render/source files are unchanged; ratings.json unchanged. Nobody listened.",
+ "changed": [
+  "assets/audio/gen/r5/screen.json and assets/audio/gen/r5/_listen (screen.py)",
+  "tools/sound/skips5.json (2 skips)",
+  "assets/audio/render/events5 (17 sounds) and assets/audio/render/manifest.json (publish.py)",
+  "tools/sound/RESULTS5.md",
+  "docs/reports/2026-11-16/sound5-select-report.json",
+  "assets/audio/gen/r5/sa3/gen.json renamed to gen.json.not-screened (undo: mv it back)"
+ ],
+ "problems": [
+  "Stable Audio: the generate step made 90 SA files against the owner's later MOSS-only decision; screen.py has no source filter, so assets/audio/gen/r5/sa3/gen.json was renamed to gen.json.not-screened to keep SA out of the pool (undo: mv assets/audio/gen/r5/sa3/gen.json.not-screened assets/audio/gen/r5/sa3/gen.json; then screening would change the MOSS picks). The brief's Stable Audio label, licence note and -3.10 dB rule had nothing to apply to.",
+  "The brief says sixteen picks; prompts5.json has 18 slots; 17 published (valve slot 3 empty, not filled from another source).",
+  "shield_bright_2 s11 (ev5_6_shield_bright_2_moss_p2s11): true-peak ceiling stopped the gain, own -28.22 LUFS against target -24.0, about 4.0 dB under the other two shield picks; raw crest 35.0 dB; 22 clicks listed as file faults by audition-check. Not skipped, as it is not a plain fault of the README.",
+  "Valve files leave the page +0.50 dB (s12) and +0.29 dB (s15) above target, dry; s12 is 0.1 dB outside the about 0.4 dB rule.",
+  "All six new valve files (seeds 21-26) were thrown out (4 cut off, 2 several events); the proven valve family rests on two unheard round-4 files.",
+  "The tools' README step 5 command now reproduces screen.json only with the sa3 gen.json still renamed."
+ ],
+ "notVerified": [
+  "No sound was listened to; no statement on how anything sounds.",
+  "Hand-skip review was by waveform, spectrogram and 50 ms levels of the 17 listening copies plus the two replacements, not of every kept file.",
+  "Whether the 20 dB cut-off threshold is right for the steady fold sounds was not tested.",
+  "The decoder's pressing against full scale was measured by crest only.",
+  "Page checks ran only with the 17 round-5 ids and the two controls, no scenes; the other sounds were not played."
+ ]
+}
