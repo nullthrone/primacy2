@@ -1,4 +1,13 @@
 {
- "note": "Hand skips of round 5, read by screen.py when it is run with --prompts-file tools/sound/prompts5.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips.json (candidate as source/name, reason). Empty until the first screening of round 5 has been looked at. The hand skips that a round-4 file had there are not copied here: from_round4.py carries them with the file as round4Skip.",
- "skips": []
+ "note": "Hand skips of round 5, read by screen.py when it is run with --prompts-file tools/sound/prompts5.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips.json (candidate as source/name, reason). Entries of the first spectrogram review of the round-5 picks (2026-11-16, nobody listened). The hand skips that a round-4 file had there are not copied here: from_round4.py carries them with the file as round4Skip.",
+ "skips": [
+  {
+   "candidate": "moss/thruster_bang_1__s12",
+   "reason": "second events and a long run-up inside a one-event cut: in the 1.2 s cut (capped at the family length) the level sits at -15 to -22 dB under the maximum for the first 0.95 s, with low thumps at about 0.40, 0.50 and 0.90 s, and the loudest sound (peak 0.199, 0.0 dB) is at 1.011 s; found in the waveform and the 50 ms level of the pick ev5_4_thruster_bang_2_moss_p1s12"
+  },
+  {
+   "candidate": "moss/shield_bright_2__s12",
+   "reason": "a second event of weight inside a one-event cut: about 40 separate clicks within 16.5 dB of the peak (0.850 at 0.010 s) spread over 0 to 1.55 s, among them 1.321 s at -5.6 dB and 1.507 s at -1.9 dB, then 0.9 s at 28 to 31 dB under the maximum; found in the waveform and the spectrogram of the pick ev5_6_shield_bright_3_moss_p2s12"
+  }
+ ]
 }
