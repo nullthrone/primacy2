@@ -208,8 +208,8 @@ licence read at the source (`tools/voice/CANDIDATES.md`; the dossiers are in
 terms, a gated repository, or only voices of real speakers. Five were run, each in its own
 environment under `.venv-voice/`, on fifteen test lines (radio, ship computer, station staff,
 invented names, numbers) in four invented voices. `tools/voice/RESULTS.md` has every figure.
-When the comparison was made nobody had heard a voice; the owner heard the samples in round 3 on
-2026-11-15 (six ratings, see above) and named no model. The four countdown samples are unheard.
+When the comparison was made nobody had heard a voice; in round 3 on 2026-11-15 the owner rated six
+of the twenty samples (see above) and named no model. The four countdown samples are unheard.
 
 | model | voices | speed (below 1 is faster than real time) | open point |
 |---|---|---|---|
