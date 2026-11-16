@@ -1,0 +1,122 @@
+{
+  "note": "Round 5: the event sounds of the game, made from what the owner accepted in round 4 (assets/audio/rounds/round4-ratings.json). In round 4 every generated hull and gear candidate fitted, from either model. For the thruster the verdict followed the prompt (the valve prompt fitted, the air-cannon prompt was 'close': \"Grundidee passt, es muss aber doller, knalliger klingen. Aktuell klingt es eher 'hauchig'\"). For the shield it followed the model (Stable Audio fitted, MOSS was 'close': \"etwas zu bass-lastig. ich würde ein minimales knistern/wummern mit einbauen\"). So this file asks for the strengths and variants that the library needs beside the accepted candidates, answers his two notes, and tries two events he has rejected since round 1 (fold jump and fold exit: \"Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag\"). 'proven' says whether a family rests on a prompt he accepted; the others are first tries. Prompts describe a real sound a microphone could record, as in prompts.json. Fields per family: 'seconds' asked from the model, 'maxS' the longest cut, 'oneEvent' whether a second event is a fault, 'lufs' the level of every candidate on the page (one-channel measure, as in round 4), 'picks' the sources of the slots on the page in order, 'minAbove60Hz' (optional) the smallest share of energy above 60 Hz a candidate needs to be picked, 'fromRound4' (optional) the unheard kept candidates of a round-4 prompt that join this family's pool without being made again.",
+  "category": {"id": "events5", "de": "Ereignisklänge (Runde 5)", "en": "Event sounds (round 5)", "idPrefix": "ev5"},
+  "seeds": [11, 12, 13, 14, 15, 16],
+  "families": [
+    {
+      "id": "hull_light",
+      "de": "Rumpftreffer, leicht",
+      "en": "Hull hit, light",
+      "what": "A small piece of debris or a light shot hits the hull; heard inside. Library event: impact_hull_light.",
+      "proven": false,
+      "seconds": 2,
+      "maxS": 1.2,
+      "oneEvent": true,
+      "lufs": -34.0,
+      "picks": ["moss", "sa3"],
+      "prompts": [
+        {"id": "hull_light_1", "text": "Small piece of metal debris hits a thick steel ship hull, short sharp clank with a brief ring, heard from inside"},
+        {"id": "hull_light_2", "text": "Heavy wrench dropped once onto a steel deck plate, single short hard metallic knock, close microphone"}
+      ]
+    },
+    {
+      "id": "hull_heavy",
+      "de": "Rumpftreffer, schwer",
+      "en": "Hull hit, heavy",
+      "what": "Something very heavy hits the hull; the structure answers. Library event: impact_hull_heavy.",
+      "proven": false,
+      "seconds": 4,
+      "maxS": 3.8,
+      "oneEvent": false,
+      "lufs": -34.0,
+      "picks": ["moss", "sa3"],
+      "prompts": [
+        {"id": "hull_heavy_1", "text": "Huge impact on a large steel ship hull, very deep boom and a hard metallic crash, the whole structure groans and rattles, long resonant decay, heard from inside"},
+        {"id": "hull_heavy_2", "text": "Wrecking ball smashes into a large steel tank, enormous low thud with crunching metal and a long ringing tail"}
+      ]
+    },
+    {
+      "id": "thruster_valve",
+      "de": "Düsenstoß, Ventil",
+      "en": "Thruster pulse, valve",
+      "what": "More variants of the thruster pulse he accepted (the valve prompt of round 4), so that repeated pulses do not sound the same. Library events: thruster_pulse_a, _b, _c.",
+      "proven": true,
+      "seconds": 2,
+      "maxS": 1.2,
+      "oneEvent": true,
+      "lufs": -34.0,
+      "picks": ["moss", "sa3", "moss"],
+      "seeds": [21, 22, 23, 24, 25, 26],
+      "fromRound4": {"prompt": "thruster_1", "exclude": ["moss/thruster_1__s11"]},
+      "prompts": [
+        {"id": "thruster_valve_1", "text": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst"}
+      ]
+    },
+    {
+      "id": "thruster_bang",
+      "de": "Düsenstoß, knalliger",
+      "en": "Thruster pulse, with more bang",
+      "what": "His note on the air-cannon pulse: the idea fits, but it must be harder and more of a bang, less breathy.",
+      "proven": false,
+      "seconds": 2,
+      "maxS": 1.2,
+      "oneEvent": true,
+      "lufs": -34.0,
+      "picks": ["moss", "sa3"],
+      "prompts": [
+        {"id": "thruster_bang_1", "text": "Pneumatic valve fires once with a loud hard bang followed by a very short punchy burst of compressed gas, dry and tight, single shot"},
+        {"id": "thruster_bang_2", "text": "Nail gun fires once, loud sharp crack with a short blast of compressed air, close microphone"}
+      ]
+    },
+    {
+      "id": "shield_bright",
+      "de": "Schildtreffer, weniger Bass",
+      "en": "Shield hit, less bass",
+      "what": "His note on the MOSS shield hit: better than before, but too bass-heavy; a little crackle or throb should be in it. Library event: impact_shield_medium.",
+      "proven": false,
+      "seconds": 3,
+      "maxS": 2.5,
+      "oneEvent": true,
+      "lufs": -24.0,
+      "minAbove60Hz": 0.4,
+      "picks": ["moss", "moss", "sa3"],
+      "fromRound4": {"prompt": ["shield_1", "shield_3"], "sources": ["moss"], "exclude": ["moss/shield_3__s14"]},
+      "prompts": [
+        {"id": "shield_bright_1", "text": "Force field struck by a projectile, bright burst of crackling electricity with a short light hum underneath"},
+        {"id": "shield_bright_2", "text": "Sharp electric zap and crackle, sparks sizzling, with a soft pulsing throb that fades quickly"}
+      ]
+    },
+    {
+      "id": "fold_jump",
+      "de": "Faltsprung",
+      "en": "Fold jump",
+      "what": "The moment the fold drive fires. Rejected since round 1: it should sound energetic, hissing and rushing, not like a dull thud. Library event: fold_jump.",
+      "proven": false,
+      "seconds": 4,
+      "maxS": 3.8,
+      "oneEvent": false,
+      "lufs": -24.0,
+      "picks": ["moss", "sa3"],
+      "prompts": [
+        {"id": "fold_jump_1", "text": "Huge burst of energy is released, a roaring hissing whoosh rushes past and fades away, powerful and bright, science fiction jump drive"},
+        {"id": "fold_jump_2", "text": "Jet engine afterburner ignites with a violent roar and a rushing blast of air, then whooshes away into the distance"}
+      ]
+    },
+    {
+      "id": "fold_exit",
+      "de": "Faltsprung, Austritt",
+      "en": "Fold exit",
+      "what": "The ship drops out of the fold. Rejected since round 1 with the same words as the jump. Library event: fold_exit.",
+      "proven": false,
+      "seconds": 4,
+      "maxS": 3.8,
+      "oneEvent": false,
+      "lufs": -24.0,
+      "picks": ["moss", "sa3"],
+      "prompts": [
+        {"id": "fold_exit_1", "text": "A rushing whoosh arrives fast from the distance and ends in a powerful hissing burst of energy that dissipates, science fiction"},
+        {"id": "fold_exit_2", "text": "Air rushes in with a rising whoosh and ends in a loud blast of steam, then a sizzling fade"}
+      ]
+    }
+  ]
+}
