@@ -141,3 +141,38 @@ full scale counted as full scale; a loud low sine can trip it); the level comes 
 `checks.level.gainDb` is the gain that was applied and `requestedGainDb` the one the target asked
 for; they differ where the ceiling limited it (`limited`). The manifest entry carries the real duration and channels and the same
 measured numbers as a rendered sound.
+
+## Generated sounds in the build (build.py)
+
+Sounds made by a model that the owner heard and accepted become library sounds, with source
+`generated`. At present these are eight sounds of MOSS-SoundEffect v2.0 (code and weights
+Apache-2.0).
+
+- `assets/audio/generated.json` is the list: `{"note", "sounds": [...]}`. Each entry has `id`
+  (`g_...`), `standsFor` (the event of `sounds.json` it stands for), `file`, `sha256` of the raw
+  file, `cut` (`startS`, `endS`), `lufs`, `en`, `de`, `origin` (model, model revision, code, code
+  commit, prompt, seed, round, candidate, verdict, ratedAt) and `licence`.
+- The raw files lie in `assets/audio/generated/<id>.wav` and are committed, byte for byte: a run of
+  the model is not reproducible bit for bit, and `assets/audio/gen` is ignored by git.
+- The command is the one of every build, `.venv-audio/Scripts/python.exe tools/audio/build.py
+  --manifest-only` (or a full run). `_generated_sounds` writes every entry as a processed copy
+  `<out>/generated/<id>.wav` with a spectrogram, and the manifest points to that copy. The entries
+  stand after the rendered sounds and before the downloads. Copies no longer in the list are
+  removed. Tests: `tests/test_generated_build.py`.
+- What is checked. The sha256 of the raw file: where it differs the entry is refused with a message
+  and nothing is built from another file; a raw file missing on disk is reported and skipped.
+  Then the cut as recorded (seconds, to the nearest sample), 48 kHz, and the ends of a one-shot made
+  without a step (the same repair as for a download, `repair_oneshot_ends`). Then the level: the
+  integrated loudness is set to the entry's `lufs` by measurement, and measured again after the
+  gain until it is within 0.01 LU (`set_loudness`), then once more on the 16 bit file that is
+  shipped. `checks.level` says `target`, `reached`, `error`, and `limited`: the true-peak ceiling of
+  the download step (-1.05 dB) may stop the gain; the build then fails nothing and adds the hint
+  `level-limited-by-ceiling`. Otherwise `reached` must be within 0.1 LU of `target` or the sound
+  fails as `level-missed`. Clipping of the raw cut is counted (`checks.sourceClipped`) and shown as
+  a hint, not a failure, because the owner heard and accepted the sound. Two runs give the same bytes.
+- `validate_manifest` demands for a generated entry a spectrogram, a licence, a duration above 0, a
+  true peak not above -1 dB and the object `generated` (`standsFor`, `model`, `prompt`, `seed`,
+  `round`, `candidate`, `sha256`).
+- The `lufs` of an entry is the loudness of the rendered event it stands for as the manifest had it
+  on 2026-11-16. These levels are provisional until the mix of the game is designed. The owner heard
+  the candidates at another level (-34 or -35 LUFS, for the comparison). The rendered events stay.

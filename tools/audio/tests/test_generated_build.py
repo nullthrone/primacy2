@@ -145,6 +145,14 @@ class Processing(Base):
         self.assertGreater(e[int(0.1 * SR): int(0.5 * SR)].max(), 0.01)  # the part inside is there
         self.assertAlmostEqual(entries[0]['duration'], 0.6, places=3)
 
+    def test_the_cut_is_taken_at_the_nearest_sample(self):
+        """Rule 3: cut as recorded. The seconds are sample positions written with four decimals: 3.8006 s at
+        48 kHz is 182428.8, so the cut ends at sample 182429 (int() would drop it to 182428)."""
+        x = np.zeros(4 * SR)
+        x[SR: 2 * SR] = burst(1.0, edge_ms=10.0)          # silent at both ends of the cut: no repair adds samples
+        y, _ = build.process_generated(x.reshape(-1, 1), SR, (0.1, 3.8006), -30.0)
+        self.assertEqual(y.shape[0], 182429 - 4800)
+
     def test_the_copy_is_48_khz_whatever_the_raw_file_is(self):
         """Rule 3: 48 kHz. A raw file at 44.1 kHz comes out at 48 kHz with the same length in seconds."""
         x = burst(1.0, sr=44100, edge_ms=5.0)

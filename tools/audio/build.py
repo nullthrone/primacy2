@@ -612,11 +612,14 @@ def set_loudness(x: np.ndarray, target: float, ceiling_db: float = DOWNLOAD_CEIL
 
 def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float) -> tuple[np.ndarray, dict]:
     """Turn the raw file of a generated sound into the file that is shipped: arrays in, array out.
-    Cut as recorded (seconds), 48 kHz (prepare_download), the ends of a one-shot made without a step
+    Cut as recorded (seconds, to the nearest sample), 48 kHz (prepare_download), the ends of a one-shot made without a step
     (repair_oneshot_ends, the same as for a download), then the integrated loudness set to
     lufs_target (set_loudness) within the true-peak ceiling of the download step. Nothing here is
     random, so the same input gives the same output."""
-    x, info = prepare_download(data, sr, cut)
+    # the recorded seconds are sample positions written with four decimals: the nearest sample, not
+    # the one below (int(0.006 * 48000) is 287 because of the binary fraction; the position is 288)
+    first, last = int(round(cut[0] * sr)), int(round(cut[1] * sr))
+    x, info = prepare_download(np.asarray(data)[first:last], sr)
     info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["appendedTailMs"] = 0.0
     x = repair_oneshot_ends(x, info)
     y, info["level"] = set_loudness(x, lufs_target)

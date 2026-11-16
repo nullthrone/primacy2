@@ -1,0 +1,69 @@
+{
+  "role": "tools",
+  "date": "2026-11-16",
+  "status": "done",
+  "built": {
+    "tools/audio/build.py": "New source value generated. _generated_sounds (beside _excerpt_downloads) reads assets/audio/generated.json and the raw files in assets/audio/generated, checks the sha256, and writes <out>/generated/<id>.wav with a spectrogram. process_generated: cut (nearest sample), 48 kHz via prepare_download, ends via repair_oneshot_ends, then set_loudness. repair_oneshot_ends is the one-shot block of process_download moved into a function, so downloads and generated sounds share it. set_loudness sets integrated loudness by measurement and measures again after the gain (up to 8 rounds, until within 0.01 LU), cut back to the download ceiling -1.05 dB. assemble_manifest calls _generated_sounds after the synth entries and before the downloads and skips the folder out/generated in its json glob. validate_manifest accepts source generated and demands spectrogram, licence, duration above 0, true peak not above -1, and the generated object with standsFor, model, prompt, seed, round, candidate, sha256.",
+    "tools/audio/tests/test_generated_build.py (new)": "20 tests. Every docstring names the rule it catches.",
+    "assets/audio/generated.json (new)": "The list of eight with note, sha256, cut, lufs, en, de, origin, licence.",
+    "assets/audio/generated/*.wav (new, 8 files)": "Raw files copied byte for byte from _kept/round4/raw and _kept/round5/raw. The sha256 of each equals rawSha256 of its kept.json record (asserted at copy time).",
+    "tools/audio/README.md": "New section Generated sounds in the build. No other document changed."
+  },
+  "tests": {
+    "tools/audio/tests": "97 tests, OK (was 77 before; 20 are new)",
+    "tools/audio/listen/tests": "22 tests, OK",
+    "tools/audio/synth/tests": "54 tests, OK"
+  },
+  "stepC_dryRunOnCopy": {
+    "copy": "assets/audio/render copied (105 MB) to the scratch folder genbuild/copy; build.py --manifest-only --out <copy>",
+    "result": "clean. 165 ids all present, 0 entries differ in any field, 0 hashes differ, relative order the same, categories equal and in the same order, top-level keys equal, exactly 8 entries added (positions 132 to 139 of 173, after the rendered entries, before the 33 downloads of selection.json). The manifest validates against the contract. Run twice (before and after the rounding change of the cut); same result."
+  },
+  "stepD_realTree": {
+    "result": "build.py --manifest-only on assets/audio/render: 173 sounds, validates. Compared with the manifest before: same as step C. The manifest is byte-identical to the one built on the copy. Against assets/audio/rounds/round5.json: 165 of 165 hashes unchanged. The only ids in the manifest that the record does not have are the 8 new ones."
+  },
+  "stepE_comparisonWithPageCopies": {
+    "method": "Processed copy against _kept/roundN/page/<candidate>.wav. Same cut, another gain. Normalised correlation (no mean removed, which makes it gain-free) over the common part, with the lag searched from -100 to +100 samples. The page copies are 10 ms longer (they have a 10 ms ramp in front, the build has a 1.5 ms lead-in or none), so the common part is the whole processed copy. The gain difference is the level ratio of the common part.",
+    "sounds": [
+      {"id": "g_impact_hull_light", "corrLag0": 1.0, "corrBest": 1.0, "lag": 0, "gainDiffDb": 4.35, "target": -29.63, "reached": -29.63, "truePeakDb": -14.28, "durationS": 0.6455},
+      {"id": "g_impact_hull_medium", "corrLag0": 1.0, "corrBest": 1.0, "lag": 0, "gainDiffDb": 10.0, "target": -23.99, "reached": -23.99, "truePeakDb": -4.6, "durationS": 2.5015},
+      {"id": "g_impact_hull_heavy_a", "corrLag0": 1.0, "corrBest": 1.0, "lag": 0, "gainDiffDb": 8.63, "target": -25.37, "reached": -25.37, "truePeakDb": -14.79, "durationS": 3.7735},
+      {"id": "g_impact_hull_heavy_b", "corrLag0": 1.0, "corrBest": 1.0, "lag": 0, "gainDiffDb": 8.62, "target": -25.37, "reached": -25.37, "truePeakDb": -10.55, "durationS": 3.8021},
+      {"id": "g_thruster_pulse_a", "corrLag0": 0.1078, "corrBest": 1.0, "lag": 1, "gainDiffDb": 8.25, "target": -25.75, "reached": -25.75, "truePeakDb": -15.91, "durationS": 0.403},
+      {"id": "g_thruster_pulse_b", "corrLag0": 0.99998, "corrBest": 0.99998, "lag": 0, "gainDiffDb": 6.77, "target": -27.23, "reached": -27.23, "truePeakDb": -17.37, "durationS": 1.004},
+      {"id": "g_thruster_pulse_c", "corrLag0": 1.0, "corrBest": 1.0, "lag": 0, "gainDiffDb": 5.73, "target": -28.26, "reached": -28.26, "truePeakDb": -17.85, "durationS": 0.7885},
+      {"id": "g_gear_deploy", "corrLag0": 0.9786, "corrBest": 1.0, "lag": 1, "gainDiffDb": 7.69, "target": -27.31, "reached": -27.31, "truePeakDb": -12.17, "durationS": 3.803}
+    ],
+    "summary": "Six of eight agree above 0.999 at lag 0. Two (g_thruster_pulse_a, g_gear_deploy) agree to 1.0000 only after a shift of one sample: the page copy starts one sample earlier. The record keeps the cut as seconds with four decimals (0.006 s, 0.0013 s), which does not fix the start sample to better than about two samples, so the build cannot know. One sample is 0.02 ms. I did not shift the cut to match the page, because that would put a value into generated.json that the record does not have.",
+    "levels": "All eight reached their target to 0.00 LU on the 16 bit file (checks.level.error 0.0). The ceiling stopped none. The lowest headroom is g_impact_hull_medium at true peak -4.6 dB."
+  },
+  "pageAndCheck": {
+    "grepSourceInAuditionFiles": "packages/client/src/dev/audition/Library.tsx tests source === 'download' at lines 80, 109, 135, 253, 258, 292, 424, 425 and source !== 'synth' at line 284. types.ts has source: string. tools/dev/audition-check.mjs tests source === 'download' at 60, 287, 313, 314.",
+    "verdict": "Nothing breaks. A generated entry is not 'download', so the page lists it under 'rendered', shows no download badge and no download note, and shows the licence badge (line 284, source !== 'synth'). The check script picks downloads by source === 'download', so it skips the eight. Two things to look at later, not edited here: the page does not label the eight as generated (they sit among the rendered sounds of impacts, thrusters and landing, without a badge saying MOSS apart from the name), and the check script has no case for them. Nothing under packages/ or tools/dev was changed."
+  },
+  "decisionsBeyondTheBrief": [
+    "Names: en and de are stored in generated.json with ' · MOSS' appended (U+00B7, one character). The manifest of events5 on disk has the double-encoded form (a mojibake of the same dot); I did not copy that. The heavy pair is ' · MOSS a' and ' · MOSS b'.",
+    "The intent text is built by build.py (generated_intent) from the list, not stored in the list; an optional 'intent' key in an entry would override it.",
+    "round of the two thruster valve picks is 5 (the round in which the owner rated them). Their raw files were generated in round 4; the note of generated.json says so. Prompt and seed come from the round-5 kept.json, which for these two equals the round-4 generation.",
+    "For the round-4 candidates (src_...) the prompt is text_given of gen_moss.json (the full text including 'duration: 3.0s', the same form that round 5 stores). ratedAt comes from the 'at' field of assets/audio/ratings.json (read only).",
+    "Source clipping of the raw cut is counted and shown as hint source-clipped, not as a failure (a download fails on it). The owner accepted the sounds by ear. None of the eight tripped it (sourceClipped 0 for all).",
+    "The cut is taken at the nearest sample (round), not at int(): 3.8006 s is sample 182429, int() would give 182428. This is done in process_generated by slicing before prepare_download; prepare_download itself is unchanged.",
+    "A level miss (not stopped by the ceiling, error above 0.1 LU on the shipped 16 bit file) fails the entry's checks as level-missed; a ceiling stop is a hint. A refused or skipped entry is only printed, the exit code of build.py is not raised (as for a missing download).",
+    "If generated.json is missing the step returns nothing and deletes nothing (as for selection.json). Stale processed copies are removed only when the list exists.",
+    "The manifest entry carries more than the required generated fields: modelRevision, codeCommit, verdict, ratedAt, cut, rawFile.",
+    "set_loudness measures again after each gain because a quiet sound can lose 400 ms blocks to the absolute gate when it is made quieter; a single gain from the first measurement would then miss. For these eight the first gain was probably already within 0.01 LU; the loop is there for other input and has a test with a very quiet tail.",
+    "File ending: the Edit tool turned build.py into CRLF once; I converted it back to LF (0 CR bytes now in build.py, the test, README and generated.json)."
+  ],
+  "notVerified": [
+    "Nobody listened. All claims are measurements: loudness, true peak, correlation with the page copies.",
+    "Whether the two page copies that start one sample earlier (g_thruster_pulse_a, g_gear_deploy) matter: one sample is 0.02 ms, I measured the alignment, not the sound.",
+    "Determinism was tested for the wav bytes and the manifest entry in a test (two runs, same bytes) and by the manifest of the copy and of the real tree being byte-identical. The spectrogram PNG bytes were not compared.",
+    "The audition page itself was not opened and its check script was not run; the reading of the page code above comes from searching the source.",
+    "Whether git picked up generated.json and the eight raw files: the background loop commits, I did not look at the commits.",
+    "Whether the listening level matters later: the level of the eight is the loudness of the rendered events, which is provisional until the game mix exists. The owner heard them 4 to 10 dB lower."
+  ],
+  "openPoints": [
+    "The audition page shows the eight among the rendered sounds without a generated badge. A small change in Library.tsx (badge or its own group for source generated) would help the next listening round; not done, not in this brief.",
+    "tools/dev/audition-check.mjs does not know source generated.",
+    "A later publish that prunes events5 or source is not a risk for the eight: the raw files are in assets/audio/generated and the list in assets/audio/generated.json."
+  ]
+}
