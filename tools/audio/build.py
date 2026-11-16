@@ -4,7 +4,8 @@
         [--out DIR] [--no-clap] [--describe] [--manifest-only]
 
 For every sound: <out>/<category>/<id>.wav, a spectrogram <id>.png and a small <id>.json with the
-measurements and the result of every rule. The manifest is assembled from all the small JSON
+measurements and the result of every rule. Chosen downloads (selection.json) and generated sounds
+(generated.json) are written as processed copies to <out>/downloads and <out>/generated. The manifest is assembled from all the small JSON
 files in <out>, so several people can build their own categories into one folder.
 """
 from __future__ import annotations
@@ -32,6 +33,8 @@ from synth import rules  # noqa: E402
 DEFAULT_OUT = ROOT / "assets" / "audio" / "render"
 SELECTION = ROOT / "assets" / "audio" / "selection.json"
 DOWNLOADS = ROOT / "assets" / "audio" / "downloads"
+GENERATED_LIST = ROOT / "assets" / "audio" / "generated.json"
+GENERATED_DIR = ROOT / "assets" / "audio" / "generated"
 LICENCE = "AGPL-3.0-or-later"
 
 
@@ -425,6 +428,34 @@ def prepare_download(data: np.ndarray, sr: int, excerpt: tuple[float, float] | N
     return x, info
 
 
+def repair_oneshot_ends(x: np.ndarray, info: dict) -> np.ndarray:
+    """The end repair of a one-shot at 48 kHz (n, ch), shared by downloads and generated sounds.
+    The recording itself is never multiplied at its start, so no attack is lost. Where the first
+    SAMPLE is above SILENT_EDGE_DB a lead-in of LEAD_IN_MS is put in front. Where the last
+    millisecond is not silent the last FADE_OUT_MS are faded out, or, where the loudest part of
+    the sound is in those, a short tail is appended. info receives leadInMs, fadeOutMs and
+    appendedTailMs. x is changed in place where it is faded; the result may be a new array."""
+    n = x.shape[0]
+    ms = DOWNLOAD_SR // 1000
+    silent = 10.0 ** (SILENT_EDGE_DB / 20.0)
+    if np.abs(x[-ms:]).max() > silent:
+        k = min(int(round(FADE_OUT_MS * ms)), n // 2)
+        if envelope_peak_index(x) >= n - k:
+            # the loudest part is where the fade would go: the recording stays as it is and a
+            # short tail runs from its last sample down to zero after it
+            kt = int(round(TAIL_MS * ms))
+            x = np.concatenate([x, _tail_out(x[-1], kt)], axis=0)
+            info["appendedTailMs"] = round(1000.0 * kt / DOWNLOAD_SR, 3)
+        else:
+            x[n - k:] *= _fade_curve(k)[::-1][:, None]
+            info["fadeOutMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)   # what was applied: n // 2 of a short file
+    if np.abs(x[0]).max() > silent:
+        k = int(round(LEAD_IN_MS * ms))
+        x = np.concatenate([_lead_in(x[0], k), x], axis=0)
+        info["leadInMs"] = LEAD_IN_MS
+    return x
+
+
 def process_download(data: np.ndarray, sr: int, kind: str, category: str,
                      excerpt: tuple[float, float] | None = None) -> tuple[np.ndarray, dict]:
     """Turn a decoded download into the file that is shipped: arrays in, array out.
@@ -446,24 +477,7 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
     x, info = prepare_download(data, sr, excerpt)
     info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["loopCrossfadeMs"] = info["appendedTailMs"] = 0.0
     if kind == "oneshot":
-        n = x.shape[0]
-        ms = DOWNLOAD_SR // 1000
-        silent = 10.0 ** (SILENT_EDGE_DB / 20.0)
-        if np.abs(x[-ms:]).max() > silent:
-            k = min(int(round(FADE_OUT_MS * ms)), n // 2)
-            if envelope_peak_index(x) >= n - k:
-                # the loudest part is where the fade would go: the recording stays as it is and a
-                # short tail runs from its last sample down to zero after it
-                kt = int(round(TAIL_MS * ms))
-                x = np.concatenate([x, _tail_out(x[-1], kt)], axis=0)
-                info["appendedTailMs"] = round(1000.0 * kt / DOWNLOAD_SR, 3)
-            else:
-                x[n - k:] *= _fade_curve(k)[::-1][:, None]
-                info["fadeOutMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)   # what was applied: n // 2 of a short file
-        if np.abs(x[0]).max() > silent:
-            k = int(round(LEAD_IN_MS * ms))
-            x = np.concatenate([_lead_in(x[0], k), x], axis=0)
-            info["leadInMs"] = LEAD_IN_MS
+        x = repair_oneshot_ends(x, info)
     elif kind == "loop":
         x, k = _loop_crossfade(x, info)
         info["loopCrossfadeMs"] = round(1000.0 * k / DOWNLOAD_SR, 3)
@@ -556,12 +570,190 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
     return entries
 
 
+GENERATED_LIST_KEYS = ("id", "standsFor", "file", "sha256", "cut", "lufs", "en", "de", "origin", "licence")
+GENERATED_ORIGIN_KEYS = ("model", "prompt", "seed", "round", "candidate", "verdict", "ratedAt")
+LEVEL_TOLERANCE_LU = 0.1    # a generated sound must land this close to its target loudness (unless the ceiling stops it)
+LEVEL_SEARCH_LU = 0.01      # the search for the gain goes on until the measured loudness is this close
+
+
+def set_loudness(x: np.ndarray, target: float, ceiling_db: float = DOWNLOAD_CEILING_DB,
+                 max_iter: int = 8) -> tuple[np.ndarray, dict]:
+    """Scale x (n, ch) so that its integrated loudness, measured after the gain, is the target in
+    LUFS. One gain from the measurement of x is not enough for a quiet sound: when the sound is
+    made quieter, 400 ms blocks fall under the absolute gate of BS.1770 and the loudness moves. So
+    the loudness of the scaled signal is measured again and the gain corrected until it is within
+    LEVEL_SEARCH_LU. Where the true peak would pass ceiling_db the gain is cut back to the ceiling
+    and info["limited"] is True. info: target, reached (measured on y), gainDb (applied),
+    requestedGainDb (the one that would have met the target), truePeakDb, limited, iterations."""
+    from synth.levels import lufs, true_peak_db
+
+    x = np.asarray(x, dtype=np.float64)
+    gain = target - lufs(x)
+    y, limited, tp, n = x, False, 0.0, 0
+    for n in range(1, max_iter + 1):
+        y = x * 10.0 ** (gain / 20.0)
+        tp = true_peak_db(y)
+        if tp > ceiling_db:
+            limited = True
+            break
+        err = target - lufs(y)
+        if abs(err) <= LEVEL_SEARCH_LU:
+            break
+        gain += err
+    requested = gain
+    if limited:
+        gain -= tp - ceiling_db
+        y = x * 10.0 ** (gain / 20.0)
+        tp = true_peak_db(y)
+    return y, {"mode": "lufs", "target": float(target), "reached": round(float(lufs(y)), 2),
+               "gainDb": round(float(gain), 2), "requestedGainDb": round(float(requested), 2),
+               "truePeakDb": round(float(tp), 2), "limited": bool(limited), "iterations": n}
+
+
+def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float) -> tuple[np.ndarray, dict]:
+    """Turn the raw file of a generated sound into the file that is shipped: arrays in, array out.
+    Cut as recorded (seconds), 48 kHz (prepare_download), the ends of a one-shot made without a step
+    (repair_oneshot_ends, the same as for a download), then the integrated loudness set to
+    lufs_target (set_loudness) within the true-peak ceiling of the download step. Nothing here is
+    random, so the same input gives the same output."""
+    x, info = prepare_download(data, sr, cut)
+    info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["appendedTailMs"] = 0.0
+    x = repair_oneshot_ends(x, info)
+    y, info["level"] = set_loudness(x, lufs_target)
+    return y, info
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _generated_entry_problem(it: dict) -> str | None:
+    for k in GENERATED_LIST_KEYS:
+        if k not in it:
+            return "no %s" % k
+    for k in GENERATED_ORIGIN_KEYS:
+        if k not in it["origin"]:
+            return "no origin.%s" % k
+    for k in ("startS", "endS"):
+        if k not in it["cut"]:
+            return "no cut.%s" % k
+    if not it["cut"]["endS"] > it["cut"]["startS"] >= 0:
+        return "the cut is empty"
+    return None
+
+
+def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = None,
+                      raw_dir: Path | None = None) -> list[dict]:
+    """Generated sounds listed in assets/audio/generated.json ({"note", "sounds": [...]}; see the
+    README of tools/audio). The raw file of every entry (assets/audio/generated/<file>) is
+    committed, because a run of the model is not reproducible bit for bit. Every entry is written
+    as a processed copy <out>/generated/<id>.wav with a spectrogram (see process_generated), and
+    the manifest entry points to that copy. An entry whose raw file does not match its sha256 is
+    refused with a message: the sound is never built from another file. A raw file missing on disk
+    is reported and skipped, like a missing download. Processed copies that are no longer in the
+    list are removed. Category, kind, path and place are those of the event the sound stands for
+    (sounds.json). listing and raw_dir default to GENERATED_LIST and GENERATED_DIR."""
+    from synth import write_wav
+
+    listing = Path(listing) if listing is not None else GENERATED_LIST
+    raw_dir = Path(raw_dir) if raw_dir is not None else GENERATED_DIR
+    if not listing.is_file():
+        return []
+    raw = json.loads(listing.read_text(encoding="utf-8"))
+    items = raw if isinstance(raw, list) else raw.get("sounds", [])
+    spec = synth.load_spec()
+    folder = out / "generated"
+    entries = []
+    for it in items:
+        sid = it.get("id", "?") if isinstance(it, dict) else "?"
+        try:
+            problem = _generated_entry_problem(it)
+            if problem:
+                print("  generated entry %s refused: %s" % (sid, problem))
+                continue
+            event = spec["sounds"].get(it["standsFor"])
+            if event is None:
+                print("  generated entry %s refused: it stands for %r, which sounds.json does not know" % (sid, it["standsFor"]))
+                continue
+            src = raw_dir / it["file"]
+            if not src.is_file():
+                print("  generated raw file missing on disk: %s" % it["file"])
+                continue
+            have = _sha256(src)
+            if have != it["sha256"]:
+                print("  generated entry %s refused: the sha256 of %s is %s, the list says %s; "
+                      "a sound is never built from another file" % (sid, it["file"], have, it["sha256"]))
+                continue
+            cut = (float(it["cut"]["startS"]), float(it["cut"]["endS"]))
+            data, sr = common.load_audio(src)
+            y, info = process_generated(data, sr, cut, float(it["lufs"]))
+            wav = folder / (sid + ".wav")
+            write_wav(wav, y, dither_seed="generated/" + sid)
+            back, back_sr = common.load_audio(wav)
+            an = measure_mod.analyse(back, back_sr, loop=False)
+            lv = dict(info["level"])
+            lv["reached"] = an["lufs"]          # what the shipped file measures, 16 bit and all
+            lv["error"] = None if an["lufs"] is None else round(an["lufs"] - lv["target"], 2)
+            failed, hints = [], []
+            if lv["error"] is None or (not lv["limited"] and abs(lv["error"]) > LEVEL_TOLERANCE_LU):
+                failed.append("level-missed")
+            if lv["limited"]:
+                hints.append("level-limited-by-ceiling")
+            if info["sourceClipped"]:
+                hints.append("source-clipped")  # the owner heard and accepted it: a hint, not a failure
+            png = wav.with_suffix(".png")
+            measure_mod.write_png(png, sid, back, back_sr, an)
+            checks = {
+                "pass": not failed, "failed": failed, "hints": hints, "sourceClipped": info["sourceClipped"],
+                "peakDb": an["truePeakDb"], "lufs": an["lufs"],
+                "lowShare": an["lowShare"], "highShare": an["highShare"],
+                "centroidHz": an["spectralCentroidHz"], "level": lv,
+                "fadeInMs": info["fadeInMs"], "fadeOutMs": info["fadeOutMs"],
+                "leadInMs": info["leadInMs"], "appendedTailMs": info["appendedTailMs"],
+            }
+            o = it["origin"]
+            entries.append({
+                "id": sid, "file": "generated/%s.wav" % sid, "spectrogram": "generated/%s.png" % sid,
+                "category": event["category"], "kind": event["kind"], "path": event["path"],
+                **({"place": event["place"]} if "place" in event else {}),
+                "en": it["en"], "de": it["de"], "intent": it.get("intent") or generated_intent(it, event),
+                "source": "generated", "licence": it["licence"],
+                "duration": round(back.shape[0] / back_sr, 4), "channels": int(back.shape[1]), "gain": 1.0,
+                "dry": False, "hash": file_hash(wav), "checks": checks,
+                "generated": {
+                    "standsFor": it["standsFor"], "model": o["model"], "prompt": o["prompt"], "seed": o["seed"],
+                    "round": o["round"], "candidate": o["candidate"], "sha256": it["sha256"],
+                    "modelRevision": o.get("modelRevision"), "codeCommit": o.get("codeCommit"),
+                    "verdict": o["verdict"], "ratedAt": o["ratedAt"], "cut": it["cut"], "rawFile": it["file"],
+                },
+            })
+        except Exception as e:
+            print("  generated entry %s skipped (%s): %s" % (sid, type(e).__name__, e))
+    keep = {e["id"] for e in entries}
+    for old in sorted(folder.glob("*")) if folder.is_dir() else []:
+        if old.suffix in (".wav", ".png", ".json") and old.stem not in keep:
+            old.unlink()
+    return entries
+
+
+def generated_intent(it: dict, event: dict) -> str:
+    """The intent text of a generated sound: prompt, seed, round, who accepted it and when, which
+    event it stands for and the level rule."""
+    o = it["origin"]
+    return ("Generated with %s. Prompt: \"%s\" (seed %s, round %s, candidate %s). The owner heard it and accepted it "
+            "(verdict %s) on %s. It stands for the event %s (%s). Level: the integrated loudness is set to %.2f LUFS, "
+            "the loudness of that rendered event today; provisional until the mix of the game is designed. "
+            "The owner heard the candidate at a lower level." % (
+                o["model"], o["prompt"], o["seed"], o["round"], o["candidate"], o["verdict"], o["ratedAt"],
+                it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"])))
+
+
 def assemble_manifest(out: Path, measure_mod, common) -> dict:
     spec = synth.load_spec()
     order = {sid: i for i, sid in enumerate(spec["order"])}
     sounds = []
     for p in sorted(out.glob("*/*.json")):
-        if p.parent.name == "downloads":  # processed downloads are added from selection.json below
+        if p.parent.name in ("downloads", "generated"):  # added from selection.json and generated.json below
             continue
         try:
             rec = json.loads(p.read_text(encoding="utf-8"))
@@ -578,6 +770,7 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
                     m[k] = spec["sounds"][m["id"]][k]
             sounds.append(m)
     sounds.sort(key=lambda e: order.get(e["id"], 10_000))
+    sounds += _generated_sounds(out, measure_mod, common)
     sounds += _excerpt_downloads(out, measure_mod, common)
     used = {s["category"] for s in sounds}
     cats = [{"id": c["id"], "en": c["en"], "de": c["de"]} for c in spec["categories"].values() if c["id"] in used]
@@ -611,24 +804,34 @@ def validate_manifest(manifest: dict, out: Path) -> list[str]:
             bad.append("%s: category %r not listed" % (name, s.get("category")))
         if s.get("kind") not in ("loop", "oneshot", "ir"):
             bad.append("%s: kind %r" % (name, s.get("kind")))
-        if s.get("source") not in ("synth", "download"):
+        if s.get("source") not in ("synth", "download", "generated"):
             bad.append("%s: source %r" % (name, s.get("source")))
         if s.get("file") and not (out / s["file"]).is_file():
             bad.append("%s: file %s not found" % (name, s["file"]))
         if s.get("spectrogram") and not (out / s["spectrogram"]).is_file():
             bad.append("%s: spectrogram not found" % name)
-        if s.get("source") == "download" and not s.get("spectrogram"):
-            bad.append("%s: download without a spectrogram" % name)
+        if s.get("source") in ("download", "generated") and not s.get("spectrogram"):
+            bad.append("%s: %s without a spectrogram" % (name, s["source"]))
         if s.get("hash") and not (isinstance(s["hash"], str) and len(s["hash"]) == 12):
             bad.append("%s: hash is not twelve hex digits" % name)
         c = s.get("checks", {})
         required = ("pass", "failed", "peakDb", "lufs", "lowShare", "highShare")
-        if s.get("source") == "download":  # a processed download is measured like a rendered sound
+        if s.get("source") in ("download", "generated"):  # a processed copy is measured like a rendered sound
             required += ("centroidHz", "sourceClipped")
         for k in required:
             if k not in c:
                 bad.append("%s: checks.%s missing" % (name, k))
-        if s.get("source") == "download":
+        if s.get("source") == "generated":
+            if not s.get("licence"):
+                bad.append("%s: generated without a licence" % name)
+            g = s.get("generated")
+            if not isinstance(g, dict):
+                bad.append("%s: generated sound without the generated record" % name)
+            else:
+                for k in ("standsFor", "model", "prompt", "seed", "round", "candidate", "sha256"):
+                    if g.get(k) in (None, ""):
+                        bad.append("%s: generated.%s missing" % (name, k))
+        if s.get("source") in ("download", "generated"):
             if not s.get("duration"):
                 bad.append("%s: duration is 0" % name)
             if c.get("peakDb") is not None and c["peakDb"] > -1.0:

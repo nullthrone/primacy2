@@ -1,0 +1,213 @@
+{
+ "note": "Sounds made by the model MOSS-SoundEffect v2.0 that the owner heard and accepted (verdict fits). Each one is a library sound that stands for one event of tools/audio/sounds.json. The raw files in assets/audio/generated are committed byte for byte, because a run of the model is not reproducible bit for bit and assets/audio/gen is ignored by git. tools/audio/build.py checks the sha256 of every raw file, cuts it as recorded, converts it to 48 kHz, repairs the ends and sets the integrated loudness to lufs. These lufs levels are the loudness of the rendered event the sound stands for, as assets/audio/render/manifest.json had it on 2026-11-16, and they are provisional until the mix of the game is designed. The owner heard the candidates at another level: they were levelled to -34 or -35 LUFS for the comparison. The two heavy hits stand for the same event. The thruster valve picks of round 5 were cut from raw files generated in round 4.",
+ "sounds": [
+  {
+   "id": "g_impact_hull_light",
+   "standsFor": "impact_hull_light",
+   "file": "g_impact_hull_light.wav",
+   "sha256": "b2f49a576c8cf1959c77941a66ebb82ec1ef0e72b39a403aa26c2d8ea4988a15",
+   "cut": {
+    "startS": 0.0,
+    "endS": 0.644
+   },
+   "lufs": -29.63,
+   "en": "Hull hit, light · MOSS",
+   "de": "Rumpftreffer, leicht · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Heavy wrench dropped once onto a steel deck plate, single short hard metallic knock, close microphone duration: 2.0s",
+    "seed": 15,
+    "round": 5,
+    "candidate": "ev5_1_hull_light_1_moss_p2s15",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:49:57.364Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_impact_hull_medium",
+   "standsFor": "impact_hull_medium",
+   "file": "g_impact_hull_medium.wav",
+   "sha256": "5ffa57a6e018dcd089fa96d834e08d9b6b899e16efe2b069f873cd582e446d41",
+   "cut": {
+    "startS": 0.0,
+    "endS": 2.5
+   },
+   "lufs": -23.99,
+   "en": "Hull hit, medium · MOSS",
+   "de": "Rumpftreffer, mittel · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "A heavy object slams into a large steel ship hull, deep boom and a hard metallic clang, heard from inside, resonant duration: 3.0s",
+    "seed": 16,
+    "round": 4,
+    "candidate": "src_1_hull_1_moss_p1s16",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T06:03:44.160Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_impact_hull_heavy_a",
+   "standsFor": "impact_hull_heavy",
+   "file": "g_impact_hull_heavy_a.wav",
+   "sha256": "ffed6ae76039b3c4852de9afd6d77f19b8e2aeb187f6d9fd19f88df63c48b3fd",
+   "cut": {
+    "startS": 0.0,
+    "endS": 3.772
+   },
+   "lufs": -25.37,
+   "en": "Hull hit, heavy · MOSS a",
+   "de": "Rumpftreffer, schwer · MOSS a",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Wrecking ball smashes into a large steel tank, enormous low thud with crunching metal and a long ringing tail duration: 4.0s",
+    "seed": 16,
+    "round": 5,
+    "candidate": "ev5_2_hull_heavy_1_moss_p2s16",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:50:41.009Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_impact_hull_heavy_b",
+   "standsFor": "impact_hull_heavy",
+   "file": "g_impact_hull_heavy_b.wav",
+   "sha256": "fdef7f383ae12b9cdf82ccef9d1325b8125c5001d98ff466adf36d504e30d4dc",
+   "cut": {
+    "startS": 0.0,
+    "endS": 3.8006
+   },
+   "lufs": -25.37,
+   "en": "Hull hit, heavy · MOSS b",
+   "de": "Rumpftreffer, schwer · MOSS b",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Huge impact on a large steel ship hull, very deep boom and a hard metallic crash, the whole structure groans and rattles, long resonant decay, heard from inside duration: 4.0s",
+    "seed": 14,
+    "round": 5,
+    "candidate": "ev5_2_hull_heavy_2_moss_p1s14",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:50:44.249Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_thruster_pulse_a",
+   "standsFor": "thruster_pulse_a",
+   "file": "g_thruster_pulse_a.wav",
+   "sha256": "2ee2b510661e7f3c3bb22ab2a2d00b6b285077990faebc9126762cc37ffdcd51",
+   "cut": {
+    "startS": 0.006,
+    "endS": 0.409
+   },
+   "lufs": -25.75,
+   "en": "Thruster pulse A · MOSS",
+   "de": "Düsenstoß A · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
+    "seed": 11,
+    "round": 4,
+    "candidate": "src_2_thruster_4_moss_p1s11",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T06:05:19.029Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_thruster_pulse_b",
+   "standsFor": "thruster_pulse_b",
+   "file": "g_thruster_pulse_b.wav",
+   "sha256": "4a6f3a41d4a95a92aa756fb9f791c1b8bdccc688fb258d4e9ded2cbf9dfdf5c9",
+   "cut": {
+    "startS": 0.0,
+    "endS": 1.004
+   },
+   "lufs": -27.23,
+   "en": "Thruster pulse B · MOSS",
+   "de": "Düsenstoß B · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
+    "seed": 12,
+    "round": 5,
+    "candidate": "ev5_3_thruster_valve_1_moss_r4p1s12",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:50:51.142Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_thruster_pulse_c",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_pulse_c.wav",
+   "sha256": "f6e277a5076b7a807d6fd36265e0b6b604c78e2703e53a9f9b0c04730875c188",
+   "cut": {
+    "startS": 0.0,
+    "endS": 0.787
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse C · MOSS",
+   "de": "Düsenstoß C · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
+    "seed": 15,
+    "round": 5,
+    "candidate": "ev5_3_thruster_valve_2_moss_r4p1s15",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:50:54.936Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_gear_deploy",
+   "standsFor": "gear_deploy",
+   "file": "g_gear_deploy.wav",
+   "sha256": "b18aaddd1e0f9cec1c3230b9b53221ccf1abc52e93e004c98caec380ce3c1572",
+   "cut": {
+    "startS": 0.0013,
+    "endS": 3.8043
+   },
+   "lufs": -27.31,
+   "en": "Landing gear out · MOSS",
+   "de": "Fahrwerk ausfahren · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large industrial hydraulic actuator moves for two seconds and locks into place with a heavy clunk duration: 4.0s",
+    "seed": 12,
+    "round": 4,
+    "candidate": "src_3_gear_1_moss_p2s12",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T06:05:23.972Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  }
+ ]
+}
