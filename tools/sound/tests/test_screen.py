@@ -806,6 +806,146 @@ def test_picks_skip_what_is_skipped_or_too_low_and_keep_it_in_the_pool():
     assert ordered[min(rest, key=lambda i: (np.linalg.norm(z[i] - centre), i))]["name"] == names[0]
 
 
+def test_saturation_measures_on_known_signals():
+    t = np.arange(SR) / SR
+    sine = 0.5 * np.sin(2 * np.pi * 3000 * t)
+    m = screen.saturation_measures(sine[:, None], SR)
+    assert abs(m["loud50Db"] - (-9.03)) < 0.05 and m["above2kHzLoud"] > 0.99, m
+    low = 0.5 * np.sin(2 * np.pi * 100 * t)
+    m = screen.saturation_measures(low, SR)  # one-dimensional input is accepted
+    assert abs(m["loud50Db"] - (-9.03)) < 0.05 and m["above2kHzLoud"] < 0.01, m
+    # only the loudest 50 ms count for the level; only the loud frames (within 10 dB) count for the share
+    x = np.zeros(SR)
+    x[:2400] = 0.5 * np.sin(2 * np.pi * 100 * t[:2400])           # 50 ms, loud, low
+    x[30000:32400] = 0.05 * np.sin(2 * np.pi * 5000 * t[:2400])   # 50 ms, 20 dB lower, high: not a loud frame
+    m = screen.saturation_measures(x[:, None], SR)
+    assert m["loud50Db"] < -8.0 and m["above2kHzLoud"] < 0.01, m
+    # a quiet high part within 10 dB does count
+    x[30000:32400] = 0.25 * np.sin(2 * np.pi * 5000 * t[:2400])
+    assert screen.saturation_measures(x[:, None], SR)["above2kHzLoud"] > 0.1
+    # two channels: the power is the mean over the channels, a file shorter than one frame still works
+    st = np.stack([sine, np.zeros_like(sine)], axis=1)
+    assert abs(screen.saturation_measures(st, SR)["loud50Db"] - (-12.04)) < 0.05
+    assert screen.saturation_measures(sine[:500, None], SR)["above2kHzLoud"] > 0.9
+    assert screen.saturation_measures(np.zeros((3000, 1)), SR) == {"loud50Db": -200.0, "above2kHzLoud": 0.0}
+
+
+def test_saturated_noise_needs_both_and_the_edges_follow_the_brief():
+    rule = {"loud50Db": -9.5, "above2kHz": 0.03}
+    f = screen.is_saturated_noise
+    assert f({"loud50Db": -8.2, "above2kHzLoud": 0.16}, rule)
+    assert not f({"loud50Db": -12.0, "above2kHzLoud": 0.16}, rule)  # noise-like but not pressed
+    assert not f({"loud50Db": -4.4, "above2kHzLoud": 0.009}, rule)  # pressed but tonal
+    assert f({"loud50Db": -9.0, "above2kHzLoud": 0.03}, rule)       # the share counts at the threshold
+    assert not f({"loud50Db": -9.5, "above2kHzLoud": 0.5}, rule)    # the level has to be above the threshold
+    s = screen.family_settings({"id": "shield_tight", "lufs": -24, "maxS": 1.5, "notSaturatedNoise": rule})
+    assert s["notSaturatedNoise"] == rule
+    assert "notSaturatedNoise" not in screen.family_settings({"id": "shield_tight", "lufs": -24, "maxS": 1.5})
+
+
+def sat_cand(name: str, loud: float, share: float, sat: bool, raw: float) -> dict:
+    c = cand("moss", name, raw, 0.4)
+    c.update({"loud50Db": loud, "above2kHzLoud": share})
+    if sat:
+        c["satNoise"] = True
+    return c
+
+
+def test_pressed_noise_stays_in_the_pool_and_fills_slots_last():
+    def pool():
+        return [sat_cand("a", -5.0, 0.2, True, 100.0), sat_cand("b", -8.0, 0.2, True, 130.0),
+                sat_cand("c", -20.0, 0.01, False, 170.0), sat_cand("d", -6.0, 0.3, True, 220.0)]
+    picks, notes = screen.choose(pool(), ["moss", "moss", "moss"])
+    names = [p["cand"]["name"] for p in picks]
+    assert names[0] == "c"
+    # slots 2 and 3 are filled from the excluded ones, the lowest loud50Db first (b -8, d -6, a -5)
+    assert names[1:] == ["b", "d"], names
+    assert [p.get("saturatedFallback") for p in picks] == [None, True, True]
+    assert len(notes) == 2 and all("filled from the excluded" in n for n in notes) and "b" in notes[0] and "d" in notes[1]
+    # the pool still counts for the centre: with one clean candidate the first slot is still "c"; with two clean ones
+    # the centre is that of all candidates, pressed ones included
+    two = pool() + [sat_cand("e", -25.0, 0.0, False, 400.0)]
+    z = screen.normalise(np.array([c["raw"] for c in sorted(two, key=lambda c: c["name"])]))
+    order = sorted(two, key=lambda c: c["name"])
+    centre = z.mean(axis=0)
+    clean = [i for i, c in enumerate(order) if not c.get("satNoise")]
+    want = order[min(clean, key=lambda i: (np.linalg.norm(z[i] - centre), i))]["name"]
+    picks, notes = screen.choose(two, ["moss", "moss"])
+    assert picks[0]["cand"]["name"] == want
+    # enough clean candidates: no pressed one is picked and nothing is noted
+    many = pool() + [sat_cand("e", -25.0, 0.0, False, 300.0), sat_cand("f", -22.0, 0.0, False, 400.0)]
+    picks, notes = screen.choose(many, ["moss", "moss", "moss"])
+    assert not any(p["cand"].get("satNoise") for p in picks) and notes == []
+    # a hand skip is never brought back by the fallback
+    sk = pool()
+    sk[1]["skip"] = "plain fault"
+    picks, notes = screen.choose(sk, ["moss", "moss", "moss"])
+    assert [p["cand"]["name"] for p in picks] == ["c", "d", "a"] and not any("filled from the excluded b " in n for n in notes)
+    # a family without the flag behaves as before
+    plain = [cand("moss", "m%d" % i, 100.0 * (i + 1), 0.4) for i in range(4)]
+    a, _ = screen.choose(plain, ["moss", "moss"])
+    assert all("saturatedFallback" not in p for p in a)
+
+
+SPEC6 = {"category": {"id": "events6", "de": "d", "en": "e", "idPrefix": "ev6"}, "seeds": [11, 12, 13, 14],
+         "families": [
+             {"id": "pressed", "de": "p", "en": "p", "proven": False, "seconds": 2, "maxS": 1.5, "oneEvent": False, "lufs": -24.0,
+              "picks": ["moss", "moss"], "notSaturatedNoise": {"loud50Db": -16.0, "above2kHz": 0.03},
+              "prompts": [{"id": "pressed_1", "text": "A bright crack"}]},
+             {"id": "free", "de": "f", "en": "f", "proven": False, "seconds": 2, "maxS": 1.5, "oneEvent": False, "lufs": -24.0,
+              "picks": ["moss", "moss"], "prompts": [{"id": "free_1", "text": "A thump"}]}]}
+
+
+def build_round6(root: Path, noisy_count: int) -> None:
+    (root / "moss" / "raw").mkdir(parents=True)
+    items = {}
+    for fam in ("pressed", "free"):
+        for k, seed in enumerate(SPEC6["seeds"]):
+            n = "%s_1__s%d" % (fam, seed)
+            t = np.arange(int(0.8 * SR)) / SR
+            if k < noisy_count:  # loud and noise-like
+                x = (0.30 - 0.02 * k) * RNG.standard_normal(t.size) * np.exp(-6 * t)
+            else:                # loud and low
+                x = (0.40 - 0.02 * k) * np.sin(2 * np.pi * (90 + 30 * k) * t) * np.exp(-6 * t)
+            sf.write(str(root / "moss" / "raw" / (n + ".wav")), np.clip(x, -0.9, 0.9).astype(np.float32), SR, subtype="FLOAT")
+            items[n] = {"file": "raw/%s.wav" % n, "family": fam, "prompt": fam + "_1", "seed": seed, "text_given": "x"}
+    (root / "moss" / "gen.json").write_text(json.dumps({"source": "moss", "items": items}), encoding="utf-8")
+
+
+def test_round_6_run_records_the_measures_and_excludes_pressed_noise():
+    for noisy, expect_fallback in ((2, False), (4, True)):
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td)
+            root = td / "r6"
+            build_round6(root, noisy)
+            pf = td / "prompts6.json"
+            pf.write_text(json.dumps(SPEC6), encoding="utf-8")
+            assert screen.main(["--no-models", "--root", str(root), "--prompts-file", str(pf), "--skips", str(td / "none.json")]) == 0
+            res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+            rows = {r["name"]: r for r in res["files"] if r["status"] == "kept"}
+            assert len(rows) == 8, [r for r in res["files"] if r["status"] != "kept"]
+            for n, r in rows.items():
+                if n.startswith("free"):
+                    assert "loud50Db" not in r and "above2kHzLoud" not in r and "notPickedSaturatedNoise" not in r
+                else:
+                    assert isinstance(r["loud50Db"], float) and isinstance(r["above2kHzLoud"], float)
+            flagged = sorted(n for n, r in rows.items() if r.get("notPickedSaturatedNoise"))
+            assert flagged == sorted("pressed_1__s%d" % s for s in SPEC6["seeds"][:noisy]), flagged
+            assert all(rows[n]["loud50Db"] > -16.0 and rows[n]["above2kHzLoud"] >= 0.03 for n in flagged)
+            chosen = [c for c in res["chosen"] if c["family"] == "pressed"]
+            assert len(chosen) == 2 and all("loud50Db" in c and "above2kHzLoud" in c for c in chosen)
+            assert not any(c["family"] == "free" and ("loud50Db" in c or "pressedNoiseFallback" in c) for c in res["chosen"])
+            notes = res["families"]["pressed"]["notes"]
+            if expect_fallback:  # all four are pressed noise: both slots come from them, lowest loud50Db first
+                assert all(c.get("pressedNoiseFallback") for c in chosen) and len(notes) == 2
+                lows = sorted(rows[n]["loud50Db"] for n in flagged)[:2]
+                assert sorted(c["loud50Db"] for c in chosen) == lows
+            else:
+                assert not any(c["name"] in flagged for c in chosen) and notes == []
+                assert not any(c.get("pressedNoiseFallback") for c in chosen)
+            assert res["families"]["free"]["notes"] == []
+
+
 def test_ids_of_round_5_and_carried_tags():
     assert screen.candidate_tag("moss", "thruster_1__s12", {"fromRound4": True}) == "r4p1s12"
     assert screen.candidate_tag("moss", "thruster_valve_1__s21", {}) == "p1s21"

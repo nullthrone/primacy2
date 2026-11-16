@@ -33,7 +33,9 @@ tools/sound/skips.json and read by default (--skips names another file, --skip a
 
 Round 5: --prompts-file FILE (default tools/sound/prompts.json) with --root assets/audio/gen/r5 screens the
 families of that file. Per family it reads "maxS", "oneEvent", "lufs", "picks" and the optional "minAbove60Hz" when
-they are there, and does what round 4 did when they are not; see "Round 5" in tools/sound/README.md. Ids are
+they are there, and does what round 4 did when they are not; see "Round 5" in tools/sound/README.md. Round 6 adds the optional
+"notSaturatedNoise": {"loud50Db", "above2kHz"} of a family (see saturation_measures and "Round 6" in the README).
+Ids are
 <idPrefix>_<family number>_<family>_<slot>_<source>_<tag> with the idPrefix of the category of that file.
 
 The speech recogniser (Whisper small) and CLAP are the models of the sound library, read from the
@@ -205,6 +207,49 @@ def energy_share_above(event: np.ndarray, sr: int, hz: float = LOW_HZ) -> float:
     return float(spec[freq >= hz].sum() / total) if total > 0 else 0.0
 
 
+LOUD50_S = 0.05      # the window of the "loudest 50 ms" measure
+SAT_NFFT, SAT_HOP = 2048, 512
+SAT_LOUD_DB = 10.0   # loud frames: within this many dB of the loudest frame
+SAT_HZ = 2000.0
+
+
+def saturation_measures(event: np.ndarray, sr: int) -> dict:
+    """The two measures of the "notSaturatedNoise" setting, taken on the raw cut (before any gain).
+    loud50Db: root mean square of the loudest 50 ms window, in dB re full scale (power mean over the channels).
+    above2kHzLoud: the share of the energy above 2 kHz in the loud frames (short-time spectrum of 2048 samples,
+    hop 512, Hann window, channels averaged; loud frames are those within 10 dB of the loudest frame; the share is
+    the energy above 2 kHz summed over those frames, divided by their whole energy)."""
+    x = np.asarray(event, dtype=np.float64)
+    if x.ndim == 1:
+        x = x[:, None]
+    p = (x ** 2).mean(axis=1)
+    w = max(1, int(round(LOUD50_S * sr)))
+    if p.size < w:
+        p = np.concatenate([p, np.zeros(w - p.size)])
+    c = np.concatenate([[0.0], np.cumsum(p)])
+    loud = float((c[w:] - c[:-w]).max() / w)
+    loud50 = 10.0 * math.log10(max(loud, 1e-20))
+    m = x.mean(axis=1)
+    if m.size < SAT_NFFT:
+        m = np.concatenate([m, np.zeros(SAT_NFFT - m.size)])
+    n = (m.size - SAT_NFFT) // SAT_HOP + 1
+    win = np.hanning(SAT_NFFT)
+    frames = np.stack([m[i * SAT_HOP:i * SAT_HOP + SAT_NFFT] * win for i in range(n)])
+    spec = np.abs(np.fft.rfft(frames, axis=1)) ** 2
+    freq = np.fft.rfftfreq(SAT_NFFT, 1.0 / sr)
+    tot = spec.sum(axis=1)
+    if tot.max() <= 0:
+        return {"loud50Db": round(loud50, 2), "above2kHzLoud": 0.0}
+    keep = tot >= tot.max() * 10 ** (-SAT_LOUD_DB / 10.0)
+    share = float(spec[keep][:, freq >= SAT_HZ].sum() / tot[keep].sum())
+    return {"loud50Db": round(loud50, 2), "above2kHzLoud": round(share, 4)}
+
+
+def is_saturated_noise(meas: dict, rule: dict) -> bool:
+    """Pressed (loudest 50 ms above loud50Db) AND noise-like (share above 2 kHz at or above above2kHz)."""
+    return bool(meas["loud50Db"] > float(rule["loud50Db"]) and meas["above2kHzLoud"] >= float(rule["above2kHz"]))
+
+
 def raw_faults(x: np.ndarray, sr: int, family: str, max_s: float | None = None,
                one_event: bool | None = None) -> tuple[list[str], dict]:
     """Every fault that needs no model. Returns (reasons in a fixed order, the cut and numbers).
@@ -342,7 +387,13 @@ def normalise(raw: np.ndarray) -> np.ndarray:
 
 def _unpickable(c: dict) -> bool:
     """A candidate that stays in the pool (it counts for the normalisation and the centre) but is never picked:
-    a hand skip, or under the family's smallest share of energy above 60 Hz ("minAbove60Hz")."""
+    a hand skip, under the family's smallest share of energy above 60 Hz ("minAbove60Hz"), or pressed noise
+    ("notSaturatedNoise"; the last can still fill a slot that has nothing else)."""
+    return bool(c.get("skip") or c.get("lowShare") or c.get("satNoise"))
+
+
+def _hard_unpickable(c: dict) -> bool:
+    """What no fallback brings back: a hand skip or a low share."""
     return bool(c.get("skip") or c.get("lowShare"))
 
 
@@ -363,11 +414,24 @@ def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], li
     for slot, s in enumerate(picks, 1):
         idx = [i for i, c in enumerate(cands) if c["source"] == s]
         pickable = [i for i in idx if i not in chosen and not _unpickable(cands[i])]
+        fallback = False
         if not pickable:
-            notes.append("slot %d (%s): no candidate left to pick" % (slot, s))
-            continue
+            # a pressed noise-like candidate fills the slot, the one with the lowest loudest-50-ms level first
+            pressed = [i for i in idx if i not in chosen and cands[i].get("satNoise") and not _hard_unpickable(cands[i])]
+            if pressed:
+                j = min(pressed, key=lambda i: (cands[i]["loud50Db"], i))
+                notes.append("slot %d (%s): no candidate left that is not pressed noise; filled from the excluded %s "
+                             "(loud50Db %.2f, share above 2 kHz %.4f), lowest loud50Db first"
+                             % (slot, s, cands[j]["name"], cands[j]["loud50Db"], cands[j]["above2kHzLoud"]))
+                pickable, fallback = [j], True
+            else:
+                notes.append("slot %d (%s): no candidate left to pick" % (slot, s))
+                continue
         rank = sum(1 for p in out if p["cand"]["source"] == s) + 1
-        if rank == 1:
+        if fallback:
+            best = pickable[0]
+            role = "typical" if rank == 1 else "farthest"
+        elif rank == 1:
             centre = z[idx].mean(axis=0)
             _, best = min((float(np.linalg.norm(z[i] - centre)), i) for i in pickable)
             role = "typical"
@@ -377,6 +441,8 @@ def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], li
             role = "farthest"
         chosen.append(best)
         out.append({"slot": slot, "cand": cands[best], "role": role, "sourceRank": rank, "_i": best})
+        if fallback:
+            out[-1]["saturatedFallback"] = True
     return out, notes
 
 
@@ -637,16 +703,20 @@ def item_family(name: str, item: dict, known=None) -> str | None:
 
 def family_settings(f: dict) -> dict:
     """What a family of the prompts file asks of the screening: "maxS", "oneEvent", "lufs", "picks" and the optional
-    "minAbove60Hz". A key that is not there falls back to what round 4 did: the constants above for the four
+    "minAbove60Hz", and "notSaturatedNoise" (only if set). A key that is not there falls back to what round 4 did: the constants above for the four
     round-4 families and the slot rule of choose() (one MOSS, one Stable Audio, one recording, one further
     generated pick)."""
     fid = f["id"]
     max_s = f.get("maxS", MAX_LEN_S.get(fid))
     if max_s is None:
         raise ValueError("family %r has no maxS and is not a family of round 4" % fid)
-    return {"maxS": float(max_s), "oneEvent": bool(f["oneEvent"]) if "oneEvent" in f else fid in ONE_EVENT,
-            "lufs": float(f["lufs"]), "picks": list(f["picks"]) if f.get("picks") else None,
-            "minAbove60Hz": float(f["minAbove60Hz"]) if f.get("minAbove60Hz") is not None else None}
+    out = {"maxS": float(max_s), "oneEvent": bool(f["oneEvent"]) if "oneEvent" in f else fid in ONE_EVENT,
+           "lufs": float(f["lufs"]), "picks": list(f["picks"]) if f.get("picks") else None,
+           "minAbove60Hz": float(f["minAbove60Hz"]) if f.get("minAbove60Hz") is not None else None}
+    if f.get("notSaturatedNoise"):  # round 6; the key is only there when the family has the setting
+        r = f["notSaturatedNoise"]
+        out["notSaturatedNoise"] = {"loud50Db": float(r["loud50Db"]), "above2kHz": float(r["above2kHz"])}
+    return out
 
 
 def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None = None,
@@ -717,6 +787,14 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             if floor is not None and share is not None and share < floor:
                 cand["lowShare"] = True  # stays in the pool for the statistics, is never picked
                 row["notPickedLowShare"] = "energy above 60 Hz %.4f is under the family's minimum %.2f" % (share, floor)
+            rule = sets[fam].get("notSaturatedNoise")
+            if rule:
+                meas = saturation_measures(event, sr)  # on the raw cut, before any gain
+                row.update(meas)
+                cand.update(meas)
+                if is_saturated_noise(meas, rule):
+                    cand["satNoise"] = True  # stays in the pool, is picked only when nothing else fills a slot
+                    row["notPickedSaturatedNoise"] = True
             cands[fam].append(cand)
             if skip:
                 row["skippedAsPick"] = skip
@@ -750,6 +828,10 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
                                    "cappedAtFamilyLength": cut["capped"]},
                            "listen": dict(info, file=_rel(out, ROOT)),
                            "record": c["item"]})
+            if sets[fam].get("notSaturatedNoise"):
+                chosen[-1]["loud50Db"], chosen[-1]["above2kHzLoud"] = row.get("loud50Db"), row.get("above2kHzLoud")
+                if p.get("saturatedFallback"):
+                    chosen[-1]["pressedNoiseFallback"] = True
             if "sourceRank" in p:  # only a family with its own "picks" has it: round 4 files stay as they were
                 chosen[-1]["sourceRank"] = p["sourceRank"]
             fam_out[fam]["chosen"].append(sid)
