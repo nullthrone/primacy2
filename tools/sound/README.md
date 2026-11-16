@@ -211,3 +211,39 @@ A further pick of a source is named "zweite Auswahl" / "second pick", then "drit
 
 Stable Audio output stays test material under the Stability AI Community License: the page keeps its "test
 only" label and licence note. Nobody can hear here; whether a candidate is right is the owner's click.
+
+## Round 6
+
+Round 6 tries the families the owner rejected in round 5 again, MOSS only, from `tools/sound/prompts6.json` (its "note"
+says what each family answers). Files: raw candidates `assets/audio/gen/r6/moss/raw` with `gen.json`; screening output
+`assets/audio/gen/r6/screen.json` and `_listen/`; published files `assets/audio/render/events6/` (category `events6`,
+"Ereignisklänge (Runde 6)", listed first, `events5` second); ids `ev6_<family number>_<family>_<slot>_moss_<tag>`; hand
+skips `tools/sound/skips6.json` (read for `prompts6.json` as `skips5.json` is for `prompts5.json`). The run is the run of
+round 5 with these names; there is no `from_round4.py` step and no Stable Audio step.
+
+One new optional setting of a family, `"notSaturatedNoise": {"loud50Db": X, "above2kHz": Y}`. A kept candidate stays in the
+pool (it counts for the normalisation and the centre, like a hand skip) but is not picked when both hold: the loudest 50 ms
+of its raw cut (root mean square, dB re full scale, before any gain) are above X, and the share of its energy above 2 kHz
+in its loud frames is at or above Y (short-time spectrum of 2048 samples, hop 512, Hann window; loud frames are those
+within 10 dB of the loudest frame; the share is the energy above 2 kHz summed over the loud frames divided by their whole
+energy). `screen.json` records `loud50Db` and `above2kHzLoud` for every kept file of such a family, and marks an excluded one
+with `notPickedSaturatedNoise: true`. If a family has fewer candidates that can be picked than slots, the remaining slots
+are filled from the excluded ones, the lowest `loud50Db` first; the notes of the family say so and the pick carries
+`pressedNoiseFallback: true`. A family without the setting behaves as before (checked on a copy of round 5: same picks).
+It is a working rule that rests on four rejected and a few accepted files, not a law.
+
+Commands (from the repository root):
+
+1. Screen and choose (Whisper and CLAP on the processor):
+
+       .venv-audio/Scripts/python.exe tools/sound/screen.py --prompts-file tools/sound/prompts6.json --root assets/audio/gen/r6 --device cpu
+
+2. Look at the picks for plain faults (README "Hand skips"), put each skip into `skips6.json`, run step 1 again.
+
+3. Publish (only `render/events6` is written and pruned; then the manifest is assembled and validated):
+
+       .venv-audio/Scripts/python.exe tools/sound/publish.py --prompts-file tools/sound/prompts6.json --root assets/audio/gen/r6
+
+4. Take the round off the page: the same command with `--remove`.
+
+The tests: `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`. The results of the round are in `tools/sound/RESULTS6.md`.
