@@ -1,0 +1,21 @@
+{
+ "note": "Hand skips of round 6, read by screen.py when it is run with --prompts-file tools/sound/prompts6.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips5.json (candidate as source/name, reason).",
+ "skips": [
+  {
+   "candidate": "moss/hull_light_1__s23",
+   "reason": "a second event inside a one-event cut: in the 1.19 s cut of the pick ev6_1_hull_light_2_moss_p1s23 the level falls to -19 dB under the maximum at 0.15 s, comes back up to -11 dB at 0.20 s to 0.35 s and again to -18 dB at 0.6 to 0.8 s (11 separate peaks within 20 dB of the maximum, at 0.02 s, 0.13 s, 0.21 s to 0.38 s and 0.60 s to 0.78 s); found in the 50 ms levels and the 10 ms envelope"
+  },
+  {
+   "candidate": "moss/shield_tight_2__s12",
+   "reason": "a tone and not a thump: the whole pick ev6_3_shield_tight_3_moss_p2s12 is a 0.12 s burst at full scale (raw peak 1.00, loudest 50 ms at -3.9 dBFS) with 84 % of its energy at 250 to 1000 Hz, 31 % of it within 25 Hz of 810 Hz, and nothing under 250 Hz; the family asks for a low thump with a brief crackle; found in the spectrum and the 50 ms levels"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s12",
+   "reason": "under 10 % of the energy above 60 Hz (2.7 %): 98 % of the pick ev6_4_fold_jump_2_moss_p3s12 lies under 60 Hz (dominant 22 Hz), which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_exit_1__s12",
+   "reason": "under 10 % of the energy above 60 Hz (4.4 %): 97 % of the pick ev6_5_fold_exit_2_moss_p1s12 lies under 60 Hz (dominant 22 Hz), which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  }
+ ]
+}

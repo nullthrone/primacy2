@@ -3,6 +3,7 @@
   "sampleRate": 48000,
   "neg": ["a cheap electronic beep", "an arcade video game sound effect", "white noise hiss", "music", "a person speaking"],
   "categories": [
+    {"id": "events6", "en": "Event sounds (round 6)", "de": "Ereignisklänge (Runde 6)", "neg": []},
     {"id": "events5", "en": "Event sounds (round 5)", "de": "Ereignisklänge (Runde 5)", "neg": []},
     {"id": "source", "en": "Sound sources (round 4)", "de": "Klangquellen (Runde 4)", "neg": []},
     {"id": "pilot", "en": "Direction samples (round 3)", "de": "Richtungsproben (Runde 3)", "neg": ["someone knocking on a plastic container", "a sound heard under water", "a toy sound effect", "someone tapping on a taut plastic foil"]},

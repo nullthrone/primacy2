@@ -1145,9 +1145,13 @@ def test_round_4_files_have_none_of_the_new_keys():
 def test_the_new_category_comes_first_in_sounds_json():
     spec = json.loads((SOUND.parent / "audio" / "sounds.json").read_text(encoding="utf-8"))
     cats = [c["id"] for c in spec["categories"]]
-    assert cats[0] == "events5" and cats[1] == "source", cats[:3]
+    assert cats[:3] == ["events6", "events5", "source"], cats[:3]
     c0 = spec["categories"][0]
-    assert c0["de"] == "Ereignisklänge (Runde 5)" and c0["en"] == "Event sounds (round 5)"
+    assert c0["de"] == "Ereignisklänge (Runde 6)" and c0["en"] == "Event sounds (round 6)"
+    assert spec["categories"][1]["de"] == "Ereignisklänge (Runde 5)"
+    assert json.loads((SOUND / "prompts6.json").read_text(encoding="utf-8"))["category"]["id"] == "events6"
+    sk6 = json.loads((SOUND / "skips6.json").read_text(encoding="utf-8"))["skips"]
+    assert isinstance(sk6, list) and all(s["candidate"].count("/") == 1 and s["reason"].strip() for s in sk6), sk6
     assert json.loads((SOUND / "prompts5.json").read_text(encoding="utf-8"))["category"]["id"] == "events5"
     # The list grows with every spectrogram review of the round, so only its form is fixed here.
     sk5 = json.loads((SOUND / "skips5.json").read_text(encoding="utf-8"))["skips"]
