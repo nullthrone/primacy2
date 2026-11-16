@@ -2,6 +2,8 @@
 
     .venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py [--family hull] [--seeds 11,12]
     .venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py --repro   (same seed twice, compared)
+    ... sa3.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5   (round 5)
+    ... sa3.py --list-jobs [--prompts-file FILE]   (a dry listing; makes nothing)
 
 Run it through tools/voice/with_lock.py: it uses the graphics card.
 
@@ -107,6 +109,9 @@ def main() -> int:
     if ap_repro:
         sys.argv.remove("--repro")
     args = common.parse_args(__doc__.splitlines()[0])
+    if args.list_jobs:
+        common.print_jobs(common.jobs(args.family, args.prompts, args.seeds), KEY)
+        return 0
     device = args.device
     if device == "cuda" and not torch.cuda.is_available():
         print("no cuda device", file=sys.stderr)

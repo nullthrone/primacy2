@@ -15,22 +15,37 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-OUT = ROOT / "assets" / "audio" / "gen"  # ignored by git: candidates are made again, not committed
+DEFAULT_OUT = ROOT / "assets" / "audio" / "gen"
+DEFAULT_PROMPTS = HERE / "prompts.json"
+OUT = DEFAULT_OUT  # ignored by git: candidates are made again, not committed
+PROMPTS_FILE = DEFAULT_PROMPTS  # round 4; round 5 passes tools/sound/prompts5.json
+
+
+def configure(prompts_file: str | None = None, out_root: str | None = None) -> None:
+    """Point the module at another prompts file and another output root (--prompts-file, --out-root).
+    Without arguments nothing changes: round 4 is the default."""
+    global OUT, PROMPTS_FILE
+    if prompts_file:
+        PROMPTS_FILE = Path(prompts_file).resolve()
+    if out_root:
+        OUT = Path(out_root).resolve()
 
 
 def load_prompts() -> dict:
-    return json.loads((HERE / "prompts.json").read_text(encoding="utf-8"))
+    return json.loads(PROMPTS_FILE.read_text(encoding="utf-8"))
 
 
 def jobs(only_family: str | None = None, only_prompts: str | None = None, seeds: str | None = None) -> list[dict]:
-    """Every (family, prompt, seed) to make, in a fixed order."""
+    """Every (family, prompt, seed) to make, in a fixed order. Seeds: --seeds if given, else the family's own
+    "seeds" (round 5 has some), else the "seeds" of the file."""
     spec = load_prompts()
-    want_seeds = [int(s) for s in seeds.split(",")] if seeds else spec["seeds"]
+    cli_seeds = [int(s) for s in seeds.split(",")] if seeds else None
     want_prompts = {s.strip() for s in only_prompts.split(",")} if only_prompts else None
     out = []
     for fam in spec["families"]:
         if only_family and fam["id"] != only_family:
             continue
+        want_seeds = cli_seeds or fam.get("seeds") or spec["seeds"]
         for pr in fam["prompts"]:
             if want_prompts and pr["id"] not in want_prompts:
                 continue
@@ -47,13 +62,35 @@ def parse_args(description: str = "") -> argparse.Namespace:
     ap.add_argument("--prompts", help="comma separated prompt ids (default: all)")
     ap.add_argument("--seeds", help="comma separated seeds (default: those of prompts.json)")
     ap.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
-    return ap.parse_args()
+    ap.add_argument("--prompts-file", metavar="FILE", help="the prompts to make (default tools/sound/prompts.json, round 4)")
+    ap.add_argument("--out-root", metavar="DIR", help="where <source>/raw and <source>/gen.json go (default assets/audio/gen)")
+    ap.add_argument("--list-jobs", action="store_true", help="print the jobs that would be made and stop (no model is loaded)")
+    args = ap.parse_args()
+    configure(args.prompts_file, args.out_root)
+    return args
 
 
-def raw_dir(key: str) -> Path:
+def print_jobs(todo: list[dict], key: str) -> None:
+    """The dry listing of --list-jobs: one line per job, and which raw file is there already."""
+    for j in todo:
+        have = (raw_dir(key, create=False) / (j["name"] + ".wav")).is_file()
+        print("%-24s family %-14s seed %3d  %ss  %s%s" % (j["name"], j["family"], j["seed"], j["seconds"],
+                                                          j["text"][:60], "  [have]" if have else ""))
+    print("%d jobs for %s, raw files under %s" % (len(todo), key, OUT / key / "raw"))
+
+
+def raw_dir(key: str, create: bool = True) -> Path:
     d = OUT / key / "raw"
-    d.mkdir(parents=True, exist_ok=True)
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
     return d
+
+
+def _rel(path: Path) -> str:
+    try:
+        return str(path.relative_to(ROOT)).replace("\\", "/")
+    except ValueError:  # an output root outside the repository
+        return str(path).replace("\\", "/")
 
 
 def write_wav(path: Path, samples, sr: int) -> dict:
@@ -68,7 +105,7 @@ def write_wav(path: Path, samples, sr: int) -> dict:
         raise ValueError("expected (n,) or (n, channels), got shape %r" % (x.shape,))
     path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(path), x, int(sr), subtype="FLOAT")
-    return {"file": str(path.relative_to(ROOT)).replace("\\", "/"), "sr": int(sr),
+    return {"file": _rel(path), "sr": int(sr),
             "channels": 1 if x.ndim == 1 else int(x.shape[1]),
             "audio_s": round(x.shape[0] / float(sr), 3),
             "peak": round(float(np.max(np.abs(x))) if x.size else 0.0, 4)}
@@ -81,6 +118,8 @@ class Record:
         self.key = key
         self.path = OUT / key / "gen.json"
         self.data: dict = {"source": key, "items": {}, **facts}
+        if PROMPTS_FILE != DEFAULT_PROMPTS:  # round 4's gen.json files stay as they were
+            self.data["promptsFile"] = _rel(PROMPTS_FILE)
         if self.path.is_file():  # a second run adds to the first
             try:
                 old = json.loads(self.path.read_text(encoding="utf-8"))

@@ -68,6 +68,9 @@ def _safe_dac_load(cls, location, *args, package_name=None, strict=False, **kwar
 def main() -> None:
     args = common.parse_args(__doc__.splitlines()[0])
     jobs = common.jobs(args.family, args.prompts, args.seeds)
+    if args.list_jobs:
+        common.print_jobs(jobs, "moss")
+        return
     from moss_soundeffect_v2.diffsynth.models import dac_vae
     dac_vae.DAC.load = classmethod(_safe_dac_load)
     from moss_soundeffect_v2 import MossSoundEffectPipeline  # noqa: E402  (package __init__)

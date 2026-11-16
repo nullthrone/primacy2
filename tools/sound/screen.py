@@ -57,11 +57,13 @@ for _p in (AUDIO, AUDIO / "listen"):  # in front of the folder of this script, w
     sys.path.insert(0, str(_p))
 
 SKIPS_FILE = HERE / "skips.json"          # hand skips, read by default
+PROMPTS_FILE = HERE / "prompts.json"      # round 4; round 5 passes tools/sound/prompts5.json with --prompts-file
 SOURCES = ("moss", "sa3", "oga")          # the order of the slots on the page
 GENERATIVE = ("moss", "sa3")              # the fourth pick comes from these
 SOURCE_NAMES = {"moss": "MOSS-SoundEffect", "sa3": "Stable Audio 3", "oga": "OpenGameArt"}
 MAX_LEN_S = {"hull": 2.5, "thruster": 1.2, "gear": 3.8, "shield": 2.5}
 ONE_EVENT = ("hull", "thruster", "shield")  # the gear is one event from the first sound to the last
+ID_PREFIX = "src"                         # round 5 takes the idPrefix of the category in its prompts file
 
 OUT_SR = 48000
 HOP_MS, WIN_MS = 1.0, 4.0
@@ -126,8 +128,12 @@ def _first_quiet_run(quiet: np.ndarray, start: int, need: int) -> int | None:
     return int(s[hit[0]]) if hit.size else None
 
 
-def cut_event(x: np.ndarray, sr: int, family: str) -> dict:
-    """Find the event in a raw file (n, channels). Returns the cut in samples and what was found."""
+def cut_event(x: np.ndarray, sr: int, family: str, max_s: float | None = None, multi: bool | None = None) -> dict:
+    """Find the event in a raw file (n, channels). Returns the cut in samples and what was found.
+    max_s: the family's longest length (default: MAX_LEN_S of the round-4 family); multi: the family allows
+    several sounds, so the cut runs from the first to the last (default: the gear, as in round 4)."""
+    max_s = MAX_LEN_S[family] if max_s is None else max_s
+    multi = (family not in ONE_EVENT) if multi is None else multi
     env, hop, win = level_env(x, sr)
     mx = float(env.max())
     i0 = int(np.flatnonzero(env >= mx - START_DB)[0])
@@ -137,10 +143,10 @@ def cut_event(x: np.ndarray, sr: int, family: str) -> dict:
     hit = np.flatnonzero(seg >= thr)
     onset = i0 * hop + (int(hit[0]) if hit.size else 0)
     start = max(0, onset - int(round(LEAD_S * sr)))
-    cap = onset + int(round(MAX_LEN_S[family] * sr))
+    cap = onset + int(round(max_s * sr))
     need = max(1, int(round(QUIET_S * 1000 / HOP_MS)))
     second = None
-    if family == "gear":
+    if multi:
         loud = np.flatnonzero(env[i0:] > mx - END_DB) + i0
         loud = loud[loud * hop <= cap]
         end = int(loud[-1]) * hop + win
@@ -194,8 +200,11 @@ def energy_share_above(event: np.ndarray, sr: int, hz: float = LOW_HZ) -> float:
     return float(spec[freq >= hz].sum() / total) if total > 0 else 0.0
 
 
-def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
-    """Every fault that needs no model. Returns (reasons in a fixed order, the cut and numbers)."""
+def raw_faults(x: np.ndarray, sr: int, family: str, max_s: float | None = None,
+               one_event: bool | None = None) -> tuple[list[str], dict]:
+    """Every fault that needs no model. Returns (reasons in a fixed order, the cut and numbers).
+    max_s and one_event come from the family of the prompts file; without them the round-4 table decides."""
+    one_event = (family in ONE_EVENT) if one_event is None else one_event
     reasons: list[str] = []
     peak = float(np.abs(x).max()) if x.size else 0.0
     peak_db = 20.0 * math.log10(max(peak, 1e-12))
@@ -204,7 +213,7 @@ def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
         return ["silent"], info
     if has_flat_top(x):
         reasons.append("clipped")
-    cut = cut_event(x, sr, family)
+    cut = cut_event(x, sr, family, max_s, not one_event)
     info["cut"] = {"startS": round(cut["start"] / sr, 4), "endS": round(cut["end"] / sr, 4),
                    "lengthS": round((cut["end"] - cut["start"]) / sr, 4), "cappedAtFamilyLength": cut["capped"]}
     if (cut["end"] - cut["start"]) / sr < MIN_EVENT_S:
@@ -224,7 +233,7 @@ def raw_faults(x: np.ndarray, sr: int, family: str) -> tuple[list[str], dict]:
         if cap_db >= cut["maxDb"] - CUTOFF_DB:
             reasons.append("cut-off")
             info["cutOffAt"] = "family-length"
-    if family in ONE_EVENT and cut["secondOnset"] is not None:
+    if one_event and cut["secondOnset"] is not None:
         reasons.append("several-events")
         info["secondOnsetS"] = round(cut["secondOnset"] / sr, 3)
     info["_cut"] = cut
@@ -326,13 +335,57 @@ def normalise(raw: np.ndarray) -> np.ndarray:
 # ----------------------------------------------------------------------------------------------
 # the choice
 
-def choose(cands: list[dict]) -> tuple[list[dict], list[str]]:
+def _unpickable(c: dict) -> bool:
+    """A candidate that stays in the pool (it counts for the normalisation and the centre) but is never picked:
+    a hand skip, or under the family's smallest share of energy above 60 Hz ("minAbove60Hz")."""
+    return bool(c.get("skip") or c.get("lowShare"))
+
+
+def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], list[str]]:
+    """The slot rule of a family with its own "picks" (round 5): slot n takes a candidate of the source picks[n-1].
+    The first slot of a source takes its most typical candidate (the nearest to the middle of all that source's
+    candidates, as in round 4); every further slot of that source takes the candidate farthest from the picks
+    already made in the family (the second-pick rule of round 4). A slot whose source has nothing left is left out
+    and the notes say so. A pick is {"slot", "cand", "role": "typical" | "farthest", "sourceRank": 1, 2, ...}."""
+    notes: list[str] = []
+    if not cands:
+        return [], ["no candidate in this family"]
+    z = normalise(np.array([c["raw"] for c in cands]))
+    for c, v in zip(cands, z):
+        c["_z"] = v
+    out: list[dict] = []
+    chosen: list[int] = []
+    for slot, s in enumerate(picks, 1):
+        idx = [i for i, c in enumerate(cands) if c["source"] == s]
+        pickable = [i for i in idx if i not in chosen and not _unpickable(cands[i])]
+        if not pickable:
+            notes.append("slot %d (%s): no candidate left to pick" % (slot, s))
+            continue
+        rank = sum(1 for p in out if p["cand"]["source"] == s) + 1
+        if rank == 1:
+            centre = z[idx].mean(axis=0)
+            _, best = min((float(np.linalg.norm(z[i] - centre)), i) for i in pickable)
+            role = "typical"
+        else:
+            ref = [z[i] for i in chosen]
+            _, best = min((-min(float(np.linalg.norm(z[i] - r)) for r in ref), i) for i in pickable)
+            role = "farthest"
+        chosen.append(best)
+        out.append({"slot": slot, "cand": cands[best], "role": role, "sourceRank": rank, "_i": best})
+    return out, notes
+
+
+def choose(cands: list[dict], picks: list[str] | None = None) -> tuple[list[dict], list[str]]:
     """cands: dicts with "source", "name", "raw" (description). Returns (picks, notes). A pick is
     {"slot": 1..4, "cand": cand, "role": "typical" | "second" | "farthest"}. Slot 1 to 3 are moss,
     sa3, oga (a source without a candidate has its slot filled by a second pick); slot 4 is the
-    fourth pick. Deterministic: ties go to the lower source, then the lower name."""
+    fourth pick. Deterministic: ties go to the lower source, then the lower name.
+    picks: the ordered sources of the slots of a family that has its own list (round 5); without it the rule above
+    is used, as in round 4."""
     notes: list[str] = []
     cands = sorted(cands, key=lambda c: (SOURCES.index(c["source"]) if c["source"] in SOURCES else 99, c["name"]))
+    if picks:
+        return choose_by_picks(cands, list(picks))
     if not cands:
         return [], ["no candidate in this family"]
     z = normalise(np.array([c["raw"] for c in cands]))
@@ -528,12 +581,13 @@ def candidate_tag(source: str, name: str, item: dict | None = None) -> str:
     mean another sound when a pick is replaced."""
     item = item or {}
     if source in GENERATIVE:
+        r4 = "r4" if item.get("fromRound4") else ""  # a file of round 4 kept its prompt number: "r4p1s12" is not "p1s12" of round 5
         m = re.search(r"(\d+)__s(\d+)$", name)
         if m:
-            return "p%ss%s" % (m.group(1), m.group(2))
+            return "%sp%ss%s" % (r4, m.group(1), m.group(2))
         pm = re.search(r"(\d+)$", str(item.get("prompt", "")))
         if pm and item.get("seed") is not None:
-            return "p%ss%s" % (pm.group(1), item["seed"])
+            return "%sp%ss%s" % (r4, pm.group(1), item["seed"])
     part = name.split("__", 1)[1] if "__" in name else name
     slug = re.sub(r"[^a-z0-9]+", "-", part.lower()).strip("-")[:32].strip("-")
     return slug or "x"
@@ -570,21 +624,42 @@ def find_raw(root: Path, key: str, name: str, item: dict) -> Path | None:
     return None
 
 
-def item_family(name: str, item: dict) -> str | None:
+def item_family(name: str, item: dict, known=None) -> str | None:
+    """The family of a raw file; known: the family ids of the prompts file (default: the four of round 4)."""
     fam = item.get("family") or name.split("__")[0].split("_")[0]
-    return fam if fam in MAX_LEN_S else None
+    return fam if fam in (MAX_LEN_S if known is None else known) else None
 
 
-def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None = None) -> dict:
+def family_settings(f: dict) -> dict:
+    """What a family of the prompts file asks of the screening: "maxS", "oneEvent", "lufs", "picks" and the optional
+    "minAbove60Hz". A key that is not there falls back to what round 4 did: the constants above for the four
+    round-4 families and the slot rule of choose() (one MOSS, one Stable Audio, one recording, one further
+    generated pick)."""
+    fid = f["id"]
+    max_s = f.get("maxS", MAX_LEN_S.get(fid))
+    if max_s is None:
+        raise ValueError("family %r has no maxS and is not a family of round 4" % fid)
+    return {"maxS": float(max_s), "oneEvent": bool(f["oneEvent"]) if "oneEvent" in f else fid in ONE_EVENT,
+            "lufs": float(f["lufs"]), "picks": list(f["picks"]) if f.get("picks") else None,
+            "minAbove60Hz": float(f["minAbove60Hz"]) if f.get("minAbove60Hz") is not None else None}
+
+
+def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None = None,
+        prompts_file: Path | None = None) -> dict:
     """skips: {"source/name": reason}. A skipped candidate stays in the pool (it counts for the
     normalisation and the centre) but is never picked: the next nearest takes its place. Used after
     looking at the spectrograms of the picks, for plain faults the measures do not see."""
     skips = skips or {}
     import soundfile as sf
 
-    spec = json.loads((HERE / "prompts.json").read_text(encoding="utf-8"))
+    prompts_file = Path(prompts_file) if prompts_file else PROMPTS_FILE
+    round4 = prompts_file.resolve() == PROMPTS_FILE.resolve()
+    spec = json.loads(prompts_file.read_text(encoding="utf-8"))
     fams = {f["id"]: f for f in spec["families"]}
     fam_no = {f["id"]: i + 1 for i, f in enumerate(spec["families"])}
+    sets = {fid: family_settings(f) for fid, f in fams.items()}
+    category = spec.get("category") or {}
+    id_prefix = category.get("idPrefix", ID_PREFIX)
     models = Models(device) if use_models else None
     files: list[dict] = []
     cands: dict[str, list[dict]] = {f: [] for f in fams}
@@ -596,7 +671,7 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
         sources_found[key] = {"files": len(items), "kept": 0}
         for name in sorted(items):
             item = items[name]
-            fam = item_family(name, item)
+            fam = item_family(name, item, fams.keys())
             row = {"source": key, "name": name, "family": fam, "status": "thrown-out", "reason": None, "reasons": []}
             files.append(row)
             raw = find_raw(root, key, name, item)
@@ -607,7 +682,7 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             row["file"] = _rel(raw, ROOT)
             x, sr = sf.read(str(raw), dtype="float32", always_2d=True)
             row["sr"], row["channels"], row["rawS"] = int(sr), int(x.shape[1]), round(x.shape[0] / sr, 3)
-            reasons, info = raw_faults(x, sr, fam)
+            reasons, info = raw_faults(x, sr, fam, sets[fam]["maxS"], sets[fam]["oneEvent"])
             cut = info.pop("_cut", None)
             row.update(info)
             if cut is not None:
@@ -628,31 +703,38 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             event = x[cut["start"]:cut["end"]]
             row["status"] = "kept"
             sources_found[key]["kept"] += 1
-            cands[fam].append({"source": key, "name": name, "raw": describe(event, sr),
-                               "cut": cut, "x": x, "sr": sr, "item": item,
-                               "skip": skips.get("%s/%s" % (key, name))})
-            if skips.get("%s/%s" % (key, name)):
-                row["skippedAsPick"] = skips["%s/%s" % (key, name)]
+            # a file carried over from round 4 keeps the hand skip it had there (the same file, the same cut)
+            skip = skips.get("%s/%s" % (key, name)) or item.get("round4Skip")
+            cand = {"source": key, "name": name, "raw": describe(event, sr),
+                    "cut": cut, "x": x, "sr": sr, "item": item, "skip": skip}
+            floor = sets[fam]["minAbove60Hz"]
+            share = row.get("energyAbove60Hz")
+            if floor is not None and share is not None and share < floor:
+                cand["lowShare"] = True  # stays in the pool for the statistics, is never picked
+                row["notPickedLowShare"] = "energy above 60 Hz %.4f is under the family's minimum %.2f" % (share, floor)
+            cands[fam].append(cand)
+            if skip:
+                row["skippedAsPick"] = skip
     listen = root / "_listen"
     listen.mkdir(parents=True, exist_ok=True)
-    for old in listen.glob("src_*.wav"):
+    for old in listen.glob(id_prefix + "_*.wav"):
         old.unlink()
     chosen: list[dict] = []
     fam_out: dict[str, dict] = {}
     for fam, f in fams.items():
         cs = cands[fam]
-        picks, notes = choose(cs)
+        picks, notes = choose(cs, sets[fam]["picks"])
         counts = {s: sum(1 for c in cs if c["source"] == s) for s in SOURCES}
         fam_out[fam] = {"number": fam_no[fam], "candidates": counts, "notes": notes, "chosen": []}
         for p in picks:
             c = p["cand"]
             tag = candidate_tag(c["source"], c["name"], c["item"])
-            sid = "src_%d_%s_%d_%s_%s" % (fam_no[fam], fam, p["slot"], c["source"], tag)
+            sid = "%s_%d_%s_%d_%s_%s" % (id_prefix, fam_no[fam], fam, p["slot"], c["source"], tag)
             if not ID_PATTERN.match(sid):
                 raise ValueError("%r is not a valid id of the manifest" % sid)
             cut = c["cut"]
             event = c["x"][cut["start"]:cut["end"]]
-            y, info = listening_copy(event, c["sr"], float(f["lufs"]))
+            y, info = listening_copy(event, c["sr"], sets[fam]["lufs"])
             out = listen / (sid + ".wav")
             sf.write(str(out), y.astype(np.float32), OUT_SR, subtype="FLOAT")
             row = next(r for r in files if r["source"] == c["source"] and r["name"] == c["name"])
@@ -663,10 +745,13 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
                                    "cappedAtFamilyLength": cut["capped"]},
                            "listen": dict(info, file=_rel(out, ROOT)),
                            "record": c["item"]})
+            if "sourceRank" in p:  # only a family with its own "picks" has it: round 4 files stay as they were
+                chosen[-1]["sourceRank"] = p["sourceRank"]
             fam_out[fam]["chosen"].append(sid)
     for key, v in sources_found.items():
         v["perFamily"] = {fam: sum(1 for c in cands[fam] if c["source"] == key) for fam in fams}
-    return {"version": 1, "skippedAsPick": skips,
+    extra = {} if round4 else {"category": category, "promptsFile": _rel(prompts_file.resolve(), ROOT)}
+    return {"version": 1, **extra, "skippedAsPick": skips,
             "settings": {"models": bool(use_models), "modelDevice": device if use_models else None,
                          "note": None if use_models else "speech and music were NOT checked (--no-models)",
                          "maxLengthS": MAX_LEN_S, "startWithinDb": START_DB, "endUnderDb": END_DB, "quietUnderDb": QUIET_DB, "quietS": QUIET_S,
@@ -695,15 +780,22 @@ def main(argv=None) -> int:
     ap.add_argument("--skip", action="append", default=[], metavar="SOURCE/NAME=REASON",
                     help="never pick this candidate either (it stays in the pool); repeatable; adds to the file; the reason is written to screen.json")
     ap.add_argument("--device", choices=["cpu", "cuda"], default="cpu", help="for the two models; cuda only under with_lock.py")
+    ap.add_argument("--prompts-file", default=str(PROMPTS_FILE), metavar="FILE",
+                    help="the prompts and the family settings (default tools/sound/prompts.json, round 4)")
     a = ap.parse_args(argv)
     os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
     os.environ.setdefault("DO_NOT_TRACK", "1")
     root = Path(a.root).resolve()
-    skips = load_skips(Path(a.skips)) if a.skips else {}
+    prompts_file = Path(a.prompts_file).resolve()
+    skips_arg = Path(a.skips)
+    if prompts_file != PROMPTS_FILE.resolve() and skips_arg == SKIPS_FILE:
+        # round 5 reads its own list, tools/sound/skips5.json for prompts5.json; round 4's list names round-4 files
+        skips_arg = HERE / (prompts_file.stem.replace("prompts", "skips", 1) + ".json")
+    skips = load_skips(skips_arg) if a.skips else {}
     for t in a.skip:
         k, _, why = t.partition("=")
         skips[k.strip()] = why.strip() or "skipped by hand"
-    result = run(root, not a.no_models, a.device, skips)
+    result = run(root, not a.no_models, a.device, skips, prompts_file)
     path = root / "screen.json"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(_clean(result), f, indent=1, ensure_ascii=False)

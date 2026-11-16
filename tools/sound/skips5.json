@@ -1,0 +1,4 @@
+{
+ "note": "Hand skips of round 5, read by screen.py when it is run with --prompts-file tools/sound/prompts5.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips.json (candidate as source/name, reason). Empty until the first screening of round 5 has been looked at. The hand skips that a round-4 file had there are not copied here: from_round4.py carries them with the file as round4Skip.",
+ "skips": []
+}
