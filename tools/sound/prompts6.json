@@ -1,0 +1,99 @@
+{
+  "decision": "ROUND 6 IS MADE WITH MOSS ONLY, as round 5 was. The owner decided on 2026-11-16: \"Lass uns mit MOSS weiter machen, ohne Stable Audio. Ich denke damit kommen wir auch ans Ziel.\" No Stable Audio file is generated, screened or published. This decision wins over any brief that says otherwise.",
+  "note": "Round 6: another try for the families the owner rejected in round 5 (assets/audio/rounds/round5-ratings.json: 5 fit, 2 close, 10 wrong). What he accepted in round 5 (hull_light_1 s15, hull_heavy_1 s16, hull_heavy_2 s14, the two valve pulses) is not asked again. His notes, which the prompts answer. Thruster with more bang (all four wrong): \"klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun\", \"klingt wie eine kleine Plastikkanone\"; so the family thruster_mighty names large weapons and asks for weight in the low end. Shield (all three wrong): \"Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer sein\", \"klingt wie ein Knistern eines kaputten Kabels\", \"übersteuert, zu lang, zu viel rauschen\"; so shield_tight asks for a short, tight, clean event (2 s asked, cut at 1.5 s at most) with one low thump and only a brief crackle. Fold jump (both wrong): \"zu übersteuert\"; the prompts of round 5 said huge, roaring, violent, blast, and the new ones say clean, smooth and bright and name an electrical source. Fold exit (one close, one wrong): \"zu viel hochtöniges Rauschen\" and \"klingt gehaucht, nach Luft, die es im Vakuum nicht gibt\"; so no prompt names air, wind, steam or a whoosh of air, and the first is the 'close' prompt made darker. Hull hit, light: one of two fitted; the one that was close (\"klingt als ob es mehrere kurze Töne hintereinander wären, wie ein Echo\") came from the debris prompt, so the family here is the accepted wrench prompt with new seeds, as variants. No prompt uses a negation (\"no distortion\"): a model that reads a word tends to make it. 'proven' says whether a family rests on a prompt he accepted. Fields per family as in prompts5.json. The 'lufs' of a family is the level of its candidates on the page and may be changed before the screening: the page-level check of round 5 (docs/reports/2026-11-16/round5-overdrive-report.json) decides it.",
+  "category": {
+    "id": "events6",
+    "de": "Ereignisklänge (Runde 6)",
+    "en": "Event sounds (round 6)",
+    "idPrefix": "ev6"
+  },
+  "sources": ["moss"],
+  "seeds": [11, 12, 13, 14, 15, 16],
+  "families": [
+    {
+      "id": "hull_light",
+      "de": "Rumpftreffer, leicht (Varianten)",
+      "en": "Hull hit, light (variants)",
+      "what": "Variants of the light hull hit he accepted in round 5 (the wrench prompt, seed 15), so that repeated hits do not sound the same. Library event: impact_hull_light.",
+      "proven": true,
+      "seconds": 2,
+      "maxS": 1.2,
+      "oneEvent": true,
+      "lufs": -34.0,
+      "picks": ["moss", "moss"],
+      "seeds": [21, 22, 23, 24, 25, 26],
+      "prompts": [
+        {"id": "hull_light_1", "text": "Heavy wrench dropped once onto a steel deck plate, single short hard metallic knock, close microphone"}
+      ]
+    },
+    {
+      "id": "thruster_mighty",
+      "de": "Düsenstoß, mächtig",
+      "en": "Thruster pulse, mighty",
+      "what": "His notes on the bang and Gatling pulses of round 5: they sound like a small gas pistol or a small plastic cannon, not like a mighty Gatling gun. The prompts name large weapons and ask for a deep heavy low end. A single shot, a half-second burst and three slow shots; several bangs are wanted, so a second event is no fault.",
+      "proven": false,
+      "seconds": 2,
+      "maxS": 1.5,
+      "oneEvent": false,
+      "lufs": -34.0,
+      "picks": ["moss", "moss", "moss"],
+      "prompts": [
+        {"id": "thruster_mighty_1", "text": "Single shot from a 30 mm autocannon, a deep heavy boom with a hard sharp crack, massive low end, dry, close microphone"},
+        {"id": "thruster_mighty_2", "text": "Heavy rotary cannon fires a half-second burst, a deep roaring burst of rapid heavy shots with a powerful low end, heard up close, then it stops abruptly"},
+        {"id": "thruster_mighty_3", "text": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone"}
+      ]
+    },
+    {
+      "id": "shield_tight",
+      "de": "Schildtreffer, kurz und klar",
+      "en": "Shield hit, short and clean",
+      "what": "His notes on the three shield hits of round 5: too full and overdriven, drawn out too long, it must be shorter; like the crackle of a broken cable; too much noise. And of round 4, on the MOSS shield: too bass-heavy, a little crackle or throb should be in it. So: one short tight event, a low thump with a brief crackle, ending fast. With MOSS alone this family decides whether the shield can be made. Library event: impact_shield_medium.",
+      "proven": false,
+      "seconds": 2,
+      "maxS": 1.5,
+      "oneEvent": true,
+      "lufs": -24.0,
+      "minAbove60Hz": 0.4,
+      "picks": ["moss", "moss", "moss"],
+      "prompts": [
+        {"id": "shield_tight_1", "text": "A short electric zap strikes a metal plate, one tight deep thump with a brief bright crackle of sparks, half a second long, then silence"},
+        {"id": "shield_tight_2", "text": "Force field deflects a projectile, a quick clean electric snap with a short soft low pulse underneath, ends fast"},
+        {"id": "shield_tight_3", "text": "Single short burst of static electricity with a round bass throb, clean and tight, science fiction energy shield hit"}
+      ]
+    },
+    {
+      "id": "fold_jump",
+      "de": "Faltsprung",
+      "en": "Fold jump",
+      "what": "The moment the fold drive fires. Round 1: energetic, hissing and rushing, not a dull thud. Round 5, both candidates: too overdriven. The prompts name an electrical source and ask for a clean, smooth, bright surge. Library event: fold_jump.",
+      "proven": false,
+      "seconds": 4,
+      "maxS": 3.8,
+      "oneEvent": false,
+      "lufs": -24.0,
+      "picks": ["moss", "moss", "moss"],
+      "prompts": [
+        {"id": "fold_jump_1", "text": "Science fiction warp drive engages, a fast rising electric whine snaps into a bright shimmering surge of energy that fades out cleanly"},
+        {"id": "fold_jump_2", "text": "Large capacitor bank discharges with a sharp electric crack, followed by a smooth bright hiss that thins out and fades away"},
+        {"id": "fold_jump_3", "text": "A deep power hum swells for one second and releases in a clean rushing surge of energy with a soft low pulse, futuristic engine"}
+      ]
+    },
+    {
+      "id": "fold_exit",
+      "de": "Faltsprung, Austritt",
+      "en": "Fold exit",
+      "what": "The ship drops out of the fold. Round 5: the first candidate was close (too much high-pitched noise), the second wrong (breathy, like air, which a vacuum does not have). The first prompt is the 'close' one made darker; none names air, wind or steam. Library event: fold_exit.",
+      "proven": false,
+      "seconds": 4,
+      "maxS": 3.8,
+      "oneEvent": false,
+      "lufs": -24.0,
+      "picks": ["moss", "moss", "moss"],
+      "prompts": [
+        {"id": "fold_exit_1", "text": "A deep rushing surge arrives fast from the distance and ends in a powerful low pulse of energy that dissipates into a dark soft hum, science fiction"},
+        {"id": "fold_exit_2", "text": "Science fiction ship drops out of warp, a bright electric surge collapses quickly into a heavy soft thump and a fading electric hum"},
+        {"id": "fold_exit_3", "text": "Large electrical machine powers down, a falling whine ends in a deep resonant pulse with a few sparks, then a clean decay"}
+      ]
+    }
+  ]
+}

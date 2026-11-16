@@ -200,3 +200,36 @@ orchestrator settled what it found on 2026-11-16:
 6. Two readings of the pictures, not hearing: the second Gatling pick `ev5_5_thruster_gatling_2_moss_p1s11` shows one
    hit, not a burst of several; `ev5_2_hull_heavy_2_moss_p1s14` has 28.8 % of its energy above 60 Hz. Nobody has listened
    to anything.
+
+## The owner's ratings (2026-11-16)
+
+He rated all 17 on 2026-11-16 between 16:49 and 16:54 UTC: 5 fit ("Passt"), 2 are close ("Nah dran"), 10 are wrong
+("Falsch"). The record is `assets/audio/rounds/round5.json` (the file hash of each of the 165 sounds on the page) and
+`round5-ratings.json`; the 17 as he heard them, their raw files, the listening copies and the records of the run are
+kept in `assets/audio/gen/_kept/round5` (ignored by git). With the record the freeze of point 5 above has ended.
+
+| id | prompt, seed | verdict | his note |
+|---|---|---|---|
+| ev5_1_hull_light_1_moss_p2s15 | hull_light_2, 15 | fits | |
+| ev5_1_hull_light_2_moss_p1s11 | hull_light_1, 11 | close | klingt als ob es mehrere kurze Töne hintereinander wären, wie ein Echo ohne doppler effekt. Ansonsten ok |
+| ev5_2_hull_heavy_1_moss_p2s16 | hull_heavy_2, 16 | fits | |
+| ev5_2_hull_heavy_2_moss_p1s14 | hull_heavy_1, 14 | fits | |
+| ev5_3_thruster_valve_1_moss_r4p1s12 | thruster_1 of round 4, 12 | fits | |
+| ev5_3_thruster_valve_2_moss_r4p1s15 | thruster_1 of round 4, 15 | fits | |
+| ev5_4_thruster_bang_1_moss_p2s11 | thruster_bang_2, 11 | wrong | klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun |
+| ev5_4_thruster_bang_2_moss_p1s11 | thruster_bang_1, 11 | wrong | |
+| ev5_5_thruster_gatling_1_moss_p2s12 | thruster_gatling_2, 12 | wrong | klingt wie eine kleine Plastikkanone |
+| ev5_5_thruster_gatling_2_moss_p1s11 | thruster_gatling_1, 11 | wrong | klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun |
+| ev5_6_shield_bright_1_moss_p1s15 | shield_bright_1, 15 | wrong | Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer sein |
+| ev5_6_shield_bright_2_moss_p2s11 | shield_bright_2, 11 | wrong | klingt wie ein Knistern eines kaputten Kabels |
+| ev5_6_shield_bright_3_moss_p2s14 | shield_bright_2, 14 | wrong | übersteuert, zu lang, zu viel rauschen |
+| ev5_7_fold_jump_1_moss_p1s13 | fold_jump_1, 13 | wrong | zu übersteuert |
+| ev5_7_fold_jump_2_moss_p2s14 | fold_jump_2, 14 | wrong | zu übersteuert |
+| ev5_8_fold_exit_1_moss_p1s15 | fold_exit_1, 15 | close | zu viel hochtöniges Rauscshen |
+| ev5_8_fold_exit_2_moss_p2s15 | fold_exit_2, 15 | wrong | klingt gehaucht, nach Luft, die es im Vakuum nicht gibt.. |
+
+By family: hull_light 1 fits and 1 is close; hull_heavy 2 fit; thruster_valve 2 fit; thruster_bang 2 wrong;
+thruster_gatling 2 wrong; shield_bright 3 wrong; fold_jump 2 wrong; fold_exit 1 close and 1 wrong. Two points of "What
+could not be judged" are answered by it: the clicks in shield_bright_2 s11 were heard as a fault, and the valve pick
+with the hard end fits. What his word "übersteuert" (four notes) rests on was measured afterwards:
+`docs/reports/2026-11-16/round5-overdrive-report.json`.

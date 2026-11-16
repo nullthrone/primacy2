@@ -477,7 +477,7 @@ question; he answered it on the same day by choosing MOSS only for round 5 (the 
 `tools/sound/prompts5.json`). Recordings are no longer pursued as the main source. What follows is
 in `docs/ROADMAP.md`, section 2, "Sound sources".
 
-### Round 5, 2026-11-16 (seventeen event sounds on the page, not heard yet)
+### Round 5, 2026-11-16 (seventeen event sounds; he rated all of them the same day)
 
 Why this round differs. Round 4 gave him the first short events he accepted, so round 5 makes the
 event sounds the game needs from that: other strengths and variants of what fitted, his two notes
@@ -533,9 +533,43 @@ shield_bright_2 s11 are crackle or a fault. The decoder's pressing against full 
 crest only. The 20 dB cut-off threshold was not tested on steady sounds. The two valve files were made
 in round 4 and are unheard.
 
-His ratings: none yet (0 of 17 rated). Round 5 was handed to him on 2026-11-16 with these 17 candidates and is frozen until he has rated them. Until they are recorded the way round 4 was
-(`assets/audio/rounds/round5.json` with the file hashes, `round5-ratings.json` with the ratings),
-`assets/audio/render/events5` is frozen, and `screen.py`, `publish.py` and `build.py` are not run on
-the real tree: a new publish changes ids or hashes and orphans his ratings. What is planned for each
-outcome, and what is not to be started without his word, is in `docs/ROADMAP.md`, section 2, "Sound
-sources", and `docs/NEXT.md`.
+The paragraph above is what was open before he listened. His ratings answer part of it.
+
+His ratings (record: `assets/audio/rounds/round5.json` with the file hashes of all 165 sounds and
+`round5-ratings.json`; the seventeen as he heard them, their raw files and the records of the run are
+kept in `assets/audio/gen/_kept/round5`, ignored by git). He rated all seventeen on 2026-11-16 between
+16:49 and 16:54 UTC and nothing else: five fit ("Passt"), two are close ("Nah dran"), ten are wrong
+("Falsch"). Read by family and prompt:
+
+- Hull, light: the wrench prompt (hull_light_2, seed 15) fits. The debris prompt (hull_light_1, seed
+  11) is close: "klingt als ob es mehrere kurze Töne hintereinander wären, wie ein Echo ohne doppler
+  effekt. Ansonsten ok".
+- Hull, heavy: both fit (hull_heavy_2 seed 16, the wrecking ball; hull_heavy_1 seed 14, the huge
+  impact).
+- Thruster, valve: both fit (the round-4 files thruster_1 seed 12 and seed 15). With seed 11 of round
+  4, three files of the valve prompt have been heard and all three fit. The first of the two is the
+  one that ends hard; he accepted it.
+- Thruster with more bang: both wrong. On the single Gatling shot (thruster_bang_2, seed 11): "klingt
+  wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun". The valve with a hard bang
+  (thruster_bang_1, seed 11): wrong, no note.
+- Thruster, Gatling: both wrong. The rotary cannon burst (thruster_gatling_2, seed 12): "klingt wie
+  eine kleine Plastikkanone". The five rapid shots (thruster_gatling_1, seed 11): "klingt wie eine
+  kleine Gaspistole, nicht wie eine mächtige Gatling Gun".
+- Shield: all three wrong. shield_bright_1 seed 15: "Klingt zu voll und übersteuert, auch zu lang
+  gezogen. Es muss kürzer sein". shield_bright_2 seed 11 (the train of clicks): "klingt wie ein
+  Knistern eines kaputten Kabels". shield_bright_2 seed 14: "übersteuert, zu lang, zu viel rauschen".
+- Fold jump: both wrong, both "zu übersteuert" (fold_jump_1 seed 13, fold_jump_2 seed 14).
+- Fold exit: fold_exit_1 seed 15 is close: "zu viel hochtöniges Rauscshen". fold_exit_2 seed 15 is
+  wrong: "klingt gehaucht, nach Luft, die es im Vakuum nicht gibt..".
+
+What it settles. Hull hits and the valve pulse can be made with MOSS: every candidate of a prompt of
+that kind has fitted or been close, over two rounds. The thruster with more bang cannot be made by
+naming a Gatling gun as such: he hears a small weapon, and he asked for a mighty one. MOSS has not
+made a shield he accepts (one close in round 4, three wrong in round 5); the shield hits he accepted
+in round 4 came from Stable Audio, which he has ruled out. The clicks of shield_bright_2 seed 11 were
+heard as a fault and not as the crackle he had asked for. The fold exit is close with one prompt; the
+word for the other, air in a vacuum, is a rule for prompts: nothing that sounds like moving air.
+
+The freeze of `assets/audio/render/events5` has ended with the record. The files of round 5,
+`prompts5.json` and `skips5.json` stay as they are, and what follows is built beside them. What
+follows is in `docs/ROADMAP.md`, section 2, "Sound sources", and `docs/NEXT.md`.
