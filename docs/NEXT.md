@@ -51,9 +51,15 @@ followed the model (Stable Audio fits, MOSS close: "etwas zu bass-lastig. ich w√
 knistern/wummern mit einbauen"); of the recordings only the steam hiss fits. The frozen rule below
 has ended with the record. Round 5 (`tools/sound/prompts5.json`, workflow `round5-event-sounds`,
 reports `docs/reports/2026-11-16/sound5-*.json`) makes the game's event sounds from that, beside
-round 4 and without touching it. He was asked on the same morning whether Stable Audio output may
-go into the game (on this evidence only the shield depends on it). The rest of this section was
-written before he rated and is brought up to date by the last agent of that workflow.
+round 4 and without touching it. Asked on the same morning whether Stable Audio output may go into
+the game, he decided: "Lass uns mit MOSS weiter machen, ohne Stable Audio. Ich denke damit kommen
+wir auch ans Ziel." So the licence question is closed: Stable Audio is not used, round 5 is made
+with MOSS only (the field `decision` of `prompts5.json` says so and wins over the briefs of the
+workflow, which were written before), and the shield must come from MOSS. His hint for the
+thruster: "Vielleicht hilft es, es nicht als \"Air Cannon\" zu beschreiben, damit es weniger
+hauchig klingt, sondern als Gatling Gun als besserer Referenzpunkt" (families `thruster_bang` and
+`thruster_gatling`). The rest of this section was written before he rated and is brought up to
+date by the last agent of that workflow.
 
 What is on the audition page (`npm run dev:client`, then `/dev/audition.html`): its first category,
 "Klangquellen (Runde 4)", holds sixteen candidates for four families (hull hit, thruster pulse,
