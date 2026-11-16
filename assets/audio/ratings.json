@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "savedAt": "2026-11-15T19:36:05.096Z",
+  "savedAt": "2026-11-16T06:05:19.532Z",
   "manifest": {
     "placeholder": false,
-    "count": 128
+    "count": 148
   },
   "ratings": {
     "engine_main_t000": {
@@ -409,6 +409,48 @@
       "note": "",
       "at": "2026-11-15T19:34:39.180Z",
       "hash": "719b445c3be2"
+    },
+    "src_1_hull_1_moss_p1s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:44.160Z",
+      "hash": "7cf8f6c6cf1e"
+    },
+    "src_1_hull_2_sa3_p2s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:46.897Z",
+      "hash": "7470137308c8"
+    },
+    "src_1_hull_4_sa3_p1s13": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:03:50.835Z",
+      "hash": "78cde7df25b8"
+    },
+    "src_2_thruster_1_moss_p2s11": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Grundidee passt, es muss aber doller, knalliger klingen",
+      "at": "2026-11-16T06:04:53.294Z",
+      "hash": "c9476fb22eea"
+    },
+    "src_2_thruster_2_sa3_p2s12": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Grundidee passt, es muss aber doller, knalliger klingen. Aktuell klingt es eher \"hauchig\"",
+      "at": "2026-11-16T06:05:06.083Z",
+      "hash": "748d0a0919b6"
+    },
+    "src_2_thruster_4_moss_p1s11": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-16T06:05:19.029Z",
+      "hash": "4ac8220c92f1"
     }
   },
   "scenes": {},
