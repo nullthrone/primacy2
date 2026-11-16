@@ -101,33 +101,37 @@ manifest has 165 entries (the 148 of before, unchanged, and 17 new). The page ch
 its own: `audition-check.mjs` 48 passed, 0 failed, 0 page faults (28 faults lie in sound files, 22 of
 them in shield_bright_2 s11). He rated none of the 17 on 2026-11-16, and the four countdown samples
 (`voice_5_countdown_*`) are still unheard. Nobody listened to any of it. The generate step also made
-90 Stable Audio files against his decision; they were kept out of the pool by renaming
-`assets/audio/gen/r5/sa3/gen.json` to `gen.json.not-screened` (undo: move it back, but then the
-MOSS picks would change).
+90 Stable Audio files against his decision; they were never screened, published or heard, were first
+kept out by renaming `assets/audio/gen/r5/sa3/gen.json` to `gen.json.not-screened`, and then the
+folder `assets/audio/gen/r5/sa3` was deleted. Nothing is left to undo; `assets/audio/gen/r5` holds
+MOSS only. Round 5 was handed to him on 2026-11-16 with these 17 candidates and is frozen until he
+has rated them.
 
 What he is asked: Passt / Falsch for each candidate, nothing else, no description.
 
 The independent check (`docs/reports/2026-11-16/sound5-verify-report.json`). Its verdict: round 4 is
 untouched, the round-5 page entries agree with `screen.json` and `prompts5.json`, and almost every
-number in `RESULTS5.md` reproduced. Not clean, its three points to fix, none of them repaired when
-this was written:
+number in `RESULTS5.md` reproduced. It named three points to fix and a list of wrong sentences; the
+orchestrator settled them on 2026-11-16:
 
-- `tools/sound/tests/test_screen.py` (line 1012) asserts that the `skips` of `skips5.json` are
-  empty, and the file now holds the two hand skips: 43 tests, 1 failed. The assertion should check
-  that the file exists and holds a list.
+- `tools/sound/tests/test_screen.py` asserted that the `skips` of `skips5.json` were empty and failed
+  (43 tests, 1 failed) once the file held the two hand skips. The assertion now checks the form of
+  the list, and the test passes 43 of 43.
 - ev5_6_shield_bright_2_moss_p2s11 leaves the page 4.0 dB under its two family mates (-28.05 against
-  -24.05 and -24.07): the true-peak ceiling stopped its gain (raw crest 35.0 dB). An unequal level
-  biases a listening comparison. Replace it before he listens, or state the miss on the page.
+  -24.05 and -24.07): the true-peak ceiling stopped its gain (raw crest 35.0 dB). It stays on the
+  page as it is: its peaks sit at -1.1 dBFS, so it cannot be set louder without changing the sound,
+  a LUFS gap on a train of clicks is a weak measure of how loud it seems, the page entry states
+  target and reached level, and he is told in the hand-over.
 - ev5_3_thruster_valve_1_moss_r4p1s12 ends within 20 dB of its maximum in its last 50 ms (16.7 dB;
-  14.2 dB on the raw cut), because the raw file drops at 1.004 s, where the cut-off rule does not
-  look. Accept it as a hard-ending burst, or re-cut or skip it.
+  14.2 dB on the raw cut), because the raw file drops at 1.004 s (about 39 dB within one frame), a
+  stop that is in the raw file and not made by the cut. It is accepted explicitly as a burst with a
+  hard end, and he is told.
+- The README section "Round 5" (`tools/sound/README.md`) and four sentences of `RESULTS5.md` were
+  corrected: 90 files, the Stable Audio step dropped, the id of the first valve pick, and the
+  figures the check listed as wrong. The README now says that the root of a MOSS-only round must hold
+  MOSS files only.
 
-Also not repaired: the README section "Round 5" (`tools/sound/README.md`) says 78 files where there
-are 90 per model, names a wrong id for the first valve pick, and tells the reader to generate Stable
-Audio, which would change the MOSS picks when screened; `RESULTS5.md` has four sentences that the
-check lists as wrong or over-reaching (four hand-skipped shield files, the shape of thruster_1 s11,
-the click count of shield_bright_2 s12 and the peak of thruster_bang_1 s12, 68 % against 71 %). The
-regeneration test gave bit-identical files for three of four; one MOSS file (hull_heavy_2 s11)
+The regeneration test gave bit-identical files for three of four; one MOSS file (hull_heavy_2 s11)
 differs at about -79 dB, so a run is not reproducible bit for bit.
 
 What nobody could verify: how any of it sounds (the check and the orchestrator looked at

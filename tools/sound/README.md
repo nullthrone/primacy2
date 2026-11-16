@@ -167,7 +167,7 @@ family), `minAbove60Hz` (a kept candidate under this share of energy above 60 Hz
 statistics but is not picked; `screen.json` says so per file as `notPickedLowShare`), `seeds` (the family's own),
 `fromRound4` (see below). `skips5.json` is read for `prompts5.json` instead of `skips.json`.
 
-The whole run, in order (each line can be copied; the two generating steps go through the lock):
+The whole run, in order (each line can be copied; the generating step goes through the lock):
 
 1. Bring the unheard, kept candidates of round 4 into the pool (writes only `gen/r5/<source>/gen.json`; copies and moves nothing; safe to run twice; before or after the generation, as the adapters keep these items):
 
@@ -177,13 +177,11 @@ The whole run, in order (each line can be copied; the two generating steps go th
 
        .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5 --list-jobs
 
-3. Make the candidates, MOSS (78 files):
+3. Make the candidates, MOSS (90 files: 15 prompts x 6 seeds; the valve prompt takes seeds 21 to 26):
 
        .venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5
 
-4. Make the candidates, Stable Audio (78 files, test material):
-
-       .venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/sa3/Scripts/python.exe tools/sound/adapters/sa3.py --prompts-file tools/sound/prompts5.json --out-root assets/audio/gen/r5
+4. There is no Stable Audio step in round 5: the owner decided on MOSS only (`prompts5.json`, field `decision`). `screen.py` takes every `gen.json` under its root and does not read the `sources` key of the prompts file, so the root of a MOSS-only round must hold MOSS files only (`assets/audio/gen/r5` does).
 
 5. Screen and choose (Whisper and CLAP on the processor):
 
@@ -206,7 +204,7 @@ To take the round off the page: `publish.py --prompts-file tools/sound/prompts5.
 published in round 4 (so the owner has not heard it) and is not excluded. Its item in the round-5 `gen.json`
 points at the raw file where it lies, carries `fromRound4: true` and has the round-5 family. A hand skip it had
 in round 4 comes along as `round4Skip` and is honoured (it is the same file with the same cut). Its id tag starts
-with `r4` (`ev5_3_thruster_valve_3_moss_r4p1s12`), so that it is never taken for a file of the same prompt number
+with `r4` (`ev5_3_thruster_valve_1_moss_r4p1s12`), so that it is never taken for a file of the same prompt number
 made in round 5, and its intent line on the page says that the file was made in round 4 and not heard then.
 A family's intent line also says whether it is `proven` (rests on a prompt the owner accepted) or a first try.
 A further pick of a source is named "zweite Auswahl" / "second pick", then "dritte Auswahl" / "third pick".

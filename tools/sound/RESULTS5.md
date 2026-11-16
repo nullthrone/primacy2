@@ -58,7 +58,7 @@ silent, clipped, speech, music or too short.
 
 Kept but never picked: shield_bright has 5 kept files under the family minimum of 40 % above 60 Hz
 (`notPickedLowShare`: shield_1 s11 35.8 %, s14 39.97 %, s16 18.6 %, shield_3 s16 9.5 %, shield_bright_1 s14 34.9 %),
-and four hand-skipped files (below). All stay in the pool for the statistics.
+and one more hand-skipped shield_bright file, shield_bright_2 s12 (the carried shield_3 s16 is one of the five already). The other two hand skips, thruster_bang_1 s12 and thruster_1 s16, are in thruster families. All stay in the pool for the statistics.
 
 ## Hand skips
 
@@ -68,18 +68,22 @@ as waveform and spectrogram (made from the listening copies) and as a 50 ms leve
 looked at the same way. Two picks were skipped (`tools/sound/skips5.json`):
 
 - moss/thruster_bang_1__s12: in its 1.2 s cut the level sits 15 to 22 dB under the maximum for 0.95 s, with low thumps
-  at about 0.40, 0.50 and 0.90 s; the loudest sound (peak 0.199) is at 1.011 s. Its place went to thruster_bang_1 s11.
-- moss/shield_bright_2__s12: about 40 separate clicks within 16.5 dB of its peak (0.850 at 0.010 s) spread over 0 to
-  1.55 s, among them 1.321 s at -5.6 dB and 1.507 s at -1.9 dB, then 0.9 s at 28 to 31 dB under the maximum. Its place
+  at about 0.40, 0.50 and 0.90 s; the loudest sound is at 1.011 s (peak 0.199 in the level-set copy that was looked at; the raw cut peaks at 0.427). Its place went to thruster_bang_1 s11.
+- moss/shield_bright_2__s12: about 40 separate clicks within 16.5 dB of its peak spread over 0 to
+  1.55 s (the check counted 62 maxima of 1 ms, 5 ms apart, within 16.5 dB of the raw peak 0.864 at 0.014 s: the count
+  depends on the definition, and these clicks are the crackle the prompt asked for, so whether they are a second event is
+  a judgement the README rule leaves open), among them 1.321 s at -5.6 dB and 1.507 s at -1.9 dB, then 0.9 s at 28 to 31 dB under the maximum. Its place
   went to shield_bright_2 s14.
 
 Two hand skips come from round 4 with their files (`round4Skip`): thruster_1 s16 (silence around a hiss inside the
 cut) and shield_3 s16 (9.5 % above 60 Hz). thruster_1 s16 is why the valve family has two picks, not three.
 
 Looked at and kept, because the README names no fault for them: thruster_valve s12 and s15 are flat noise bursts of
-about 0.9 and 0.65 s with a hard start and a hard end; the accepted round-4 file thruster_1 s11 has the same shape at
-about 0.35 s (raw level 0 to -3 dB, then -24 dB and lower), so a flat top is not a fault of this family. fold_jump_2 s14
-stays at 0 to -3 dB for about 2 s and fades over the last 0.8 s (68 % of its 100 ms windows within 6 dB of the maximum);
+about 0.9 and 0.65 s with a hard start and a hard end; the accepted round-4 file thruster_1 s11 has a similar shape at
+about 0.35 s (raw level 0 to -3 dB, then -24 dB and lower), so a flat top is not a fault of this family. The end is not
+the same: the accepted file ends 37.9 dB under its maximum in its last 50 ms, valve s12 ends 16.7 dB under (see "Level at
+the page" and "After the check"). fold_jump_2 s14
+stays at 0 to -3 dB for about 2 s and fades over the last 0.8 s (71 % of its 100 ms windows within 6 dB of the maximum, counted from the start of the cut; the figure depends a little on the alignment of the windows);
 gear_2 s12 of round 4 was steadier and was accepted. thruster_bang_1 s11 is one bang of 0.2 s followed by a plateau at
 -24 dB for the rest of the cut. shield_bright_2 s11 has its crackle in the first 0.45 s and small isolated clicks later
 (22 to 35 dB under the maximum). This list is not a judgement of how any of them sounds.
@@ -130,13 +134,19 @@ filter on): +0.03 to +0.62 dB; dry: -0.09 to +0.50 dB. What leaves the page (own
 files, shield -24.05 and -24.07 for two files and -28.05 for shield_bright_2 s11, fold -23.90 to -24.07.
 
 Two misses of the level rule (inside a family everything leaves the page equally loud, short events within about
-0.4 dB), reported and not repaired:
+0.4 dB). Both were decided after the check and are published as they are:
 
 - shield_bright_2 s11 reaches only -28.22 LUFS own (target -24.0): the true-peak ceiling (-1.1 dBFS) stopped the gain at
   -0.75 dB (`limitedByPeak`; page measure -25.21 against -20.98). Its raw file has a crest of 35.0 dB (a few very loud
-  clicks over a quiet bed). It leaves the page about 4.0 dB under its two family mates.
+  clicks over a quiet bed). It leaves the page about 4.0 dB under its two family mates. It stays on the page as it is:
+  its peaks sit at -1.1 dBFS, so it cannot be set louder without changing the sound; a LUFS gap on a train of clicks is a
+  weak measure of how loud it seems; the page entry states the target and the level reached; the owner is told in the
+  hand-over.
 - The valve files leave the page 0.50 dB (s12, 1.01 s) and 0.29 dB (s15, 0.80 s) above the target, dry, against "about
-  0.4 dB" for short events; s12 is 0.1 dB outside it.
+  0.4 dB" for short events; s12 is 0.1 dB outside it. The valve file s12 (`ev5_3_thruster_valve_1_moss_r4p1s12`) also
+  ends hard: its last 50 ms are 16.7 dB under its maximum (14.2 dB on the raw cut before the 30 ms fade). The stop is in
+  the raw file at 1.004 s (a drop of about 39 dB within one frame), not made by the cut, and `screen.py` treats the
+  event as ended there. It is accepted explicitly as a burst with a hard end; the owner is told.
 
 ## Page checks
 
@@ -157,13 +167,11 @@ Own vite server on port 5311 (pid recorded and stopped; the port was free afterw
 
 ## Stable Audio
 
-The generate step also made 90 Stable Audio files (`assets/audio/gen/r5/sa3`), against the later decision. They were not
-screened: `screen.py` has no option to leave a source out and takes every `gen.json` under its root, and the pool
-statistics decide which MOSS files are picked. So `assets/audio/gen/r5/sa3/gen.json` was renamed in place to
-`gen.json.not-screened` (git-ignored; the raw files are untouched). To undo it:
-`mv assets/audio/gen/r5/sa3/gen.json.not-screened assets/audio/gen/r5/sa3/gen.json`; a later screening would then take
-them into the pool and change which MOSS files are picked. The `screen.json` in the tree was made with the name as it is
-now.
+The generate step made 90 Stable Audio files (`assets/audio/gen/r5/sa3`) against the owner's MOSS-only decision. They were
+never screened, never published and never heard. `screen.py` has no option to leave a source out and takes every
+`gen.json` under its root, so the select step first kept them out by renaming `assets/audio/gen/r5/sa3/gen.json` to
+`gen.json.not-screened`. The orchestrator then deleted the whole folder `assets/audio/gen/r5/sa3`. Nothing is left to
+undo, and the root `assets/audio/gen/r5` holds MOSS files only. The `screen.json` in the tree was made without them.
 
 ## What could not be judged
 
@@ -175,3 +183,20 @@ only. Whether the 20 dB cut-off threshold suits steady sounds was not tested (it
 two fold families). The six valve files made in round 5 were all thrown out, so the proven family rests on two files
 from round 4 that the owner has not heard; why none survived was not examined. The clicks in shield_bright_2 s11 are in
 the file; whether they are the crackle that was asked for or a fault was not judged.
+
+## After the check
+
+An independent check (`docs/reports/2026-11-16/sound5-verify-report.json`) reproduced almost every number here. The
+orchestrator settled what it found on 2026-11-16:
+
+1. The test `tools/sound/tests/test_screen.py` now passes 43 of 43. Its assertion on `skips5.json` checks the form of the
+   list, not that it is empty.
+2. The 90 Stable Audio files were made, kept out of the screening and then deleted with their folder (see "Stable Audio").
+   The root `assets/audio/gen/r5` holds MOSS only.
+3. `ev5_6_shield_bright_2_moss_p2s11` stays on the page as it is, for the reasons under "Level at the page".
+4. `ev5_3_thruster_valve_1_moss_r4p1s12` is accepted as a burst with a hard end, as described under "Level at the page".
+5. Round 5 was handed to the owner on 2026-11-16 with these 17 candidates. Until he has rated them the round is frozen: no
+   re-screening, no re-publishing, no change under `assets/audio/render/events5`.
+6. Two readings of the pictures, not hearing: the second Gatling pick `ev5_5_thruster_gatling_2_moss_p1s11` shows one
+   hit, not a burst of several; `ev5_2_hull_heavy_2_moss_p1s14` has 28.8 % of its energy above 60 Hz. Nobody has listened
+   to anything.
