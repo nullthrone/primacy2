@@ -1,0 +1,81 @@
+{
+ "role": "select2: select, choose and publish the sixteen again",
+ "status": "done",
+ "date": "2026-11-16",
+ "summary": "screen.py ran on the real pool (MOSS 72, Stable Audio unclamped 72, recordings 21) with Whisper and CLAP on the processor and tools/sound/skips.json: kept MOSS 41, Stable Audio 66, recordings 20 (thrown out 31 cut-off, 6 several events, 1 music). Spectrograms of the sixteen picks were looked at for plain faults; two picks were skipped for almost no energy above 60 Hz (MOSS shield_3 s16 9.5 %, MOSS thruster_2 s12 6.1 %), screen.py ran again, and publish.py plus build.py --manifest-only published the new sixteen. Of the six old skips four are dropped (the rules now throw those files out), two stay. All four families have a passed recording, so every third slot holds one. Page checks on my own vite server (port 5271, empty scratch ratings file, stopped by pid): audition-check 48 passed, 0 failed, 0 page faults; audition-level run with and without --dry. ratings.json had the required SHA-256 before the run, before and after publishing and at the end. RESULTS.md was rewritten. Nobody listened to anything.",
+ "commands": [
+  "sha256sum assets/audio/ratings.json (before screen, before publish, after publish, after page checks, at the end: f916ed36...ecac4 every time)",
+  ".venv-audio/Scripts/python.exe tools/sound/screen.py (run twice, models on cpu, default skips file)",
+  ".venv-audio/Scripts/python.exe tools/sound/publish.py",
+  ".venv-audio/Scripts/python.exe tools/audio/build.py --manifest-only",
+  "AUDITION_URL=http://localhost:5271/dev/audition.html AUDITION_RATINGS_FILE=<empty scratch file> AUDITION_CAPTURE_SCENES=none AUDITION_CAPTURE_ONLY=<16 ids,test_edges,test_step> node tools/dev/audition-check.mjs",
+  "AUDITION_URL=http://localhost:5271/dev/audition.html node tools/dev/audition-level.mjs <16 ids> [--dry]"
+ ],
+ "screening": {
+  "kept": {"moss": {"hull": 18, "thruster": 11, "gear": 4, "shield": 8}, "sa3": {"hull": 18, "thruster": 12, "gear": 18, "shield": 18}, "oga": {"hull": 8, "thruster": 5, "gear": 6, "shield": 1}},
+  "thrownOut": {"cut-off": 31, "several-events": 6, "music": 1},
+  "thrownOutDetail": "MOSS gear 14 (8 end of file, 6 family length), MOSS shield 10 (7 family length, 3 end of file), MOSS thruster 7 (6 cut-off at the family length, 1 several events), Stable Audio thruster 6 (5 several events, 1 cut-off), recording gear__manhole-open as music (CLAP margin 0.009)",
+  "firstRunForComparison": {"moss": 60, "sa3": 31}
+ },
+ "skips": {
+  "droppedBecauseRulesCatchThem": ["moss/thruster_3__s13", "moss/thruster_1__s13", "moss/thruster_3__s16", "moss/shield_3__s11"],
+  "kept": ["moss/thruster_1__s16", "sa3/thruster_1__s14"],
+  "added": [
+   {"candidate": "moss/shield_3__s16", "reason": "9.5 % of the energy above 60 Hz, steady low oscillation"},
+   {"candidate": "moss/thruster_2__s12", "reason": "6.1 % of the energy above 60 Hz, one slow swing, no noise burst"}
+  ],
+  "replacedBy": {"moss/shield_3__s16": "moss/shield_3__s14 (25 % above 60 Hz)", "moss/thruster_2__s12": "moss/thruster_2__s11 (98 %)"}
+ },
+ "published": [
+  "src_1_hull_1_moss_p1s16", "src_1_hull_2_sa3_p2s11", "src_1_hull_3_oga_sfx2-metal-hit-01", "src_1_hull_4_sa3_p1s13",
+  "src_2_thruster_1_moss_p2s11", "src_2_thruster_2_sa3_p2s12", "src_2_thruster_3_oga_steam-hiss-3", "src_2_thruster_4_moss_p1s11",
+  "src_3_gear_1_moss_p2s12", "src_3_gear_2_sa3_p3s15", "src_3_gear_3_oga_sfx2-lock-open-01", "src_3_gear_4_sa3_p2s15",
+  "src_4_shield_1_moss_p3s14", "src_4_shield_2_sa3_p3s11", "src_4_shield_3_oga_tesla-spark", "src_4_shield_4_sa3_p2s16"
+ ],
+ "manifestChecks": {
+  "sounds": 148,
+  "validates": true,
+  "otherSoundsUnchanged": "all 132 non-src hashes identical to the manifest before",
+  "round3Hashes128": "match",
+  "voice5Countdown4": "match",
+  "oldSixteenLeft": "none; render/source holds 48 files of the new sixteen only"
+ },
+ "pageChecks": {
+  "auditionCheck": "48 passed, 0 failed; 0 faults caused by the page, 4 in test_step (the control file); 18 sounds in Stereo, 10 also in Mono and Headphones; no scenes",
+  "levelFileToPageDryDb": {
+   "oneChannel": {"src_1_hull_1_moss_p1s16": -0.09, "src_2_thruster_1_moss_p2s11": -0.06, "src_2_thruster_4_moss_p1s11": 0.33, "src_3_gear_1_moss_p2s12": -0.08, "src_4_shield_1_moss_p3s14": -0.09, "src_4_shield_3_oga_tesla-spark": 0.02},
+   "twoChannels": "-3.10 in all ten",
+   "defaultsRoom1Radio": "two channels -2.90 to -3.00, one channel +0.03 to +0.44"
+  },
+  "dryBothDbfsByFamily": {
+   "hull": {"oneChannel": [-29.0], "twoChannels": [-30.9, -31.2, -32.0], "spread": 3.0},
+   "thruster": {"oneChannel": [-30.0, -35.7], "twoChannels": [-32.8, -35.0], "spread": 5.7},
+   "gear": {"oneChannel": [-33.8], "twoChannels": [-34.9, -36.6, -33.4], "spread": 3.2},
+   "shield": {"oneChannel": [-20.4, -24.2], "twoChannels": [-21.6, -21.5], "spread": 3.8}
+  },
+  "channelDifferenceGone": "yes for the energy rule (page LUFS equal inside each family, file>page -0.09..0.33 against -3.10 as designed); the plain-measure differences left do not follow the channel count (one-channel minus two-channel mean +2.4, +1.0, +1.2, -0.8 dB; one-channel files at both ends in thruster and shield)",
+  "measuredReasonLeft": "K-weighted ungated mean power spread 2.6/1.0/1.4/0.7 dB against unweighted 4.2/2.3/3.0/8.1 dB (hull/thruster/gear/shield); unweighted minus K-weighted per file follows the spectrum. The thruster page spread of 5.7 dB is not explained by it (not tested further). No gain was changed."
+ },
+ "changed": [
+  "tools/sound/skips.json",
+  "tools/sound/RESULTS.md",
+  "assets/audio/gen/screen.json and assets/audio/gen/_listen/ (screen.py output, git-ignored)",
+  "assets/audio/render/source/ (48 files), assets/audio/render/manifest.json (through publish.py and build.py)",
+  "docs/reports/2026-11-16/sound-select2-report.json"
+ ],
+ "problems": [
+  "No script fault was found, so no script in tools/sound was changed.",
+  "tools/sound/tests holds no unittest tests discoverable by unittest (0 ran) and pytest is not in .venv-audio, so the screen-fix test suite was not re-run here.",
+  "The gear recording is a 0.49 s lock click and the shield recording a 0.26 s spark: they passed the rules, but are not a motor ending in a latch or a shield hit; credibility is for the owner's ear.",
+  "gear__manhole-open was thrown out as music on a CLAP margin of 0.009; it is a lock or door excerpt, so the call is narrow.",
+  "The thruster spread at the page (5.7 dB by the plain measure) is not explained by K-weighting; I did not find the measured reason.",
+  "The shared scratchpad directory is crowded with files of other sessions; my files are under scratchpad/r4 and scratchpad/s2."
+ ],
+ "notVerified": [
+  "How anything sounds; nobody can hear here.",
+  "Whether the recordings are recordings or whether their pack authors may release them as CC0 (pages do not say; first-run finding by the oga builder).",
+  "The capture part of audition-check for all 148 sounds and the four scenes (only the sixteen plus test_edges and test_step were played).",
+  "Whether 20 dB at 50 ms is the right cut-off threshold for steady sounds (five MOSS files sit between 17 and 20 dB).",
+  "That a second run of screen.py gives bit-identical files; the two runs I made differ only by the two new skips and I did not diff the other copies."
+ ]
+}
