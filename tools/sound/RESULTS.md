@@ -153,8 +153,9 @@ thruster_1 noise burst against -0.9 and -1.5 for the other two thruster files; +
 generated shield files against -3.9 dB for the spark. That is the effect of the K-weighting (it cuts the low end and
 lifts the high end by about 4 dB), which every LUFS target contains and the plain measure does not. The thruster
 spread of 5.7 dB at the page, larger than the 2.3 dB of the whole-file unweighted power, comes from how that printout
-counts: it divides the energy by the number of 50 ms windows above -45 dBFS, and the MOSS thruster_2 pick has 3 such
-windows in its 0.50 s against 6, 11 and 11 for the other three, so the same energy reads higher. Rebuilt from the
+counts: it divides the energy by the number of 50 ms windows above -45 dBFS, and the MOSS thruster_2 seed 11 pick
+(src_2_thruster_1_moss_p2s11) has 3 such windows in its 0.50 s against 6, 11 and 11 for the other three, so the same
+energy reads higher. Rebuilt from the
 published files that way, the printout is met within 0.2 dB for all sixteen (thruster: 5.71 dB predicted, 5.70
 measured; the independent check of 2026-11-16). It is a property of the printout, not a difference in loudness.
 Loudness values of events under about 0.5 s (MOSS thruster_1 and thruster_2, the 0.49 s
@@ -178,12 +179,18 @@ value by a few dB (a 1.5 ms ramp moved one by 2.5 dB in the screen-fix run). No 
 
 How any of it sounds: whether a hull hit is a hit, a thruster pulse a pulse, whether the gear ends in a latch, whether
 the shield is a shield, whether any of it is "artificial and boring". The spectrogram review finds only plain faults;
-nobody listened. The cuts were made by the level rule, not by ear. Whether the recordings are recordings: only three
-of the item pages say "recorded"; the pages of rubberduck, bart, Cough-E and PagDev do not say how the sounds were
-made. Two items were dropped for that kind of reason: the chain winch (its author says he synthesised it) and the
-circuit breaker (its page gives no reason why the uploader may release another author's work). That the pack authors
-may release their packs as CC0 was not checked. Three decoded .ogg excerpts peak at 1.004 to 1.008 before the ceiling
-is applied to the copy. Speech and music were screened by Whisper small and CLAP on the processor; the only flag was one
+nobody listened. The cuts were made by the level rule, not by ear. Whether the recordings are recordings: three of
+the ten item pages say "recorded" (100 CC0 SFX "with an android device", the electricity page "from a small Tesla
+generator", various sound effects "on my phone"); two say only that the author made the sounds (75 breaking and
+falling sounds, door lock); five say nothing about how the sounds were made (100 CC0 SFX #2, metal and wood, metal
+clang, steam release, elevator door). Of the four published recordings only the spark's page says "recorded"; the
+metal hit and the lock click (100 CC0 SFX #2) and the steam hiss carry the label "Aufnahme" without that being
+established. Two items were dropped for that kind of reason: the chain winch (its author says he synthesised it) and
+the circuit breaker (its page gives no reason why the uploader may release another author's work). That the pack
+authors may release their packs as CC0 was not checked. Four raw excerpts peak above 1 (1.0002, 1.0039, 1.0078 and
+1.0085: gear lock-open-01, hull metal-slam-01, sfx1-metal-12 and metal-hit-02; none of them is published) before the
+ceiling is applied to a copy. That MOSS presses its loud output against full scale inside the model is described
+under "What was thrown out"; how that sounds in its shield candidates was not judged. Speech and music were screened by Whisper small and CLAP on the processor; the only flag was one
 recording, by a narrow margin, which says nothing about weaker faults. The unclamped Stable Audio files were not compared
 with the clamped ones by ear. The page level was measured once per file with the defaults and once dry; repeated plays
 of the same file were not compared.

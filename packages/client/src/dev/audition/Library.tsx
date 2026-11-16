@@ -430,7 +430,8 @@ export function Library({ manifest }: { manifest: Manifest }): JSX.Element {
                     <h3 class="part-title">
                       {part.title}
                       <span class="dim"> {part.list.length}</span>
-                      {part.key === 'downloaded' && <span class="dim small"> {t('downloadedNote')}</span>}
+                      {/* The candidates of round 4 are levelled like the generated ones beside them: the usual note would be wrong there. */}
+                      {part.key === 'downloaded' && <span class="dim small"> {t(cat.id === 'source' ? 'downloadedNoteCandidates' : 'downloadedNote')}</span>}
                     </h3>
                     {part.list.map((s) => (
                       <SoundRow key={s.id} sound={s} />
