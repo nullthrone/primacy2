@@ -124,6 +124,26 @@ class Refusals(Base):
         self.assertEqual(entries, [])
         self.assertIn('no_such_event', text)
 
+    def test_an_id_that_is_not_a_plain_name_is_refused_and_nothing_is_written_outside_out(self):
+        """Rule 3 (review): the id becomes a file name under <out>/generated; a path in it must not leave that folder."""
+        sha = write_raw(self.raw, 'a.wav', burst(edge_ms=5))
+        self.write_list([item('../escape', sha, 'a.wav'), item('sub/dir', sha, 'a.wav'), item('g_ok', sha, 'a.wav')])
+        entries, text = self.run_build()
+        self.assertEqual([e['id'] for e in entries], ['g_ok'])
+        self.assertIn('refused', text)
+        self.assertFalse((self.out / 'escape.wav').exists())
+        self.assertFalse((self.out / 'generated' / 'sub').exists())
+
+    def test_a_second_entry_with_the_same_id_is_refused_and_does_not_overwrite_the_first(self):
+        """Rule 3 (review): two list entries with one id would write one file twice; the first stays, the second is refused."""
+        sha_a = write_raw(self.raw, 'a.wav', burst(edge_ms=5))
+        sha_b = write_raw(self.raw, 'b.wav', burst(edge_ms=5, seed=2))
+        self.write_list([item('g_a', sha_a, 'a.wav'), item('g_a', sha_b, 'b.wav')])
+        entries, text = self.run_build()
+        self.assertEqual([e['id'] for e in entries], ['g_a'])
+        self.assertEqual(entries[0]['generated']['sha256'], sha_a)
+        self.assertIn('twice', text)
+
     def test_without_a_list_nothing_happens(self):
         """Rule 3: the step is optional; a tree without generated.json builds as before and makes no folder."""
         entries, _ = self.run_build()

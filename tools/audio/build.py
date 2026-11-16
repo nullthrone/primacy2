@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -667,9 +668,18 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     spec = synth.load_spec()
     folder = out / "generated"
     entries = []
+    seen = set()
     for it in items:
         sid = it.get("id", "?") if isinstance(it, dict) else "?"
         try:
+            if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", sid):
+                # the id is the name of a file under <out>/generated: no path may get into it
+                print("  generated entry %r refused: the id is not a plain name (letters, digits, _ and -)" % (sid,))
+                continue
+            if sid in seen:
+                print("  generated entry %s refused: the id is listed twice; the first one stays" % sid)
+                continue
+            seen.add(sid)
             problem = _generated_entry_problem(it)
             if problem:
                 print("  generated entry %s refused: %s" % (sid, problem))
