@@ -16,6 +16,22 @@
   {
    "candidate": "moss/fold_exit_1__s12",
    "reason": "under 10 % of the energy above 60 Hz (4.4 %): 97 % of the pick ev6_5_fold_exit_2_moss_p1s12 lies under 60 Hz (dominant 22 Hz), which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s15",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_3_moss_p3s15 the level stays within 6 dB of its maximum for 2.70 s, and one 50 Hz band (dominant 67 Hz) holds 57 % of the energy; no onset and no end shape beyond a slow fall; found in the 50 ms levels and the spectrum"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s16",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_2_moss_p3s16 the level stays within 6 dB of its maximum for 2.45 s, and one 50 Hz band (dominant 36 Hz) holds 82 % of the energy, 79 % of it under 60 Hz; found in the 50 ms levels and the spectrum"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s14",
+   "reason": "under 10 % of the energy above 60 Hz (8.7 %): the pick ev6_4_fold_jump_2_moss_p3s14 lies almost entirely under 60 Hz, which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s13",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_2_moss_p3s13 the level stays within 6 dB of its maximum for 2.80 s of the 3.8 s (no onset, a slow fall at the end), one 50 Hz band (dominant 48 Hz) holds 86 % of the energy and 84 % lies under 60 Hz; found in the 50 ms levels and the spectrum"
   }
  ]
 }
