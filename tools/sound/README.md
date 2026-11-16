@@ -74,7 +74,10 @@ speech recogniser and CLAP say so); several events where one was asked for; cut 
 
 - *Clipped* means a flat top: three or more equal samples in a row at the extreme (the highest or
   the lowest value) of a channel. A file whose float samples go beyond full scale without a flat
-  top (Stable Audio before its makers' clamp) is not clipped; a file clamped at 1.0 is.
+  top (Stable Audio before its makers' clamp) is not clipped; a file clamped at 1.0 is. The rule
+  does not see soft saturation: the decoder of MOSS ends in a tanh, so its loud output is pressed
+  against 1.0 without ever holding it (49 of its 72 raw files peak above 0.99, none has a flat
+  top). That is inside the model and stays in its candidates; RESULTS.md gives the numbers.
 - *Cut off* means the event is still within 20 dB of its maximum in the last 50 ms, and it holds
   for two places: the end of the raw file, and the end of the cut where the family's longest length
   (hull 2.5 s, thruster 1.2 s, gear 3.8 s, shield 2.5 s) stops an event that has not ended by
@@ -87,23 +90,33 @@ speech recogniser and CLAP say so); several events where one was asked for; cut 
   under the loudest 50 ms, and 0.1 to 0.5 dB under the loudest 100 ms when a 100 ms window ends at
   3.77 s, before the fade. The rule's measure is the first.
 
-**Hand skips.** A pick can be skipped by hand after its spectrogram shows a plain fault that the
-rules do not see: steady noise instead of an event, a tone over everything, a second event or
-silence inside the cut. Never for how it sounds. The skipped candidate stays in the pool (it counts
+**Hand skips.** A pick can be skipped by hand for a plain fault that the rules do not see. Found in
+its spectrogram: steady noise instead of an event, a tone over everything, a second event or
+silence inside the cut (in a family that asks for one event; gear may hold several). Found in its
+record: almost no energy above 60 Hz (`energyAbove60Hz` under 10 %, see below), because such a
+pick plays as silence on most loudspeakers. Never for how it sounds. The skipped candidate stays in the pool (it counts
 for the normalisation and the centre), is never picked, and the next nearest takes its place. The
 list is `tools/sound/skips.json` (candidate as `source/name`, reason), committed, and read by
 default; `--skip SOURCE/NAME=REASON` adds to it and `--skips FILE` reads another file. The skips in
 use are written to `screen.json`.
 
-**Level.** Every copy is set to the loudness the audition page plays it at in its Stereo stage,
-which was measured: the page adds the energies of its two channels, a one-channel file is put on
-both, and a two-channel file passes untouched, so a two-channel file of the same BS.1770 loudness
-as a one-channel file leaves the page 3.0 dB lower (`tools/dev/audition-level.mjs`, column
-`file>page dB`: one channel -0.09 to +0.33 dB with a median of -0.08, two channels -3.10 dB in all 6 and 10 files measured). The family target in
-`prompts.json` stays the loudness of a one-channel file, as in rounds 3 and 4. A copy is set to
-the family target plus 10*log10(2) = 3.01 dB measured as BS.1770 integrated over two channels, a
-one-channel file counted on both (its own loudness plus 3.01 dB, so one-channel files stay
-exactly where the family target put them, two-channel files come up by 3.01 dB). No downmix. The
+**Level.** Every copy is set so that all candidates of a family leave the audition page equally
+loud in its Stereo stage, whatever their number of channels. What the page does was measured: it
+plays a one-channel file on both of its channels and a two-channel file as it is, and its chain
+takes 3 dB off everything. Summed over both output channels, a one-channel file therefore leaves
+the page with the energy of the file and a two-channel file with 3.1 dB less than the file, so a
+two-channel file of the same BS.1770 loudness as a one-channel file leaves the page 3.0 dB lower
+(`tools/dev/audition-level.mjs`, column `file>page dB`: one channel -0.09 to +0.33 dB, median
+-0.07, for the six one-channel files of the published sixteen; two channels -3.10 dB for all
+ten). The family target in `prompts.json` stays the loudness of a one-channel file, as in rounds 3
+and 4. A copy is set to the family target plus 10*log10(2) = 3.01 dB measured as BS.1770
+integrated over two channels, a one-channel file counted on both (its own loudness plus 3.01 dB,
+so one-channel files stay exactly where the family target put them, two-channel files come up by
+3.01 dB). That figure, called the page level (`lufsPageTarget`, "page LUFS" in RESULTS.md), is a
+way of counting, not what a meter at the output reads: after the chain's 3 dB the output of the
+page, summed over both channels, sits at the family target itself for every candidate (measured
+dry: -34.1 hull and thruster, -35.1 gear, -24.1 shield; one 0.41 s thruster file -33.7). No
+downmix. The
 measure is taken after all processing (resampling, end fade and the silence after it, ramp in,
 mean removal), the gain is corrected and the measure taken again until it is within 0.05 LU of the
 target, or the true-peak ceiling (-1.1 dBFS) stops it. `screen.json` records per copy the family
@@ -111,9 +124,11 @@ target (`lufsTarget`), the page target (`lufsPageTarget`), the level reached by 
 measure (`lufsReached`) and by the page measure (`lufsReachedPage`), the gain (`gainDb`), the
 error and whether the ceiling stopped it (`limitedByPeak`).
 
-**Measures only, no rules.** `energyAbove60Hz` is the share of the event's energy above 60 Hz
-(over all channels). A candidate with almost nothing above 60 Hz plays as silence on most
-loudspeakers; the page shows the share in the intent line and in the checks, and a hint below 10 %.
+**A measure the script does not act on.** `energyAbove60Hz` is the share of the event's energy
+above 60 Hz (over all channels). A candidate with almost nothing above 60 Hz plays as silence on
+most loudspeakers; the page shows the share in the intent line and in the checks, and a hint below
+10 %. `screen.py` throws nothing out for it, but a pick under 10 % is skipped by hand (see "Hand
+skips"; two of the four skips of 2026-11-16 are of this kind).
 
 **Ids.** A published id names the candidate: `src_<family number>_<family>_<slot>_<source>_<tag>`,
 the tag being prompt number and seed for a generated file (`p2s16`) and a short slug of the

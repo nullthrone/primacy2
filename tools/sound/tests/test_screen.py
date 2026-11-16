@@ -568,8 +568,9 @@ def test_candidate_tags_name_the_candidate_and_make_valid_ids():
 
 def test_the_committed_skips_are_read_by_default_and_skip_adds():
     sk = screen.load_skips(screen.SKIPS_FILE)
-    assert len(sk) == 6 and all(k.count("/") == 1 and v for k, v in sk.items()), sk
-    assert "moss/thruster_3__s13" in sk and "sa3/thruster_1__s14" in sk
+    # The list changes from run to run (a skip is dropped when a rule comes to catch its file), so only its form is
+    # fixed here: at least one entry, each "source/name" of a known source with a reason.
+    assert sk and all(k.count("/") == 1 and k.split("/")[0] in screen.SOURCES and v.strip() for k, v in sk.items()), sk
     assert screen.load_skips(None) == {} and screen.load_skips(Path("does-not-exist.json")) == {}
     # a skipped candidate stays in the pool but is not picked: the next nearest takes its place
     picks, _ = screen.choose(fake_family())

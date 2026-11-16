@@ -7,7 +7,7 @@
   },
   {
    "candidate": "sa3/thruster_1__s14",
-   "reason": "the thump comes at 0.75 s of the 1.3 s cut, after a quiet hiss that the 40 dB onset rule keeps"
+   "reason": "the thump comes at 0.84 s of the 1.19 s cut (file time 0.95 s), after a quiet hiss 20 to 26 dB under it that the 40 dB onset rule keeps"
   },
   {
    "candidate": "moss/shield_3__s16",
