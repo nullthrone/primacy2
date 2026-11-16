@@ -1009,7 +1009,9 @@ def test_the_new_category_comes_first_in_sounds_json():
     c0 = spec["categories"][0]
     assert c0["de"] == "Ereignisklänge (Runde 5)" and c0["en"] == "Event sounds (round 5)"
     assert json.loads((SOUND / "prompts5.json").read_text(encoding="utf-8"))["category"]["id"] == "events5"
-    assert json.loads((SOUND / "skips5.json").read_text(encoding="utf-8"))["skips"] == []
+    # The list grows with every spectrogram review of the round, so only its form is fixed here.
+    sk5 = json.loads((SOUND / "skips5.json").read_text(encoding="utf-8"))["skips"]
+    assert isinstance(sk5, list) and all(s["candidate"].count("/") == 1 and s["reason"].strip() for s in sk5), sk5
 
 
 def main() -> int:
