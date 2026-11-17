@@ -32,9 +32,12 @@ def pow_db(p: float) -> float:
 
 
 def true_peak(data: np.ndarray) -> float:
-    """Peak of the 4x oversampled signal (the inter-sample peak a DAC would reconstruct)."""
+    """Peak of the 4x oversampled signal (the inter-sample peak a DAC would reconstruct).
+    An empty array is a ValueError ("empty file")."""
     from scipy.signal import resample_poly
 
+    if np.shape(data)[0] == 0:
+        raise ValueError("empty file: there are no samples to measure")
     return float(np.max(np.abs(resample_poly(data, 4, 1, axis=0))))
 
 
@@ -265,7 +268,9 @@ def loop_check(data: np.ndarray, sr: int) -> dict:
             }
         )
     # Level swing over the loop: 100 ms RMS windows, hop 50 ms. A silent window counts, at the floor of
-    # FLOOR_DB (-120 dB): a loop that falls silent has a swing of 100 dB and more, not a few dB.
+    # FLOOR_DB (-120 dB): a loop that falls silent has a swing of 120 dB plus the level of its loudest
+    # window (100 dB for -20 dB), not a few dB. The gap of a 16-bit file holds dither, about -96 dB: there the
+    # swing is 96 dB plus the level of the loudest window (the alarm loops read 78 to 84 dB).
     win, hop = int(sr * 0.100), int(sr * 0.050)
     if n >= win * 2:
         levs = [pow_db(float((x[i : i + win] ** 2).mean())) for i in range(0, n - win + 1, hop)]
@@ -303,11 +308,15 @@ def stereo_stats(data: np.ndarray, sr: int) -> dict:
     levelDiffDb is the true difference to the floor of -120 dB (about 100 dB for a hard-panned file,
     which the rule limit of 1.5 dB fails). Two silent channels read corr 0.0, corrLow 0.0, levelDiffDb
     0.0 and monoRmsDb -120: nothing to compare, and the rule for a silent sound catches the file.
-    A channel that has energy but none below 150 Hz keeps corrLow of whatever the filtered signals
-    give (1.0 where both are exactly zero there)."""
+    A channel that has energy but none below 150 Hz is not "empty" for corrLow: what is left of it
+    after the filter is rounding noise (never exact zeros), and corrLow is the correlation of that
+    noise with the other channel's bass, a small number that fails the rule for the bass.
+    An empty array is a ValueError ("empty file")."""
     x = data.astype(np.float64)
     if x.shape[1] != 2:
         return {}
+    if x.shape[0] == 0:
+        raise ValueError("empty file: there are no samples to measure")
     left, right = x[:, 0] - x[:, 0].mean(), x[:, 1] - x[:, 1].mean()
 
     def corr(a, b, empty=0.0):
