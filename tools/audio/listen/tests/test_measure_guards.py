@@ -398,6 +398,20 @@ class WholeFile(unittest.TestCase):
         self.assertGreater(r["peakShare"], 0.9)
         self.assertAlmostEqual(r["spectralCentroidHz"], 100.0, delta=2.0)
 
+    def test_a_slow_drift_is_not_removed_segment_by_segment(self):
+        """Second review: the mean is taken off once, from the whole file. Taking it off again in every Welch
+        segment (detrend="constant") treats the zero padding at both ends as signal and moved this file's
+        highShare from 0.044 to 0.095 and its centroid from 636 to 1364 Hz. The whole-file FFT is the answer."""
+        n = 12000
+        x = 0.3 * np.sin(2 * np.pi * 4 * np.arange(n) / SR)   # 4 Hz: under the first bin of a segment
+        x[-3000:] += np.random.default_rng(3).standard_normal(3000) * 0.1
+        r = measure.analyse(col(x), SR)
+        spec = np.abs(np.fft.rfft(x - x.mean())) ** 2
+        f = np.fft.rfftfreq(n, 1 / SR)
+        self.assertAlmostEqual(r["lowShare"], spec[f < 500].sum() / spec.sum(), delta=0.01)
+        self.assertAlmostEqual(r["highShare"], spec[f >= 4000].sum() / spec.sum(), delta=0.01)
+        self.assertAlmostEqual(r["spectralCentroidHz"], (f * spec).sum() / spec.sum(), delta=40.0)
+
     def test_a_short_file_is_read_whole(self):
         x = np.zeros(3000)
         x[-1] = 1.0
@@ -432,6 +446,22 @@ class EmptyAndTiny(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("ValueError: empty file: there are no samples to measure", buf.getvalue())  # the message, not the path
         self.assertNotIn("ZeroDivisionError", buf.getvalue())
+
+    def test_the_helpers_refuse_an_empty_array_with_the_same_clear_message(self):
+        """Second review: stereo_stats and true_peak, called by themselves, gave ZeroDivisionError and numpy's
+        'zero-size array to reduction operation maximum' for an empty array."""
+        for fn, arg in ((measure.stereo_stats, np.zeros((0, 2))), (measure.true_peak, np.zeros((0, 1))),
+                        (measure.true_peak, np.zeros((0, 2)))):
+            with self.assertRaises(ValueError) as cm:
+                if fn is measure.stereo_stats:
+                    fn(arg, SR)
+                else:
+                    fn(arg)
+            self.assertIn("empty file", str(cm.exception), fn.__name__)
+
+    def test_stereo_stats_of_a_one_channel_array_is_still_empty_of_numbers(self):
+        self.assertEqual(measure.stereo_stats(np.zeros((SR, 1)), SR), {})
+        self.assertEqual(measure.stereo_stats(np.zeros((0, 1)), SR), {})
 
     def test_one_sample_gives_defined_values(self):
         for v in (0.5, 0.0):

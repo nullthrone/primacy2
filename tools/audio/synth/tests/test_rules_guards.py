@@ -358,6 +358,31 @@ class CategoryRules(unittest.TestCase):
         self.assertIn("radio-band", check(shape_oneshot(tone(5000, 0.3)), sp)[0])
         self.assertNotIn("radio-band", check(shape_oneshot(tone(1000, 0.3)), sp)[0])
 
+    # Second review: the edges of the category bands, which the tests above only pinned to within a few kHz
+    # (a mutant that moved the alarm edge from 5 to 7 kHz, the radio edge from 3.8 to 5 kHz and the clipped
+    # count from 0 to 50 samples passed every test).
+    def test_alarm_edge_is_5_khz(self):
+        sp = spec(kind="loop", category="alarms", duration=1.0)
+        self.assertIn("alarm-high-energy", check(col(tone(900, 0.3) + tone(6000, 0.05)), sp)[0])      # 5 % at 6 kHz
+        self.assertNotIn("alarm-high-energy", check(col(tone(900, 0.3) + tone(4500, 0.05)), sp)[0])   # 5 % at 4.5 kHz
+
+    def test_sensor_edge_is_6_khz(self):
+        sp = spec(category="sensors")
+        self.assertIn("sensor-high-energy", check(shape_oneshot(tone(6500, 0.3)), sp)[0])
+        self.assertNotIn("sensor-high-energy", check(shape_oneshot(tone(5500, 0.3)), sp)[0])
+
+    def test_radio_edges_are_250_and_3800_hz(self):
+        sp = spec(category="radio")
+        for f, fails in ((200, True), (300, False), (3500, False), (4200, True)):
+            self.assertEqual("radio-band" in check(shape_oneshot(tone(f, 0.3)), sp)[0], fails, f)
+
+    def test_one_clipped_sample_fails_the_clipped_rule(self):
+        x = shape_oneshot(tone(1000, 0.3))
+        x[2000, 0] = 1.0
+        bad, an = check(x, spec())
+        self.assertEqual(an["clippedSamples"], 1)
+        self.assertIn("clipped", bad)
+
     def test_energy_share_is_of_the_mono_mix(self):
         y = np.stack([tone(100, 0.3), tone(1000, 0.3)], axis=1)
         self.assertAlmostEqual(rules.energy_share(y, 0, 500), 0.5, delta=0.02)
