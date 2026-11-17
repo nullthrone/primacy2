@@ -26,35 +26,39 @@ Built on 2026-11-14 and played in the browser with a simulated controller by
 and a binding screen. No real controller has been used yet.
 
 Built on 2026-11-14 beside the game and not yet in it: the sound library and the audition page on
-which the owner listens and rates. On 2026-11-16 its manifest (`assets/audio/render/manifest.json`)
-lists 165 sounds. Seventeen of them are the event sounds of round 5, the category `events5`, and
-sixteen the candidates of round 4, the category `source` (see section 2). Counted by the field
-`source` of each entry, the other 132 are 99 `synth` (rendered by scripts: 75 sounds, eleven of them
-direction samples for the owner to choose between, and 24 voice samples, the twenty of the speech
-comparison and four countdown samples) and 33 `download` (files with a licence list). The seventeen
-of round 5 are all `synth` (made by MOSS), and the sixteen of round 4 carry the same field: twelve
-`synth` (made by the two models) and four `download` (the recordings), so the whole manifest reads
-128 `synth` and 37 `download`. The game itself still plays the old procedural sound. Since
-2026-11-15 there is also a comparison of five open speech models (`tools/voice`), with twenty voice
-samples on the audition page, and since 2026-11-16 a listening test of two sound models and CC0
-recordings (`tools/sound`), whose sixteen candidates he rated the same day, and round 5, whose
-seventeen event sounds are the first category of the page.
+which the owner listens and rates. On 2026-11-17 its manifest (`assets/audio/render/manifest.json`)
+lists 187 sounds. Fourteen of them are the candidates of round 6, the category `events6`, seventeen
+the event sounds of round 5, the category `events5`, and sixteen the candidates of round 4, the
+category `source` (see section 2). Eight are the first generated sounds of the library itself: MOSS
+candidates he accepted in rounds 4 and 5, built as processed copies with their origin and licence
+(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 132
+are 99 `synth` (rendered by scripts: 75 sounds, eleven of them direction samples for the owner to
+choose between, and 24 voice samples, the twenty of the speech comparison and four countdown
+samples) and 33 `download` (files with a licence list). The candidates of rounds 5 and 6 are all
+`synth` (made by MOSS), and the sixteen of round 4 carry the same field: twelve `synth` (made by the
+two models) and four `download` (the recordings), so the whole manifest reads 142 `synth`, 37
+`download` and 8 `generated`. The game itself still plays the old procedural sound. Since 2026-11-15
+there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
+the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
+(`tools/sound`), whose sixteen candidates he rated the same day; round 5, whose seventeen event
+sounds he rated on 2026-11-16 (5 fit, 2 close, 10 wrong); and round 6, another try for the families
+he rejected, which is the first category of the page and waits for his ratings.
 
-Tests, run on 2026-11-16: `npx vitest run` passes 807 tests in 47 files, with 2 more marked as
-expected failures on purpose (see section 4). The audio tools have tests of their own in Python:
-`unittest discover` passes 22 tests of the listening tools, 54 of the synthesis and 77 of the
-downloads and the build (`tools/audio/tests`); the screening of sound candidates has 43, and all 43 pass
-(`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
-`.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`; one test had pinned
-`skips5.json` as empty and broke when round 5 added two hand skips, so it now checks the form of the
-list); the scoring of the voice
-comparison is in `tools/voice/tests` and was not counted today. The browser check of the audition
-page (`tools/dev/audition-check.mjs`, last run by the select step of round 5 on 2026-11-16)
-passed 48 steps in a run limited to the 17 event sounds and two test files, with no scenes. The last full run, on 2026-11-15, passed 52 steps, among them a recording of everything the
-page plays with no click added by the page; the check has changed since and was not run in full
-again (see section 4). The number of steps depends on what a run records: 41 without the
-recording, 47 or 48 with the recording limited to named sounds and no scenes (the runs of
-2026-11-16), so 48 beside 52 is a shorter run and not four steps lost.
+Tests. `npx vitest run` passed 807 tests in 47 files on 2026-11-16, with 2 more marked as expected
+failures on purpose (see section 4); it was not run again on 2026-11-17, when nothing under
+`packages` or `scripts` changed. The audio tools have tests of their own in Python, run on
+2026-11-17: `unittest discover` passes 80 tests of the listening tools, 128 of the synthesis and 107
+of the downloads and the build (`tools/audio/tests`); the screening of sound candidates has 47, and
+all 47 pass (`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
+`.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`); the scoring of the voice
+comparison is in `tools/voice/tests` and was not counted. The browser check of the audition page
+(`tools/dev/audition-check.mjs`, last run by the select step of round 6 on 2026-11-17) passed 48
+steps in a run limited to the 14 candidates of round 6 and two test files, with no scenes; one of
+the 14 was replaced afterwards and the check was not repeated for it. The last full run, on
+2026-11-15, passed 52 steps, among them a recording of everything the page plays with no click added
+by the page; the check has changed since and was not run in full again (see section 4). The number
+of steps depends on what a run records: 41 without the recording, 47 or 48 with the recording
+limited to named sounds and no scenes, so 48 beside 52 is a shorter run and not four steps lost.
 
 ## 2. What the owner has decided and is not built yet
 
@@ -249,8 +253,9 @@ last used; English and German. `docs/CLIENT.md`, section Controls, has the layou
 ### Sound sources: a listening test of two models and recordings (round 4, 2026-11-15 and 16)
 
 `tools/sound` holds a listening test and no new library. He rated the sixteen candidates of round 4
-on 2026-11-16 (below); round 5 makes the event sounds from that. Nobody listened to anything in
-round 5.
+on 2026-11-16 (below); round 5 made the event sounds from that, and he rated its seventeen the same
+day; round 6 tries the families he rejected again and waits for his ratings. Nobody but him has
+listened to anything.
 
 Why. After round 3 the owner said on 2026-11-15: "Wir gehen langsam in die richtige Richtung. Aber
 es klingt alles noch zu künstlich und langweilig. Gibt es keine besseren lokalen Modelle zur
@@ -360,9 +365,9 @@ since round 1. Only the valve family rests on an accepted prompt; the other seve
 On the page: 17 of the 18 planned slots (the valve family has two of three, because all six new valve
 files were thrown out and the third carried file is a round-4 hand skip); two picks were skipped by
 hand for plain faults and replaced (`tools/sound/skips5.json`); the manifest has 165 entries, the 148
-of before unchanged. He is asked again only for Passt / Falsch, and the four countdown samples are
-still unheard. 0 of 17 rated on 2026-11-16. Round 5 was handed to him on 2026-11-16 with these 17
-candidates and is frozen until he has rated them.
+of before unchanged. He was asked again only for Passt / Falsch. Round 5 was handed to him on
+2026-11-16 with these 17 candidates, and he rated all of them the same day (below). The four
+countdown samples are still unheard.
 
 Independent check (`docs/reports/2026-11-16/sound5-verify-report.json`). Held by its own
 measurements: round 4 untouched (all 148 hashes, the 48 files of `render/source`, `ratings.json`), the
@@ -383,18 +388,145 @@ step were never screened or published; the folder `assets/audio/gen/r5/sa3` was 
 files made again, three were
 bit-identical; one MOSS file differs at about -79 dB.
 
-What follows, the orchestrator's plan and not his decision. When he has rated round 5, the round is
-recorded the way round 4 was (`assets/audio/rounds/round5.json` and `round5-ratings.json`). The
-accepted candidates become the library's event sounds through `tools/audio/build.py` as processed
-copies with their origin and licence (`build.py` has no step for generated files yet); only then do
-the rules in `tools/audio` get new numbers, taken from what he accepted, after `measure.py` and
-`rules.py` are reviewed. Then the plan for the game's runtime audio is shown to him. A rejected family
-gets another round; another source (Freesound CC0 with his own account, recordings made at home, other
-models) needs a new yes. While he rates round 5, `assets/audio/render/events5` is frozen: `screen.py`,
-`publish.py` and `tools/audio/build.py` are not run on the real tree until his ratings are recorded,
-since a new publish changes ids or hashes and orphans ratings. Not to be started without his word:
-the voice pipeline, the game's runtime audio, a re-render of the event sounds, other downloads,
-music.
+His ratings of round 5 (2026-11-16; `assets/audio/rounds/round5.json` with the 165 file hashes,
+`round5-ratings.json` with the ratings; the seventeen as he heard them are kept in
+`assets/audio/gen/_kept/round5`, ignored by git). Five fit, two are close, ten are wrong. By family
+(the prompt and seed of each are in `tools/sound/RESULTS5.md`):
+
+- Hull hit, light: the wrench prompt (seed 15) fits. The debris prompt (seed 11) is close: "klingt
+  als ob es mehrere kurze Töne hintereinander wären, wie ein Echo ohne doppler effekt. Ansonsten ok".
+- Hull hit, heavy: both fit. Valve pulse: both fit (the two files carried over from round 4).
+- Thruster with more bang and Gatling: all four wrong. "klingt wie eine kleine Gaspistole, nicht wie
+  eine mächtige Gatling Gun" (twice), "klingt wie eine kleine Plastikkanone", one without a note.
+- Shield: all three wrong. "Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer
+  sein", "klingt wie ein Knistern eines kaputten Kabels", "übersteuert, zu lang, zu viel rauschen".
+- Fold jump: both wrong, both "zu übersteuert".
+- Fold exit: one close ("zu viel hochtöniges Rauscshen"), one wrong ("klingt gehaucht, nach Luft, die
+  es im Vakuum nicht gibt..").
+
+What it means. With MOSS the hull hits (light, medium, heavy), the valve pulse and the gear are
+settled over rounds 4 and 5. MOSS has failed the shield twice (close in round 4, three of three
+wrong in round 5); the only shields he has accepted came from Stable Audio, which he ruled out on
+2026-11-16. Whether to reopen that is his decision: he was told the fact on 2026-11-17 and is not
+pushed. The record ended the freeze of `assets/audio/render/events5`; the files of round 5,
+`prompts5.json` and `skips5.json` stay as they are.
+
+What "übersteuert" is (`docs/reports/2026-11-16/round5-overdrive-report.json`). The audition page does
+not make it: the highest output peak of any sound was -4.1 dBFS, the limiter starts at -2, the
+overload lamp never lit, and the two Stable Audio shields he accepted leave the page louder than the
+four he called overdriven. It is in the files. The four are noise-like (share of the energy above 2
+kHz in their loud frames 0.037 to 0.16, against 0.003 and 0.009 for the accepted shields) and their
+raw model output is pressed against full scale (loudest 50 ms at -4.4 to -8.2 dBFS). Noise-like
+files that are not pressed (the valve pulses, the fold exits) were never called overdriven, and
+pressed files that are low and tonal (the heavy hull hits) were accepted. It is a working rule that
+rests on four rejected files, not a law.
+
+Accepted sounds in the library (2026-11-16; `tools/audio/README.md`, "Generated sounds in the
+build"). `tools/audio/build.py` has a step for generated files. `assets/audio/generated.json` lists
+eight MOSS candidates he accepted, five of round 5 and three of round 4: hull hit light, medium and
+two heavy, three valve pulses, the gear. Each entry names the event it stands for, model, prompt,
+seed, round, candidate id and the sha256 of its raw file. The raw files are committed under
+`assets/audio/generated` (4.3 MB), because a MOSS run is not reproducible bit for bit. They are
+built as processed copies under `render/generated` with the ids `g_*`, beside the rendered events
+they stand for, which stay. An entry whose raw file does not match its hash is refused, and a
+refused, missing or failed entry makes the build return 1. Their levels are provisional: each is set
+to the loudness of the rendered event it stands for. Nobody has heard them in this form; two of
+them (g_thruster_pulse_a, g_gear_deploy) start one sample later than the copy he heard, because the
+record keeps the cut in seconds with four decimals.
+
+Round 6 (2026-11-16 and 17; `tools/sound/prompts6.json`, `tools/sound/RESULTS6.md`, category
+"Ereignisklänge (Runde 6)", the first category of the page, with round 5 after it). MOSS only, 13
+prompts x 6 seeds = 78 files; 56 kept, 22 thrown out, all as cut off. Five families:
+
+- hull_light (2 slots): the wrench prompt he accepted, with new seeds, as variants.
+- thruster_mighty (3): the prompts name large weapons and ask for a heavy low end; the level is -28
+  LUFS, that of the library's own thruster pulses and 6 dB above round 5.
+- shield_tight (3): one short tight event, a low thump with a brief crackle, cut at 1.5 s at most.
+  The third try of MOSS at the shield.
+- fold_jump (3): an electrical source, clean, smooth and bright.
+- fold_exit (3): no prompt names air, wind or steam; the first is the "close" prompt made darker.
+
+New in the screening: a family may carry `notSaturatedNoise`. A kept file that is both pressed
+(loudest 50 ms of its raw cut above -9.5 dBFS) and noise-like (share above 2 kHz in its loud frames
+0.03 or more) stays in the pool and is not picked. It kept 14 of the 43 kept files of the shield and
+fold families from being picked. Nine picks were skipped by hand for plain faults
+(`tools/sound/skips6.json`). On the page: 14 of 14 slots, all one channel. The manifest has 187
+entries; the 173 of before are unchanged in id, hash and order, and the 165 hashes of the record of
+round 5 are unchanged. He is asked only for Passt / Falsch.
+
+What was measured about the 14 and not heard, and told to him with the hand-over. Four of the
+thirteen prompts have no candidate on the page: the hum prompt of the fold jump gave only steady low
+tones (all skipped by hand), the second fold-exit prompt only pressed noise, the third shield prompt
+only files that are cut off or under the family's least share of energy above 60 Hz, and the two
+kept files of the second thruster prompt were not chosen by the slot rule. thruster_mighty has no pick rule, because every one of its kept files is pressed; two of its
+three picks are also noise-like by the numbers of the rule (0.057 and 0.061), so he may call them
+overdriven. Its first pick is a burst of about ten pulses though the prompt asks for a single shot.
+The first shield pick has clicks at its end (the prompt asks for a crackle of sparks); the second is
+pressed and has 92 % of its energy under 125 Hz, the kind he called a little too bass-heavy in
+round 4.
+
+Independent check of round 6 (`docs/reports/2026-11-17/sound6-verify-report.json`). Held by its own
+measurements: nothing old moved, the page entries agree with `screen.json` and `prompts6.json`, the
+pick rule reproduces on all 43 files, the levels are within 0.03 LU, no pick is cut off, the page
+passes the level of the file and the overload lamp never lit. It found faults that the orchestrator
+settled on 2026-11-17 before the round was shown: the two hull entries named round 4 as the round of
+the accepted prompt (`publish.py` now reads the family's `provenRound`; they say round 5); one test
+of `tools/sound` had been red since the generated sounds came into the build (the three tests that
+publish into a fake tree now point the build at an empty list; 47 of 47); wrong sentences in
+`RESULTS6.md`, in the select report and in one skip reason (corrected). The orchestrator also
+replaced the third shield pick: a 0.11 s tick with 3.8 % of its energy under 250 Hz, which measures
+like the two shields he has already rated wrong (the recorded spark of round 4, the crackle of round
+5), went out by a ninth hand skip, and the next candidate by the slot rule took its place. After
+that second publish one id had changed and no hash of the other 186, and the level at the page was
+measured again for all 14 (file to page -0.09 to +0.15 dB, highest output peak -9.0 dBFS).
+
+The measuring tools, reviewed and repaired (2026-11-16 and 17;
+`docs/reports/2026-11-16/audio-measure-review.json`,
+`docs/reports/2026-11-17/audio-measure-fix-report.json`). The review of
+`tools/audio/listen/measure.py` and `tools/audio/synth/rules.py` confirmed 21 of 22 findings.
+Repaired, each with tests that fail when the rule is switched off (a mutation run of 118 changes to
+the code, none of which passes the tests):
+
+- The level swing of a loop counts silent windows; before, a loop that fell silent read a few dB.
+- A file with one silent channel no longer reads as two equal channels.
+- `set_level` reports the gain it applied, and a hint says when the ceiling kept a sound from its
+  level.
+- A silent file fails a rule of its own.
+- The spectrum reads every sample, so the band shares see the end of a file.
+- An empty file gives a clear error.
+- The build returns 1 for a refused, missing or failed generated entry.
+
+No rendered byte changed: loudness and true peak of all 187 files are the same before and after,
+and a full build on a copy gave 187 equal hashes. What moved are numbers in the checks: spectrum
+figures of many sounds (the largest: the low share of pilot_thruster_c, 0.999 to 0.617) and the swing
+of the three alarm loops that have silent gaps (alarm_heat 13.3 to 77.8 dB, alarm_hull_critical 9.4
+to 79.1, alarm_fuel_low 76.3 to 84.3). The four alarm loops carried a swing limit of 80 dB, a number
+no loop could reach under the old measure. Under the new one the swing of a loop with gaps is only
+the distance from its loudest window to the silence, so no finite limit means anything there: the
+limit is replaced by an exemption by name (`swing_max=GAPPED` in `tools/audio/synth/cat_alarms.py`,
+with tests). No alarm was rendered again. Left open on purpose, because they would change levels or
+need a decision, by the numbers of the review report: the loudness measure reads 0.04 dB low (3),
+the loudness of clips shorter than a block depends on trailing silence (4), the attack time of a
+steady tone (6), stated rules that are not coded (11, 14, 15: no steady pure tone for a whole loop,
+no rules for downloads, sensor attack, bit depth, distinct alarm envelopes), the cabin switch rules
+that cannot fail (13) and smaller wrong numbers (21). The real manifest was assembled again by the
+second publish of round 6, which measured the downloads and the generated sounds anew (41 entries:
+spectrum figures and new level keys, no pass flag changed). The entries of the rendered sounds keep
+the checks of their last build, from before the repairs, until the next full build.
+
+What follows, the orchestrator's plan and not his decision. When he has rated round 6, the round is
+recorded the way rounds 4 and 5 were (`assets/audio/rounds/round6.json` and `round6-ratings.json`).
+Accepted candidates go into `assets/audio/generated.json`. Then the rules in `tools/audio` get new
+numbers, taken from everything he has accepted, and the first full build after the repairs refreshes
+the checks. The plan for the game's runtime audio was shown to him in a few sentences on 2026-11-17;
+it is not started without his word. A family he rejects again: for thruster, fold jump and fold exit
+another round with new prompts is possible; for the shield a third failure of MOSS is the point to
+ask him whether he wants to reopen Stable Audio or allow another source (Freesound CC0 with his own
+account, recordings made at home, other models), each of which needs a new yes. While he rates round
+6, `assets/audio/render/events6` is frozen: `screen.py`, `publish.py` and `tools/audio/build.py` are
+not run on the real tree until his ratings are recorded, since a new publish changes ids or hashes
+and orphans ratings. Not to be started without his word: the voice pipeline, the game's runtime
+audio, a re-render of the event sounds, other downloads, music.
 
 ### The owner's first play session (2026-11-14)
 
@@ -599,9 +731,11 @@ Each step is one work session with its own workflow runs.
 
 1. **Sound library and controller support.** Built on 2026-11-14 (see section 2). What is left of
    the sound, in this order: a source of short events that the owner accepts (round 3 chose no
-   direction; in round 4 he accepted candidates from two generative models, and round 5 makes the
-   event sounds from that with MOSS, see `tools/sound`); the event sounds he accepts in
-   round 5 built into the library and heard once more; the game's runtime audio rebuilt on the library (files instead of
+   direction; in round 4 he accepted candidates from two generative models; in round 5 he accepted
+   hull hits and valve pulses made with MOSS and rejected the thruster with more bang, the shield
+   and both fold events; round 6 tries those again, see `tools/sound`); the event sounds he accepts
+   built into the library (the first eight are in, see section 2) and heard once more; new numbers
+   for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
    rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
    in section 2); music. The runtime audio and the design of the voice pipeline are core work
@@ -701,7 +835,9 @@ Defects seen and left in:
   English only.
 - Sound library, since round 2: the rules in `tools/audio/synth/rules.py` still check one-shots
   of the structure and energy paths the old way (dull); round 3 chose no direction, so they get
-  new numbers only when he has accepted a short event. Some rendered one-shots start on a sample that is not silence
+  new numbers only when he has accepted a short event. He has accepted hull hits, valve pulses and
+  the gear (rounds 4 and 5); the numbers are set when round 6 is rated, from all accepted sounds at
+  once. Some rendered one-shots start on a sample that is not silence
   (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
   radio squelch): the audition page fades such a start, the game's runtime will have to do the
   same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
@@ -717,10 +853,20 @@ Defects seen and left in:
   scale does not stand out by that measure and is not found; as far as a measurement can say it
   is masked there. The check's "no click from the page" holds within that limit.
 - The measuring tools and rules of the sound library (`tools/audio/listen/measure.py`,
-  `tools/audio/synth/rules.py`, `tools/audio/build.py`) have their own tests but were not
-  reviewed by a second pair of eyes, and every "passes all rules" rests on them. One mismatch is
-  known: the table of energy per band under-reports a hit at the very start of a file compared
-  with the whole-file figure the rules use.
+  `tools/audio/synth/rules.py`, `tools/audio/synth/levels.py`, `tools/audio/build.py`) were reviewed
+  on 2026-11-16 and repaired on 2026-11-17 (section 2, "Sound sources"; 21 of 22 findings
+  confirmed). Left open on purpose: the loudness measure reads 0.04 dB low against the standard; the
+  loudness of a clip shorter than 0.4 s depends on trailing silence by up to 3 dB; several stated
+  rules are not coded (no steady pure tone for a whole loop, every one-shot starts at zero, soft
+  attack and level of the sensors, 16-bit depth, distinct alarm envelopes); downloaded files never
+  go through `rules.check`; the cabin switch rules apply only to list durations of 0.5 s or less
+  and their length half cannot fail; loops under 0.2 s have no swing figure. In the real manifest
+  the rendered sounds keep the checks of their last build, from before the repairs (the downloads,
+  the generated sounds and round 6 were measured anew): the next full build refreshes them, and it
+  must run with CLAP and, for the eleven entries that carry a description, with `--describe`, since
+  a build with `--no-clap` strips those fields. One mismatch is known from before the review and
+  was not looked at again: the table of energy per band under-reports a hit at the very start of a
+  file compared with the whole-file figure the rules use.
 
 Open findings with a test marked as an expected failure:
 
@@ -757,8 +903,9 @@ Never verified:
   at 3840x2160, the grain texture after a lost WebGL context, quality 0 on a weak card (it used
   to draw no ground detail and now draws grain and craters).
 - Any sound by ear, except what the owner rated (49 of 114 after round 2; in round 3 seven voice
-  samples and no direction sample; in round 4 the sixteen candidates; not yet the countdown
-  samples and the 17 event sounds of round 5). Every other judgement of the sound library and of
+  samples and no direction sample; in round 4 the sixteen candidates; in round 5 the seventeen
+  event sounds; not yet the countdown samples, the 14 candidates of round 6 and the eight generated
+  sounds of the library in their built form). Every other judgement of the sound library and of
   the speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
   - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
@@ -777,8 +924,9 @@ Never verified:
     between 17 and 20 dB at the cap, and one kept file lies 1.8 dB from the rule.
   - The loudness matching of events under about 0.5 s rests on a convention: BS.1770 measures them
     in one or two 400 ms blocks, and a 1.5 ms ramp moved one value by 2.5 dB.
-  - The capture part of `tools/dev/audition-check.mjs` for all 165 sounds and the four scenes was
-    not run after the publish of round 5 on 2026-11-16 (only the 17 and two test files, 48 steps).
+  - The capture part of `tools/dev/audition-check.mjs` for all sounds (187 on 2026-11-17) and the
+    four scenes was not run after the publishes of rounds 5 and 6 (only the candidates of the round
+    and two test files, 48 steps each time).
 - Round 5, the event sounds (2026-11-16; `tools/sound/RESULTS5.md`, "What could not be judged", and
   `docs/reports/2026-11-16/sound5-verify-report.json`, `notVerified`):
   - How any of the 17 sounds: nobody listened. Whether the hull hits are hits, whether the thruster
@@ -802,11 +950,32 @@ Never verified:
   - Settled on 2026-11-16 after the check: the test `test_screen.py` passes 43 of 43, the README
     section "Round 5" and four sentences of `RESULTS5.md` are corrected, and the 90 Stable Audio
     files that the generate step made against his decision were never screened or published and
-    the folder `assets/audio/gen/r5/sa3` was deleted. Round 5 was handed to him on 2026-11-16 and
-    is frozen until he has rated it.
+    the folder `assets/audio/gen/r5/sa3` was deleted. Round 5 was handed to him on 2026-11-16; he
+    rated it the same day, and the record ended the freeze.
   - A MOSS file made again differs from the first at about -79 dB, so a run is not reproducible bit
     for bit. `publish.py`, `build.py` on the real tree and `from_round4.py` were not run by the
     check, which only read their output.
+- Round 6 and what was built on 2026-11-16 and 17 (`tools/sound/RESULTS6.md`, "What could not be
+  judged", and the `notVerified` lists of the reports under `docs/reports/2026-11-16` and
+  `2026-11-17`):
+  - How any of the 14 candidates sounds: nobody listened. Whether the thruster is a mighty gun,
+    whether the shield is short, tight and clean, whether the fold sounds are clean and the exit
+    free of hiss and air.
+  - Whether `notSaturatedNoise` finds what he means by "übersteuert": it rests on four rejected
+    files. Three fold picks sit 0.2 to 1.0 dB under its level threshold, and two thruster picks are
+    over both of its numbers in a family that has no rule.
+  - Whether the clicks at the end of the first shield pick are the crackle that was asked for.
+  - The hand skips were made on level curves and spectra, not on spectrogram pictures, and cover
+    the picks, not every kept file. With them the hum prompt of the fold jump has no candidate; he
+    might have wanted one.
+  - `audition-check.mjs` was not run again after the third shield pick was replaced; the level at
+    the page was.
+  - The eight generated sounds of the library: nobody has heard them as built, their levels are
+    provisional, and two start one sample later than the copy he heard.
+  - The repairs of the measuring tools: only 48 kHz was exercised; CLAP and the describing model
+    were not run in the copy build, so the hints and descriptions of a new full build are unknown;
+    the full build was run on a copy only. The level hint never fired on a real sound, because none
+    is limited by the ceiling.
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
@@ -893,12 +1062,17 @@ Other notes:
   the picks on the page as the category `source`. Round 4 is recorded and its files stay as they
   are. Round 5 uses the same tools with `--prompts-file tools/sound/prompts5.json`, `--root
   assets/audio/gen/r5` and `skips5.json` (`tools/sound/README.md`, "Round 5"); a plain `screen.py`
-  or `publish.py` still means round 4 and is not run on the real tree. While the owner rates round
-  5, `assets/audio/render/events5` is frozen: `screen.py`, `publish.py` and `tools/audio/build.py`
+  or `publish.py` still means round 4 and is not run on the real tree. Round 6 uses
+  `--prompts-file tools/sound/prompts6.json`, `--root assets/audio/gen/r6` and `skips6.json`
+  (`tools/sound/README.md`, "Round 6"). While the owner rates round 6,
+  `assets/audio/render/events6` is frozen: `screen.py`, `publish.py` and `tools/audio/build.py`
   are not run on the real tree until his ratings are recorded (see section 2), because a new
-  publish orphans them. `tools/audio/fetch.py` fetches only from https hosts on its list: kenney.nl,
+  publish orphans them; `assets/audio/ratings.json` is byte-identical to
+  `assets/audio/rounds/round5-ratings.json` as long as he has not rated. A sound he accepted comes
+  into the library through `assets/audio/generated.json` and the build (`tools/audio/README.md`,
+  "Generated sounds in the build"). `tools/audio/fetch.py` fetches only from https hosts on its list: kenney.nl,
   nasa.gov with its subdomains and, since 2026-11-15, opengameart.org (the exact host); the list
-  is changed by the orchestrator, visibly, never by a sub-agent. Disk on 2026-11-16: 506 GB of 1.9
+  is changed by the orchestrator, visibly, never by a sub-agent. Disk on 2026-11-17: 526 GB of 1.9
   TB free (the stop line of this work is 200 GB; the owner's condition is at least 10 %).
 - What round 4 taught about comparing sound sources. Match loudness where the listener hears it:
   the audition page plays a one-channel file on both channels and a two-channel file as it is, so

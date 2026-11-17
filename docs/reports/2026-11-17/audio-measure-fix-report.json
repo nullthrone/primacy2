@@ -573,5 +573,25 @@
    "tools/audio/synth/tests/test_rules_guards.py",
    "docs/reports/2026-11-17/audio-measure-fix-report.json"
   ]
+ },
+ "afterReview": {
+  "by": "orchestrator",
+  "date": "2026-11-17",
+  "settled": [
+   "Alarm loop swing: the limit of 80 dB on alarm_heat, alarm_missile, alarm_fuel_low and alarm_hull_critical is replaced by an exemption by name, swing_max=GAPPED (synth/registry.py, float('inf')), because the swing of a loop with silent gaps is only the distance from its loudest window to the silence and no finite limit means anything. Tests: a loop that falls silent fails at the default and at 80 and passes only as GAPPED; only the four alarm loops are GAPPED and every other limit is 12 dB or less. No alarm was rendered again; a full build no longer fails on alarm_fuel_low.",
+   "The loop-swing sentence of tools/audio/README.md is corrected (120 dB plus the loudest window for exact zeros, 96 dB plus it for a 16-bit file with dither).",
+   "tools/sound/tests/test_screen.py: the three tests that publish into a fake tree point build.GENERATED_LIST at a file that does not exist; 47 of 47.",
+   "tools/audio/SOUND_DESIGN.md states the swing with silent windows, the exemption and the silent rule."
+  ],
+  "suitesAfter": {
+   "tools/audio/tests": "107 OK",
+   "tools/audio/listen/tests": "80 OK",
+   "tools/audio/synth/tests": "128 OK",
+   "tools/sound/tests/test_screen.py": "47 tests, 0 failed"
+  },
+  "notDone": [
+   "No full build on the real tree: the rendered sounds keep the checks of their last build, from before the repairs. The next full build must run with CLAP and, for the eleven entries that carry a description, with --describe.",
+   "The -200 dBFS threshold at which peak-mode set_level raises on silence was left as it is."
+  ]
  }
 }

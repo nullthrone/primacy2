@@ -118,6 +118,11 @@ All sounds:
 - A loop repeats without a click or a bump: the seam check of the measuring tool passes, and the
   level over the loop does not swing so that the repeat is heard as a rhythm (unless the list asks
   for a pulse).
+  The swing is the distance between the loudest and the quietest 100 ms of the loop, and a silent
+  window counts (since 2026-11-17). A loop that is made of sounds and silent gaps by design, which
+  the four alarm loops are, is exempt by name (`GAPPED` in `synth/registry.py`): its swing is only
+  the distance from its loudest window to the silence.
+- No sound is silent: a file whose peak lies under -80 dBFS fails a rule of its own.
 - The CLAP score of the sound's own descriptions (`pos`) is higher than that of every description
   it must not be mistaken for (the category's `neg` and the global ones). CLAP is a sanity check,
   not a target: do not tune a sound toward the score at the cost of the rules in section 1.
@@ -573,3 +578,93 @@ word for the other, air in a vacuum, is a rule for prompts: nothing that sounds 
 The freeze of `assets/audio/render/events5` has ended with the record. The files of round 5,
 `prompts5.json` and `skips5.json` stay as they are, and what follows is built beside them. What
 follows is in `docs/ROADMAP.md`, section 2, "Sound sources", and `docs/NEXT.md`.
+
+What was done with the ratings, 2026-11-16 and 17. His word "übersteuert" was measured
+(`docs/reports/2026-11-16/round5-overdrive-report.json`): the audition page does not make it (highest
+output peak of any sound -4.1 dBFS, limiter at -2, the overload lamp never lit); the four files are
+noise-like (share of the energy above 2 kHz in their loud frames 0.037 to 0.16; the two shields he
+accepted in round 4 have 0.003 and 0.009) and their raw model output is pressed against full scale
+(loudest 50 ms at -4.4 to -8.2 dBFS). Files that are noise-like and not pressed, or pressed and low,
+were never called overdriven. The eight MOSS candidates he has accepted in rounds 4 and 5 are in the
+library as generated sounds (`assets/audio/generated.json`, ids `g_*`, section 3 of the README of
+`tools/audio`): hull hit light, medium and two heavy, three valve pulses, the gear. Their levels are
+provisional, and nobody has heard them as built.
+
+### Round 6, 2026-11-17 (fourteen candidates; waiting for his ratings)
+
+Why this round. Round 5 left four families rejected (thruster with more bang, shield, fold jump, fold
+exit) and one with a candidate that was only close (hull hit, light). Round 6 tries them again with
+prompts that answer his notes, MOSS only, as he decided. He is asked only to accept or reject each
+(Passt / Falsch). The plan is `tools/sound/prompts6.json` (its `note` gives his words and what each
+family answers), the figures are in `tools/sound/RESULTS6.md`.
+
+| family | slots | what the prompts answer |
+|---|---|---|
+| hull_light | 2 | the wrench prompt he accepted, with new seeds, as variants; "proven" |
+| thruster_mighty | 3 | "kleine Gaspistole", "kleine Plastikkanone": large weapons named, a heavy low end, -28 LUFS (6 dB above round 5) |
+| shield_tight | 3 | "zu voll und übersteuert", "zu lang", "Knistern eines kaputten Kabels": one short tight event, a low thump with a brief crackle, at most 1.5 s |
+| fold_jump | 3 | "zu übersteuert": an electrical source, clean, smooth and bright, no word like huge or roaring |
+| fold_exit | 3 | "zu viel hochtöniges Rauschen", "nach Luft": darker, and no prompt names air, wind or steam |
+
+No prompt uses a negation ("no distortion"): a model that reads a word tends to make it.
+
+The prompts, as given to the model (to each the adapter adds the length asked for):
+
+- hull_light_1: "Heavy wrench dropped once onto a steel deck plate, single short hard metallic knock,
+  close microphone".
+- thruster_mighty_1: "Single shot from a 30 mm autocannon, a deep heavy boom with a hard sharp crack,
+  massive low end, dry, close microphone". thruster_mighty_2: "Heavy rotary cannon fires a half-second
+  burst, a deep roaring burst of rapid heavy shots with a powerful low end, heard up close, then it
+  stops abruptly". thruster_mighty_3: "Large-caliber machine cannon fires three slow heavy shots, each
+  a chest-thumping boom with a metallic clank, dry, close microphone".
+- shield_tight_1: "A short electric zap strikes a metal plate, one tight deep thump with a brief bright
+  crackle of sparks, half a second long, then silence". shield_tight_2: "Force field deflects a
+  projectile, a quick clean electric snap with a short soft low pulse underneath, ends fast".
+  shield_tight_3: "Single short burst of static electricity with a round bass throb, clean and tight,
+  science fiction energy shield hit".
+- fold_jump_1: "Science fiction warp drive engages, a fast rising electric whine snaps into a bright
+  shimmering surge of energy that fades out cleanly". fold_jump_2: "Large capacitor bank discharges
+  with a sharp electric crack, followed by a smooth bright hiss that thins out and fades away".
+  fold_jump_3: "A deep power hum swells for one second and releases in a clean rushing surge of energy
+  with a soft low pulse, futuristic engine".
+- fold_exit_1: "A deep rushing surge arrives fast from the distance and ends in a powerful low pulse
+  of energy that dissipates into a dark soft hum, science fiction". fold_exit_2: "Science fiction ship
+  drops out of warp, a bright electric surge collapses quickly into a heavy soft thump and a fading
+  electric hum". fold_exit_3: "Large electrical machine powers down, a falling whine ends in a deep
+  resonant pulse with a few sparks, then a clean decay".
+
+What was made and chosen. 78 raw files (13 prompts x 6 seeds), 56 kept, 22 thrown out as cut off. A
+new setting of a family, `notSaturatedNoise`, keeps a file out of the picks when it is both pressed
+(loudest 50 ms of the raw cut above -9.5 dBFS) and noise-like (share above 2 kHz in the loud frames
+0.03 or more): the two numbers that describe the four files he called overdriven. It is set for the
+shield and the two fold families and kept 14 of their 43 kept files from being picked. Nine picks
+were skipped by hand (`tools/sound/skips6.json`), among them every kept file of the hum prompt
+fold_jump_3 (steady low tones) and one shield pick, a 0.11 s tick that measures like the two shields
+he has already rated wrong. On the page, first category "Ereignisklänge (Runde 6)": 14 of 14 slots,
+all MOSS, one channel, ids `ev6_<family number>_<family>_<slot>_moss_<tag>`; round 5 follows. Which
+prompt each candidate comes from: hull_light 1 and 2 from hull_light_1; thruster_mighty 1 from
+thruster_mighty_1, 2 and 3 from thruster_mighty_3; shield_tight 1 and 3 from shield_tight_1, 2 from
+shield_tight_2; fold_jump 1 from fold_jump_1, 2 and 3 from fold_jump_2; fold_exit 1 from fold_exit_3,
+2 and 3 from fold_exit_1. Four prompts have no candidate on the page (thruster_mighty_2,
+shield_tight_3, fold_jump_3, fold_exit_2).
+
+Level. Every copy is at its family's target at the page (hull -34 LUFS, thruster -28, shield and fold
+-24), within 0.03 LU; the page passes the level of the file (-0.09 to +0.15 dB), the highest output
+peak is -9.0 dBFS and the overload lamp did not light.
+
+Checks. The independent check (`docs/reports/2026-11-17/sound6-verify-report.json`) found nothing old
+moved and the pick rule reproduced on all 43 files; what it found wrong was settled before the round
+was shown (`docs/ROADMAP.md`, section 2). The manifest has 187 entries; the 165 hashes of the record
+of round 5 are unchanged.
+
+Not established, and told to him with the hand-over: how any of the 14 sounds; nobody has heard one.
+thruster_mighty has no pick rule, because every kept file of it is pressed; two of its three picks
+are also noise-like by the numbers of the rule (0.057 and 0.061), so he may call them overdriven. Its
+first pick is a burst of about ten pulses though the prompt asks for a single shot. The first shield
+pick has clicks at its end, which may be the crackle that was asked for or the broken cable he
+rejected; the second is pressed and has 92 % of its energy under 125 Hz, the kind he called a little
+too bass-heavy in round 4. Three fold picks sit 0.2 to 1.0 dB under the level threshold of the pick
+rule. Whether the rule finds what he means by "übersteuert" is shown only by his ratings.
+
+While he rates, `assets/audio/render/events6` is frozen: no screen, publish or build on the real
+tree until the round is recorded (`docs/NEXT.md`, section 1).
