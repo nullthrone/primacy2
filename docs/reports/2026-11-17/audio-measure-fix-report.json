@@ -1,0 +1,414 @@
+{
+ "date": "2026-11-17",
+ "summary": "11 files changed or added in a snapshot of tools/audio (git archive of the committed code); nothing copied to the real tree. R1 to R8 repaired with tests that fail before and pass after. No rendered sound changes: P1 173 of 173 wav files read the same loudness and true peak (unrounded), P3 all 75 renderers give the same float and 16-bit samples and the same bytes as the real tree's wav files. One verdict flips in P2: alarm_fuel_low now fails loop-level-swing (84.3 dB against its limit of 80, was 76.3).",
+ "baseCommit": "the committed tools/audio as of the start of the job; HEAD at the end is c48a037 and the 8 changed source files are identical in it and in the snapshot base",
+ "snapshot": "C:\\Users\\Thomas\\AppData\\Local\\Temp\\claude\\ddc8f35ddf5feee1\\47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8\\scratchpad\\measurefix\\snap",
+ "untouchedCopy": "C:\\Users\\Thomas\\AppData\\Local\\Temp\\claude\\ddc8f35ddf5feee1\\47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8\\scratchpad\\measurefix\\snap0",
+ "repairs": [
+  {
+   "id": "R1",
+   "findings": [
+    2,
+    8,
+    16
+   ],
+   "files": [
+    "tools/audio/listen/measure.py"
+   ],
+   "change": "loop_check no longer drops the 100 ms windows under -90 dB. A silent window counts at the floor of -120 dB, so levelSwingDb of a loop that falls silent is 100 dB and more, and the alarm limit swing_max=80 can fail. The number is unchanged for a loop without windows under -90 dB (the test pins 24.4 dB for a seeded loop, the same as before).",
+   "testsFailedBefore": [
+    "listen LoopSwing.test_a_loop_that_falls_silent_has_a_big_swing (read 3.4 dB, now above 90)",
+    "listen LoopSwing.test_a_pulse_loop_reads_the_same_wherever_its_edges_fall_on_the_window_grid (read 4.5, 17.2, 9.5, 6.5 by alignment, now above 90 for all four)",
+    "synth AllSoundsRules.test_a_loop_that_falls_silent_fails_the_swing_rule_even_at_the_alarm_limit_of_80_db"
+   ],
+   "testsThatPassBeforeAndAfter": [
+    "LoopSwing.test_a_steady_loop_has_a_small_swing_and_the_number_is_unchanged (24.4 before and after)"
+   ],
+   "notRepaired": "A loop shorter than 0.2 s still returns no levelSwingDb (rules read it as 0.0 = pass), a loop under 0.1 s has no edge fields. Not named in the brief; open."
+  },
+  {
+   "id": "R2",
+   "findings": [
+    5
+   ],
+   "files": [
+    "tools/audio/listen/measure.py"
+   ],
+   "change": "stereo_stats: a channel with no energy gives corr 0.0 and corrLow 0.0 ('no relation', the rules for two channels fail it) and levelDiffDb is the true difference to the -120 dB floor (about 100 dB; the old code gave 0.0). Two silent channels give corr 0, corrLow 0, levelDiffDb 0, monoRmsDb -120 (the new rule 'silent' catches the file). The fallback of 1.0 for an empty low band of two channels that both have energy is kept. Documented in the docstring.",
+   "testsFailedBefore": [
+    "listen StereoStats.test_a_silent_channel_is_not_equal_to_the_other (corr was 1.0)",
+    "listen StereoStats.test_two_silent_channels_are_not_a_stereo_pair",
+    "listen EmptyAndTiny.test_one_stereo_sample_gives_defined_values",
+    "synth StereoPathRules.test_a_hard_panned_file_fails_all_three_stereo_rules (stereo-correlation, stereo-bass-correlation and stereo-level-diff now all fail; before stereo-level-diff did not)"
+   ]
+  },
+  {
+   "id": "R3",
+   "findings": [
+    10
+   ],
+   "files": [
+    "tools/audio/synth/levels.py",
+    "tools/audio/synth/rules.py",
+    "tools/audio/build.py"
+   ],
+   "change": "set_level: info['gainDb'] is the applied gain, info['requestedGainDb'] the requested one (name as in build.py's set_loudness), info['monoSum'] says on which signal the loudness target was measured. The two multiplications that make the samples are untouched. rules.check takes level=<set_level info> and returns a Verdict (a list subclass, so '== []', 'in', JSON work as before) with .hints; a sound with info.limited whose reached level (lufs, or lufsMono when monoSum, or true peak for a peak target) misses the target by more than 0.5 dB gets the hint 'level-missed-by-ceiling: reached X LUFS, table target Y LUFS (stopped by the ceiling)'. Never a failure. build_sound passes the level and puts the hints into checks.hints. build.py process_download: the line 'level[requestedGainDb] = level[gainDb]' is removed (set_level now provides it; it would have overwritten the requested gain with the applied one). The measured applied gain override that follows is kept.",
+   "testsFailedBefore": [
+    "synth LevelInfo.test_gain_is_the_applied_gain_and_the_requested_gain_has_its_own_name",
+    "synth LevelInfo.test_the_samples_are_the_same_as_before_the_gain_was_renamed, test_the_mono_sum_basis_is_recorded",
+    "synth LevelHint (7 tests: hint with both numbers, no hint when reached, within 0.5 dB, the half dB limit, peak target, mono sum basis, plain list result)",
+    "synth BuildHints.test_a_limited_sound_that_missed_its_target_has_the_hint_and_still_passes, test_a_level_that_says_it_was_not_limited_gets_no_hint_whatever_the_file_reads"
+   ],
+   "testsThatPassBeforeAndAfter": [
+    "tests/test_downloads_build HonestLevel (applied and requested gain of a download)"
+   ]
+  },
+  {
+   "id": "R4",
+   "findings": [
+    12
+   ],
+   "files": [
+    "tools/audio/synth/levels.py",
+    "tools/audio/synth/rules.py"
+   ],
+   "change": "set_level raises ValueError('silent: ...') in peak mode when the true peak is at or under -200 dB (as LUFS mode already raised) and ValueError('empty: ...') for an empty array; levels.lufs raises ValueError('empty') for an empty array. The set_level threshold is -200 dB on purpose: set_level sees the dry render, whose scale is arbitrary. rules.check has a new rule 'silent' on every path, kind and category: the loudest sample is under -80 dBFS (dither alone reaches about -84 dBFS, the quietest library sound peaks at -44 dBFS); an empty array returns ['silent'] without a crash.",
+   "testsFailedBefore": [
+    "synth LevelInfo.test_silence_has_no_level_in_either_mode (peak mode gave +228 dB gain without an error)",
+    "synth LevelInfo.test_loudness_of_silence_and_of_nothing",
+    "synth SilentSounds.test_dither_only_fails_for_every_path_kind_and_category (6 paths x 3 kinds x 8 categories)",
+    "synth SilentSounds.test_exact_zeros_and_two_channels_fail_too, test_an_empty_file_fails_without_a_crash, test_a_quiet_sound_is_not_silent"
+   ]
+  },
+  {
+   "id": "R5",
+   "findings": [
+    1
+   ],
+   "files": [
+    "tools/audio/listen/measure.py"
+   ],
+   "change": "mean_psd: the file is padded with zeros so that every sample lies in the flat part of the window sum, Hann windows of 8192 samples (the whole file where shorter) at 75 % overlap (the squared Hann windows sum to a constant at 75 %, not at 50 %), the mean is removed once for the whole file and the per-segment detrend is off. The band edges, the fields and their meaning are unchanged. Result: an impulse at the first, the middle and the last sample has the same total power (it was 7e-9 / 8e-5 / 3e-40); the shares of x and of x reversed are equal; lowShare/highShare/centroid of the 75 rendered sounds agree with a whole-file FFT of the mono sum with a mean absolute error of 0.0001 / 0.0001 / 0.0 Hz and a largest error of 0.0005 / 0.0053 / 0.35 Hz (before: mean error 0.0278 / 0.0134 / 153.8 Hz).",
+   "testsFailedBefore": [
+    "listen WholeFile.test_an_impulse_counts_the_same_at_the_start_in_the_middle_and_at_the_end",
+    "listen WholeFile.test_a_noise_burst_at_the_end_is_read_like_one_at_the_start (highShare was 0.0 against a whole-file 0.447)",
+    "listen WholeFile.test_the_tail_after_the_last_full_segment_counts"
+   ]
+  },
+  {
+   "id": "R6",
+   "findings": [
+    4
+   ],
+   "files": [
+    "tools/audio/listen/measure.py",
+    "tools/audio/synth/levels.py"
+   ],
+   "change": "analyse and loudness_lufs raise ValueError('empty file: there are no samples to measure') for an empty array, levels.lufs the same for its own input (was ZeroDivisionError / a numpy reduction error). A file of 1 to 3 samples gives defined values: zero spectrum (shares 0.0, centroid None, no peaks, peakShare 0.0), loop check 'too short'. measure.main reports the empty wav as an ERROR line with 'empty' and returns 1.",
+   "testsFailedBefore": [
+    "listen EmptyAndTiny.test_an_empty_file_is_refused_with_a_clear_message (message was 'zero-size array to reduction operation maximum which has no identity')"
+   ]
+  },
+  {
+   "id": "R7",
+   "findings": [],
+   "files": [
+    "tools/audio/build.py"
+   ],
+   "change": "_generated_sounds and assemble_manifest take an optional problems list (return types unchanged). Every generated entry that is refused (all reasons: sha256 mismatch, bad or duplicate id, unknown event, incomplete entry), missing on disk, or fails with an exception adds a line; main adds the count to failures, prints 'generated sounds not built: N' and returns 1. The messages are printed as before and the other entries are still built. The download step is not changed (a missing download still gives exit code 0, pinned by a test).",
+   "testsFailedBefore": [
+    "tests ExitCode.test_a_sha256_mismatch_is_refused_and_the_exit_code_is_not_zero",
+    "tests ExitCode.test_a_missing_raw_file_gives_a_non_zero_exit_code_and_the_rest_is_built",
+    "tests ExitCode.test_an_entry_that_fails_with_an_exception_gives_a_non_zero_exit_code_and_the_rest_is_built",
+    "tests ExitCode.test_the_other_refusals_count_as_well, test_the_problem_lines_are_handed_to_the_caller_without_changing_the_return_type"
+   ],
+   "decision": "The brief names three cases; I count every refusal (duplicate id, bad id, unknown event, incomplete entry) as well, because a refused entry is a sound that was not built. Narrow it to the three if you want."
+  },
+  {
+   "id": "R8",
+   "findings": [
+    7,
+    9,
+    17,
+    18,
+    19,
+    20,
+    22
+   ],
+   "files": [
+    "tools/audio/listen/tests/test_measure_guards.py (new, 55 tests)",
+    "tools/audio/synth/tests/test_rules_guards.py (new, 69 tests)",
+    "tools/audio/tests/test_build_exit_code.py (new, 8 tests)",
+    "tools/audio/listen/tests/test_listen.py",
+    "tools/audio/synth/tests/test_synth.py",
+    "tools/audio/synth/tests/test_pilot_energy.py",
+    "tools/audio/synth/tests/test_pilot_mech.py"
+   ],
+   "change": "One pass test and one fail test for every all-sounds rule (sample-rate, channels, true-peak with -1.0 boundary, clipped, dc-offset boundary 0.001, onset-late 5 ms, tail-not-silent -60 dB, loop-seam, loop-level-swing, silent) and every category rule (switch-too-long, switch-centroid, alarm-fundamental, alarm-high-energy, sensor-high-energy, radio-band), plus the structure, energy and stereo path rules with their numbers. Loudness against an independent BS.1770-4 implementation in the test (published 48 kHz coefficients, gating): K-weighting 100 Hz against 1 kHz (-1.8 dB difference from the filter), 50 Hz, gating with two bursts with and without silence between them, 1 s of tone in 5 s, the first five channels of a 6-channel file; the same for levels.lufs. True peak: fs/4 at 45 degrees gives truePeak - samplePeak = 3.01 dB, and a 16 kHz sine that a 2x oversampling would miss. One test per band edge (60, 125, 250, 500, 1000, 2000, 4000, 8000 Hz) with a tone 20 % under and 25 % over it, lowShare and highShare. Ceiling compared with the number -1.0 written in the test and measured with measure.true_peak; all 75 sounds are loaded and checked (the old test saw 28). Constants and weak assertions of finding 22 replaced: listen stereo test now asserts -0.68 LUFS and the note, rhythm test counts 8 and 4 beeps, png test checks 600x1000 pixels, the CLAP hint test runs build_sound with a fake judge (hint and not failure) instead of reading the source text, StructureRulesTest feeds measure.analyse instead of a made-up dict, the pilot tests call rules.check and the rules.STEREO_* constants instead of their own copies of -1 dB, 0.001, 5 ms, -60 dB, 0.3, 0.9, 1.5 dB.",
+   "notDone": [
+    "finding 22 item 7 (1.6 LSB in test_shared_dither has no derivation, left as it is)",
+    "finding 22 item 9 (2.0 dB family loudness tolerance, 0.35 against the brief's 0.5)"
+   ]
+  }
+ ],
+ "suites": {
+  "command": "run from the snapshot root with the real tree's interpreter, CUDA_VISIBLE_DEVICES=-1: python -m unittest discover -s tools/audio/listen/tests | -s tools/audio/synth/tests | -s tools/audio/tests (synth/tests: do not add -t tools/audio, it gives 'Start directory is not importable')",
+  "before": {
+   "listen": "22 tests OK",
+   "synth": "54 tests OK",
+   "tests": "93 tests, 2 errors (test_downloads_build.Level.test_target_table needs assets/audio/selection.json, test_fetch.ListsAgree needs assets/audio/downloads.json: snapshot only)"
+  },
+  "after": {
+   "listen": "77 tests OK",
+   "synth": "123 tests OK",
+   "tests": "101 tests, the same 2 errors and no others"
+  },
+  "newTests": "listen +55, synth +69, tests +8 (132 tests) and the existing tests changed as listed under R8",
+  "failedBeforeNewTestsOnOldCode": "run on snap0 plus the new test files: listen 9 failures, synth 7 failures + 13 errors, tests 4 failures + 1 error (+ the same 2 snapshot-only errors); the rest of the new tests are guards that pass on the old code too"
+ },
+ "P1": {
+  "what": "measure.loudness_lufs (unrounded float and note) and measure.true_peak (unrounded) of every wav under assets/audio/render of the real tree (copied once to scratch first, read-only), snapshot against snap0",
+  "files": 173,
+  "differences": 0,
+  "note": "the code of both functions is unchanged apart from the empty-file guard"
+ },
+ "P2": {
+  "what": "analyse + rules.check of snap0 and snap on the rendered wav of the real tree for the 75 sounds of sounds.json that have a renderer. rules.check of the snapshot is given the level record (checks.level) of the real tree's per-sound json",
+  "sanityCheck": "snap0's recomputation equals the checks stored by the real build for all 75 (failed list, lowShare, highShare, centroid): 0 differences",
+  "verdictFlips": [
+   {
+    "id": "alarm_fuel_low",
+    "before": [],
+    "after": [
+     "loop-level-swing"
+    ],
+    "swingBefore": 76.3,
+    "swingAfter": 84.3,
+    "swingMax": 80.0
+   }
+  ],
+  "swingOfTheAlarms": "alarm_fuel_low 76.3 -> 84.3 (limit 80: FAILS now), alarm_hull_critical 9.4 -> 79.1 (limit 80: passes by 0.9 dB), alarm_heat 13.3 -> 77.8 (passes by 2.2 dB), alarm_missile 15.1 -> 15.1. These alarms have silent gaps; the limit of 80 was never reachable before.",
+  "hintDifferences": "none: no rendered sound is limited by the ceiling, so no level hint is produced; the hint is tested on synthetic input only",
+  "largestChanges": {
+   "lowShare": {
+    "largestChange": 0.3825,
+    "id": "pilot_thruster_c",
+    "before": 0.999,
+    "after": 0.6165
+   },
+   "highShare": {
+    "largestChange": 0.1862,
+    "id": "pilot_thruster_b",
+    "before": 0.5474,
+    "after": 0.3612
+   },
+   "centroidHz": {
+    "largestChange": 2944.6,
+    "id": "pilot_thruster_b",
+    "before": 6699.9,
+    "after": 3755.3
+   },
+   "centroidRelative": {
+    "largestChange": 14.1765,
+    "id": "pilot_thruster_c",
+    "before": 95.2,
+    "after": 1444.8
+   },
+   "peakShare": {
+    "largestChange": 0.3636,
+    "id": "impact_hull_light",
+    "before": 0.6898,
+    "after": 0.3262
+   },
+   "levelSwingDb": {
+    "largestChange": 69.7,
+    "id": "alarm_hull_critical",
+    "before": 9.4,
+    "after": 79.1
+   }
+  },
+  "byPath": {
+   "cabin": {
+    "n": 17,
+    "maxLow": 0.1292,
+    "maxHigh": 0.1082
+   },
+   "energy": {
+    "n": 5,
+    "maxLow": 0.1399,
+    "maxHigh": 0.0689
+   },
+   "pilot": {
+    "n": 11,
+    "maxLow": 0.3825,
+    "maxHigh": 0.1862
+   },
+   "radio": {
+    "n": 4,
+    "maxLow": 0.0502,
+    "maxHigh": 0.0002
+   },
+   "sensor": {
+    "n": 5,
+    "maxLow": 0.0006,
+    "maxHigh": 0.0202
+   },
+   "structure": {
+    "n": 33,
+    "maxLow": 0.0266,
+    "maxHigh": 0.0001
+   }
+  },
+  "structureSoundsAfter": {
+   "minLowShare": 0.9409,
+   "maxHighShare": 0.0002
+  },
+  "againstTheTruth": "against a plain whole-file FFT of the mono sum: mean absolute error of lowShare 0.0278 -> 0.0001, highShare 0.0134 -> 0.0001, centroid 153.8 Hz -> 0.0 Hz (largest over the 75 sounds after the repair: 0.0005, 0.0053, 0.35 Hz). The big changes are the sounds whose attack or end lay in the first or last 4096 samples (hits, bursts), which the old spectrum weighted down to nothing, for example pilot_thruster_c (lowShare 0.999 -> 0.617).",
+  "otherChanges": "fundamentalHz changed for 61 of 75 sounds and the peaks list for 69; the fundamentals of all six alarms stay inside the 400 to 1600 Hz of the alarm rule (alarm_heat 520.0 -> 519.9, alarm_shields_down 417.9 -> 418.6, alarm_master_caution 988.1 -> 784.1, the other three unchanged: 1000.0, 660.0, 440.0). Stereo numbers: no change.",
+  "pilotPathSoundsNote": "pilot-path sounds have no band rules, so their big share changes decide nothing; energy-path sounds read energy_share (whole-file FFT) for their rules, only energy-peak reads peakShare, and no energy verdict changed."
+ },
+ "P3": {
+  "what": "for all 75 registered sounds: set_level(render_dry(id)) with the target of the table and mono_sum as the build does it, snapshot against snap0",
+  "floatSamples": "sha256 of the float64 array identical for 75 of 75",
+  "int16Samples": "to_int16 (with the build's dither) identical for 75 of 75, and identical to the samples of the real tree's rendered wav for 75 of 75 (both snap0 and snapshot)",
+  "info": "gainDb identical for all 75 (none is limited); the dict has two new keys, requestedGainDb and monoSum, so checks.level in a rebuilt manifest has them too",
+  "diff": "in set_level only the info dict changes; y = x*10**(gain/20) and the ceiling multiplication are the same lines. A test reproduces the limited samples from requestedGainDb",
+  "downloads": "process_download on 4 inputs (limited sensor one-shot with gain 0.88 applied against 14.67 requested, plain one-shot, loop, long one-shot): same samples and same level record (P3c)"
+ },
+ "P4": {
+  "harness": "scratch/mutrun.py: one copy of tools/audio per mutant, the three suites (listen, synth, tests); a mutant is killed when a test fails or errors that does not fail on the unmutated snapshot. Mutants: the 48 of review-rules-levels/mutate.py, the 61 of review-tests-mutation/mutate.py, the 42 of review-measure-dsp/t12_mutants.py (151 in all, 151 applied to snap0) plus 45 of my own on the new lines (after only). Before = snap0 with the old tests, after = the snapshot with the new tests.",
+  "before": {
+   "mutants": 151,
+   "killed": 60,
+   "survived": 91
+  },
+  "after": {
+   "mutantsApplied": 187,
+   "killed": 185,
+   "survived": 2,
+   "notApplicable": 9,
+   "ofTheOriginal151": "141 killed, 1 survived, 9 not applicable (the code line is gone or rewritten)",
+   "ofTheOwnOnTheNewLines": "44 killed, 1 survived"
+  },
+  "survivorsThatRemain": [
+   "rules-levels 'switch rules for any duration': the gate 'duration <= 0.5' of the switch rules (finding 13, open: left as it is)",
+   "own 'R5 psd: detrend per segment back on': with the mean removed once, a per-segment detrend moves the numbers by less than any test tolerance; no signal of the library separates them"
+  ],
+  "notApplicable": [
+   "levels: peak gain sign, levels: limited flag always False in info, L07 peak mode gain wrong sign (rewritten lines; own equivalents R3 'peak gain sign wrong' and 'limited flag always False' are killed)",
+   "M15 swing windows keep silence, swing floor -90 -> -200 (the line is gone; own 'R1 swing: silent windows dropped again' is killed)",
+   "M18 stereo level diff halved, stereo: levelDiff always 0 (rewritten; own R2 variants killed)",
+   "mean_psd: mean not removed, mean_psd: nperseg 8192 -> 1024 (rewritten; own R5 variants killed)"
+  ],
+  "mutantsKilledOnlyAfterAddingTests": "the 19 that survived the first full run were attacked with extra tests (envelope, loop edge window, seam yardstick, channel mean, more than five channels, hint rules, build hints, DRY_CATEGORIES, energy stereo rules); 17 of them are killed now. The first full run is in out/mut_after.json, the later runs in mut_after2/3/4.json and the merged table in out/mut_merged.json. Only the survivors of the first full run were run again; killed mutants were not run again because only tests were added after it."
+ },
+ "openList": [
+  "3 K-weighting: pyloudnorm's default filter reads 0.04 dB low in measure.py and levels.py (repair changes the bytes of the 27 LUFS sounds). Tests use delta 0.1 dB, and differences cancel.",
+  "4 first half: clips under 0.4 s are repeated to one block (up to 6 dB depending on trailing silence; sensor_proximity_tick and sensor_fire_outside are the two rendered sounds). The tests pin the current tiling ('current rule' comment in the levels test).",
+  "21 (a) last half-filled 400 ms block (no rendered file affected today), (b) the true-peak rule compares the value rounded to 0.01 dB (limit really -0.995), (c) .get defaults 0.0 for peakShare and levelSwingDb pass when missing, (d) the rest of the finding",
+  "6 attackMs of low steady tones and the 10 ms frame table that drops the last n mod 480 samples",
+  "11 no rule for a steady pure tone in a structure loop",
+  "13 cabin switch rules only when duration <= 0.5; switch-too-long cannot fail for a rendered sound (the file length is fixed by the list)",
+  "14 downloaded files never go through rules.check",
+  "15 sensor soft attack and level, 16-bit depth, distinct alarm envelopes, energy needs two channels, stereo scope wider than the spec",
+  "22 item 7 (1.6 LSB without a derivation) and item 9 (2 dB family loudness tolerance, 0.35 against 0.5)",
+  "2 second part: a loop shorter than 0.2 s returns no levelSwingDb (read as pass), under 0.1 s no edge numbers",
+  "alarm_fuel_low now fails loop-level-swing (84.3 dB, swing_max 80). Decide whether its limit should be higher, whether the gaps are wanted, or whether the alarm should be re-rendered; a re-render would change its bytes and the rating hash.",
+  "the real build has to be run once after merging so that checks.* in the manifest get the new numbers (lowShare, highShare, centroid, peakShare, levelSwingDb, new keys requestedGainDb and monoSum in checks.level, the verdict of alarm_fuel_low). The wav bytes will not change (P3).",
+  "docs not edited (not in the brief): SOUND_DESIGN.md section 2 does not list the new rule 'silent' (peak under -80 dBFS), the hint 'level-missed-by-ceiling', or the 0.5 dB number; tools/audio/synth/README.md and tools/audio/README.md should mention requestedGainDb, monoSum, Verdict.hints and the exit code of generated entries (README line 141 already describes gainDb as the applied gain, which is now true for rendered sounds too).",
+  "R7 counts every refused generated entry, not only the three the brief names",
+  "synth/tests/test_synth.py RegistryTest.test_shape_is_checked was made unconditional: its body was skipped as soon as another test had loaded all categories (button_press registered)",
+  "tests/test_downloads_build.Level.test_target_table and tests/test_fetch.ListsAgree error in a snapshot only because assets/audio/selection.json and downloads.json are not there; they were not run against the real assets",
+  "several test docstrings still say 'discover ... -t tools/audio', which fails for synth/tests; the working command is in the suites entry"
+ ],
+ "notVerified": [
+  "Nothing was heard. Every statement is from numbers and signals with known answers.",
+  "R7 against the real list: _generated_sounds of the snapshot read the real assets/audio/generated.json and generated/ (read-only, output in scratch): 8 entries built, 0 problems, so the generated part of a real build would still exit with 0 after the merge. The downloads part of a real run was not run.",
+  "The real build (tools/audio/build.py without --manifest-only) was not run and the real tree was not changed, so the manifest numbers after the change, the new verdict of alarm_fuel_low in a real build, and the exit code of a real run are inferred from P2 and from main() with --manifest-only in the tests.",
+  "CLAP, the describing model and Whisper were not used (CUDA hidden, --device cpu rule): the CLAP and Whisper listen tests are skipped in the suites; the CLAP hint is tested with a fake judge.",
+  "Only 48 kHz and mono or two channels were tested (plus one 6-channel loudness case); 44.1 kHz and 96 kHz were not.",
+  "The level hint was never produced on a real sound (no rendered sound is limited); it is tested on synthetic input.",
+  "The downloads of the real assets were not rebuilt; process_download was compared on four synthetic inputs.",
+  "P2 used the rendered wav files of the real tree as they were when copied; if the other agent re-renders later, the numbers may differ.",
+  "The -80 dBFS limit of the 'silent' rule was checked against the 132 per-sound json files of the real render folder (lowest sample peak -44.4 dBFS), not against every downloaded or generated sound.",
+  "Whether the viewer or the audition page shows checks.hints strings with numbers (until now they were short names) was not looked at."
+ ],
+ "filesChanged": [
+  "tools/audio/build.py",
+  "tools/audio/listen/measure.py",
+  "tools/audio/listen/tests/test_listen.py",
+  "tools/audio/listen/tests/test_measure_guards.py",
+  "tools/audio/synth/levels.py",
+  "tools/audio/synth/rules.py",
+  "tools/audio/synth/tests/test_pilot_energy.py",
+  "tools/audio/synth/tests/test_pilot_mech.py",
+  "tools/audio/synth/tests/test_rules_guards.py",
+  "tools/audio/synth/tests/test_synth.py",
+  "tools/audio/tests/test_build_exit_code.py"
+ ],
+ "appliedToTree": {
+  "date": "2026-11-17",
+  "copied": {
+   "overwrittenWithSnapshotVersion": [
+    "tools/audio/build.py",
+    "tools/audio/listen/measure.py",
+    "tools/audio/listen/tests/test_listen.py",
+    "tools/audio/synth/levels.py",
+    "tools/audio/synth/rules.py",
+    "tools/audio/synth/tests/test_pilot_energy.py",
+    "tools/audio/synth/tests/test_pilot_mech.py",
+    "tools/audio/synth/tests/test_synth.py"
+   ],
+   "newFiles": [
+    "tools/audio/listen/tests/test_measure_guards.py",
+    "tools/audio/synth/tests/test_rules_guards.py",
+    "tools/audio/tests/test_build_exit_code.py"
+   ],
+   "note": "Real files were byte-equal to snap0 except that 7 of the 8 had CRLF line ends on disk (index is LF, .gitattributes eol=lf); with CR removed all 8 equal snap0, so no hand merge was needed. The copies have LF (0 CR bytes checked). sounds.json not copied.",
+   "readme": "tools/audio/README.md: 4 places changed (spectrum description, loop swing, level/silent/stereo/empty-file note, build exit code); file now LF."
+  },
+  "suites": {
+   "tools/audio/tests": "107 tests OK",
+   "tools/audio/listen/tests": "77 tests OK (CLAP/Whisper ones skipped by design)",
+   "tools/audio/synth/tests": "123 tests OK",
+   "tools/sound/tests/test_screen.py": "47 tests, 1 failed: test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order. Not caused by the repairs: it expects 17 manifest ids, the real tree gives 25 because the 8 generated g_* entries of assets/audio/generated.json are now built. Reproduced identically with the old tools/audio code in a scratch copy that has assets/audio/generated; passes in a copy without that folder. Not repaired (outside the brief)."
+  },
+  "fullBuildOnCopy": {
+   "command": "build.py --no-clap --out <copy of assets/audio/render>, CPU, GPU hidden",
+   "exitCode": 1,
+   "whyExit1": "alarm_fuel_low now fails loop-level-swing (84.3 dB, limit 80; was 76.3 and passed). No generated entry was refused or missing, manifest validates. Exit 1 is the repaired R1 reading, not a build fault.",
+   "ids": "187 on both sides, same ids, same order",
+   "hashes": "all 187 hash values equal (no rendered byte changed)",
+   "verdictFlips": [
+    {
+     "id": "alarm_fuel_low",
+     "before": "pass",
+     "after": "fail",
+     "rule": "loop-level-swing",
+     "levelSwingDb": "76.3 -> 84.3 (limit 80)"
+    }
+   ],
+   "numbersNearLimit": [
+    {
+     "id": "alarm_hull_critical",
+     "levelSwingDb": "9.4 -> 79.1",
+     "verdict": "still pass"
+    },
+    {
+     "id": "alarm_heat",
+     "levelSwingDb": "13.3 -> 77.8",
+     "verdict": "still pass"
+    }
+   ],
+   "differences": "112 entries have numbers that moved by more than 0.01 (all spectrum: centroidHz, lowShare, highShare, peakShare), except the 3 alarms above. No hint changed. Largest: pilot_thruster_c lowShare 0.999 -> 0.617, centroid 95 -> 1445 Hz; pilot_hull_a centroid 594 -> 1838 Hz; cabin_ir centroid 2094 -> 3734 Hz; k_land_plate_medium_0 centroid 173 -> 658 Hz. Sounds with long steady tones move by under 3 Hz. Loudness and true peak did not move by more than 0.01 anywhere.",
+   "artifactsOfNoClap": "With --no-clap the copy lacks clap.* fields, the clap-margin hints and the describing-model text (described); these are not effects of the repairs and were left out of the comparison. New keys level.monoSum and level.requestedGainDb appear on every sound."
+  },
+  "notRunOnRealTree": "Full build and --manifest-only were NOT run on the real tree. assets/audio/render/manifest.json and the page keep the old checks until the rules get new numbers.",
+  "notVerified": [
+   "Nothing was heard.",
+   "CLAP and the describing model were not run (--no-clap), so clap-margin hints and described text of the new build are unknown.",
+   "The test_screen failure was traced to the generated entries but test_screen was not changed.",
+   "Only the copy of the render folder was rebuilt; the real manifest still holds the old numbers (alarm_fuel_low pass)."
+  ]
+ }
+}

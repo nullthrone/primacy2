@@ -28,8 +28,8 @@ scale -90 to 0 dB re full scale, so pictures of different files are comparable).
 | DC | largest channel mean, linear. Rule: below 0.001 |
 | RMS, crest | RMS in dBFS; peak minus RMS in dB |
 | LUFS | integrated loudness, ITU-R BS.1770-4 (pyloudnorm; clips under 400 ms are repeated to fill one block, noted in the output) |
-| centroid | spectral centre of gravity of the average power spectrum, Hz |
-| bands, lowShare, highShare | share of power per band (<60, 60-125, 125-250, 250-500, 500-1k, 1-2k, 2-4k, 4-8k, >8k); low is below 500 Hz, high above 4 kHz (fractions in JSON, percent in text). Mean removed first |
+| centroid | spectral centre of gravity of the average power spectrum, Hz. The spectrum is a Welch average over every sample of the file (8192-sample Hann segments, 75 % overlap, zero-padded so that no sample is dropped or weighted down) |
+| bands, lowShare, highShare | share of power per band (<60, 60-125, 125-250, 250-500, 500-1k, 1-2k, 2-4k, 4-8k, >8k); low is below 500 Hz, high above 4 kHz (fractions in JSON, percent in text). Mean removed first; same spectrum as centroid |
 | peaks, fundamental | strongest spectral peaks (Hz, dB relative to the strongest; 6 Hz bin spacing refined by interpolation) and an f0 estimate from harmonic support; `n/a` for noise-like sounds |
 | onset | first time a sample reaches 40 dB below the peak (but not below -70 dBFS). Rule: at most 5 ms |
 | attack | time from 10 % to 90 % of the peak amplitude, 1 ms resolution (not meaningful for speech or noise beds) |
@@ -38,7 +38,7 @@ scale -90 to 0 dB re full scale, so pictures of different files are comparable).
 | env | the 10 ms RMS envelope as 80 characters (`ms/char` says how much time one character covers), ten steps from `.` (45 dB below the loudest frame) to `@` (loudest). Two alarms with different rhythms print different strings |
 | loop seamRatio | step across the wrap (and the second difference, which finds a slope kink) divided by the 99th percentile of the same quantity inside the file. Up to about 1 is seamless; the check fails above 2 |
 | loop edge level / band diff | level and worst band-level difference between the first and the last 50 ms; a level difference above 3 dB fails, the band difference is printed for you to judge |
-| loop swing | max minus min of the 100 ms RMS over the loop, dB; judge yourself whether the repeat would be heard as rhythm |
+| loop swing | max minus min of the 100 ms RMS over the loop, dB; a silent window counts as -120 dB, so a loop that falls silent reads over 90 dB; judge yourself whether the repeat would be heard as rhythm |
 
 `--loop` on a one-shot (an alarm with silence at the end) reports FAIL because the ends differ; it
 is only meant for files that are loops.
@@ -139,10 +139,12 @@ full scale counted as full scale; a loud low sine can trip it); the level comes 
 `DOWNLOAD_TARGETS` (short one-shots by true peak, longer ones and loops by LUFS, ceiling
 -1 dBFS true peak; a long one-shot is an event and does not get the level of a bed, see the table).
 `checks.level.gainDb` is the gain that was applied and `requestedGainDb` the one the target asked
-for; they differ where the ceiling limited it (`limited`). The manifest entry carries the real duration and channels and the same
+for; they differ where the ceiling limited it (`limited`). `set_level` raises on a silent file in peak mode, and the rules (`synth/rules.py`) fail a file whose peak is under -80 dBFS as `silent`. A silent channel gives correlation 0 and a level difference of about 100 dB, so a hard-panned file fails the stereo rules. `measure.py` raises a ValueError on an empty file. The manifest entry carries the real duration and channels and the same
 measured numbers as a rendered sound.
 
 ## Generated sounds in the build (build.py)
+
+`build.py` returns 1 when a generated entry is refused, missing or failed (the message is printed and the other entries are still built), as well as for failed checks and manifest problems.
 
 Sounds made by a model that the owner heard and accepted become library sounds, with source
 `generated`. At present these are eight sounds of MOSS-SoundEffect v2.0 (code and weights
