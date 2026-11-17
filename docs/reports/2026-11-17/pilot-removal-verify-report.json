@@ -1,0 +1,141 @@
+{
+ "report": "pilot-removal-verify",
+ "date": "2026-11-17",
+ "by": "three independent read-only checkers (workflow verify-direction-sample-removal, run wf_580234f5-a5c), one lens each: the repository, the real render tree with the records and the ratings, the documents",
+ "subject": "Commit 78963e8: the eleven direction samples of round 3 (category pilot) removed from tools/audio/sounds.json with their renderers and tests, and taken off the audition page without a build on the real render folder.",
+ "rules": "Read-only. No screen, publish or build on the real tree, no server, no test suites (a browser check that records audio was running).",
+ "result": "No finding of the kind must-fix or should-fix. Seven notes.",
+ "lenses": [
+  {
+   "lens": "code",
+   "findings": [
+    {
+     "severity": "note",
+     "where": "tools/sound/RESULTS6.md:221-224 (added lines)",
+     "claim": "The new paragraph says 'the categories read events6, events5, source, voice'. That names only the first four of the 15 categories of the real manifest. A reader could take it as the full list.",
+     "evidence": "manifest.json categories printed by python: ['events6','events5','source','voice','engines','thrusters','impacts','landing','switches','alarms','drive','cabin','weapons','sensors','radio'] (15)",
+     "suggestedFix": "Write 'the categories begin events6, events5, source, voice' or list all 15."
+    },
+    {
+     "severity": "note",
+     "where": "tools/audio/SOUND_DESIGN.md:342 (and 387-392)",
+     "claim": "Present-tense leftovers in the round-3 history: 'Round 3 puts that to the test with the direction samples.' and 'Nobody has heard them: a blind check ...'. Both are inside a dated round-3 section, so this is only a style/tense matter and not a present-tense claim that still relies on the removed samples. The line 'What he was asked to judge' also still lists the samples and does not say they are gone (that is said at line 400-406).",
+     "evidence": "sed -n 338,343p and 385,392p of tools/audio/SOUND_DESIGN.md",
+     "suggestedFix": "Optional: add 'the samples are gone, see below' at 387, or change the verb at 342 to the past tense."
+    }
+   ],
+   "checked": [
+    "sounds.json diff 7206f44..78963e8: exactly 12 lines removed, 0 added (numstat '0 12'): 1 category line (pilot) and 11 sound lines (pilot_hull_a/b/c, thruster_a/b/c, gear_a/b/c, shield_a/b). Nothing else in the file changed.",
+    "sounds.json parses: 64 sounds, 15 categories. No sound has category 'pilot', path 'pilot' or a family starting with pilot_. Every sound's category is in the category list. Paths: structure 33, cabin 17, energy 5, sensor 5, radio 4.",
+    "git grep over the tracked tree for pilot_hull, pilot_thruster, pilot_gear, pilot_shield, cat_pilot, test_pilot, Richtungsproben and 'Direction samples': hits are only in assets/audio/rounds/round3-5.json (dated hash records), docs/reports/2026-11-15, 2026-11-16 and 2026-11-17 (dated reports), and docs/ROADMAP.md, docs/NEXT.md, tools/audio/SOUND_DESIGN.md, tools/sound/RESULTS6.md and tools/sound/README.md. Those doc hits are all past-tense or history, or describe the removal. None is code, a test, a table or a list that relies on the removed items.",
+    "Quoted \"pilot\" or 'pilot' in tools/, packages/client/src/dev/, scripts/ and assets/: hits are only scripts/e2e.mjs:342 and tools/dev/orient-check.mjs:358 (the game's pilot, not findings), and tools/audio/synth/tests/test_rules_guards.py:47-49 and 186-187 (the fixture and a loop, see below).",
+    "Deleted modules at 7206f44: git grep for cat_pilot or test_pilot over tools, packages, scripts and tests finds imports only in the two deleted test files. cat_pilot_mech defined _add, _smooth_env, _noise_burst, _falling_sine, _plate, _knock_run, _grains, _rms_scale, _frac, _placed, _whine, _teeth and the three hull and three gear renderers. cat_pilot_energy defined shaped_noise, alive, smooth_ramp, put, lead_in, unit_peak, click, falling_thump, bass_throb, shield_a_layers and the five renderers. They imported from cat_impacts, not the other way round. The module-level names are private to those modules and nothing else in the tree uses them.",
+    "The other direction: git grep -i pilot at 7206f44 in synth/rules.py, levels.py, registry.py, __init__.py, build.py, tools/audio/listen, packages/client/src/dev/audition, tools/dev/audition-check.mjs and audition-level.mjs prints nothing. No table held entries for the eleven ids outside the two deleted modules. Today git grep -i pilot over synth, build.py, listen, tools/sound, tools/dev and src/dev has only game-pilot hits plus the test_rules_guards fixture and RESULTS6.",
+    "Registry (run with .venv-audio python; load_categories returned []): len(REGISTRY)=64, spec ids=64, 'reg only' [] and 'spec only' []. No LEVELS key contains 'pilot'.",
+    "Floor in test_synth.py:69 and test_rules_guards.py:464: 64 equals the registry size now (it was 75 = 64+11), so the floor is right. It is tight: it fails if one sound is removed.",
+    "test_rules_guards.spec() comment: rules.py line 102 reads path and category, and only path == 'structure' (133) and 'energy' (145) and the kind and category branches of the rules are special. The synth sources have no special handling of 'pilot'. levels.py target_for is not reached by check(). So 'pilot' as path and category gets the general rules only, as the comment says, and the tests that use it (silent-sound tests, 'a quiet sound is not silent') still mean what their names say. The loops at lines 186-187 that include 'pilot' in cats and paths are still valid as 'a path with no rules of its own'.",
+    "Test counts by grep -c 'def test_': test_pilot_mech 7 plus test_pilot_energy 9 = 16 at 7206f44. Remaining: test_rules_guards.py 74 plus test_synth.py 38 = 112, and these are the only two test files left in tools/audio/synth/tests. 112+16=128 matches the ROADMAP text. Test counts are by grep only, the suites were not run.",
+    "audition page code: no category 'pilot', removed id or 'cat-pilot' in packages/client/src/dev/audition, tools/dev/audition-check.mjs or audition-level.mjs, neither at HEAD nor at 7206f44. The grep for 187/176/75 and for assertions on len(sounds) or categories found no hard-coded 187 or 16 categories. The only '== 16' hits are in tools/sound/tests/test_screen.py (16 chosen candidates of round 4, unrelated).",
+    "build.py, publish.py: no mention of pilot or of any of the eleven ids. publish.py:163 only checks that its own category (source) is in sounds.json. assets/audio/generated.json: walked every 'standsFor' and all are ids of the new sounds.json (no output, no missing).",
+    "Commit scope: 11 files changed, 92 insertions and 1259 deletions, all named in the description. In the commit's blobs the changed files have no CR before or after (counts 0 and 0 in 7206f44 and 78963e8). .gitattributes is '* text=auto eol=lf' and core.autocrlf=true, so CR seen in the working copy is the checkout form, not a change. git status is clean.",
+    "Read-only check of the real manifest (assets/audio/render/manifest.json): 176 sounds, 15 categories, no id or category containing pilot, 64 sounds in sounds.json. This agrees with the 176 claim and with sounds.json's 15 categories.",
+    "docs/NEXT.md: 165-11=154 matches the '154 not pilot_*' statement. The ROADMAP/NEXT/SOUND_DESIGN figures (64, 15, 176, 112, 128) agree with the command outputs above."
+   ],
+   "notVerified": [
+    "The 80 listen tests, 107 tools/audio/tests, 47 test_screen.py and the 112 synth tests actually passing were not run (forbidden). Only 'def test_' counts were checked.",
+    "Contents of the moved folder assets/audio/gen/_kept/round3-pilot (33 files) and the claims that every other file under render is byte-identical, every wav matches its manifest hash, and ratings.json equals round5-ratings.json were not checked (outside this lens, which is the repository code).",
+    "Whether the manifest is 'equal to before in every field and order' apart from the eleven entries was not compared. I had no copy of the old manifest, so only count, categories and absence of pilot were checked.",
+    "No dynamic check that audition-check.mjs, audition-level.mjs or the page still pass against the 176-entry manifest (no server may be started). Only a static grep of the code for pilot, ids and counts."
+   ]
+  },
+  {
+   "lens": "tree",
+   "findings": [
+    {
+     "severity": "note",
+     "where": "docs/reports/2026-11-15/*.json (blind-energy-report, blind-mech-report, page-report, pilot-energy-report, library-report and others)",
+     "claim": "The dated 2026-11-15 reports still name pilot_* ids and cat_pilot_*.py. They are history, not live lists, and nothing reads them. The removal commit did not touch them, which fits how the other dated reports are treated.",
+     "evidence": "git grep -nE \"pilot_(hull|thruster|gear|shield)|cat_pilot|round3-pilot|render/pilot\" outside assets/ printed hits only in docs/NEXT.md, docs/ROADMAP.md (both new text about the removal, plus ROADMAP.md:517 about thruster_c) and the 2026-11-15 reports. No code, test or tool hits.",
+     "suggestedFix": "None needed."
+    },
+    {
+     "severity": "note",
+     "where": "assets/audio/rounds/round3.json, round4.json, round5.json",
+     "claim": "The three round records still list the eleven pilot hashes. This is correct, since they record what was on the page when he rated, and those wav files still exist in gen/_kept. Anyone who compares a record with the page must expect exactly these eleven to be absent.",
+     "evidence": "round5: 165 hashes, 154 on the page with the same hash, 11 absent (exactly the pilot ids), 0 changed. round3 and round4 each list 11 pilot hashes, equal to the round5 ones and to the pre-removal manifest.",
+     "suggestedFix": "None needed."
+    }
+   ],
+   "checked": [
+    "1. Manifest vs manifest_real_before.json: 187 entries before, 176 now. The 176 equal the 187 minus the 11 pilot entries in ids, order and every field, including key order. Categories went from 16 to 15 and equal the old list minus {id: pilot}. Top-level 'version' is equal. No pilot id or category is left. By source: synth 131, download 37, generated 8. By category: engines 12, thrusters 10, impacts 16, landing 10, switches 14, alarms 6, drive 8, cabin 6, weapons 5, sensors 14, radio 4, events5 17, events6 14, source 16, voice 24. Every used category is listed and no listed category is empty.",
+    "2. Every listed wav and png exists. 0 hash mismatches: the first 12 hex digits of my own sha256 equal each 'hash' for all 176. 0 unlisted wav or png under render. assets/audio/render/pilot does not exist.",
+    "3. I hashed all files under render myself and compared with real_before.json: 488 now vs 521 before. Gone: 33, all under pilot/. New: none. Changed: manifest.json only. Modification time on or after 2026-11-17 11:00: manifest.json only, at 12:17:19. The newest other file is render/downloads/n_sls_test_fire.png at 02:34. No wav or png was written by a build on the real tree.",
+    "4. round5.json has 165 hashes: 154 same, 11 absent, 0 changed. The absent ones are exactly the 11 pilot ids. round3.json and round4.json each list 11 pilot hashes equal to round5's and to the pre-removal manifest's. gen/_kept/round3-pilot holds 34 files: 11 wav, 11 png, 11 json and kept.json. That is 33 moved plus kept.json, with no subfolders. All 11 wav hashes equal the recorded ones. All 33 files are byte-identical (full sha256) to the pilot/ files in real_before.json. kept.json lists the 11 ids and hashes, and they equal the manifest-before hashes.",
+    "5. assets/audio/ratings.json and rounds/round5-ratings.json have the same sha256 (b41654a8579903a0732245f8ee44bf91bc1364eefb98d1cad5b760d2f5ef4a58) and are byte-identical by cmp. None of ratings.json or round1 to round5-ratings.json has a pilot_ rating or an ev6_ rating. No rated id is missing from the manifest (ratings.json has 88 ids). The word 'pilot' occurs 0 times in ratings.json. Its 'manifest' field says count 165, which is consistent with round 5.",
+    "6. The 14 events6 entries in the manifest equal the 'manifest' objects in the 14 render/events6/*.json records: same ids, every field equal. They are the same 14 ids with the same hashes as in manifest_real_before.json.",
+    "7. The manifest written on the render copy is byte-identical to the real manifest now (byte comparison True).",
+    "8. Using .venv-audio python with tools/audio and tools/audio/listen on sys.path, build.validate_manifest(manifest, Path('assets/audio/render')) returned [] (no problems). Only the import and that read-only call ran; no build was run.",
+    "9. generated.json, selection.json and downloads.json each contain 0 occurrences of 'pilot'. render/missing.json does not exist. packages/client/src/dev/audition has no mention of pilot. The only 'pilot_' hits under assets/audio are the round records, the voice cast role pilot_m and voice timing files, which are not direction samples.",
+    "10. git status --short printed nothing (clean). git diff --stat 78963e8 -- assets/audio printed nothing, so nothing tracked under assets/audio differs from 78963e8. git ls-files lists 23 tracked files under assets/audio. The commit changes 11 files: docs, the sounds.json category, the 4 deleted synth and test files, test_rules_guards.py, test_synth.py and RESULTS6.md."
+   ],
+   "notVerified": [
+    "Whether the claims about sounds.json (64 sounds, 15 categories), the sixteen deleted tests, nothing else importing the deleted modules, and the floor of 64 in two tests are true. This lens covers only the render tree, records and ratings. The unittest suites were not run, per the rules. The manifest's 131 'synth' entries against 64 sounds in sounds.json look like they come from variants, but I did not check that.",
+    "Whether the documents (ROADMAP, NEXT, SOUND_DESIGN, RESULTS6) state the numbers correctly. I only grepped for leftover references.",
+    "Whether the real page loads and plays after the move. No server or browser was used, as instructed.",
+    "That a later build or screen run on the real tree will reproduce this manifest. No build was run on the real tree, and --manifest-only on a copy gave a byte-identical file, which is the only evidence.",
+    "The authenticity of manifest_real_before.json and real_before.json. They were written by the orchestrator. The manifest agrees with round5.json (154 same hashes, 11 absent) and the file hashes agree with the kept folder, which supports them but does not prove them. I could not independently re-derive the state before the removal."
+   ]
+  },
+  {
+   "lens": "docs",
+   "checked": [
+    "Manifest now: 176 sounds; by source 131 synth, 37 download, 8 generated; by category events6 14, events5 17, source 16 (12 synth + 4 download); categories in manifest are 15 (events6, events5, source, voice first); voice 24.",
+    "Entries outside events6/events5/source: 129, of which 8 generated, so the other 121 = 88 synth + 33 download, matching ROADMAP section 1.",
+    "Manifest has no pilot id or category; render/pilot does not exist.",
+    "round5.json: 165 hashes, 154 equal to manifest, 0 changed, 11 absent and all eleven are pilot_*. 176 + 11 = 187 consistent.",
+    "sounds.json at 7206f44: 75 sounds, 16 categories; at 78963e8: 64 sounds, 15 categories.",
+    "def test_ in tools/audio/synth/tests: 128 at 7206f44, 112 at 78963e8 (16 removed).",
+    "git cat-file -e 7206f44:tools/audio/synth/cat_pilot_mech.py returns 0; at 78963e8 returns 128 (absent). The kept.json note also says 7206f44 is the last render commit.",
+    "assets/audio/gen/_kept/round3-pilot holds 34 files: 33 (11 x wav/png/json) plus kept.json; the folder is git-ignored (.gitignore line 40 assets/audio/gen/).",
+    "assets/audio/ratings.json is byte-identical to rounds/round5-ratings.json (SHA-256 b41654a8...5ef4a58, as RESULTS6 says), and contains no 'pilot'.",
+    "Date claim: pilot entries added to sounds.json in 6f9d569 on 2026-11-15, removed 2026-11-17, matching 'held 75 ... 2026-11-15 to 2026-11-17'.",
+    "Stale-statement search (git grep over tracked *.md outside docs/reports for direction sample, Richtungsprobe, 187, 142, 75 sounds, 16 categories, 128, pilot category/path): every remaining hit is either dated history (ROADMAP round 3 bullet line 188, line 515-516 '187 files' of the repair build, line 954 round 3 ratings; SOUND_DESIGN round 3 section lines 344-404; RESULTS5:162; RESULTS6:214-218 hand-over state; tools/sound/README.md:71 'the direction samples of round 3 met those') or an unrelated number (CREDITS kB sizes, ARCHITECTURE 128 samples). No present-tense (b) statement found.",
+    "'eleven entries carry a description' (NEXT.md:131, ROADMAP:914) is still true: 11 manifest entries have checks.described, none of them pilot_*.",
+    "The code no longer has a 'pilot' path/category except a guard test in test_rules_guards.py (lines 47-49, 186-187) that states it is no longer one; SOUND_DESIGN's 'path mark pilot removed' holds.",
+    "tools/audio/README.md, tools/audio/synth/README.md, tools/sound/README.md (apart from the history sentence), README.md, docs/CLIENT.md, docs/ARCHITECTURE.md: no sentence about library counts/categories/pilot that the removal made false.",
+    "NEXT.md section 1 step 1 now says 176 entries for the record of round 6; consistent with manifest (176) and with the other documents. The 'where kept' (assets/audio/gen/_kept/round3-pilot), '176 entries' and '7206f44' statements agree across NEXT, ROADMAP, SOUND_DESIGN, RESULTS6 and kept.json."
+   ],
+   "findings": [
+    {
+     "severity": "note",
+     "where": "docs/ROADMAP.md line 533 (referenced by docs/NEXT.md:45, 46, ROADMAP.md:30-31, 203, tools/sound/RESULTS6.md:222)",
+     "claim": "\"The direction samples taken off the page\" is not a heading or a titled part of section 2. It is an unlabelled paragraph inside the '### Sound sources' subsection (lines 258-578). Other texts cite it as 'section 2, \"The direction samples taken off the page\"', which resolves only by searching for the phrase. Section 2 itself exists (line 66), and ROADMAP:203 correctly says 'see \"Sound sources\", ...'.",
+     "evidence": "grep -n -E '^#{1,4} ' docs/ROADMAP.md lists no heading with that title; the text sits at line 533, between '### Sound sources' (258) and '### The owner's first play session' (579).",
+     "suggestedFix": "Add a bold run-in title or a '####' heading, or cite it as 'section 2, \"Sound sources\", last part'."
+    },
+    {
+     "severity": "note",
+     "where": "docs/ROADMAP.md lines 548-559 and docs/NEXT.md lines 261-266",
+     "claim": "The description of the removal says 'Checked afterwards: ... under assets/audio/render nothing changed but the manifest and the 33 files that went' and 'every wav on disk has the hash of its entry', but gives no method or baseline (render/ is untracked, so there is no git diff). The text also says the real tree is frozen, yet the real manifest.json was replaced while the owner may have been listening. The text never says whether that swap was safe for an open page, or that he was told. The freeze rule in NEXT.md:35-39 lists only events6 and screen/publish/build, so a manifest swap is neither allowed nor forbidden by the rule as written.",
+     "evidence": "docs/ROADMAP.md:548-556 ('Neither screen.py, publish.py nor build.py ran on the real tree' and 'the manifest written on the copy was put in place of the real one'); no baseline listing or hash file is named anywhere. I could not reproduce the 'nothing else changed' claim from the repository.",
+     "suggestedFix": "Name the baseline (for example the per-file hash listing taken before the move) or mark the claim as the author's script check. State in the freeze rule that a manifest swap by subtraction is the one allowed exception, and what to check before it (that he is not mid-session)."
+    },
+    {
+     "severity": "note",
+     "where": "tools/sound/RESULTS6.md line 216 versus line 221-222",
+     "claim": "Line 216 (hand-over state) lists the categories as 'events6, events5, source, pilot' and line 222 now says 'the categories read events6, events5, source, voice'. Both list only the first four of 15 manifest categories. Read as a full list, the later sentence implies the page has four categories.",
+     "evidence": "Manifest categories: ['events6','events5','source','voice','engines','thrusters','impacts','landing','switches','alarms','drive','cabin','weapons','sensors','radio'] (15).",
+     "suggestedFix": "Write 'the first four categories read ...' or 'the categories begin events6, events5, source, voice'."
+    }
+   ],
+   "notVerified": [
+    "That under assets/audio/render nothing but manifest.json and the 33 moved files changed, and that every file other than those is byte-identical to before: render/ and gen/ are git-ignored and I have no baseline listing. I only confirmed the folder is gone and the manifest matches the current wavs' record in count.",
+    "That every wav on disk has the hash of its manifest entry (the 'every wav ... hash' claim): I did not hash the 176 wavs, to stay light on the CPU and because it is outside the document lens.",
+    "That the manifest is 'the real one minus exactly the eleven entries' in every field and order: no copy of the earlier manifest exists to compare. I confirmed only the 154 unchanged hashes of round5.json, the 14/17/16 category counts and that no pilot entry remains.",
+    "That test counts 112, 80, 107 and 47 pass: not run, by rule. Only the 'def test_' counts (128 to 112) were measured; 'sixteen tests' matches, but test count by def is not the same as collected tests.",
+    "The claim that a --manifest-only build on the real tree would rewrite processed copies of downloads and generated sounds: I only saw that --manifest-only skips the render loop (build.py 895) and then calls assemble_manifest; I did not read assemble_manifest in full.",
+    "The claim that nothing else imported the deleted renderer modules: not checked in this lens (code lens)."
+   ]
+  }
+ ]
+}

@@ -45,7 +45,10 @@ rated and round 6 (another try for the families he rejected) was made. Delete or
   on the real tree (`docs/ROADMAP.md`, section 2, "The direction samples taken off the page"). The
   manifest has 176 entries. Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
   The check that nothing old moved reads: of the 165 hashes of `assets/audio/rounds/round5.json`,
-  the 154 that are not `pilot_*` are unchanged and the eleven `pilot_*` are absent.
+  the 154 that are not `pilot_*` are unchanged and the eleven `pilot_*` are absent. That was the
+  one change of the real tree during the freeze, made because he had not started rating and no
+  file he is asked to rate was written. A page that was open before lists the samples until it is
+  loaded again.
 - Disk on 2026-11-17: 526 GB free of 1.9 TB (stop line of this work 200 GB; his condition: at
   least 10 % free). `.venv-sound` about 16 GB, the MOSS model 11 GB under
   `assets/audio/gen/moss/model`, the Stable Audio weights 4.5 GB under `.venv-sound/sa3/weights`,
@@ -103,7 +106,9 @@ first thruster candidate is a burst though its prompt asks for a single shot; th
 candidate has clicks at its end; the second is bass-heavy; four of the thirteen prompts have no
 candidate on the page. He was also told that MOSS has failed the shield twice, shown the plan for
 the runtime audio (section 3) in a few sentences, and asked in one line whether the eleven direction
-samples of round 3 can go. He said yes the same day, and they were taken off the page.
+samples of round 3 can go. He said yes the same day, and they were taken off the page. The page
+check that followed (48 of 48, no fault from the page) found one click inside the file of the third
+shield candidate, at 0.26 s, beside the clicks of the first; he was told that as well.
 
 What nobody could verify: how any of it sounds, and whether the pick rule finds what he means by
 "übersteuert". See `RESULTS6.md`, "What could not be judged".

@@ -206,11 +206,19 @@ Own vite server on port 5420 (`AUDITION_RATINGS_FILE` an empty file in a new fol
 owner's file), stopped afterwards; the port has no listener. `AUDITION_CAPTURE_SCENES=none`, `AUDITION_CAPTURE_ONLY` the 14
 ids plus test_edges and test_step.
 
-- `audition-check.mjs` (run by the select step on the set with the tick as third shield pick; not run again for
-  shield_tight_1 s16, which went through the same publish step): 48 passed, 0 failed, no console errors. 0 faults caused
+- `audition-check.mjs` (run by the select step on the set with the tick as third shield pick; run again for the set
+  with shield_tight_1 s16 only later, see the next point): 48 passed, 0 failed, no console errors. 0 faults caused
   by the page; 14 faults in a sound file
   itself: 10 in ev6_3_shield_tight_1_moss_p1s11 (clicks of size 0.014 to 0.061 at 0.19 to 0.25 s, in Stereo, Mono and
   Headphones) and 4 in test_step, which holds a step on purpose. They are listed, not page faults.
+- `audition-check.mjs` again on 2026-11-17, by the orchestrator, for the 14 as they stand (shield_tight_1 s16 as third
+  shield pick) and after the direction samples of round 3 went (176 entries; own server on port 5460 with a scratch
+  ratings file, stopped afterwards; `AUDITION_CAPTURE_SCENES=none`, `AUDITION_CAPTURE_ONLY` the 14 ids and the two test
+  files): 48 passed, 0 failed, no console errors. 0 faults caused by the page; 18 faults in a sound file itself: 10 in
+  ev6_3_shield_tight_1_moss_p1s11 (as above), 4 in ev6_3_shield_tight_3_moss_p1s16 (one click of size 0.047 to 0.048 at
+  0.25 to 0.26 s, in Stereo and Mono; none listed for Headphones) and 4 in test_step. So the pick that replaced the tick has
+  a click of its own. Like the first pick it comes from shield_tight_1, the prompt that asks for a brief bright crackle
+  of sparks. Nobody has heard whether it sounds like that crackle or like a fault.
 - The manifest has 187 entries: the 173 before and the 14 new. Every one of the 173 ids is still there with the same
   hash and in the same relative order; the new entries are exactly the 14 picks, all category `events6`, and the
   categories read events6, events5, source, pilot. The 165 hashes of `assets/audio/rounds/round5.json` are unchanged.
@@ -220,7 +228,8 @@ ids plus test_edges and test_step.
   b41654a8579903a0732245f8ee44bf91bc1364eefb98d1cad5b760d2f5ef4a58).
 - After the hand-over, on 2026-11-17: the owner said the eleven direction samples of round 3 (category `pilot`) can go,
   and they were taken off the page without a build on the real tree (`docs/ROADMAP.md`, section 2, "The direction
-  samples taken off the page"). The manifest has 176 entries and the categories read events6, events5, source, voice.
+  samples taken off the page"). The manifest has 176 entries in 15 categories, the first four being events6, events5,
+  source and voice.
   The 176 entries that stayed are equal to before in every field and in their order, the 14 of this round among them,
   and `assets/audio/ratings.json` is still byte-identical to the record of round 5.
 - The tests of `tools/sound`: 47 tests (43 before, 4 new for the setting), 47 pass. One failed when the select step ran

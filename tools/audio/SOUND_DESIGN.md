@@ -672,7 +672,8 @@ them overdriven. The first hull pick is over both numbers as well, at -34 LUFS, 
 hull hit of the same prompt. The first thruster pick is a burst of about ten pulses though its
 prompt asks for a single shot. The first shield
 pick has clicks at its end, which may be the crackle that was asked for or the broken cable he
-rejected; the second is pressed and has 92 % of its energy under 125 Hz, the kind he called a little
+rejected; the third, from the same prompt, has one click at 0.26 s (found by the page check on
+2026-11-17, after the hand-over, and told to him then); the second is pressed and has 92 % of its energy under 125 Hz, the kind he called a little
 too bass-heavy in round 4. Three fold picks sit 0.2 to 1.0 dB under the level threshold of the pick
 rule. Whether the rule finds what he means by "übersteuert" is shown only by his ratings.
 

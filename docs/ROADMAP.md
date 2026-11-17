@@ -55,9 +55,11 @@ of the downloads and the build (`tools/audio/tests`); the screening of sound can
 all 47 pass (`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
 `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`); the scoring of the voice
 comparison is in `tools/voice/tests` and was not counted. The browser check of the audition page
-(`tools/dev/audition-check.mjs`, last run by the select step of round 6 on 2026-11-17) passed 48
-steps in a run limited to the 14 candidates of round 6 and two test files, with no scenes; one of
-the 14 was replaced afterwards and the check was not repeated for it. The last full run, on
+(`tools/dev/audition-check.mjs`), last run on 2026-11-17 after the direction samples went, against
+the page with its 176 sounds, passed 48 steps in a run limited to the 14 candidates of round 6 as
+they stand (the replaced third shield pick among them) and two test files, with no scenes: no fault
+comes from the page, and clicks inside two sound files are listed (section 2, "The direction
+samples taken off the page"). The last full run, on
 2026-11-15, passed 52 steps, among them a recording of everything the page plays with no click added
 by the page; the check has changed since and was not run in full again (see section 4). The number
 of steps depends on what a run records: 41 without the recording, 47 or 48 with the recording
@@ -551,8 +553,9 @@ rates. They went at once all the same, by subtraction, so that no build ran on t
   each sample) was moved to `assets/audio/gen/_kept/round3-pilot` (ignored by git, with a
   `kept.json`), and the manifest written on the copy was put in place of the real one. Neither
   `screen.py`, `publish.py` nor `build.py` ran on the real tree.
-- Checked afterwards: the manifest has 176 entries, every wav on disk has the hash of its entry and
-  no wav is left outside the manifest; under `assets/audio/render` nothing changed but the manifest
+- Checked afterwards, by the sha256 of every file under `assets/audio/render` taken before and
+  after (521 files, then 488) and by reading the manifest against the files: the manifest has 176
+  entries, every wav on disk has the hash of its entry and no wav is left outside the manifest; under `assets/audio/render` nothing changed but the manifest
   and the 33 files that went; the 14 entries of round 6 are as before; of the 165 hashes of
   `assets/audio/rounds/round5.json`, 154 are on the page unchanged and the eleven absent ones are
   the `pilot_*`; no rating was ever saved on a direction sample, and `assets/audio/ratings.json` is
@@ -560,7 +563,34 @@ rates. They went at once all the same, by subtraction, so that no build ran on t
 
 The records of rounds 3 to 5 still list the eleven hashes: they say what was on the page then. The
 check of the freeze reads accordingly from now on: the 154 hashes of `round5.json` that are not
-`pilot_*` are unchanged, and the eleven `pilot_*` are absent.
+`pilot_*` are unchanged, and the eleven `pilot_*` are absent. This was the one change of the real
+tree during the freeze. It was made because he had not started rating (looked at right before), no
+file he is asked to rate was written, and a rating hangs on the id and the hash of a sound, which
+did not change. A page that was open before 12:17 that day lists the eleven samples until it is
+loaded again and cannot play them.
+
+The independent check (`docs/reports/2026-11-17/pilot-removal-verify-report.json`: three read-only
+checkers, one each for the repository, for the real tree with the records and the ratings, and for
+the documents) found nothing to repair and left seven notes. It hashed every file again with the
+same result; the only file under `assets/audio/render` written after 11:00 that day is
+`manifest.json` (12:17), so no build wrote there; `validate_manifest` of `build.py` finds no
+problem in the real manifest; the 14 entries of round 6 equal their records in
+`render/events6`; no code, test, table or list names the samples any more, and nothing else had
+used what the deleted modules defined. The checkers ran no test suite and loaded no page. Two of
+the notes went into this text (how the files were compared, what an open page sees).
+
+The tests after the change: 112 of the synthesis, 80 of the listening tools, 107 of
+`tools/audio/tests`, 47 of 47 in `test_screen.py`. The page itself:
+`tools/dev/audition-check.mjs` against a server of the orchestrator's own (port 5460, ratings in a
+scratch file, stopped afterwards) passed 48 steps of 48, with the recording limited to the 14
+candidates of round 6 and the two test files and no scenes. No fault comes from the page. Inside
+sound files, where the check only lists: ten clicks in the first shield pick, as in the check of the
+select step, and, new, four in the third shield pick that replaced the tick
+(`ev6_3_shield_tight_3_moss_p1s16`: one click of size 0.05 at 0.25 to 0.26 s, seen in Stereo and in
+Mono). Both picks come from the prompt that asks for a brief crackle of sparks; whether he hears
+the click as that crackle or as a fault is his to say, and he was told. A first run of the check
+failed one control step, 47 of 48: the orchestrator had left the two test files out of the list of
+sounds to record, a fault of the call and not of the page.
 
 What follows, the orchestrator's plan and not his decision. When he has rated round 6, the round is
 recorded the way rounds 4 and 5 were (`assets/audio/rounds/round6.json` and `round6-ratings.json`).
