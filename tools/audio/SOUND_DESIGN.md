@@ -586,8 +586,8 @@ noise-like (share of the energy above 2 kHz in their loud frames 0.037 to 0.16; 
 accepted in round 4 have 0.003 and 0.009) and their raw model output is pressed against full scale
 (loudest 50 ms at -4.4 to -8.2 dBFS). Files that are noise-like and not pressed, or pressed and low,
 were never called overdriven. The eight MOSS candidates he has accepted in rounds 4 and 5 are in the
-library as generated sounds (`assets/audio/generated.json`, ids `g_*`, section 3 of the README of
-`tools/audio`): hull hit light, medium and two heavy, three valve pulses, the gear. Their levels are
+library as generated sounds (`assets/audio/generated.json`, ids `g_*`; `tools/audio/README.md`,
+"Generated sounds in the build"): hull hit light, medium and two heavy, three valve pulses, the gear. Their levels are
 provisional, and nobody has heard them as built.
 
 ### Round 6, 2026-11-17 (fourteen candidates; waiting for his ratings)
