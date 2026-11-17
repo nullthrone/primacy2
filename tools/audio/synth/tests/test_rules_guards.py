@@ -44,6 +44,8 @@ def col(x):
 
 
 def spec(**kw):
+    # "pilot" is no path and no category of sounds.json any more (it marked the direction samples of round 3,
+    # removed on 2026-11-17). Here it stands for a path and a category that have no rules of their own.
     d = {"kind": "oneshot", "path": "pilot", "category": "pilot", "duration": 1.0, "channels": 1}
     d.update(kw)
     return d
@@ -459,7 +461,7 @@ class LevelsCeilingAndTable(unittest.TestCase):
     def test_every_rendered_sound_is_under_the_ceiling_measured_independently(self):
         errors = synth.load_categories()   # every cat_* module, so that all sounds are registered
         self.assertEqual(errors, [])
-        self.assertGreaterEqual(len(synth.REGISTRY), 75)
+        self.assertGreaterEqual(len(synth.REGISTRY), 64)
         for sid in sorted(synth.REGISTRY):
             x, _ = synth.render(sid)
             pcm = synth.to_int16(x, sid).astype(np.float64) / 32768.0

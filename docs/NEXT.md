@@ -40,6 +40,12 @@ rated and round 6 (another try for the families he rejected) was made. Delete or
   Look first whether he has rated: `assets/audio/ratings.json` is byte-identical to
   `assets/audio/rounds/round5-ratings.json` as long as he has not. A plain `screen.py` or
   `publish.py` without arguments still means round 4 and is not run on the real tree.
+- The eleven direction samples of round 3 (category `pilot`) are gone since 2026-11-17, on his word:
+  out of `tools/audio/sounds.json` with their renderers and tests, and off the page without a build
+  on the real tree (`docs/ROADMAP.md`, section 2, "The direction samples taken off the page"). The
+  manifest has 176 entries. Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
+  The check that nothing old moved reads: of the 165 hashes of `assets/audio/rounds/round5.json`,
+  the 154 that are not `pilot_*` are unchanged and the eleven `pilot_*` are absent.
 - Disk on 2026-11-17: 526 GB free of 1.9 TB (stop line of this work 200 GB; his condition: at
   least 10 % free). `.venv-sound` about 16 GB, the MOSS model 11 GB under
   `assets/audio/gen/moss/model`, the Stable Audio weights 4.5 GB under `.venv-sound/sa3/weights`,
@@ -97,7 +103,7 @@ first thruster candidate is a burst though its prompt asks for a single shot; th
 candidate has clicks at its end; the second is bass-heavy; four of the thirteen prompts have no
 candidate on the page. He was also told that MOSS has failed the shield twice, shown the plan for
 the runtime audio (section 3) in a few sentences, and asked in one line whether the eleven direction
-samples of round 3 can go.
+samples of round 3 can go. He said yes the same day, and they were taken off the page.
 
 What nobody could verify: how any of it sounds, and whether the pick rule finds what he means by
 "übersteuert". See `RESULTS6.md`, "What could not be judged".
@@ -108,7 +114,7 @@ When he has rated round 6:
    `assets/audio/rounds/round5-ratings.json`. Record the round the way rounds 4 and 5 were recorded:
    copy the saved ratings to `assets/audio/rounds/round6-ratings.json` and write
    `assets/audio/rounds/round6.json` (round, date, note, and the file hash of every sound on the
-   page as he heard it, 187 entries, same form as `round5.json`). Keep the files as he heard them in
+   page as he heard it, 176 entries, same form as `round5.json`). Keep the files as he heard them in
    `assets/audio/gen/_kept/round6` (`kept.json` of round 5 shows the form). Only then may screen,
    publish or build run again on the real tree, and never write `assets/audio/ratings.json` by hand.
    Take every count from the output of a script.
@@ -222,11 +228,6 @@ Also open:
   response, dead zone, the default layout, the chords on Y).
 - Recordings made at home (`tools/audio/RECORDINGS.md`), if he makes them: raw material.
 - Things outside the ship as real sound: "not for now". Do not raise it again unasked.
-- The eleven direction samples of round 3 (category `pilot`, "Richtungsproben (Runde 3)") are still
-  on the page, none rated; he liked none of them. The earlier plan was to remove the category and
-  its modules after his choice. He made none, so they stayed until round 4 was recorded; that has
-  happened, and he was asked in one line on 2026-11-17 whether they can go. Remove them with the
-  next build after his yes (after round 6 is recorded).
 
 Not to be started without his word:
 
@@ -257,6 +258,12 @@ Round 6 and the repairs (2026-11-17):
   the described text from the entries.
 - On this German Windows `netstat` prints ABHÖREN, not LISTENING: look for the port, not for the
   word, when checking that a server of your own is gone.
+- Something can be taken off the page while the real render folder is frozen, without a build
+  there: remove its folder on a copy, let `build.py --manifest-only --out <copy>` write the
+  manifest, check that it is the real one minus exactly those entries, then move the folder away
+  on the real tree and put that manifest in place. A `--manifest-only` build on the real tree
+  would write every processed copy of a download and of a generated sound again while he may be
+  listening.
 
 Round 5 (2026-11-16):
 

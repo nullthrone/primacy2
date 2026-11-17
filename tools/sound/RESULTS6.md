@@ -218,6 +218,11 @@ ids plus test_edges and test_step.
   no hash of the other 186 changed, their order is the same, and every wav on disk has the hash of its entry.
   `assets/audio/ratings.json` is byte-identical to `assets/audio/rounds/round5-ratings.json` (SHA-256
   b41654a8579903a0732245f8ee44bf91bc1364eefb98d1cad5b760d2f5ef4a58).
+- After the hand-over, on 2026-11-17: the owner said the eleven direction samples of round 3 (category `pilot`) can go,
+  and they were taken off the page without a build on the real tree (`docs/ROADMAP.md`, section 2, "The direction
+  samples taken off the page"). The manifest has 176 entries and the categories read events6, events5, source, voice.
+  The 176 entries that stayed are equal to before in every field and in their order, the 14 of this round among them,
+  and `assets/audio/ratings.json` is still byte-identical to the record of round 5.
 - The tests of `tools/sound`: 47 tests (43 before, 4 new for the setting), 47 pass. One failed when the select step ran
   them, and not because of this round: `test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order`
   expected 17 entries in the manifest of its fake tree and found 25, because `tools/audio/build.py` added the 8 library

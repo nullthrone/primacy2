@@ -66,7 +66,7 @@ class LevelTest(unittest.TestCase):
     def test_every_rendered_sound_is_under_the_ceiling(self):
         # all categories are loaded: the registry holds only what the test files happened to import
         self.assertEqual(synth.load_categories(), [])
-        self.assertGreaterEqual(len(synth.REGISTRY), 75)
+        self.assertGreaterEqual(len(synth.REGISTRY), 64)
         for sid in sorted(synth.REGISTRY):
             x, _ = synth.render(sid)
             pcm = synth.to_int16(x, sid).astype(np.float64) / 32768.0

@@ -27,16 +27,18 @@ and a binding screen. No real controller has been used yet.
 
 Built on 2026-11-14 beside the game and not yet in it: the sound library and the audition page on
 which the owner listens and rates. On 2026-11-17 its manifest (`assets/audio/render/manifest.json`)
-lists 187 sounds. Fourteen of them are the candidates of round 6, the category `events6`, seventeen
+lists 176 sounds (187 until that day, when the eleven direction samples of round 3 were taken off
+the page on the owner's word; see section 2, "The direction samples taken off the page"). Fourteen
+of them are the candidates of round 6, the category `events6`, seventeen
 the event sounds of round 5, the category `events5`, and sixteen the candidates of round 4, the
 category `source` (see section 2). Eight are the first generated sounds of the library itself: MOSS
 candidates he accepted in rounds 4 and 5, built as processed copies with their origin and licence
-(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 132
-are 99 `synth` (rendered by scripts: 75 sounds, eleven of them direction samples for the owner to
-choose between, and 24 voice samples, the twenty of the speech comparison and four countdown
-samples) and 33 `download` (files with a licence list). The candidates of rounds 5 and 6 are all
+(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 121
+are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty of the speech
+comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
+of rounds 5 and 6 are all
 `synth` (made by MOSS), and the sixteen of round 4 carry the same field: twelve `synth` (made by the
-two models) and four `download` (the recordings), so the whole manifest reads 142 `synth`, 37
+two models) and four `download` (the recordings), so the whole manifest reads 131 `synth`, 37
 `download` and 8 `generated`. The game itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
@@ -47,7 +49,8 @@ he rejected, which is the first category of the page and waits for his ratings.
 Tests. `npx vitest run` passed 807 tests in 47 files on 2026-11-16, with 2 more marked as expected
 failures on purpose (see section 4); it was not run again on 2026-11-17, when nothing under
 `packages` or `scripts` changed. The audio tools have tests of their own in Python, run on
-2026-11-17: `unittest discover` passes 80 tests of the listening tools, 128 of the synthesis and 107
+2026-11-17: `unittest discover` passes 80 tests of the listening tools, 112 of the synthesis (128
+until the sixteen tests of the direction samples went with them) and 107
 of the downloads and the build (`tools/audio/tests`); the screening of sound candidates has 47, and
 all 47 pass (`tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
 `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`); the scoring of the voice
@@ -149,8 +152,8 @@ The sound library, all of it outside the game's runtime:
   loudness, spectrum, envelope, loop seam, two channels, a spectrogram picture), compares it with
   descriptions (CLAP), transcribes speech (Whisper) and has it described (Qwen2-Audio).
 - `tools/audio/synth` and `tools/audio/build.py`: the synthesis library and one script per
-  category; `tools/audio/sounds.json` is the list of the 75 sounds (64 before the direction samples
-  of round 3) and what each is meant to be. The build renders them, checks every rule and writes
+  category; `tools/audio/sounds.json` is the list of the 64 sounds and what each is meant to be (it
+  held 75 while the eleven direction samples of round 3 were in it, 2026-11-15 to 2026-11-17). The build renders them, checks every rule and writes
   the manifest. Rendered files are not in git; the build is deterministic and makes them again.
 - `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
   from kenney.nl and NASA recordings without voices (25 entries, about 160 MB, not in git,
@@ -195,7 +198,9 @@ measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
   Of the direction samples he rated none and chose none: "we are slowly going in the right
   direction, but everything still sounds too artificial and boring. Are there no better local
   models for generating audio?" Asked which sample came nearest, he said he liked none of it and
-  can only describe it badly. So no direction became a rule and nothing was rendered anew. He is
+  can only describe it badly. So no direction became a rule and nothing was rendered anew. The
+  eleven samples stayed on the page until 2026-11-17, when he said they can go (see "Sound
+  sources", "The direction samples taken off the page"). He is
   no longer asked to describe sounds: he gets candidates and accepts or rejects them. Over three
   rounds the ratings show one pattern: long beds pass and short events fail, from every source
   (rendered by formula or recorded; the one short event he approved was a recorded low boom).
@@ -455,9 +460,10 @@ New in the screening: a family may carry `notSaturatedNoise`. A kept file that i
 0.03 or more) stays in the pool and is not picked. It kept 14 of the 43 kept files of the shield and
 fold families from being picked. Nine picks were skipped by hand (`tools/sound/skips6.json`): eight
 for plain faults, and one shield tick because it measures like two shields he has already rated
-wrong (below). On the page: 14 of 14 slots, all one channel. The manifest has 187
-entries; the 173 of before are unchanged in id, hash and order, and the 165 hashes of the record of
-round 5 are unchanged. He is asked only for Passt / Falsch.
+wrong (below). On the page: 14 of 14 slots, all one channel. The manifest had 187
+entries when the round was shown; the 173 of before were unchanged in id, hash and order, and the
+165 hashes of the record of round 5 were unchanged (it has 176 since the direction samples went;
+see below). He is asked only for Passt / Falsch.
 
 What was measured about the 14 and not heard, and told to him with the hand-over. Four of the
 thirteen prompts have no candidate on the page: the hum prompt of the fold jump gave only steady low
@@ -523,6 +529,38 @@ that cannot fail (13) and smaller wrong numbers (21). The real manifest was asse
 second publish of round 6, which measured the downloads and the generated sounds anew (41 entries:
 spectrum figures and new level keys, no pass flag changed). The entries of the rendered sounds keep
 the checks of their last build, from before the repairs, until the next full build.
+
+The direction samples taken off the page (2026-11-17). With the hand-over of round 6 he was asked
+in one line whether the eleven direction samples of round 3 (category `pilot`, "Richtungsproben
+(Runde 3)": hull hit, thruster pulse and landing gear in three variants each, shield hit in two) can
+go; he had rated none and chosen none. He said yes the same day. The plan had been to remove them
+with the next build after round 6 is recorded, because the real render folder is frozen while he
+rates. They went at once all the same, by subtraction, so that no build ran on the real tree:
+
+- In the repository: the category and the eleven entries are out of `tools/audio/sounds.json` (64
+  sounds, 15 categories), and their renderers (`tools/audio/synth/cat_pilot_mech.py`,
+  `cat_pilot_energy.py`) and tests (`test_pilot_mech.py`, `test_pilot_energy.py`, sixteen tests) are
+  deleted. Nothing else imported them. Commit 7206f44 is the last one that can render them.
+- On a copy of `assets/audio/render` without its folder `pilot`,
+  `tools/audio/build.py --manifest-only --out <copy>` wrote the manifest (exit 0, it validates). It
+  is the real manifest minus the eleven entries and the category: the other 176 entries are equal
+  in every field and in their order, and no other file of the copy changed (the build writes the
+  processed copies of the downloads and the generated sounds again, with the same bytes).
+- On the real tree: `assets/audio/ratings.json` was compared with the record of round 5 first (he
+  had not started rating). The folder `render/pilot` (33 files: wav, spectrogram and build record of
+  each sample) was moved to `assets/audio/gen/_kept/round3-pilot` (ignored by git, with a
+  `kept.json`), and the manifest written on the copy was put in place of the real one. Neither
+  `screen.py`, `publish.py` nor `build.py` ran on the real tree.
+- Checked afterwards: the manifest has 176 entries, every wav on disk has the hash of its entry and
+  no wav is left outside the manifest; under `assets/audio/render` nothing changed but the manifest
+  and the 33 files that went; the 14 entries of round 6 are as before; of the 165 hashes of
+  `assets/audio/rounds/round5.json`, 154 are on the page unchanged and the eleven absent ones are
+  the `pilot_*`; no rating was ever saved on a direction sample, and `assets/audio/ratings.json` is
+  byte-identical to `assets/audio/rounds/round5-ratings.json` before and after.
+
+The records of rounds 3 to 5 still list the eleven hashes: they say what was on the page then. The
+check of the freeze reads accordingly from now on: the 154 hashes of `round5.json` that are not
+`pilot_*` are unchanged, and the eleven `pilot_*` are absent.
 
 What follows, the orchestrator's plan and not his decision. When he has rated round 6, the round is
 recorded the way rounds 4 and 5 were (`assets/audio/rounds/round6.json` and `round6-ratings.json`).
@@ -934,7 +972,7 @@ Never verified:
     between 17 and 20 dB at the cap, and one kept file lies 1.8 dB from the rule.
   - The loudness matching of events under about 0.5 s rests on a convention: BS.1770 measures them
     in one or two 400 ms blocks, and a 1.5 ms ramp moved one value by 2.5 dB.
-  - The capture part of `tools/dev/audition-check.mjs` for all sounds (187 on 2026-11-17) and the
+  - The capture part of `tools/dev/audition-check.mjs` for all sounds (176 on 2026-11-17) and the
     four scenes was not run after the publishes of rounds 5 and 6 (only the candidates of the round
     and two test files, 48 steps each time).
 - Round 5, the event sounds (2026-11-16; `tools/sound/RESULTS5.md`, "What could not be judged", and
@@ -1114,7 +1152,7 @@ Other notes:
   `.venv-audio/Scripts/python.exe tools/voice/publish.py` (and taken off with `--remove`).
 - A sound without a fixed `place` is put at a new random direction on every play of the library
   page, and behind the listener it is made duller. Samples that are to be compared need a fixed
-  place: the voice samples and the direction samples have one. `node tools/dev/audition-level.mjs
+  place: the voice samples have one (as the direction samples had). `node tools/dev/audition-level.mjs
   id,id` (against a dev server of your own) measures what single sounds are at the page's
   output: peak, level of the sounding parts, whether the overload lamp lit. Measured so on
   2026-11-15, the five models of a voice line leave the page within about 2 dB of each other,

@@ -22,8 +22,10 @@ line:
   "like under water" (debris). Measured, these have 50 to 83 % of their energy in the single octave
   from 125 to 250 Hz, nothing above 1 kHz in the attack and nothing below 60 Hz. An event has an
   attack that says what it is made of, a body that has weight, and a tail. What exactly the three
-  should be is on trial in round 3 (the direction samples, category `pilot`): metal as it is,
-  larger than life as a film does it, or dark with real weight.
+  should be was put to him in round 3 with eleven direction samples (metal as it is, larger than
+  life as a film does it, or dark with real weight). He chose none; the samples are gone since
+  2026-11-17 (section 4, round 3), and the answer comes from what he accepts of the candidates
+  since round 4.
 - **Energy has a bass throb.** "Energetic must always have a bass throb as well" (round 2, on the
   reworked shield hits, which he found more energetic than before but "like someone knocking on a
   taut foil"). A discharge is bright on top and throbs underneath, with nothing thin in between.
@@ -58,9 +60,6 @@ Everything that is heard still reaches the ear by a path. Each sound belongs to 
   out. Still hard science fiction: no "pew", no synthesiser sweep. Since round 2 the low body is
   not an extra but half of the sound: a bass throb that is there from the first moment and
   outlasts the crackle.
-- **pilot**: not a path of the game but the mark of a direction sample (category `pilot`): two or
-  three deliberately different answers to the same sound, for the owner to choose between. The
-  chosen one becomes the rule for its kind and the samples are removed.
 
 ### Space
 
@@ -146,10 +145,9 @@ full scale, 10 to 20 dB above the rendered set, several cut hard at the end. Now
 - A file whose source is clipped carries that in its entry.
 
 By path (the rules for structure describe the beds; the one-shots of the structure path and the
-energy path get new numbers from the direction chosen in round 3, and until then the code in
-`synth/rules.py` still checks them the old way):
+energy path get new numbers from what he has accepted in rounds 4 to 6, once round 6 is rated, and
+until then the code in `synth/rules.py` still checks them the old way):
 
-- pilot: only the rules for all sounds above. Each sample has its own targets in its brief.
 - structure: at least 85 % of the energy below 500 Hz, at most 2 % above 4 kHz.
 - structure, so that the sound survives headphones and small loudspeakers that play no deep bass
   (a phone with a controller is a way to play): at least 35 % of the energy between 125 Hz and
@@ -400,8 +398,12 @@ What he was asked to judge, at the top of the audition page:
   given on an older file.
 
 The plan had been that his choice among the direction samples becomes the rule for one-shots of
-the structure and energy paths. He made no choice (see above); the samples stay on the page
-until the question of how the sounds are made is settled.
+the structure and energy paths. He made no choice (see above); the samples stayed on the page
+until 2026-11-17, when he was asked whether they can go and said yes. The category `pilot`, its
+eleven entries in `sounds.json`, the path mark `pilot` and the renderers are removed. The rendered
+files are kept in `assets/audio/gen/_kept/round3-pilot` (ignored by git), and commit 7206f44 is the
+last one that can render them. How they were taken off the page while it was frozen for round 6:
+`docs/ROADMAP.md`, section 2.
 
 ### Round 4, 2026-11-16 (sixteen candidates, rated the same day)
 
@@ -657,8 +659,10 @@ peak is -9.0 dBFS and the overload lamp did not light.
 
 Checks. The independent check (`docs/reports/2026-11-17/sound6-verify-report.json`) found nothing old
 moved and the pick rule reproduced on all 43 files; what it found wrong was settled before the round
-was shown (`docs/ROADMAP.md`, section 2). The manifest has 187 entries; the 165 hashes of the record
-of round 5 are unchanged.
+was shown (`docs/ROADMAP.md`, section 2). The manifest had 187 entries when the round was shown, and
+the 165 hashes of the record of round 5 were unchanged. It has 176 since the direction samples of
+round 3 went on 2026-11-17: the 176 entries that stayed are equal to before, the 14 of this round
+among them.
 
 Not established, and told to him with the hand-over: how any of the 14 sounds; nobody has heard one.
 thruster_mighty has no pick rule, because every kept file of it is pressed; two of its three picks
