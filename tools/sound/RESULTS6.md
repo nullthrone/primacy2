@@ -37,6 +37,13 @@ frames 0.039 to 0.16, against 0.003 and 0.009 for the two shields he accepted) a
 against full scale (loudest 50 ms at -4.4 to -8.2 dBFS). Hence the new setting `notSaturatedNoise` (below). The rule
 rests on four rejected and a handful of accepted files; it is a working rule, not a law.
 
+Its limit, measured by the orchestrator on 2026-11-17 on the raw cuts of every rated MOSS candidate of rounds 4 and 5
+(same definition as `screen.py`): six files are over both numbers. Four are the ones he called overdriven; they played
+at -24 LUFS. Two he accepted: the light hull hit of round 5 (ev5_1_hull_light_1, -6.41 dBFS and 0.254) and the gear of
+round 4 (src_3_gear_1, -7.96 and 0.096); they played at -34 and -35 LUFS. So the ratings show pressed noise at the loud
+level, and whether the level or the character makes it cannot be told from this set. The setting is used only for the
+three families that play at -24 LUFS.
+
 ## What was made
 
 MOSS-SoundEffect, 78 raw files (`assets/audio/gen/r6/moss/raw`, record `gen.json`; generate report
@@ -175,7 +182,9 @@ thruster_mighty has no pick rule, because none of its 18 raw files is under the 
 pressed (loudest 50 ms -2.0 to -5.8 dBFS). Measured afterwards with the numbers of the rule (same definition): pick 1
 (thruster_mighty_1 s12) -2.65 dBFS and a share above 2 kHz of 0.010, pick 2 (thruster_mighty_3 s11) -4.54 and 0.057, pick 3
 (thruster_mighty_3 s12) -5.77 and 0.061. So picks 2 and 3 are pressed and noise-like by the two numbers that describe the
-four files the owner called overdriven (0.037 to 0.16). They were left in: the four other kept files have shares of
+four files the owner called overdriven (0.037 to 0.16). They play at -28 LUFS, between those four (-24) and the two
+pressed and noise-like files he accepted (-34 and -35). The first hull pick (hull_light_1 s22, -8.51 and 0.671) is over
+both numbers too, at -34 LUFS, like the accepted hull hit of the same prompt. The thruster picks were left in: the four other kept files have shares of
 0.003 to 0.015 and 64 to 90 % of their energy under 125 Hz, a boom without the crack and the clank the prompts ask for,
 and whether a pressed cannon shot reads as mighty or as overdriven is his to hear. Pick 1 comes from the prompt "Single
 shot from a 30 mm autocannon" and is a burst of about ten pulses, not one shot (found by the independent check).

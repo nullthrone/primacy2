@@ -1,5 +1,5 @@
 {
- "note": "Hand skips of round 6, read by screen.py when it is run with --prompts-file tools/sound/prompts6.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips5.json (candidate as source/name, reason).",
+ "note": "Hand skips of round 6, read by screen.py when it is run with --prompts-file tools/sound/prompts6.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips5.json (candidate as source/name, reason). One entry is of another kind and no precedent for hand skips: moss/shield_tight_1__s12 has no plain fault; the orchestrator took it out of the picks because its measures are those of two shields the owner has already rated wrong, so that a slot of three is not spent on them. Its reason says so.",
  "skips": [
   {
    "candidate": "moss/hull_light_1__s23",

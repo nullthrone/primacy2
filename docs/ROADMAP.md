@@ -418,8 +418,12 @@ four he called overdriven. It is in the files. The four are noise-like (share of
 kHz in their loud frames 0.037 to 0.16, against 0.003 and 0.009 for the accepted shields) and their
 raw model output is pressed against full scale (loudest 50 ms at -4.4 to -8.2 dBFS). Noise-like
 files that are not pressed (the valve pulses, the fold exits) were never called overdriven, and
-pressed files that are low and tonal (the heavy hull hits) were accepted. It is a working rule that
-rests on four rejected files, not a law.
+pressed files that are low and tonal (the heavy hull hits) were accepted. Two files he accepted are
+over both numbers as well: the light hull hit of round 5 (-6.4 dBFS, 0.25) and the gear of round 4
+(-8.0, 0.10). They played 10 dB lower (-34 and -35 LUFS) than the four (-24). So what the ratings show
+is pressed noise at the loud level; whether the level or the character makes it cannot be told from
+this set. It is a working rule for the families that play at -24 LUFS, resting on four rejected
+files, not a law.
 
 Accepted sounds in the library (2026-11-16; `tools/audio/README.md`, "Generated sounds in the
 build"). `tools/audio/build.py` has a step for generated files. `assets/audio/generated.json` lists
@@ -449,8 +453,9 @@ prompts x 6 seeds = 78 files; 56 kept, 22 thrown out, all as cut off. Five famil
 New in the screening: a family may carry `notSaturatedNoise`. A kept file that is both pressed
 (loudest 50 ms of its raw cut above -9.5 dBFS) and noise-like (share above 2 kHz in its loud frames
 0.03 or more) stays in the pool and is not picked. It kept 14 of the 43 kept files of the shield and
-fold families from being picked. Nine picks were skipped by hand for plain faults
-(`tools/sound/skips6.json`). On the page: 14 of 14 slots, all one channel. The manifest has 187
+fold families from being picked. Nine picks were skipped by hand (`tools/sound/skips6.json`): eight
+for plain faults, and one shield tick because it measures like two shields he has already rated
+wrong (below). On the page: 14 of 14 slots, all one channel. The manifest has 187
 entries; the 173 of before are unchanged in id, hash and order, and the 165 hashes of the record of
 round 5 are unchanged. He is asked only for Passt / Falsch.
 
@@ -458,9 +463,14 @@ What was measured about the 14 and not heard, and told to him with the hand-over
 thirteen prompts have no candidate on the page: the hum prompt of the fold jump gave only steady low
 tones (all skipped by hand), the second fold-exit prompt only pressed noise, the third shield prompt
 only files that are cut off or under the family's least share of energy above 60 Hz, and the two
-kept files of the second thruster prompt were not chosen by the slot rule. thruster_mighty has no pick rule, because every one of its kept files is pressed; two of its
-three picks are also noise-like by the numbers of the rule (0.057 and 0.061), so he may call them
-overdriven. Its first pick is a burst of about ten pulses though the prompt asks for a single shot.
+kept files of the second thruster prompt were not chosen by the slot rule. thruster_mighty has no
+pick rule, because every one of its kept files is pressed; two of its three picks are also
+noise-like by the numbers of the rule (0.057 and 0.061). They play at -28 LUFS,
+between the four he called overdriven (-24) and the two pressed and noise-like files he accepted
+(-34 and -35), so he may call them overdriven. The first hull pick is over both numbers too; it
+plays at -34 LUFS and comes from the same prompt as the hull hit he accepted, which is over both as
+well. The first thruster pick is a burst of about ten pulses though its prompt asks for a single
+shot.
 The first shield pick has clicks at its end (the prompt asks for a crackle of sparks); the second is
 pressed and has 92 % of its energy under 125 Hz, the kind he called a little too bass-heavy in
 round 4.
@@ -962,8 +972,10 @@ Never verified:
     whether the shield is short, tight and clean, whether the fold sounds are clean and the exit
     free of hiss and air.
   - Whether `notSaturatedNoise` finds what he means by "übersteuert": it rests on four rejected
-    files. Three fold picks sit 0.2 to 1.0 dB under its level threshold, and two thruster picks are
-    over both of its numbers in a family that has no rule.
+    files that played at -24 LUFS, and two files he accepted at -34 and -35 LUFS are over both of
+    its numbers. Three fold picks sit 0.2 to 1.0 dB under its level threshold, and two thruster
+    picks (at -28 LUFS) and one hull pick (at -34) are over both numbers in families that have no
+    rule.
   - Whether the clicks at the end of the first shield pick are the crackle that was asked for.
   - The hand skips were made on level curves and spectra, not on spectrogram pictures, and cover
     the picks, not every kept file. With them the hum prompt of the fold jump has no candidate; he

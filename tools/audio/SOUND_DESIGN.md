@@ -585,7 +585,10 @@ output peak of any sound -4.1 dBFS, limiter at -2, the overload lamp never lit);
 noise-like (share of the energy above 2 kHz in their loud frames 0.037 to 0.16; the two shields he
 accepted in round 4 have 0.003 and 0.009) and their raw model output is pressed against full scale
 (loudest 50 ms at -4.4 to -8.2 dBFS). Files that are noise-like and not pressed, or pressed and low,
-were never called overdriven. The eight MOSS candidates he has accepted in rounds 4 and 5 are in the
+were never called overdriven. Two files he accepted are over both numbers too, the light hull hit of
+round 5 (-6.4 dBFS, 0.25) and the gear of round 4 (-8.0, 0.10); they played at -34 and -35 LUFS, the
+four at -24. So the ratings show pressed noise at the loud level, and whether the level or the
+character makes it cannot be told from this set. The eight MOSS candidates he has accepted in rounds 4 and 5 are in the
 library as generated sounds (`assets/audio/generated.json`, ids `g_*`; `tools/audio/README.md`,
 "Generated sounds in the build"): hull hit light, medium and two heavy, three valve pulses, the gear. Their levels are
 provisional, and nobody has heard them as built.
@@ -659,8 +662,11 @@ of round 5 are unchanged.
 
 Not established, and told to him with the hand-over: how any of the 14 sounds; nobody has heard one.
 thruster_mighty has no pick rule, because every kept file of it is pressed; two of its three picks
-are also noise-like by the numbers of the rule (0.057 and 0.061), so he may call them overdriven. Its
-first pick is a burst of about ten pulses though the prompt asks for a single shot. The first shield
+are also noise-like by the numbers of the rule (0.057 and 0.061) and play at -28 LUFS, between the
+four he called overdriven (-24) and the two such files he accepted (-34 and -35), so he may call
+them overdriven. The first hull pick is over both numbers as well, at -34 LUFS, like the accepted
+hull hit of the same prompt. The first thruster pick is a burst of about ten pulses though its
+prompt asks for a single shot. The first shield
 pick has clicks at its end, which may be the crackle that was asked for or the broken cable he
 rejected; the second is pressed and has 92 % of its energy under 125 Hz, the kind he called a little
 too bass-heavy in round 4. Three fold picks sit 0.2 to 1.0 dB under the level threshold of the pick

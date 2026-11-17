@@ -2172,5 +2172,56 @@
    "act6_s": 0.1,
    "span10_s": 0.15000000000000002
   }
+ },
+ "afterReport": {
+  "by": "orchestrator",
+  "date": "2026-11-17",
+  "note": "Measured after round 6 was made, with the definition of screen.py (loudest 50 ms of the raw cut in dBFS; share of the energy above 2 kHz in the frames within 10 dB of the loudest, 2048-sample Hann spectrum, hop 512), on the raw cuts of all 22 rated MOSS candidates of rounds 4 and 5.",
+  "overBothNumbers": [
+   {
+    "id": "ev5_6_shield_bright_1_moss_p1s15",
+    "verdict": "wrong, called overdriven",
+    "loud50Db": -4.4,
+    "above2kHz": 0.037,
+    "playedLufs": -24
+   },
+   {
+    "id": "ev5_6_shield_bright_3_moss_p2s14",
+    "verdict": "wrong, called overdriven",
+    "loud50Db": -8.25,
+    "above2kHz": 0.101,
+    "playedLufs": -24
+   },
+   {
+    "id": "ev5_7_fold_jump_1_moss_p1s13",
+    "verdict": "wrong, called overdriven",
+    "loud50Db": -6.95,
+    "above2kHz": 0.16,
+    "playedLufs": -24
+   },
+   {
+    "id": "ev5_7_fold_jump_2_moss_p2s14",
+    "verdict": "wrong, called overdriven",
+    "loud50Db": -5.44,
+    "above2kHz": 0.151,
+    "playedLufs": -24
+   },
+   {
+    "id": "ev5_1_hull_light_1_moss_p2s15",
+    "verdict": "fits",
+    "loud50Db": -6.41,
+    "above2kHz": 0.254,
+    "playedLufs": -34
+   },
+   {
+    "id": "src_3_gear_1_moss_p2s12",
+    "verdict": "fits",
+    "loud50Db": -7.96,
+    "above2kHz": 0.096,
+    "playedLufs": -35
+   }
+  ],
+  "meaning": "Pressed and noise-like at -24 LUFS was called overdriven four times of four; pressed and noise-like at -34 and -35 LUFS was accepted twice of twice. Level and character go together in this set, as the report says in step 4, so the rule notSaturatedNoise of round 6 is set only for the families that play at -24 LUFS and is no general rule.",
+  "round6": "Over both numbers among the 14 picks of round 6: ev6_2_thruster_mighty_2 and _3 (at -28 LUFS) and ev6_1_hull_light_1 (at -34 LUFS, the prompt of the accepted hull hit)."
  }
 }
