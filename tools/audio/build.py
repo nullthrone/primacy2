@@ -70,8 +70,9 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
     synth.write_wav(wav, x, dither_seed=sound_id, shared_dither=synth.is_mid_side(s))
     data, sr = common.load_audio(wav)
     an = measure.analyse(data, sr, loop=s["kind"] == "loop")
-    failed = rules.check(s, data, an, entry.swing_max, sound_id=sound_id)
-    hints: list[str] = []
+    verdict = rules.check(s, data, an, entry.swing_max, sound_id=sound_id, level=level)
+    failed = list(verdict)
+    hints: list[str] = list(verdict.hints)  # not failures: e.g. the ceiling stopped the level and the target was missed
     png = wav.with_suffix(".png")
     measure.write_png(png, sound_id, data, sr, an)
 
@@ -488,9 +489,9 @@ def process_download(data: np.ndarray, sr: int, kind: str, category: str,
     mode, value = download_target(category, kind, x.shape[0] / DOWNLOAD_SR)
     before = float(np.abs(x).max())
     y, level = set_level(x, mode, value, ceiling_db=DOWNLOAD_CEILING_DB)
-    # set_level reports the gain that was asked for; where the ceiling cut it back the gain that
-    # was applied is smaller, and that is what the manifest must state
-    level["requestedGainDb"] = level["gainDb"]
+    # set_level states the gain that was applied (gainDb) and the one that was asked for
+    # (requestedGainDb); where the ceiling cut it back the applied one is smaller. Here the applied
+    # gain is also read back from the samples, which is what the manifest must state
     after = float(np.abs(y).max())
     if level["limited"] and before > 0 and after > 0:
         level["gainDb"] = round(float(20.0 * np.log10(after / before)), 2)
@@ -647,7 +648,7 @@ def _generated_entry_problem(it: dict) -> str | None:
 
 
 def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = None,
-                      raw_dir: Path | None = None) -> list[dict]:
+                      raw_dir: Path | None = None, problems: list | None = None) -> list[dict]:
     """Generated sounds listed in assets/audio/generated.json ({"note", "sounds": [...]}; see the
     README of tools/audio). The raw file of every entry (assets/audio/generated/<file>) is
     committed, because a run of the model is not reproducible bit for bit. Every entry is written
@@ -656,8 +657,17 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     refused with a message: the sound is never built from another file. A raw file missing on disk
     is reported and skipped, like a missing download. Processed copies that are no longer in the
     list are removed. Category, kind, path and place are those of the event the sound stands for
-    (sounds.json). listing and raw_dir default to GENERATED_LIST and GENERATED_DIR."""
+    (sounds.json). listing and raw_dir default to GENERATED_LIST and GENERATED_DIR.
+
+    problems, when a list is given, receives one line for every entry that was not built: refused
+    (every reason), missing raw file, or failed with an exception. The messages are printed as ever;
+    main counts the lines and returns a non-zero exit code, the other entries are still built."""
     from synth import write_wav
+
+    def problem(text: str) -> None:
+        print(text)
+        if problems is not None:
+            problems.append(text.strip())
 
     listing = Path(listing) if listing is not None else GENERATED_LIST
     raw_dir = Path(raw_dir) if raw_dir is not None else GENERATED_DIR
@@ -674,28 +684,28 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
         try:
             if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", sid):
                 # the id is the name of a file under <out>/generated: no path may get into it
-                print("  generated entry %r refused: the id is not a plain name (letters, digits, _ and -)" % (sid,))
+                problem("  generated entry %r refused: the id is not a plain name (letters, digits, _ and -)" % (sid,))
                 continue
             if sid in seen:
-                print("  generated entry %s refused: the id is listed twice; the first one stays" % sid)
+                problem("  generated entry %s refused: the id is listed twice; the first one stays" % sid)
                 continue
             seen.add(sid)
-            problem = _generated_entry_problem(it)
-            if problem:
-                print("  generated entry %s refused: %s" % (sid, problem))
+            why = _generated_entry_problem(it)
+            if why:
+                problem("  generated entry %s refused: %s" % (sid, why))
                 continue
             event = spec["sounds"].get(it["standsFor"])
             if event is None:
-                print("  generated entry %s refused: it stands for %r, which sounds.json does not know" % (sid, it["standsFor"]))
+                problem("  generated entry %s refused: it stands for %r, which sounds.json does not know" % (sid, it["standsFor"]))
                 continue
             src = raw_dir / it["file"]
             if not src.is_file():
-                print("  generated raw file missing on disk: %s" % it["file"])
+                problem("  generated raw file missing on disk: %s" % it["file"])
                 continue
             have = _sha256(src)
             if have != it["sha256"]:
-                print("  generated entry %s refused: the sha256 of %s is %s, the list says %s; "
-                      "a sound is never built from another file" % (sid, it["file"], have, it["sha256"]))
+                problem("  generated entry %s refused: the sha256 of %s is %s, the list says %s; "
+                        "a sound is never built from another file" % (sid, it["file"], have, it["sha256"]))
                 continue
             cut = (float(it["cut"]["startS"]), float(it["cut"]["endS"]))
             data, sr = common.load_audio(src)
@@ -741,7 +751,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 },
             })
         except Exception as e:
-            print("  generated entry %s skipped (%s): %s" % (sid, type(e).__name__, e))
+            problem("  generated entry %s skipped (%s): %s" % (sid, type(e).__name__, e))
     keep = {e["id"] for e in entries}
     for old in sorted(folder.glob("*")) if folder.is_dir() else []:
         if old.suffix in (".wav", ".png", ".json") and old.stem not in keep:
@@ -761,7 +771,9 @@ def generated_intent(it: dict, event: dict) -> str:
                 it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"])))
 
 
-def assemble_manifest(out: Path, measure_mod, common) -> dict:
+def assemble_manifest(out: Path, measure_mod, common, problems: list | None = None) -> dict:
+    """Assemble manifest.json from the small JSON files of out. problems, when a list is given,
+    receives a line for every generated entry that was refused, missing or failed (see _generated_sounds)."""
     spec = synth.load_spec()
     order = {sid: i for i, sid in enumerate(spec["order"])}
     sounds = []
@@ -783,7 +795,7 @@ def assemble_manifest(out: Path, measure_mod, common) -> dict:
                     m[k] = spec["sounds"][m["id"]][k]
             sounds.append(m)
     sounds.sort(key=lambda e: order.get(e["id"], 10_000))
-    sounds += _generated_sounds(out, measure_mod, common)
+    sounds += _generated_sounds(out, measure_mod, common, problems=problems)
     sounds += _excerpt_downloads(out, measure_mod, common)
     used = {s["category"] for s in sounds}
     cats = [{"id": c["id"], "en": c["en"], "de": c["de"]} for c in spec["categories"].values() if c["id"] in used]
@@ -927,7 +939,11 @@ def main(argv=None) -> int:
             print("missing (no renderer yet): %d sounds" % len(missing))
             _atomic_write(out / "missing.json", json.dumps(missing, indent=1))
         print("rendered %d in %.1f s" % (len(todo), time.time() - t0))
-    manifest = assemble_manifest(out, measure, common)
+    generated_problems: list[str] = []
+    manifest = assemble_manifest(out, measure, common, problems=generated_problems)
+    if generated_problems:
+        print("generated sounds not built: %d (they are listed above)" % len(generated_problems))
+    failures += len(generated_problems)
     print("manifest: %d sounds in %s" % (len(manifest["sounds"]), out / "manifest.json"))
     problems = validate_manifest(manifest, out)
     for p in problems:

@@ -56,16 +56,22 @@ class LevelTest(unittest.TestCase):
         self.assertAlmostEqual(synth.true_peak_db(y), -12.0, delta=0.05)
 
     def test_ceiling_is_kept(self):
+        # the ceiling is -1 dBFS true peak (SOUND_DESIGN.md section 2), written here and measured by measure.py
         x = synth.periodic_noise(96000, "white", "loud", lo=40, hi=800)
         y, info = synth.set_level(x, "lufs", -3.0)
-        self.assertLessEqual(synth.true_peak_db(y), synth.CEILING_DB + 0.01)
+        self.assertEqual(synth.CEILING_DB, -1.0)
+        self.assertLessEqual(measure.amp_db(measure.true_peak(y[:, None])), -1.0 + 0.02)
         self.assertTrue(info["limited"])
 
     def test_every_rendered_sound_is_under_the_ceiling(self):
+        # all categories are loaded: the registry holds only what the test files happened to import
+        self.assertEqual(synth.load_categories(), [])
+        self.assertGreaterEqual(len(synth.REGISTRY), 75)
         for sid in sorted(synth.REGISTRY):
             x, _ = synth.render(sid)
             pcm = synth.to_int16(x, sid).astype(np.float64) / 32768.0
-            self.assertLessEqual(synth.true_peak_db(pcm), -1.0, sid)
+            pcm = pcm[:, None] if pcm.ndim == 1 else pcm
+            self.assertLessEqual(measure.amp_db(measure.true_peak(pcm)), -1.0 + 0.01, sid)  # 0.01 dB: 16-bit rounding
 
 
 class RegistryTest(unittest.TestCase):
@@ -78,15 +84,17 @@ class RegistryTest(unittest.TestCase):
             synth.register("cabin_ir")(lambda ctx: None)
 
     def test_shape_is_checked(self):
-        entry = synth.REGISTRY["button_press"] if "button_press" in synth.REGISTRY else None
-        if entry is None:
-            sid = "relay_click_a"
-            synth.register(sid)(lambda ctx: np.zeros(5))
-            try:
-                with self.assertRaises(ValueError):
-                    synth.render_dry(sid)
-            finally:
-                del synth.REGISTRY[sid]
+        # always runs: whatever the other tests have registered, relay_click_a gets a renderer of the wrong shape
+        sid = "relay_click_a"
+        saved = synth.REGISTRY.pop(sid, None)
+        synth.register(sid)(lambda ctx: np.zeros(5))
+        try:
+            with self.assertRaises(ValueError):
+                synth.render_dry(sid)
+        finally:
+            del synth.REGISTRY[sid]
+            if saved is not None:
+                synth.REGISTRY[sid] = saved
 
 
 class CabinTest(unittest.TestCase):
@@ -132,8 +140,6 @@ class StructureRulesTest(unittest.TestCase):
     """The energy-distribution rule for structure sounds and the CLAP hint (SOUND_DESIGN.md 2 and 3)."""
 
     SPEC = {"kind": "oneshot", "path": "structure", "category": "impacts", "duration": 1.0}
-    AN = {"sampleRate": 48000, "truePeakDb": -3.0, "clippedSamples": 0, "dcOffset": 0.0,
-          "lowShare": 0.95, "highShare": 0.0}
 
     def _tone(self, f):
         t = np.arange(48000) / 48000.0
@@ -145,22 +151,44 @@ class StructureRulesTest(unittest.TestCase):
     def test_deep_throb_fails_and_mid_weight_passes(self):
         from synth import rules
 
-        self.assertIn("structure-mid-share", rules.check(self.SPEC, self._tone(40.0), self.AN))
-        self.assertIn("structure-sub-share", rules.check(self.SPEC, self._tone(40.0), self.AN))
-        self.assertEqual(rules.check(self.SPEC, self._tone(200.0), self.AN), [])
+        self.assertIn("structure-mid-share", rules.check(self.SPEC, self._tone(40.0), self.an(40.0)))
+        self.assertIn("structure-sub-share", rules.check(self.SPEC, self._tone(40.0), self.an(40.0)))
+        self.assertEqual(rules.check(self.SPEC, self._tone(200.0), self.an(200.0)), [])
 
     def test_fold_sounds_are_allowed_more_pressure(self):
         from synth import rules
 
         mix = 0.4 * self._tone(40.0) + 0.5 * self._tone(200.0)  # about 39 % below 60 Hz
-        self.assertEqual(rules.check(self.SPEC, mix, self.AN, sound_id="fold_jump"), [])
+        self.assertEqual(rules.check(self.SPEC, mix, measure.analyse(mix, synth.SR), sound_id="fold_jump"), [])
         low = 1.0 * self._tone(40.0) + 0.8 * self._tone(200.0)  # about 60 % low
-        self.assertEqual(rules.check(self.SPEC, low, self.AN, sound_id="fold_jump"), ["structure-sub-share"])
+        self.assertEqual(rules.check(self.SPEC, low, measure.analyse(low, synth.SR), sound_id="fold_jump"),
+                         ["structure-sub-share"])
+
+    def an(self, f):
+        """The analysis of the tone, as the build makes it (the shares are measurements, not constants)."""
+        return measure.analyse(self._tone(f), 48000)
 
     def test_clap_margin_is_a_hint_in_the_build(self):
-        src = (Path(__file__).resolve().parents[2] / "build.py").read_text(encoding="utf-8")
-        self.assertIn('hints.append("clap-margin")', src)
-        self.assertNotIn('failed.append("clap-margin")', src)
+        import tempfile
+        import types
+        from unittest import mock
+
+        import build
+        import common
+        from synth import cat_thrusters  # noqa: F401  (registers thruster_pulse_a)
+
+        def run(margin):
+            fake = types.ModuleType("compare")
+            fake.judge = lambda *a, **k: {"best": "x", "bestPos": "x", "bestNeg": "y", "margin": margin}
+            with tempfile.TemporaryDirectory() as d, mock.patch.dict(sys.modules, {"compare": fake}):
+                return build.build_sound("thruster_pulse_a", Path(d), object(), None, measure, common)["checks"]
+
+        for margin in (-0.2, 0.0):
+            c = run(margin)
+            self.assertEqual(c["hints"], ["clap-margin"], margin)   # a hint ...
+            self.assertEqual(c["failed"], [], margin)               # ... and never a failure
+            self.assertTrue(c["pass"], margin)
+        self.assertNotIn("hints", run(0.3))
 
 
 # --------------------------------------------------------------------------- two channels and energy

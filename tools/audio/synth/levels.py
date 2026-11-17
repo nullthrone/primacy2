@@ -11,6 +11,7 @@ import numpy as np
 from .core import SR, db
 
 CEILING_DB = -1.0
+SILENT_PEAK_DB = -200.0  # a true peak at or under this is "no signal": no gain can set its level
 
 # id -> (mode, value). mode "lufs" is integrated loudness, "peak" is true peak in dBFS.
 LEVELS: dict[str, tuple[str, float]] = {
@@ -104,6 +105,8 @@ def lufs(x: np.ndarray) -> float:
     x = np.asarray(x, dtype=np.float64)
     if x.ndim == 1:
         x = x[:, None]
+    if x.shape[0] == 0:
+        raise ValueError("empty: there are no samples to measure")
     need = int(0.4 * SR) + 1
     if x.shape[0] < need:
         x = np.tile(x, (int(np.ceil(need / x.shape[0])), 1))[:need]
@@ -119,21 +122,37 @@ def set_level(x: np.ndarray, mode: str, target: float, ceiling_db: float = CEILI
     the ceiling, the gain is reduced to meet the ceiling and info["limited"] is True (the
     build then shows the loudness it actually reached).
     With mono_sum a two-channel x is measured as (left + right) / 2 in loudness mode; the true
-    peak and the ceiling always look at both channels."""
+    peak and the ceiling always look at both channels.
+
+    info["gainDb"] is the gain that was applied to x. Where the ceiling cut the gain back,
+    info["requestedGainDb"] is the larger gain the target asked for (the two are equal when the
+    sound is not limited). info["monoSum"] says which signal the loudness target was measured on,
+    for whoever compares the reached level with the target.
+
+    A signal without sound (all zeros, or empty) has no level to set: ValueError in both modes."""
     x = np.asarray(x, dtype=np.float64)
+    if x.size == 0:
+        raise ValueError("empty: there is no signal to set a level on")
     if mode == "lufs":
         # a two-channel sound is set by its mono sum (the approved sound), so that the side
         # signal adds width and never changes the level that was approved
         gain_db = target - lufs(x.mean(axis=1) if mono_sum and x.ndim == 2 else x)
     elif mode == "peak":
-        gain_db = target - true_peak_db(x)
+        tp0 = true_peak_db(x)
+        if tp0 <= SILENT_PEAK_DB:
+            raise ValueError("silent: the true peak is undefined, no gain gives it a level")
+        gain_db = target - tp0
     else:
         raise ValueError("mode must be lufs or peak")
     y = x * 10.0 ** (gain_db / 20.0)
     tp = true_peak_db(y)
     limited = tp > ceiling_db
+    applied_db = gain_db
     if limited:
         y = y * 10.0 ** ((ceiling_db - tp) / 20.0)
+        applied_db = gain_db + (ceiling_db - tp)
         tp = ceiling_db
-    return y, {"mode": mode, "target": target, "gainDb": round(float(gain_db), 2),
-               "truePeakDb": round(float(tp), 2), "limited": bool(limited)}
+    return y, {"mode": mode, "target": target, "gainDb": round(float(applied_db), 2),
+               "requestedGainDb": round(float(gain_db), 2),
+               "truePeakDb": round(float(tp), 2), "limited": bool(limited),
+               "monoSum": bool(mode == "lufs" and mono_sum and x.ndim == 2)}

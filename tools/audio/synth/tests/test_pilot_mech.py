@@ -16,6 +16,25 @@ from synth import cat_pilot_mech  # noqa: E402,F401  (importing registers the so
 IDS = ("pilot_hull_a", "pilot_hull_b", "pilot_hull_c", "pilot_gear_a", "pilot_gear_b", "pilot_gear_c")
 _CACHE: dict = {}
 
+AUDIO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(AUDIO / "listen"))
+import measure  # noqa: E402
+from synth import rules  # noqa: E402
+
+# the rules that apply to every sound (SOUND_DESIGN.md section 2), by their names in rules.py
+ALL_SOUNDS_RULES = {"sample-rate", "channels", "true-peak", "clipped", "dc-offset", "onset-late", "tail-not-silent", "silent"}
+
+
+def failed_general_rules(sid):
+    """The all-sounds rules that the levelled, 16-bit render of sid fails, by rules.check itself (the
+    limits are those of rules.py: no copy of -1 dBFS, 0.001, 5 ms or -60 dB here)."""
+    spec = synth.load_spec()["sounds"][sid]
+    y, _ = synth.render(sid)
+    pcm = synth.to_int16(y, sid, shared_dither=synth.is_mid_side(spec)).astype(np.float64) / 32768.0
+    pcm = pcm[:, None] if pcm.ndim == 1 else pcm
+    an = measure.analyse(pcm, synth.SR, loop=spec["kind"] == "loop")
+    return [b for b in rules.check(spec, pcm, an, sound_id=sid) if b in ALL_SOUNDS_RULES]
+
 
 def render(sid):
     if sid not in _CACHE:
@@ -51,11 +70,7 @@ class BasicsTest(unittest.TestCase):
             want = (n,) if int(spec.get("channels", 1)) == 1 else (n, 2)
             self.assertEqual(a.shape, want, sid)
             self.assertTrue(np.all(np.isfinite(a)), sid)
-            y = render(sid)
-            self.assertLessEqual(synth.true_peak_db(y), synth.CEILING_DB + 1e-6, sid)
-            self.assertLess(abs(float(np.mean(y))), 0.001, sid)
-            self.assertLessEqual(onset(y), 0.005, sid)
-            self.assertLess(synth.db(synth.rms(y[-int(0.01 * synth.SR):])), -60.0, sid)
+            self.assertEqual(failed_general_rules(sid), [], sid)  # true peak, DC, onset, tail: rules.check decides
 
 
 class HullTest(unittest.TestCase):

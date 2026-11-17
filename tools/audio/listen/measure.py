@@ -44,6 +44,8 @@ def loudness_lufs(data: np.ndarray, sr: int):
 
     note = None
     x = data.astype(np.float64)
+    if x.shape[0] == 0:
+        raise ValueError("empty file: there are no samples to measure")
     min_len = int(0.4 * sr) + 1
     if x.shape[0] < min_len:
         # The standard needs one full 400 ms block; a shorter clip is repeated to fill it.
@@ -58,12 +60,32 @@ def loudness_lufs(data: np.ndarray, sr: int):
 
 
 def mean_psd(data: np.ndarray, sr: int):
-    """Welch power spectrum averaged over channels, mean removed so DC does not skew the shares."""
+    """Welch power spectrum averaged over channels, mean removed so DC does not skew the shares.
+
+    Segments are 8192 samples (the whole file where it is shorter) with a Hann window at 75 % overlap.
+    The file is padded with zeros so that every sample, the first and the last ones and the tail after
+    the last full segment included, lies in the flat part of the window sum: the squared Hann windows
+    at 75 % overlap add to a constant, so each sample counts with the same weight. (With 50 % overlap
+    and no padding the last up to 4095 samples were never read and the first and last 4096 were
+    weighted down to nothing.) The mean is removed from the whole file and not again per segment.
+    A file of fewer than 4 samples has no spectrum: all zeros, which the shares read as 0 and the
+    centroid as None."""
     from scipy.signal import welch
 
-    x = data - data.mean(axis=0, keepdims=True)
-    nper = int(min(8192, x.shape[0]))
-    f, p = welch(x, fs=sr, nperseg=nper, window="hann", axis=0, scaling="spectrum")
+    x = data.astype(np.float64)
+    x = x - x.mean(axis=0, keepdims=True)
+    n = x.shape[0]
+    if n < 4:
+        f = np.fft.rfftfreq(4, 1.0 / sr)
+        return f, np.zeros(f.size)
+    nper = min(8192, n)
+    nper -= nper % 4
+    hop = nper // 4
+    lead = 3 * hop  # the squared windows add to a constant from the 4th segment position on
+    total = -(-(n + 2 * lead - 1) // hop) * hop  # a whole number of hops, with room for the last 3 hops
+    x = np.pad(x, ((lead, total - lead - n), (0, 0)))
+    f, p = welch(x, fs=sr, nperseg=nper, noverlap=nper - hop, window="hann", detrend=False, axis=0,
+                 scaling="spectrum")
     return f, p.mean(axis=1)
 
 
@@ -242,12 +264,12 @@ def loop_check(data: np.ndarray, sr: int) -> dict:
                 "edgeCentroidHz": [round(ca), round(cb)],
             }
         )
-    # Level swing over the loop: 100 ms RMS windows, hop 50 ms.
+    # Level swing over the loop: 100 ms RMS windows, hop 50 ms. A silent window counts, at the floor of
+    # FLOOR_DB (-120 dB): a loop that falls silent has a swing of 100 dB and more, not a few dB.
     win, hop = int(sr * 0.100), int(sr * 0.050)
     if n >= win * 2:
         levs = [pow_db(float((x[i : i + win] ** 2).mean())) for i in range(0, n - win + 1, hop)]
-        levs = [v for v in levs if v > -90]
-        out["levelSwingDb"] = round(max(levs) - min(levs), 1) if levs else 0.0
+        out["levelSwingDb"] = round(max(levs) - min(levs), 1)
     out["seamOk"] = bool(seam_ratio <= 2.0)
     out["edgeOk"] = bool(level_diff is None or level_diff <= 3.0)
     out["pass"] = out["seamOk"] and out["edgeOk"]
@@ -273,26 +295,37 @@ def stereo_stats(data: np.ndarray, sr: int) -> dict:
 
     corr: correlation of left and right over the file; corrLow: the same with everything
     above 150 Hz removed (below it the channels should be equal); levelDiffDb: |level of left - right| in
-    dB (RMS); monoRmsDb: level of the mono sum (L+R)/2 against full scale."""
+    dB (RMS); monoRmsDb: level of the mono sum (L+R)/2 against full scale.
+
+    A channel without energy is not "equal" to the other: where either channel has no energy (exact
+    zeros after the mean is removed) corr and corrLow are 0.0, "no relation", which the rules for
+    two channels fail (corr must lie between 0.3 and 0.9, corrLow must be at least 0.98), and
+    levelDiffDb is the true difference to the floor of -120 dB (about 100 dB for a hard-panned file,
+    which the rule limit of 1.5 dB fails). Two silent channels read corr 0.0, corrLow 0.0, levelDiffDb
+    0.0 and monoRmsDb -120: nothing to compare, and the rule for a silent sound catches the file.
+    A channel that has energy but none below 150 Hz keeps corrLow of whatever the filtered signals
+    give (1.0 where both are exactly zero there)."""
     x = data.astype(np.float64)
     if x.shape[1] != 2:
         return {}
     left, right = x[:, 0] - x[:, 0].mean(), x[:, 1] - x[:, 1].mean()
 
-    def corr(a, b):
-        den = np.sqrt((a * a).sum() * (b * b).sum())
-        return float((a * b).sum() / den) if den > 0 else 1.0
+    def corr(a, b, empty=0.0):
+        ea, eb = float((a * a).sum()), float((b * b).sum())
+        if ea == 0.0 or eb == 0.0:
+            return empty
+        return float((a * b).sum() / np.sqrt(ea * eb))
 
     f = np.fft.rfftfreq(x.shape[0], 1.0 / sr)
     g = (f < STEREO_SPLIT_HZ).astype(np.float64)  # a sharp split: "below 150 Hz" means below 150 Hz
     lo_l = np.fft.irfft(np.fft.rfft(left) * g, x.shape[0])
     lo_r = np.fft.irfft(np.fft.rfft(right) * g, x.shape[0])
     pl, pr = float((left * left).mean()), float((right * right).mean())
-    diff = abs(pow_db(pl) - pow_db(pr)) if pl > 0 and pr > 0 else 0.0
+    diff = abs(pow_db(pl) - pow_db(pr))  # a silent channel sits at FLOOR_DB, so the difference is large
     mono = 0.5 * (x[:, 0] + x[:, 1])
     return {
         "corr": round(corr(left, right), 4),
-        "corrLow": round(corr(lo_l, lo_r), 4),
+        "corrLow": round(corr(lo_l, lo_r, empty=0.0 if (pl == 0.0 or pr == 0.0) else 1.0), 4),
         "levelDiffDb": round(diff, 3),
         "monoRmsDb": round(amp_db(float(np.sqrt((mono * mono).mean()))), 2),
     }
@@ -304,6 +337,8 @@ def analyse(data: np.ndarray, sr: int, loop: bool = False) -> dict:
     peakShare) describe the mono sum (L+R)/2, which the rules treat as the sound itself; the
     left-right relations are under "stereo"."""
     n, ch = data.shape
+    if n == 0:
+        raise ValueError("empty file: there are no samples to measure")
     stereo = stereo_stats(data, sr) if ch == 2 else {}
     spec_data = data.astype(np.float64).mean(axis=1, keepdims=True) if ch == 2 else data
     peak = float(np.abs(data).max()) if data.size else 0.0

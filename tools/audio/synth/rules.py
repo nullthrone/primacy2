@@ -11,6 +11,45 @@ from .core import SR
 
 LOOP_SWING_MAX_DB = 6.0  # our reading of "does not swing so that the repeat is heard as a rhythm"
 DRY_CATEGORIES = {"alarms", "sensors", "radio"}
+# A rendered file whose loudest sample is under this (dBFS) is silent: the 16-bit dither alone reaches
+# about -84 dBFS, and the quietest sound of the library (silent_running_loop) peaks at -44 dBFS.
+SILENT_PEAK_DB = -80.0
+# A sound the ceiling stopped (levels.set_level: info["limited"]) is a hint, not a failure, when the
+# loudness or peak it reached misses the target of the level table by more than this.
+LEVEL_MISS_HINT_DB = 0.5
+
+
+class Verdict(list):
+    """What check returns: the list of the names of the failed rules (it is that list, so `== []`,
+    `in`, `not bad` and JSON work as they always did), and .hints: the hints, which are not failures,
+    each a string that starts with the name of the hint."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.hints: list[str] = []
+
+
+def level_hint(an: dict, level: dict | None) -> str | None:
+    """A hint where the ceiling stopped the level setting and the file does not reach its table
+    target. level is the info of levels.set_level. The reached level is the file's integrated
+    loudness (of the mono sum where the target was set on that: info["monoSum"]) for a loudness
+    target and the file's true peak for a peak target."""
+    if not level or not level.get("limited"):
+        return None
+    mode, target = level.get("mode"), level.get("target")
+    if target is None:
+        return None
+    if mode == "lufs":
+        reached = an.get("lufsMono") if level.get("monoSum") else an.get("lufs")
+        unit = "LUFS"
+    elif mode == "peak":
+        reached, unit = an.get("truePeakDb"), "dBFS true peak"
+    else:
+        return None
+    if reached is None or abs(reached - target) <= LEVEL_MISS_HINT_DB:
+        return None
+    return "level-missed-by-ceiling: reached %.2f %s, table target %.2f %s (stopped by the ceiling)" % (
+        reached, unit, target, unit)
 
 
 def energy_share(x: np.ndarray, lo: float, hi: float) -> float:
@@ -44,17 +83,29 @@ def is_two_channel_rule(spec: dict) -> bool:
 
 
 def check(spec: dict, data: np.ndarray, an: dict, swing_max: float | None = None,
-          sound_id: str | None = None) -> list[str]:
+          sound_id: str | None = None, level: dict | None = None) -> Verdict:
     """data is the file as read back, shape (n, channels); an is measure.analyse(data, sr, loop).
 
-    Returns the names of the hard rules that failed. The CLAP margin is a hint and not checked here.
+    Returns the names of the hard rules that failed (a Verdict, which is that list and carries
+    .hints). The CLAP margin is a hint and not checked here. level is the info of
+    levels.set_level that made the sound; with it a sound that the ceiling stopped and whose
+    reached level misses the table target by more than LEVEL_MISS_HINT_DB gets the hint
+    "level-missed-by-ceiling" with both numbers (never a failure).
 
     For two channels the rules of the sound's path are applied to the mono sum (the analysis's
     spectral numbers and energy_share are of the mono sum), as SOUND_DESIGN.md section 2 asks."""
-    bad = []
+    bad = Verdict()
+    hint = level_hint(an, level)
+    if hint:
+        bad.hints.append(hint)
     sound_id = sound_id or spec.get("id")
     kind, path, cat = spec["kind"], spec["path"], spec["category"]
     n, ch = data.shape
+    if n == 0:
+        bad.append("silent")  # nothing to measure: the rules below read the samples
+        return bad
+    if np.abs(data).max() < 10 ** (SILENT_PEAK_DB / 20):
+        bad.append("silent")  # on every path, kind and category: a file of dither only is not a sound
     if an["sampleRate"] != SR:
         bad.append("sample-rate")
     if ch != int(spec.get("channels", 1)):

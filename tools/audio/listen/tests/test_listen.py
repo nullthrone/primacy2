@@ -98,9 +98,12 @@ class MeasureTests(unittest.TestCase):
                 x[i : i + int(0.1 * SR)] = 0.5 * sine(900, 0.1)[:, 0]
             return x[:, None]
 
-        a = measure.analyse(beeps(0.25), SR)["envelope"]["printed"]
-        b = measure.analyse(beeps(0.5), SR)["envelope"]["printed"]
-        self.assertNotEqual(a, b)
+        def runs(printed):  # the number of separate sounding stretches of the printed envelope
+            return len([r for r in printed.replace(".", " ").split(" ") if r])
+
+        # 2 s with a 100 ms beep every 0.25 s are 8 beeps, every 0.5 s 4 beeps
+        self.assertEqual(runs(measure.analyse(beeps(0.25), SR)["envelope"]["printed"]), 8)
+        self.assertEqual(runs(measure.analyse(beeps(0.5), SR)["envelope"]["printed"]), 4)
 
     def test_seam_sine_whole_periods_passes(self):
         x = sine(1000, seconds=0.25)  # 250 whole periods
@@ -129,15 +132,22 @@ class MeasureTests(unittest.TestCase):
         x = np.concatenate([sine(300, 0.1), sine(600, 0.1)], axis=1)
         r = measure.analyse(x, SR)
         self.assertEqual(r["channels"], 2)
-        self.assertIsNotNone(r["lufs"])
+        # 0.1 s is repeated to one 400 ms block; BS.1770 K-weighting of 300 Hz and 600 Hz sines of amplitude 1
+        # (published 48 kHz coefficients, computed in test_measure_guards.py) gives -0.68 LUFS;
+        # pyloudnorm's default filter reads 0.04 dB lower
+        self.assertAlmostEqual(r["lufs"], -0.68, delta=0.1)
+        self.assertEqual(r["lufsNote"], "clip shorter than 400 ms was repeated to one block")
 
     def test_png_and_text_output(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "x.png"
             r = measure.analyse(sine(1000, 0.5), SR)
             measure.write_png(p, "x.wav", sine(1000, 0.5), SR, r)
-            self.assertGreater(p.stat().st_size, 5000)
-        self.assertIn("LUFS", measure.format_text("x.wav", r))
+            import matplotlib.image as mpimg
+
+            self.assertEqual(mpimg.imread(str(p)).shape[:2], (600, 1000))  # figsize 10 x 6 inches at 100 dpi
+        text = measure.format_text("x.wav", r)
+        self.assertIn("LUFS %s" % r["lufs"], text)
 
 
 class CommonTests(unittest.TestCase):

@@ -18,6 +18,25 @@ from synth import cat_pilot_energy  # noqa: E402,F401  (importing registers the 
 IDS = ("pilot_thruster_a", "pilot_thruster_b", "pilot_thruster_c", "pilot_shield_a", "pilot_shield_b")
 SR = synth.SR
 
+AUDIO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(AUDIO / "listen"))
+import measure  # noqa: E402
+from synth import rules  # noqa: E402
+
+# the rules that apply to every sound (SOUND_DESIGN.md section 2), by their names in rules.py
+ALL_SOUNDS_RULES = {"sample-rate", "channels", "true-peak", "clipped", "dc-offset", "onset-late", "tail-not-silent", "silent"}
+
+
+def failed_general_rules(sid):
+    """The all-sounds rules that the levelled, 16-bit render of sid fails, by rules.check itself (the
+    limits are those of rules.py: no copy of -1 dBFS, 0.001, 5 ms or -60 dB here)."""
+    spec = synth.load_spec()["sounds"][sid]
+    y, _ = synth.render(sid)
+    pcm = synth.to_int16(y, sid, shared_dither=synth.is_mid_side(spec)).astype(np.float64) / 32768.0
+    pcm = pcm[:, None] if pcm.ndim == 1 else pcm
+    an = measure.analyse(pcm, SR, loop=spec["kind"] == "loop")
+    return [b for b in rules.check(spec, pcm, an, sound_id=sid) if b in ALL_SOUNDS_RULES]
+
 
 def mono(x):
     return x if x.ndim == 1 else x.mean(axis=1)
@@ -63,12 +82,7 @@ class RenderTest(unittest.TestCase):
 
     def test_levelled_render_meets_the_general_rules(self):
         for sid in IDS:
-            y, info = synth.render(sid)
-            self.assertLessEqual(synth.true_peak_db(y), -1.0 + 1e-6, sid)
-            self.assertLess(abs(float(np.mean(y))), 0.001, sid)
-            m = np.abs(y) if y.ndim == 1 else np.abs(y).max(axis=1)
-            self.assertLess(int(np.argmax(m > m.max() * 10 ** (-40 / 20))), int(0.005 * SR), sid)
-            self.assertLess(float(m[-int(0.010 * SR):].max()), 10 ** (-60 / 20), sid)
+            self.assertEqual(failed_general_rules(sid), [], sid)
 
     def test_family_loudness_is_matched(self):
         for family in (IDS[:3], IDS[3:]):
@@ -149,9 +163,9 @@ class StereoTest(unittest.TestCase):
         for sid in ("pilot_shield_a", "pilot_shield_b"):
             y = synth.render(sid)[0]
             c = float(np.corrcoef(y[:, 0], y[:, 1])[0, 1])
-            self.assertTrue(0.3 <= c <= 0.9, (sid, c))
+            self.assertTrue(rules.STEREO_CORR_MIN <= c <= rules.STEREO_CORR_MAX, (sid, c))
             d = abs(20 * np.log10(y[:, 0].std() / y[:, 1].std()))
-            self.assertLess(d, 1.5, sid)
+            self.assertLess(d, rules.STEREO_LEVEL_DIFF_MAX_DB, sid)
 
 
 if __name__ == "__main__":

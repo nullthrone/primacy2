@@ -115,8 +115,9 @@ sound), as the README says. Eight skips in `tools/sound/skips6.json` after four 
   wanted one of them. The skips are in the file and can be removed.
 
 Not skipped although they are borderline: shield_tight_1 s12 (pick 3 of the shield, 0.11 s, a tick with 77 % of its energy
-above 4 kHz and nothing under 250 Hz; it has no thump and is very short, but it is one event and not a tone), and
-fold_exit_1 s13 and s16 (a 41 % and a 65 % band at 47 and 36 Hz, but a clear rise, plateau and fall).
+above 4 kHz and 2 % under 250 Hz; it has no thump and is very short, but it is one event and not a tone), and
+fold_exit_1 s13 and s16 (an 89 % and a 65 % band of 50 Hz around 43 and 6 Hz, dominant lines at 47 and 36 Hz, but a clear
+rise, plateau and fall).
 
 ## The picks
 
@@ -142,8 +143,9 @@ is the own-channel loudness of the listening copy; no copy was stopped by the tr
 | ev6_5_fold_exit_3_moss_p1s16 | fold_exit_1, 16 | 0.14-3.88 | 3.75 | -4.04 | 0.0015 | -24.0 | -24.00 | 36.8 % |
 
 Every pick of the three rule families is either not pressed (under -9.5 dBFS) or not noise-like (under 0.03), as the rule
-demands. Two sit close to the edge: ev6_4_fold_jump_2 (-10.50, 0.63) and ev6_5_fold_exit_1 (-9.72, 0.13) are noise-like
-and 1.0 and 0.2 dB under the level threshold. ev6_3_shield_tight_2 is pressed (-4.44) but tonal (0.0145). The fold_jump picks 1 to 3 and the first
+demands. Three sit close to the edge: ev6_4_fold_jump_1 (-9.86, 0.48), ev6_4_fold_jump_2 (-10.50, 0.63) and
+ev6_5_fold_exit_1 (-9.72, 0.13) are noise-like and 0.4, 1.0 and 0.2 dB under the level threshold; ev6_3_shield_tight_1
+(-10.94, 0.042) is noise-like and 1.4 dB under it. ev6_3_shield_tight_2 is pressed (-4.44) but tonal (0.0145). The fold_jump picks 1 to 3 and the first
 fold_exit pick are the bright, rushing kind; the other two fold_exit picks are
 low and tonal (37 to 43 % above 60 Hz, a dominant tone at 36 to 47 Hz), which is unlike the round-5 exits.
 
@@ -182,8 +184,8 @@ ids plus test_edges and test_step.
 How any of it sounds. Whether the thruster picks are a mighty gun and not a small pistol, whether the shield picks are
 short, tight and clean with a thump and a brief crackle, whether the fold sounds are clean and not overdriven, whether the
 exits are free of hiss and air. Whether `notSaturatedNoise` finds what the owner means by "übersteuert": it rests on four
-rejected files and a handful of accepted ones, and files it keeps (ev6_4_fold_jump_2 and ev6_5_fold_exit_1 are bright and
-noise-like, 1.0 and 0.2 dB under the level threshold) may still be called overdriven. The very short shield pick
+rejected files and a handful of accepted ones, and files it keeps (ev6_4_fold_jump_1, ev6_4_fold_jump_2 and ev6_5_fold_exit_1 are bright and
+noise-like, 0.4, 1.0 and 0.2 dB under the level threshold) may still be called overdriven. The very short shield pick
 (0.12 s, a tick with almost nothing under 250 Hz) and the 0.27 s one with a low tone near 104 Hz may be too short or too thin
 for a shield; the owner asked for short, but not for a tick. The steady-hum skips of fold_jump_3 and the under-10-percent
 skips were made on level curves and spectra only. Whether 20 dB for the cut-off rule suits the steady fold sounds was not
