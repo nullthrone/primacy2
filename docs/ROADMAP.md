@@ -567,7 +567,7 @@ check of the freeze reads accordingly from now on: the 154 hashes of `round5.jso
 tree during the freeze. It was made because he had not started rating (looked at right before), no
 file he is asked to rate was written, and a rating hangs on the id and the hash of a sound, which
 did not change. A page that was open before 12:17 that day lists the eleven samples until it is
-loaded again and cannot play them.
+loaded again; their files are no longer where it fetches them from (not tried on an open page).
 
 The independent check (`docs/reports/2026-11-17/pilot-removal-verify-report.json`: three read-only
 checkers, one each for the repository, for the real tree with the records and the ratings, and for
@@ -1044,12 +1044,14 @@ Never verified:
     its numbers. Three fold picks sit 0.2 to 1.0 dB under its level threshold, and two thruster
     picks (at -28 LUFS) and one hull pick (at -34) are over both numbers in families that have no
     rule.
-  - Whether the clicks at the end of the first shield pick are the crackle that was asked for.
+  - Whether the clicks at the end of the first shield pick, and the one click at 0.26 s in the
+    third, are the crackle that was asked for.
   - The hand skips were made on level curves and spectra, not on spectrogram pictures, and cover
     the picks, not every kept file. With them the hum prompt of the fold jump has no candidate; he
     might have wanted one.
-  - `audition-check.mjs` was not run again after the third shield pick was replaced; the level at
-    the page was.
+  - `audition-check.mjs` was run again for the 14 as they stand on 2026-11-17, after the direction
+    samples went: 48 of 48, no fault from the page, one click inside the file of the third shield
+    pick (section 2). Its capture of all sounds and of the scenes was not run (see above).
   - The eight generated sounds of the library: nobody has heard them as built, their levels are
     provisional, and two start one sample later than the copy he heard.
   - The repairs of the measuring tools: only 48 kHz was exercised; CLAP and the describing model
