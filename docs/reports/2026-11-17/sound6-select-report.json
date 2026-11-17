@@ -1,6 +1,6 @@
 {
  "status": "done",
- "summary": "Round 6 is screened, published and checked, MOSS only. Pool 78 raw files: 56 kept, 22 thrown out (all cut off). New screen.py setting notSaturatedNoise (tests first: 4 new tests). Check (a): on a copy of gen/r5 with prompts5.json the 17 picks, ids, cuts, gains, notes and statuses equal assets/audio/gen/r5/screen.json. Check (b): shield_bright_1 s15 (-4.40 dBFS, 0.0373), shield_bright_2 s14 (-8.25, 0.1006), fold_jump_1 s13 (-6.95, 0.1601), fold_jump_2 s14 (-5.44, 0.1506) are flagged; fold_exit_1 s15 (-10.71, 0.4177), fold_exit_2 s15 (-11.17, 0.7965), shield_bright_2 s11 (-22.07, 0.8649) are not. The rule excluded 14 of 43 kept files of the three families (fold_exit 9, fold_jump 2, shield_tight 3); no fallback was needed. 8 hand skips (hull_light_1 s23; shield_tight_2 s12; fold_jump_3 s12, s13, s14, s15, s16; fold_exit_1 s12) after four screening runs. 14 of 14 slots published as category events6 (first), events5 second; manifest 187 entries, the 173 old ids unchanged in hash and relative order, round5.json 165 hashes unchanged, ratings.json byte-identical to round5-ratings.json. Page check on port 5420: audition-check 48 passed, 0 failed, 0 page faults (14 faults in files: 10 in ev6_3_shield_tight_1, 4 in test_step); audition-level --dry: file>page -0.10 to +0.15 dB. Nobody listened.",
+ "summary": "Round 6 is screened, published and checked, MOSS only. Pool 78 raw files: 56 kept, 22 thrown out (all cut off). New screen.py setting notSaturatedNoise (4 new tests, written after the first version of the code; see 'problems'). Check (a): on a copy of gen/r5 with prompts5.json the 17 picks, ids, cuts, gains, notes and statuses equal assets/audio/gen/r5/screen.json. Check (b): shield_bright_1 s15 (-4.40 dBFS, 0.0373), shield_bright_2 s14 (-8.25, 0.1006), fold_jump_1 s13 (-6.95, 0.1601), fold_jump_2 s14 (-5.44, 0.1506) are flagged; fold_exit_1 s15 (-10.71, 0.4177), fold_exit_2 s15 (-11.17, 0.7965), shield_bright_2 s11 (-22.07, 0.8649) are not. The rule excluded 14 of 43 kept files of the three families (fold_exit 9, fold_jump 2, shield_tight 3); no fallback was needed. 8 hand skips (hull_light_1 s23; shield_tight_2 s12; fold_jump_3 s12, s13, s14, s15, s16; fold_exit_1 s12) after four screening runs. 14 of 14 slots published as category events6 (first), events5 second; manifest 187 entries, the 173 old ids unchanged in hash and relative order, round5.json 165 hashes unchanged, ratings.json byte-identical to round5-ratings.json. Page check on port 5420: audition-check 48 passed, 0 failed, 0 page faults (14 faults in files: 10 in ev6_3_shield_tight_1, 4 in test_step); audition-level --dry: file>page -0.10 to +0.15 dB. Nobody listened.",
  "changed": [
   "tools/sound/screen.py (notSaturatedNoise: saturation_measures, is_saturated_noise, pressed-noise fallback)",
   "tools/sound/tests/test_screen.py (4 new tests; the sounds.json test now expects events6 first, events5 second, and checks prompts6 and skips6)",
@@ -42,5 +42,27 @@
   "Whether notSaturatedNoise matches the owner's meaning of 'uebersteuert' is not shown.",
   "audition-check ran with the 14 ids and two controls, no scenes; audition-level only with --dry.",
   "The other agent's repair of tools/audio was not touched; build.py and publish.py were used as they are."
- ]
+ ],
+ "afterReport": {
+  "by": "orchestrator",
+  "date": "2026-11-17",
+  "note": "Changes made after this report and before the round was shown to the owner. The report above describes the state it was written for.",
+  "changes": [
+   "Third shield pick replaced: ev6_3_shield_tight_3_moss_p1s12 (a 0.11 s tick) is gone, ev6_3_shield_tight_3_moss_p1s16 took the slot. Cause: a ninth hand skip, moss/shield_tight_1__s12 in tools/sound/skips6.json: 3.8 % of its energy under 250 Hz, share above 2 kHz 0.73, loudest 50 ms -22.6 dBFS, the measures of two shields the owner has already rated wrong (the OpenGameArt spark of round 4, the crackle of round 5), while the shields he accepted have 96 to 99 % under 250 Hz.",
+   "The two hull_light entries say 'accepted in round 5' (they said round 4): publish.py reads the family's new key provenRound (default 4), prompts6.json sets it to 5 for hull_light. A rerun of round 5 gives its old text.",
+   "The reason of the hull_light_1 s23 skip names the second cluster of peaks at 0.60 to 0.78 s; the count of peaks alone is no fault.",
+   "tools/sound/tests/test_screen.py: 47 of 47 pass. The three tests that publish into a fake tree point build.GENERATED_LIST at a file that does not exist, so the 8 g_ sounds of the library are not built into them.",
+   "screen.py and publish.py were run once more on the real tree. Manifest: 187 entries, one id changed (the shield pick), no hash of the other 186 changed, same order; the 165 hashes of rounds/round5.json unchanged; every wav on disk has the hash of its entry; assets/audio/ratings.json byte-identical to rounds/round5-ratings.json before and after.",
+   "audition-level.mjs --dry for the 14 ids as they stand (own server, port 5460, stopped): file>page -0.09 to +0.15 dB, highest output peak -9.0 dBFS (ev6_3_shield_tight_3_moss_p1s16), overload lamp unchanged for all 14. audition-check.mjs was not run again.",
+   "Measured with the numbers of the pick rule: the thruster picks 2 and 3 (thruster_mighty_3 s11 and s12) are pressed (-4.54 and -5.77 dBFS) and noise-like (0.057 and 0.061), as the four files the owner called overdriven; pick 1 is pressed (-2.65) and not noise-like (0.010). The family has no rule (0 of 18 raw files under the level threshold) and the picks were left as they are; RESULTS6.md says so."
+  ],
+  "notVerified": [
+   "Nobody listened.",
+   "audition-check.mjs (clicks and clipped samples in what the page plays) was not repeated for ev6_3_shield_tight_3_moss_p1s16."
+  ],
+  "corrected": [
+   "'tests first' in the summary was wrong and is corrected above: the tests were written after the first version of the code.",
+   "Where this report names two picks near the level threshold of the rule, three are: ev6_4_fold_jump_1 (-9.86 dBFS, 0.48), ev6_4_fold_jump_2 (-10.50, 0.63) and ev6_5_fold_exit_1 (-9.72, 0.13) are 0.4, 1.0 and 0.2 dB under it; ev6_3_shield_tight_1 (-10.94, 0.042) is 1.4 dB under it."
+  ]
+ }
 }

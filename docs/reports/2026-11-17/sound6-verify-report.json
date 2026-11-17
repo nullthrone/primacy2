@@ -117,5 +117,29 @@
     "Hand-skip review of the other kept files, and of the 3 picks of thruster_mighty, was by levels and spectrum only; no spectrogram image was looked at.",
     "The failing test: I did not count its 25 entries; I confirmed the assertion that fails and the cause (generated.json g_* ids) only by reading.",
     "'after four screening runs' (RESULTS6) is not checkable."
+  ],
+ "afterReport": {
+  "by": "orchestrator",
+  "date": "2026-11-17",
+  "note": "Changes made after this report and before the round was shown to the owner. The report above describes the state it was written for.",
+  "changes": [
+   "Third shield pick replaced: ev6_3_shield_tight_3_moss_p1s12 (a 0.11 s tick) is gone, ev6_3_shield_tight_3_moss_p1s16 took the slot. Cause: a ninth hand skip, moss/shield_tight_1__s12 in tools/sound/skips6.json: 3.8 % of its energy under 250 Hz, share above 2 kHz 0.73, loudest 50 ms -22.6 dBFS, the measures of two shields the owner has already rated wrong (the OpenGameArt spark of round 4, the crackle of round 5), while the shields he accepted have 96 to 99 % under 250 Hz.",
+   "The two hull_light entries say 'accepted in round 5' (they said round 4): publish.py reads the family's new key provenRound (default 4), prompts6.json sets it to 5 for hull_light. A rerun of round 5 gives its old text.",
+   "The reason of the hull_light_1 s23 skip names the second cluster of peaks at 0.60 to 0.78 s; the count of peaks alone is no fault.",
+   "tools/sound/tests/test_screen.py: 47 of 47 pass. The three tests that publish into a fake tree point build.GENERATED_LIST at a file that does not exist, so the 8 g_ sounds of the library are not built into them.",
+   "screen.py and publish.py were run once more on the real tree. Manifest: 187 entries, one id changed (the shield pick), no hash of the other 186 changed, same order; the 165 hashes of rounds/round5.json unchanged; every wav on disk has the hash of its entry; assets/audio/ratings.json byte-identical to rounds/round5-ratings.json before and after.",
+   "audition-level.mjs --dry for the 14 ids as they stand (own server, port 5460, stopped): file>page -0.09 to +0.15 dB, highest output peak -9.0 dBFS (ev6_3_shield_tight_3_moss_p1s16), overload lamp unchanged for all 14. audition-check.mjs was not run again.",
+   "Measured with the numbers of the pick rule: the thruster picks 2 and 3 (thruster_mighty_3 s11 and s12) are pressed (-4.54 and -5.77 dBFS) and noise-like (0.057 and 0.061), as the four files the owner called overdriven; pick 1 is pressed (-2.65) and not noise-like (0.010). The family has no rule (0 of 18 raw files under the level threshold) and the picks were left as they are; RESULTS6.md says so."
+  ],
+  "notVerified": [
+   "Nobody listened.",
+   "audition-check.mjs (clicks and clipped samples in what the page plays) was not repeated for ev6_3_shield_tight_3_moss_p1s16."
+  ],
+  "settled": [
+   "mustFix 1 (hull_light intent names round 4): fixed in publish.py (provenRound), republished, the wav hashes did not change.",
+   "mustFix 2 (one red test in tools/sound/tests): fixed, 47 of 47.",
+   "mustFix 4 ('tests first' in the select report): corrected there.",
+   "wrongSentences on skips6.json: the s23 reason is corrected; the three percentages (98, 97, 79 % under 60 Hz) are rounding only and were left."
   ]
+ }
 }

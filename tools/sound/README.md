@@ -206,7 +206,7 @@ points at the raw file where it lies, carries `fromRound4: true` and has the rou
 in round 4 comes along as `round4Skip` and is honoured (it is the same file with the same cut). Its id tag starts
 with `r4` (`ev5_3_thruster_valve_1_moss_r4p1s12`), so that it is never taken for a file of the same prompt number
 made in round 5, and its intent line on the page says that the file was made in round 4 and not heard then.
-A family's intent line also says whether it is `proven` (rests on a prompt the owner accepted) or a first try.
+A family's intent line also says whether it is `proven` (rests on a prompt the owner accepted) or a first try. The round named there is the family's `provenRound` (4 where the key is missing, which is what the proven families of `prompts5.json` rest on; `prompts6.json` sets 5 for `hull_light`).
 A further pick of a source is named "zweite Auswahl" / "second pick", then "dritte Auswahl" / "third pick".
 
 Stable Audio output stays test material under the Stability AI Community License: the page keeps its "test
