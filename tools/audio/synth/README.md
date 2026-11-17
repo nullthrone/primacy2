@@ -45,7 +45,9 @@ end of every run. Exit code 1 means a failed sound or manifest problem.
 
 Rules that need your judgement and are decided in `rules.py`: a loop's 100 ms level may swing at
 most 6 dB (`@register(id, swing_max=...)` raises it for loops whose content is an event now and
-then); the CLAP margin of an impulse response (`kind: ir`) is recorded but not a failure.
+then, and `swing_max=GAPPED` switches the rule off for a loop with silent gaps by design, which the
+four alarm loops are: there the swing is the distance from the loudest window to the silence of the
+gap, 78 to 84 dB, and says nothing about a rhythm); the CLAP margin of an impulse response (`kind: ir`) is recorded but not a failure.
 
 Tests: `.venv-audio/Scripts/python.exe -m unittest discover -s tools/audio/synth/tests`
 
@@ -79,7 +81,7 @@ Level and output
 - `to_int16(x, seed)`, `write_wav(path, x, dither_seed)` 16-bit, 48 kHz, TPDF dither.
 
 Registry
-- `register(id, swing_max=None)`, `REGISTRY`, `render(id)` (to level), `render_dry(id)`, `load_spec()`, `load_categories()`, `Ctx` (`id`, `spec`, `n`, `channels`, `kind`, `params`, `rng()`), `is_mid_side(spec)`.
+- `register(id, swing_max=None)`, `GAPPED`, `REGISTRY`, `render(id)` (to level), `render_dry(id)`, `load_spec()`, `load_categories()`, `Ctx` (`id`, `spec`, `n`, `channels`, `kind`, `params`, `rng()`), `is_mid_side(spec)`.
 
 Two channels: `mid_side(mid, side, periodic, ratio)`, `SIDE_LOW_HZ`.
 

@@ -507,6 +507,7 @@ def test_both_scripts_on_a_fake_tree():
         import build as b  # noqa: E402  (tools/audio/build.py, found by publish.py's path)
 
         b.SELECTION = Path(td) / "no-selection.json"  # the real downloads are not part of this test
+        b.GENERATED_LIST = Path(td) / "no-generated.json"  # nor are the generated sounds of the library (the g_ ids)
         assert pub.main(["--root", str(root), "--out", str(out)]) == 0
         manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
         sounds = [s for s in manifest["sounds"] if s["category"] == "source"]
@@ -642,6 +643,7 @@ def test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order()
         import build as b  # noqa: E402
 
         b.SELECTION = Path(td) / "no-selection.json"
+        b.GENERATED_LIST = Path(td) / "no-generated.json"  # without this the 8 g_ ids of assets/audio/generated.json are built in
         pub = load("publish")
         assert pub.main(["--root", str(root), "--out", str(out)]) == 0
         target = out / "source"
@@ -1103,6 +1105,7 @@ def test_round_5_run_and_publish_on_a_fake_tree():
         import build as b  # noqa: E402
 
         b.SELECTION = td / "no-selection.json"
+        b.GENERATED_LIST = td / "no-generated.json"
         pub = load("publish")
         assert pub.main(["--root", str(root), "--out", str(out)]) == 1  # the default prompts file is not the one of this screen.json
         assert pub.main(["--prompts-file", pf, "--root", str(root), "--out", str(out)]) == 0
@@ -1115,6 +1118,11 @@ def test_round_5_run_and_publish_on_a_fake_tree():
         assert v[0]["de"] == "Ventil · MOSS-SoundEffect" and v[1]["de"] == "Ventil · Stable Audio 3 (nur Test)"
         assert v[2]["de"] == "Ventil · MOSS-SoundEffect, zweite Auswahl" and v[2]["en"] == "Valve · MOSS-SoundEffect, second pick"
         assert all("rests on a prompt the owner accepted in round 4" in s["intent"] for s in v)
+        # the round is the family's 'provenRound' where it is given (round 6: the wrench prompt he accepted in round 5)
+        c0 = valve[0]
+        fam5 = dict(next(f for f in SPEC5["families"] if f["id"] == "valve"), provenRound=5)
+        assert "rests on a prompt the owner accepted in round 5." in pub.describe_source(c0, fam5)[0]
+        assert "accepted in round 4" not in pub.describe_source(c0, fam5)[0]
         assert all("first try" in sounds[c["id"]]["intent"] for c in zap)
         assert "seed" in v[0]["intent"] and "Short burst of compressed gas" in v[0]["intent"]
         carried = [sounds[c["id"]] for c in res["chosen"] if c["tag"].startswith("r4")]

@@ -97,7 +97,9 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
     else:
         how += " Chosen as the most typical candidate of its source in this family."
     if "proven" in fam:
-        how += (" This family rests on a prompt the owner accepted in round 4." if fam["proven"]
+        # 'provenRound' of the family names the round in which he accepted the prompt (round 4 where it is not given,
+        # which is what every proven family of prompts5.json rests on)
+        how += (" This family rests on a prompt the owner accepted in round %d." % int(fam.get("provenRound", 4)) if fam["proven"]
                 else " This family is a first try: no prompt of it has been heard yet.")
     if rec.get("fromRound4"):
         how += " The file was made in round 4 (prompt %s, seed %s) and was not heard then." % (rec.get("round4Prompt", rec.get("prompt", "?")), rec.get("seed", "?"))

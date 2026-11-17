@@ -38,7 +38,7 @@ scale -90 to 0 dB re full scale, so pictures of different files are comparable).
 | env | the 10 ms RMS envelope as 80 characters (`ms/char` says how much time one character covers), ten steps from `.` (45 dB below the loudest frame) to `@` (loudest). Two alarms with different rhythms print different strings |
 | loop seamRatio | step across the wrap (and the second difference, which finds a slope kink) divided by the 99th percentile of the same quantity inside the file. Up to about 1 is seamless; the check fails above 2 |
 | loop edge level / band diff | level and worst band-level difference between the first and the last 50 ms; a level difference above 3 dB fails, the band difference is printed for you to judge |
-| loop swing | max minus min of the 100 ms RMS over the loop, dB; a silent window counts as -120 dB, so a loop that falls silent reads over 90 dB; judge yourself whether the repeat would be heard as rhythm |
+| loop swing | max minus min of the 100 ms RMS over the loop, dB; a silent window counts as -120 dB, so a loop that falls silent reads 120 dB plus the level of its loudest window; a 16-bit file has dither in the gap at about -96 dB, so there it reads 96 dB plus the loudest window (the alarm loops read 78 to 84 dB, and the swing rule is off for them: `GAPPED`); judge yourself whether the repeat would be heard as rhythm |
 
 `--loop` on a one-shot (an alarm with silence at the end) reports FAIL because the ends differ; it
 is only meant for files that are loops.

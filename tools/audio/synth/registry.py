@@ -81,12 +81,20 @@ class Entry:
     swing_max: float | None
 
 
+# swing_max of a loop that is made of sounds and silent gaps by design (an alarm: a chime and a pause, two
+# buzzer pulses). The swing of such a loop is the distance from its loudest window to the silence of the gap
+# (in a 16-bit file about 96 dB plus the level of the loudest window), so it says how loud the alarm is and
+# nothing about a rhythm nobody wanted: no finite limit means anything, and the swing rule is not applied.
+GAPPED = float("inf")
+
+
 def register(sound_id: str, swing_max: float | None = None):
     """Decorator: register the function as the renderer of sound_id.
 
     Refuses an id that is not in sounds.json and an id that already has a renderer.
     swing_max overrides the largest allowed level swing of a loop in dB (default 6) for loops
-    whose content is meant to be an event now and then, such as thermal ticks."""
+    whose content is meant to be an event now and then, such as thermal ticks. GAPPED switches the
+    swing rule off for a loop with silent gaps by design (the alarms)."""
     spec = load_spec()["sounds"]
     if sound_id not in spec:
         raise UnknownSoundError("%r is not in tools/audio/sounds.json" % sound_id)

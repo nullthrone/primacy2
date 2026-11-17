@@ -142,12 +142,15 @@ def alarm_master_caution(n):
     return y
 
 
-from . import register  # noqa: E402  (kept next to its use)
+from . import GAPPED, register  # noqa: E402  (kept next to its use)
 
-for _id, _fn, _kw in (("alarm_heat", alarm_heat, {"swing_max": 80.0}),
-                      ("alarm_missile", alarm_missile, {"swing_max": 80.0}),
+# The four alarm loops are sounds and silent gaps by design, so the swing rule does not apply to them (GAPPED).
+# Until 2026-11-17 they carried swing_max 80, a number no loop could reach while the measure left silent
+# windows out; since the measure counts them, alarm_fuel_low reads 84.3 dB, which is its level, not a fault.
+for _id, _fn, _kw in (("alarm_heat", alarm_heat, {"swing_max": GAPPED}),
+                      ("alarm_missile", alarm_missile, {"swing_max": GAPPED}),
                       ("alarm_shields_down", alarm_shields_down, {}),
-                      ("alarm_fuel_low", alarm_fuel_low, {"swing_max": 80.0}),
-                      ("alarm_hull_critical", alarm_hull_critical, {"swing_max": 80.0}),
+                      ("alarm_fuel_low", alarm_fuel_low, {"swing_max": GAPPED}),
+                      ("alarm_hull_critical", alarm_hull_critical, {"swing_max": GAPPED}),
                       ("alarm_master_caution", alarm_master_caution, {})):
     register(_id, **_kw)(lambda ctx, _fn=_fn: _fn(ctx.n))

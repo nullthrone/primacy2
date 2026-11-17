@@ -25,6 +25,7 @@
       "en": "Hull hit, light (variants)",
       "what": "Variants of the light hull hit he accepted in round 5 (the wrench prompt, seed 15), so that repeated hits do not sound the same. Library event: impact_hull_light.",
       "proven": true,
+      "provenRound": 5,
       "seconds": 2,
       "maxS": 1.2,
       "oneEvent": true,

@@ -146,15 +146,30 @@ class AllSoundsRules(unittest.TestCase):
         steady = col(np.random.default_rng(1).standard_normal(n) * 0.1)
         self.assertNotIn("loop-level-swing", check(steady, sp)[0])
 
-    def test_a_loop_that_falls_silent_fails_the_swing_rule_even_at_the_alarm_limit_of_80_db(self):
+    def test_a_loop_that_falls_silent_fails_the_swing_rule_at_every_finite_limit_and_passes_only_as_gapped(self):
         k = int(0.005 * SR)
         a = np.random.default_rng(7).standard_normal(SR // 2) * 0.1
         a[:k] *= np.linspace(0, 1, k)
         a[-k:] *= np.linspace(1, 0, k)
         gap = col(np.concatenate([a, np.zeros(SR), a]))
         sp = spec(kind="loop", duration=2.0)
-        self.assertIn("loop-level-swing", check(gap, sp)[0])
+        bad, an = check(gap, sp)
+        self.assertGreater(an["loop"]["levelSwingDb"], 90.0)
+        self.assertIn("loop-level-swing", bad)
         self.assertIn("loop-level-swing", check(gap, sp, swing_max=80.0)[0])
+        # a loop that is sounds and gaps by design is registered as GAPPED: the swing rule is off, the others stay
+        self.assertNotIn("loop-level-swing", check(gap, sp, swing_max=synth.GAPPED)[0])
+        self.assertIn("loop-seam", check(col(tone(1000, 0.3, 0.2503)), spec(kind="loop", duration=0.25), swing_max=synth.GAPPED)[0])
+
+    def test_only_the_four_alarm_loops_are_gapped_and_no_other_loop_has_a_limit_a_gap_could_pass(self):
+        synth.load_categories()
+        gapped = sorted(i for i, e in synth.REGISTRY.items() if e.swing_max == synth.GAPPED)
+        self.assertEqual(gapped, ["alarm_fuel_low", "alarm_heat", "alarm_hull_critical", "alarm_missile"])
+        sounds = synth.load_spec()["sounds"]
+        self.assertTrue(all(sounds[i]["kind"] == "loop" for i in gapped))
+        # every other limit is one a loop with a silent window (swing over 70 dB) fails
+        others = {i: e.swing_max for i, e in synth.REGISTRY.items() if e.swing_max is not None and i not in gapped}
+        self.assertTrue(all(v <= 12.0 for v in others.values()), others)
 
 
 class SilentSounds(unittest.TestCase):
