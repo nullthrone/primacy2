@@ -44,10 +44,11 @@ const SPENT = 0.03;
  * The cockpit's one light stands for the strongest source outside: in its direction, this far
  * from the pilot's eye at most (metres) and no nearer than `NEAR`, with the strength that gives
  * the cabin what the source itself would. Far enough out that the light falls across the whole
- * dashboard from one side, near enough to stay inside the cockpit's depth range.
+ * dashboard from one side; never among the panels, which reach about 2.2 m from the eye, where
+ * it would burn a spot into the nearest one.
  */
 const OUT = 4;
-const NEAR = 1.5;
+const NEAR = 2.5;
 /**
  * The share of a source's light that the canopy lets in. The cabin is pale and matt where a hull
  * is dark metal, so the light that only just shows on a hull would bleach the dashboard.
