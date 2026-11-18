@@ -17,6 +17,14 @@ Operations ("op"):
   pitch  {semitones}  resampled so that everything lies 2^(semitones/12) higher and the sound is shorter by that
          factor; the sample rate written in the file stays.
   shelf  {hz, gainDb}  a high shelf, the second-order shelf of the audio EQ cookbook (slope 1), applied once.
+  append {fromS, toS}  a copy of the samples from fromS to toS of the signal as it is at that point of the process
+         list is appended to its end (no fade, no gain): the result is as long as the signal plus the copy, and the
+         appended part is a copy, which the text of the candidate says. The item is refused (as a wrong sha256 is:
+         message, the other items go on, exit code 1) unless each of these three is at least 50 dB under the signal's
+         peak (largest absolute sample of the 10 ms): the last 10 ms before the splice, the first 10 ms of the copied
+         part and the last 10 ms of the copied part, so that there is no step at the splice and none at the new end.
+         The record holds the three levels (dB under the peak), the lengths, the splice time and the largest sample
+         step within 1 ms of the splice.
 A room and a shelf scale the whole output down to a peak of 0.999 when it would be above (the gain is recorded);
 nothing else is normalised or limited.
 """
@@ -200,7 +208,48 @@ def op_shelf(x: np.ndarray, sr: int, p: dict) -> tuple[np.ndarray, dict]:
     return y, {"op": "shelf", "hz": float(p["hz"]), "gainDb": float(p["gainDb"]), "outputGainDb": round(gain, 4)}
 
 
-OPS = {"room": op_room, "pitch": op_pitch, "shelf": op_shelf}
+APPEND_MIN_DB = 50.0   # the three levels of an append have to be at least this far under the peak
+APPEND_WINDOW_S = 0.010
+
+
+def _db_under_peak(seg: np.ndarray, peak: float) -> float:
+    """How far the largest absolute sample of seg lies under the peak, in dB (capped at 240 for digital silence)."""
+    m = float(np.abs(seg).max()) if seg.size else 0.0
+    if peak <= 0.0:
+        return 0.0
+    return min(240.0, 20.0 * math.log10(peak / max(m, peak * 1e-12)))
+
+
+def op_append(x: np.ndarray, sr: int, p: dict) -> tuple[np.ndarray, dict]:
+    """A copy of x[fromS:toS] is appended to the end of x. Raises ValueError (the item is refused) when the last 10 ms
+    before the splice, the first 10 ms of the copy or the last 10 ms of the copy is less than APPEND_MIN_DB under the
+    peak of x."""
+    x = _as2d(x)
+    n = x.shape[0]
+    a, b = int(round(float(p["fromS"]) * sr)), int(round(float(p["toS"]) * sr))
+    if not (0 <= a < b <= n):
+        raise ValueError("append: fromS %g and toS %g do not name a part of the %.4f s signal" % (p["fromS"], p["toS"], n / sr))
+    w = max(1, int(round(APPEND_WINDOW_S * sr)))
+    if b - a < 2 * w:
+        raise ValueError("append: the copied part is shorter than 20 ms")
+    peak = float(np.abs(x).max())
+    levels = {"beforeSpliceDb": _db_under_peak(x[n - w:], peak),
+              "copyFirstDb": _db_under_peak(x[a:a + w], peak),
+              "copyLastDb": _db_under_peak(x[b - w:b], peak)}
+    weak = [k for k, v in levels.items() if v < APPEND_MIN_DB]
+    if weak:
+        raise ValueError("append: %s dB under the peak (at least %g dB is needed at the splice and at the new end): refused" % (
+            ", ".join("%s %.1f" % (k, levels[k]) for k in weak), APPEND_MIN_DB))
+    y = np.concatenate([x, x[a:b]], axis=0)
+    lo, hi = max(1, n - int(round(0.001 * sr))), min(y.shape[0], n + int(round(0.001 * sr)) + 1)
+    step = float(np.abs(np.diff(y[lo - 1:hi], axis=0)).max())
+    return y, {"op": "append", "fromS": float(p["fromS"]), "toS": float(p["toS"]), "spliceS": round(n / sr, 4),
+               "lengthBeforeS": round(n / sr, 4), "copiedS": round((b - a) / sr, 4), "lengthAfterS": round(y.shape[0] / sr, 4),
+               "peakBefore": round(peak, 5), "levelsDbUnderPeak": {k: round(v, 2) for k, v in levels.items()},
+               "maxStepWithin1ms": round(step, 6)}
+
+
+OPS = {"room": op_room, "pitch": op_pitch, "shelf": op_shelf, "append": op_append}
 
 
 def apply_process(x: np.ndarray, sr: int, process: list[dict]) -> tuple[np.ndarray, list[dict]]:
@@ -227,10 +276,14 @@ def sha256_of(path: Path) -> str:
 
 
 def say(process: list[dict]) -> str:
-    """The operations in plain words, with their numbers (for text_given)."""
+    """The operations in plain words, with their numbers (for text_given). An append says that the appended part is a copy."""
     parts = []
-    for p in process:
-        if p["op"] == "room":
+    for i, p in enumerate(process):
+        if p["op"] == "append":
+            what = ("the raw file" if i == 0 else "the sound as it was at that point")
+            parts.append("a copy of the samples from %g s to %g s of %s was appended to its end: the appended part is a copy, "
+                         "not new material" % (p["fromS"], p["toS"], what))
+        elif p["op"] == "room":
             parts.append("a room was added (decay time %g s, wet level %g dB against the dry sound, %s, seed %d)" % (
                 p["rt60S"], p["wetDb"], "one channel" if int(p["channels"]) == 1 else "two channels", int(p["seed"])))
         elif p["op"] == "pitch":
@@ -258,7 +311,10 @@ def derive_item(item: dict, out_raw: Path) -> dict:
     x, sr = sf.read(str(raw), dtype="float64", always_2d=True)
     if x.shape[1] != 1:
         raise ValueError("%s: %s has %d channels, one is expected" % (item["id"], frm["raw"], x.shape[1]))
-    y, ops = apply_process(x[:, 0], int(sr), item["process"])
+    try:
+        y, ops = apply_process(x[:, 0], int(sr), item["process"])
+    except ValueError as e:
+        raise ValueError("%s: %s" % (item["id"], e)) from None
     numbers = {"raw": measures(x, sr), "result": measures(y, sr), "operations": ops}
     for o in ops:
         if o["op"] == "room":

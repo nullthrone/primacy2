@@ -437,12 +437,15 @@ def _hard_unpickable(c: dict) -> bool:
     return bool(c.get("skip") or c.get("lowShare") or c.get("wrongShots"))
 
 
-def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], list[str]]:
+def choose_by_picks(cands: list[dict], picks: list[str], fallback_ok: bool = True,
+                    rule: dict | None = None) -> tuple[list[dict], list[str]]:
     """The slot rule of a family with its own "picks" (round 5): slot n takes a candidate of the source picks[n-1].
     The first slot of a source takes its most typical candidate (the nearest to the middle of all that source's
     candidates, as in round 4); every further slot of that source takes the candidate farthest from the picks
     already made in the family (the second-pick rule of round 4). A slot whose source has nothing left is left out
-    and the notes say so. A pick is {"slot", "cand", "role": "typical" | "farthest", "sourceRank": 1, 2, ...}."""
+    and the notes say so. A pick is {"slot", "cand", "role": "typical" | "farthest", "sourceRank": 1, 2, ...}.
+    fallback_ok False (the family key "pressedNoiseFallback": false, round 7): a slot that has only pressed noise left
+    stays empty and the notes say how many kept candidates there were and that they are over both numbers (rule)."""
     notes: list[str] = []
     if not cands:
         return [], ["no candidate in this family"]
@@ -458,6 +461,13 @@ def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], li
         if not pickable:
             # a pressed noise-like candidate fills the slot, the one with the lowest loudest-50-ms level first
             pressed = [i for i in idx if i not in chosen and cands[i].get("satNoise") and not _hard_unpickable(cands[i])]
+            if pressed and not fallback_ok:
+                lim = (" (loudest 50 ms above %g dBFS and a share above 2 kHz of %g or more in the loud frames)" % (
+                    rule["loud50Db"], rule["above2kHz"])) if rule else ""
+                notes.append("slot %d (%s): no candidate left that is not pressed noise, and the family has no fallback: %d kept "
+                             "candidates of this source, %s over both numbers%s; the slot stays empty" % (
+                                 slot, s, len(idx), ("all %d are" % len(pressed)) if len(pressed) == len(idx) else "%d are" % len(pressed), lim))
+                continue
             if pressed:
                 j = min(pressed, key=lambda i: (cands[i]["loud50Db"], i))
                 notes.append("slot %d (%s): no candidate left that is not pressed noise; filled from the excluded %s "
@@ -486,17 +496,18 @@ def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], li
     return out, notes
 
 
-def choose(cands: list[dict], picks: list[str] | None = None) -> tuple[list[dict], list[str]]:
+def choose(cands: list[dict], picks: list[str] | None = None, fallback_ok: bool = True,
+           rule: dict | None = None) -> tuple[list[dict], list[str]]:
     """cands: dicts with "source", "name", "raw" (description). Returns (picks, notes). A pick is
     {"slot": 1..4, "cand": cand, "role": "typical" | "second" | "farthest"}. Slot 1 to 3 are moss,
     sa3, oga (a source without a candidate has its slot filled by a second pick); slot 4 is the
     fourth pick. Deterministic: ties go to the lower source, then the lower name.
     picks: the ordered sources of the slots of a family that has its own list (round 5); without it the rule above
-    is used, as in round 4."""
+    is used, as in round 4. fallback_ok and rule: see choose_by_picks."""
     notes: list[str] = []
     cands = sorted(cands, key=lambda c: (SOURCES.index(c["source"]) if c["source"] in SOURCES else 99, c["name"]))
     if picks:
-        return choose_by_picks(cands, list(picks))
+        return choose_by_picks(cands, list(picks), fallback_ok, rule)
     if not cands:
         return [], ["no candidate in this family"]
     z = normalise(np.array([c["raw"] for c in cands]))
@@ -758,6 +769,8 @@ def family_settings(f: dict) -> dict:
     if f.get("notSaturatedNoise"):  # round 6; the key is only there when the family has the setting
         r = f["notSaturatedNoise"]
         out["notSaturatedNoise"] = {"loud50Db": float(r["loud50Db"]), "above2kHz": float(r["above2kHz"])}
+    if "pressedNoiseFallback" in f:  # round 7: false = a slot with only pressed noise left stays empty (default true)
+        out["pressedNoiseFallback"] = bool(f["pressedNoiseFallback"])
     if f.get("shots") is not None:  # round 7: only candidates with exactly this number of shots are picked
         out["shots"] = int(f["shots"])
     if f.get("fixed"):  # round 7: every item of "derived" is chosen, in order
@@ -919,7 +932,7 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             picks = [{"slot": i, "cand": by_name[it["id"]], "role": "fixed"} for i, it in enumerate(f["derived"], 1)]
             notes = []
         else:
-            picks, notes = choose(cs, sets[fam]["picks"])
+            picks, notes = choose(cs, sets[fam]["picks"], sets[fam].get("pressedNoiseFallback", True), sets[fam].get("notSaturatedNoise"))
             want = sets[fam].get("shots")
             if want is not None and sets[fam]["picks"] and len(picks) < len(sets[fam]["picks"]):
                 ok = sum(1 for c in cs if not c.get("wrongShots"))

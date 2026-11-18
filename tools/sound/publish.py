@@ -98,6 +98,16 @@ def describe_process(process: list[dict], numbers: dict) -> str:
                 ": %s s instead of %s s" % (_g(e["lengthS"]), _g(r["lengthS"])) if r and e else "")
         elif p["op"] == "shelf":
             t = "A high shelf filter changed everything above %s Hz by %s dB." % (_g(p["hz"]), _g(p["gainDb"]))
+        elif p["op"] == "append":
+            lv = o.get("levelsDbUnderPeak") or {}
+            what = "the raw file" if i == 0 else "the sound as it was at that point"
+            t = ("A copy of the samples from %s s to %s s of %s was appended to its end (no fade, no gain): the appended part, "
+                 "%s s long, is a copy, not new material%s." % (
+                     _g(p["fromS"]), _g(p["toS"]), what, _g(o.get("copiedS", p["toS"] - p["fromS"])),
+                     "; it starts at %s s. Levels under the peak: last 10 ms before the splice %s dB, first 10 ms of the copy %s dB, "
+                     "last 10 ms of the copy %s dB; largest sample step within 1 ms of the splice %s" % (
+                         _g(o["spliceS"]), _g(lv.get("beforeSpliceDb")), _g(lv.get("copyFirstDb")), _g(lv.get("copyLastDb")),
+                         _g(o.get("maxStepWithin1ms"))) if "spliceS" in o else ""))
         else:
             t = "Operation %s." % p["op"]
         if o.get("outputGainDb"):
@@ -121,6 +131,15 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
         how += " Share of the event's energy above 60 Hz: %d %%." % round(100 * share)
     if c.get("role") == "fixed":
         how += " A fixed candidate: it is on the page whatever the rules find, no pick rule applies to it."
+    elif c.get("pressedNoiseFallback"):  # round 6/7: a fallback is never called "the most typical candidate"
+        rule = fam.get("notSaturatedNoise") or {}
+        how += (" A fallback, not a typical pick: no candidate of this family was left that is not pressed noise, and this one was "
+                "put in to fill the slot (the one with the lowest level of them). Its loudest 50 ms is %s dBFS and its share above 2 kHz "
+                "in the loud frames is %s; the family's limits are above %s dBFS and %s or more, so it is over both." % (
+                    "%.2f" % c["loud50Db"] if c.get("loud50Db") is not None else "unknown",
+                    "%.4f" % c["above2kHzLoud"] if c.get("above2kHzLoud") is not None else "unknown",
+                    _g(rule["loud50Db"]) if "loud50Db" in rule else "unknown",
+                    _g(rule["above2kHz"]) if "above2kHz" in rule else "unknown"))
     elif "picks" in fam:  # round 5: the family names the sources of its slots
         if c.get("sourceRank", 1) > 1:
             how += " A further pick of this source: the candidate farthest from the picks already made in this family in the description used for variety."

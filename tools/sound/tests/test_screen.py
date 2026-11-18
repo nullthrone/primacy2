@@ -1573,7 +1573,132 @@ def test_a_category_events7_in_sounds_json_is_first_with_the_names_of_the_plan()
         assert ids[0] == "events7"
         assert cats[0]["de"] == p7["de"] and cats[0]["en"] == p7["en"]
     sk7 = json.loads((SOUND / "skips7.json").read_text(encoding="utf-8"))
-    assert sk7["skips"] == [] and sk7["note"].strip()
+    assert sk7["note"].strip() and all(k["candidate"].count("/") == 1 and k["reason"].strip() for k in sk7["skips"])
+    assert "moss/shield_snap_1__s22" in {k["candidate"] for k in sk7["skips"]}
+
+
+def two_shots(shot_s: float = 1.0, total_s: float = 2.2) -> np.ndarray:
+    """A one-channel signal of two decaying bursts 1.0 s apart (onsets 0.1 and 1.1 s); each is under -50 dB again before the next one and the end."""
+    t = np.arange(int(0.6 * SR)) / SR
+    b = 0.8 * np.sin(2 * np.pi * 150 * t) * 10 ** (-120.0 * t / 20.0)  # 120 dB per second: gone (under -60 dB) after 0.5 s
+    return place(total_s, [(0.1, b), (0.1 + shot_s, b)])[:, 0]
+
+
+def test_derive_append_copies_the_part_to_the_end_and_records_the_splice():
+    x = two_shots()
+    y, ops = derive.apply_process(x, SR, [{"op": "append", "fromS": 0.0, "toS": 1.0}])
+    n = x.size
+    assert y.shape == (n + SR, 1) and np.array_equal(y[:n, 0], x) and np.array_equal(y[n:, 0], x[:SR])
+    o = ops[0]
+    assert o["op"] == "append" and o["spliceS"] == 2.2 and o["copiedS"] == 1.0 and o["lengthBeforeS"] == 2.2 and o["lengthAfterS"] == 3.2
+    lv = o["levelsDbUnderPeak"]
+    assert set(lv) == {"beforeSpliceDb", "copyFirstDb", "copyLastDb"} and all(v >= 50.0 for v in lv.values())
+    assert 0.0 <= o["maxStepWithin1ms"] < 0.01 and o["peakBefore"] > 0.7
+    want = float(np.abs(np.diff(y[n - 49:n + 49, 0])).max())
+    assert abs(o["maxStepWithin1ms"] - want) < 1e-5
+    # no gain, no fade: the signal at that point of the list is what is copied (a pitch first shortens it)
+    y2, ops2 = derive.apply_process(x, SR, [{"op": "pitch", "semitones": 12.0}, {"op": "append", "fromS": 0.0, "toS": 0.5}])
+    k = y2.shape[0] - int(round(0.5 * SR))
+    assert np.array_equal(y2[k:, 0], y2[:int(round(0.5 * SR)), 0]) and abs(ops2[1]["lengthBeforeS"] - 1.1) < 0.001
+    # then a room works on the lengthened signal
+    y3, _ = derive.apply_process(x, SR, [{"op": "append", "fromS": 0.0, "toS": 1.0}, {"op": "room", "rt60S": 0.5, "wetDb": -6.0, "channels": 1, "seed": 7}])
+    assert y3.shape[0] > n + SR
+    txt = derive.say([{"op": "append", "fromS": 0.0, "toS": 1.0}, {"op": "room", "rt60S": 1.4, "wetDb": -4.0, "channels": 1, "seed": 7}])
+    assert "a copy of the samples from 0 s to 1 s of the raw file was appended to its end" in txt and "the appended part is a copy" in txt
+
+
+def test_derive_append_refuses_a_splice_that_would_have_a_step():
+    import contextlib
+    import io
+
+    x = two_shots()
+    for what, p in (("copy ends inside a shot", {"fromS": 0.0, "toS": 1.15}),
+                    ("copy starts inside a shot", {"fromS": 0.15, "toS": 1.0}),
+                    ("not a part of the signal", {"fromS": 0.0, "toS": 2.5}), ("empty part", {"fromS": 0.5, "toS": 0.5})):
+        try:
+            derive.apply_process(x, SR, [dict(p, op="append")])
+        except ValueError as e:
+            assert "append" in str(e), what
+        else:
+            raise AssertionError(what)
+    loud_end = x.copy()
+    loud_end[-SR // 100:] = 0.5
+    try:
+        derive.apply_process(loud_end, SR, [{"op": "append", "fromS": 0.0, "toS": 1.0}])
+    except ValueError as e:
+        assert "beforeSpliceDb" in str(e) and "refused" in str(e)
+    else:
+        raise AssertionError("a loud end before the splice must be refused")
+    # at the edge: 51 dB under the peak passes, 49 dB does not
+    for db, ok in ((-51.0, True), (-49.0, False)):
+        z = x.copy()
+        z[-SR // 100:] = 0.0
+        z[-SR // 100] = np.abs(x).max() * 10 ** (db / 20.0)
+        try:
+            derive.apply_process(z, SR, [{"op": "append", "fromS": 0.0, "toS": 1.0}])
+            assert ok, db
+        except ValueError:
+            assert not ok, db
+    # in a run the item is refused with its id, the others go on and the exit code is 1
+    with tempfile.TemporaryDirectory() as td:
+        td, root, pf = build_round7(Path(td), {21: 2, 22: 2, 23: 2, 24: 2})
+        spec = json.loads(pf.read_text(encoding="utf-8"))
+        spec["families"][0]["derived"][2]["process"] = [{"op": "append", "fromS": 0.0, "toS": 1.15}]
+        pf.write_text(json.dumps(spec), encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = derive.main(["--prompts-file", str(pf), "--out-root", str(root)])
+        assert code == 1 and "REFUSED thruster_fix_3: append" in out.getvalue()
+        assert sorted(json.loads((root / "derived" / "gen.json").read_text(encoding="utf-8"))["items"]) == ["shield_fix_1", "thruster_fix_1", "thruster_fix_2"]
+
+
+def test_a_family_without_a_fallback_leaves_a_slot_of_pressed_noise_empty_and_says_why():
+    def pool():
+        return [sat_cand("a", -5.0, 0.2, True, 100.0), sat_cand("b", -8.0, 0.2, True, 130.0)]
+    rule = {"loud50Db": -9.5, "above2kHz": 0.03}
+    picks, notes = screen.choose(pool(), ["moss"], False, rule)
+    assert picks == [] and len(notes) == 1
+    assert "2 kept candidates" in notes[0] and "all 2 are over both numbers" in notes[0] and "above -9.5 dBFS" in notes[0] and "0.03" in notes[0]
+    assert "stays empty" in notes[0] and "filled from" not in notes[0]
+    # the default is the fallback of rounds 5 and 6
+    picks, notes = screen.choose(pool(), ["moss"])
+    assert [p["cand"]["name"] for p in picks] == ["b"] and picks[0]["saturatedFallback"] is True
+    # a clean candidate is picked as before, and only the slot behind it stays empty
+    mixed = pool() + [sat_cand("c", -20.0, 0.01, False, 300.0)]
+    picks, notes = screen.choose(mixed, ["moss", "moss"], False, rule)
+    assert [p["cand"]["name"] for p in picks] == ["c"] and "2 are over both numbers" in notes[0] and "3 kept candidates" in notes[0] and "all 2 are" not in notes[0]
+    # the plan key
+    assert "pressedNoiseFallback" not in screen.family_settings({"id": "x", "lufs": -24, "maxS": 1.5})
+    assert screen.family_settings({"id": "x", "lufs": -24, "maxS": 1.5, "pressedNoiseFallback": False})["pressedNoiseFallback"] is False
+    p7 = {f["id"]: f for f in json.loads((SOUND / "prompts7.json").read_text(encoding="utf-8"))["families"]}
+    assert p7["shield_absorb"]["pressedNoiseFallback"] is False
+    assert not any("pressedNoiseFallback" in f for n in ("prompts.json", "prompts5.json", "prompts6.json")
+                   for f in json.loads((SOUND / n).read_text(encoding="utf-8"))["families"])
+
+
+def test_publish_never_calls_a_fallback_the_most_typical_candidate():
+    pub = load("publish")
+    fam = {"id": "shield_absorb", "en": "e", "de": "d", "picks": ["moss"], "proven": False, "notSaturatedNoise": {"loud50Db": -9.5, "above2kHz": 0.03}}
+    c = {"id": "ev7_6_shield_absorb_1_moss_p1s27", "family": "shield_absorb", "slot": 1, "role": "typical", "source": "moss", "sourceRank": 1,
+         "cut": {"startS": 0.07, "endS": 1.23, "cappedAtFamilyLength": False}, "energyAbove60Hz": 0.84,
+         "listen": {"lufsTarget": -24.0, "lufsPageTarget": -21.0, "lufsReachedPage": -20.99, "lufsReached": -24.0},
+         "record": {"text_given": "x", "seed": 27}, "loud50Db": -9.36, "above2kHzLoud": 0.5933}
+    plain, _ = pub.describe_source(dict(c), fam)
+    assert "Chosen as the most typical candidate of its source in this family." in plain
+    fb, _ = pub.describe_source(dict(c, pressedNoiseFallback=True), fam)
+    assert "most typical" not in fb and "A fallback, not a typical pick" in fb
+    assert "-9.36 dBFS" in fb and "0.5933" in fb and "above -9.5 dBFS and 0.03 or more" in fb and "over both" in fb
+    fb2, _ = pub.describe_source(dict(c, pressedNoiseFallback=True, sourceRank=2, role="farthest"), fam)
+    assert "most typical" not in fb2 and "A fallback" in fb2
+    # the sentence about the level as the page plays it is inherited and stays as it was
+    assert "as the page plays it in the Stereo stage, over two channels with a one-channel file counted on both, -21.0 LUFS" in fb
+    # an append in a derived entry says that the appended part is a copy, with the numbers of the splice
+    d = {"op": "append", "fromS": 0.0, "toS": 1.0}
+    num = {"operations": [{"op": "append", "fromS": 0.0, "toS": 1.0, "spliceS": 2.0, "copiedS": 1.0,
+                           "levelsDbUnderPeak": {"beforeSpliceDb": 61.5, "copyFirstDb": 70.25, "copyLastDb": 55.0}, "maxStepWithin1ms": 0.0012}]}
+    t = pub.describe_process([d], num)
+    assert "A copy of the samples from 0 s to 1 s of the raw file was appended" in t and "is a copy, not new material" in t
+    assert "it starts at 2 s" in t and "61.5 dB" in t and "0.0012" in t
 
 
 def main() -> int:
