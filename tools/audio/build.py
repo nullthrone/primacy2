@@ -819,20 +819,16 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     return entries
 
 
-def _plain(v) -> str:
-    return "%g" % v if isinstance(v, float) else str(v)
-
-
 def _say_operation(p: dict, o: dict) -> str:
     """One operation of a derived sound in words, built from the data of the entry: its name, the settings of the list
     (derived.process) and what it reported (derived.operations), nothing from a table of the code."""
-    parts = ["%s %s" % (k, _plain(v)) for k, v in p.items() if k != "op"]
+    parts = ["%s %s" % (k, str(v)) for k, v in p.items() if k != "op"]
     for k, v in o.items():
         if k == "op" or k in p:
             continue
         if isinstance(v, dict):
-            v = "(" + ", ".join("%s %s" % (kk, _plain(vv)) for kk, vv in v.items()) + ")"
-        parts.append("%s %s" % (k, _plain(v)))
+            v = "(" + ", ".join("%s %s" % (kk, str(vv)) for kk, vv in v.items()) + ")"
+        parts.append("%s %s" % (k, str(v)))
     return "%s (%s)" % (p["op"], ", ".join(parts))
 
 
