@@ -1,0 +1,304 @@
+{
+ "role": "tools",
+ "date": "2026-11-18",
+ "status": "done",
+ "changed": [
+  "tools/sound/derive.py (new)",
+  "tools/sound/screen.py",
+  "tools/sound/publish.py",
+  "tools/sound/skips7.json (new)",
+  "tools/sound/tests/test_screen.py",
+  "tools/sound/README.md (section Round 7 appended)",
+  "assets/audio/gen/r7/derived (through derive.py; git-ignored)"
+ ],
+ "notChanged": "common.py and adapters/moss.py needed no change (--list-jobs with prompts7.json prints 40 jobs, none for thruster_room and shield_brighter)",
+ "commands": {
+  "derive": ".venv-audio/Scripts/python.exe tools/sound/derive.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7",
+  "listJobs": ".venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7 --list-jobs",
+  "generate": ".venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7",
+  "screen": ".venv-audio/Scripts/python.exe tools/sound/screen.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7 --device cpu",
+  "publish": ".venv-audio/Scripts/python.exe tools/sound/publish.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7",
+  "tests": ".venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py"
+ },
+ "derivedFiles": {
+  "thruster_room_1": {
+   "id": "ev7_1_thruster_room_1_derived_r6p3s11a",
+   "process": [
+    {
+     "op": "room",
+     "rt60S": 0.9,
+     "wetDb": -9.0,
+     "channels": 1,
+     "seed": 7
+    }
+   ],
+   "channels": 1,
+   "sr": 48000,
+   "raw": {
+    "peak": 0.99955,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.6505,
+    "shareAbove2kHz": 0.0572,
+    "centroidHz": 492.9
+   },
+   "result": {
+    "peak": 0.999,
+    "lengthS": 3.35,
+    "shareUnder250Hz": 0.6738,
+    "shareAbove2kHz": 0.0513,
+    "centroidHz": 460.3
+   },
+   "operations": [
+    {
+     "op": "room",
+     "wetDryDbAsked": -9.0,
+     "wetDryDbReached": -9.0,
+     "irLengthS": 1.35,
+     "channels": 1,
+     "outputGainDb": -2.1105
+    }
+   ],
+   "wetDryDb": -9.0,
+   "irLengthS": 1.35,
+   "loud50Db": -6.23,
+   "above2kHzLoud": 0.052,
+   "shots": 2,
+   "faults": [],
+   "cut": {
+    "startS": 0.0641,
+    "endS": 2.061,
+    "cappedAtFamilyLength": false
+   },
+   "listenLufsReachedPage": -24.98,
+   "listenLevelErrorDb": -0.008
+  },
+  "thruster_room_2": {
+   "id": "ev7_1_thruster_room_2_derived_r6p3s11b",
+   "process": [
+    {
+     "op": "room",
+     "rt60S": 1.4,
+     "wetDb": -4.0,
+     "channels": 1,
+     "seed": 7
+    }
+   ],
+   "channels": 1,
+   "sr": 48000,
+   "raw": {
+    "peak": 0.99955,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.6505,
+    "shareAbove2kHz": 0.0572,
+    "centroidHz": 492.9
+   },
+   "result": {
+    "peak": 0.999,
+    "lengthS": 4.1,
+    "shareUnder250Hz": 0.6899,
+    "shareAbove2kHz": 0.0429,
+    "centroidHz": 415.2
+   },
+   "operations": [
+    {
+     "op": "room",
+     "wetDryDbAsked": -4.0,
+     "wetDryDbReached": -4.0,
+     "irLengthS": 2.1,
+     "channels": 1,
+     "outputGainDb": -3.5484
+    }
+   ],
+   "wetDryDb": -4.0,
+   "irLengthS": 2.1,
+   "loud50Db": -6.97,
+   "above2kHzLoud": 0.0446,
+   "shots": 2,
+   "faults": [],
+   "cut": {
+    "startS": 0.0652,
+    "endS": 2.503,
+    "cappedAtFamilyLength": false
+   },
+   "listenLufsReachedPage": -24.98,
+   "listenLevelErrorDb": -0.008
+  },
+  "thruster_room_3": {
+   "id": "ev7_1_thruster_room_3_derived_r6p3s11c",
+   "process": [
+    {
+     "op": "room",
+     "rt60S": 1.2,
+     "wetDb": -6.0,
+     "channels": 2,
+     "seed": 7
+    }
+   ],
+   "channels": 2,
+   "sr": 48000,
+   "raw": {
+    "peak": 0.99955,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.6505,
+    "shareAbove2kHz": 0.0572,
+    "centroidHz": 492.9
+   },
+   "result": {
+    "peak": 0.999,
+    "lengthS": 3.8,
+    "shareUnder250Hz": 0.6739,
+    "shareAbove2kHz": 0.0482,
+    "centroidHz": 442.8
+   },
+   "operations": [
+    {
+     "op": "room",
+     "wetDryDbAsked": -6.0,
+     "wetDryDbReached": -6.0,
+     "irLengthS": 1.8,
+     "channels": 2,
+     "outputGainDb": -2.8252
+    }
+   ],
+   "wetDryDb": -6.0,
+   "irLengthS": 1.8,
+   "loud50Db": -7.03,
+   "above2kHzLoud": 0.0547,
+   "shots": 2,
+   "faults": [],
+   "cut": {
+    "startS": 0.0641,
+    "endS": 2.307,
+    "cappedAtFamilyLength": false
+   },
+   "listenLufsReachedPage": -24.98,
+   "listenLevelErrorDb": -0.009
+  },
+  "shield_brighter_1": {
+   "id": "ev7_4_shield_brighter_1_derived_r6p2s11a",
+   "process": [
+    {
+     "op": "pitch",
+     "semitones": 3.0
+    }
+   ],
+   "channels": 1,
+   "sr": 48000,
+   "raw": {
+    "peak": 0.998,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.9462,
+    "shareAbove2kHz": 0.0147,
+    "centroidHz": 160.8
+   },
+   "result": {
+    "peak": 0.99809,
+    "lengthS": 1.6818,
+    "shareUnder250Hz": 0.9432,
+    "shareAbove2kHz": 0.0168,
+    "centroidHz": 191.3
+   },
+   "operations": [
+    {
+     "op": "pitch",
+     "semitones": 3.0,
+     "factor": 1.189207,
+     "ratioUsed": "1169/983",
+     "lengthFactor": 0.840896
+    }
+   ],
+   "wetDryDb": null,
+   "irLengthS": null,
+   "loud50Db": -4.36,
+   "above2kHzLoud": 0.0165,
+   "shots": null,
+   "faults": [],
+   "cut": {
+    "startS": 0.001,
+    "endS": 0.762,
+    "cappedAtFamilyLength": false
+   },
+   "listenLufsReachedPage": -20.97,
+   "listenLevelErrorDb": -0.023
+  },
+  "shield_brighter_2": {
+   "id": "ev7_4_shield_brighter_2_derived_r6p2s11b",
+   "process": [
+    {
+     "op": "shelf",
+     "hz": 300.0,
+     "gainDb": 8.0
+    }
+   ],
+   "channels": 1,
+   "sr": 48000,
+   "raw": {
+    "peak": 0.998,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.9462,
+    "shareAbove2kHz": 0.0147,
+    "centroidHz": 160.8
+   },
+   "result": {
+    "peak": 0.999,
+    "lengthS": 2.0,
+    "shareUnder250Hz": 0.7479,
+    "shareAbove2kHz": 0.0722,
+    "centroidHz": 531.1
+   },
+   "operations": [
+    {
+     "op": "shelf",
+     "hz": 300.0,
+     "gainDb": 8.0,
+     "outputGainDb": -3.5997
+    }
+   ],
+   "wetDryDb": null,
+   "irLengthS": null,
+   "loud50Db": -7.65,
+   "above2kHzLoud": 0.0714,
+   "shots": null,
+   "faults": [],
+   "cut": {
+    "startS": 0.0014,
+    "endS": 0.905,
+    "cappedAtFamilyLength": false
+   },
+   "listenLufsReachedPage": -20.99,
+   "listenLevelErrorDb": 0.0
+  }
+ },
+ "shotsOnRealRawFiles": {
+  "thruster_mighty_3__s11": {
+   "cut round 6 (maxS 1.5)": 2,
+   "cut round 7 (maxS 3.8)": 2,
+   "whole file": 2
+  },
+  "thruster_mighty_3__s12": {
+   "cut round 6 (maxS 1.5)": 2,
+   "cut round 7 (maxS 3.8)": 2,
+   "whole file": 2
+  },
+  "thruster_mighty_1__s12": {
+   "cut round 6 (maxS 1.5)": 1,
+   "cut round 7 (maxS 3.8)": 1,
+   "whole file": 1
+  }
+ },
+ "scratchScreen": "screen.py with prompts7.json on a scratch root holding only the derived gen.json: 5 of 5 fixed candidates chosen in order, listening copies written, generated families empty without error, exit 0, models on cpu (whisper, clap): no speech, no music, faults [] for all five",
+ "tests": "58 tests, 0 failed (47 before; 11 new or extended)",
+ "round6Regression": "screen.py with prompts6.json on a copy of the r6 gen.json gives a screen.json that differs from the real assets/audio/gen/r6/screen.json only in the path of the 14 listening copies (scratch root instead of assets/audio/gen/r6)",
+ "choicesNotInThePlan": [
+  "tail level of the room: it starts at the root mean square of -13 dB re the direct sound (the level of the weakest early reflection), before the wet level of the whole response is set by wetDb",
+  "the response has no sample at index 0; the output length is raw + response - 1 (the convolution length)",
+  "shots, loud50Db and above2kHzLoud are recorded only when the prompts file lists the source derived (round 7), so the screen.json of rounds 4 to 6 keeps its keys",
+  "a fixed item runs through the speech and music models (CLAP text: the family name) and the faults are recorded, not acted on",
+  "derived WAV headers differ between runs (time stamp in the PEAK chunk); samples and gen.json are identical"
+ ],
+ "notVerified": [
+  "nothing was listened to",
+  "publish.py on the real tree and the page (events7 is not yet in tools/audio/sounds.json; the publish was tested on a fake tree under category events5 with idPrefix ev7)",
+  "the adapter generation (not run)"
+ ]
+}

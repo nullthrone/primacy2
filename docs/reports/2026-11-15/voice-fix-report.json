@@ -1,0 +1,116 @@
+{
+  "role": "voice-fix: data and documents brought up to date after the repair of the voice comparison",
+  "status": "done",
+  "summary": "Re-timing collected into assets/audio/voice/retime.json (two parsing bugs of retime.py collect fixed: audit runs were grouped under an empty device, audit load lines were not read because nvidia-smi broke them). score.py, score.py --listen and identity.py were run through the lock (score waited 1106 s for another agent). scores.json, identity.json and tools/voice/RESULTS.md were regenerated; CANDIDATES.md was corrected where it stated the same facts. Qwen3 CPU now has 15 lines. Nobody listened; nothing here says how a voice sounds.",
+  "items": [
+    {
+      "auditMustFix": "Qwen3 adapter: HF_HUB_OFFLINE=1 and pinned revisions",
+      "firstRepair": "adapters/qwen3.py sets HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1, removes HF_TOKEN, passes both revisions to snapshot_download(local_files_only=True), blocks non-loopback connects (verified by reading in the verify report).",
+      "thisFix": "Nothing to change in code. The new 15-line Qwen3 CPU timing.json records hub_offline '1', revision 5d83992436eae1d760afd27aff78a71d676296fc, network_attempts_refused []. RESULTS.md and CANDIDATES.md state it.",
+      "before": "unpinned, hub online",
+      "after": "offline, pinned (timing.json of qwen3/cpu)"
+    },
+    {
+      "auditMustFix": "Qwen3 CPU: run all 15 lines",
+      "firstRepair": "A 15-line run was made (finished 16:33).",
+      "thisFix": "Scored it (score.py, identity.py). RESULTS.md row, checks table (no more '12 of 15 not run') and text rewritten. The earlier 3-line run (RTF 3.064) is kept as _retime_runs/builder_qwen3_cpu_3lines.timing.json and is left out of the range.",
+      "before": "3 lines, RTF 3.064, WER worst 0.083, names 4/6, no same-voice figure, voices apart 0.651",
+      "after": "15 lines, RTF 3.838 (re-times on 4 lines 3.647-3.744, audit 3.729), WER median 0.000, worst 0.741, names 12/24, same voice 0.934, voices apart 0.654, similarity to clip 0.946, load 1.34 s. New finding: station_contract was read back as its first 8 of 24 words (20 errors); the same line on the card was read whole; cause not checked (file 8.96 s, pause 0.82 s inside)."
+    },
+    {
+      "auditMustFix": "Do not show single CUDA RTFs; show ranges with the load",
+      "firstRepair": "retime.py written; three re-times of the four listening lines for every model and device, outside load measured before each run.",
+      "thisFix": "retime.json written (33 new runs + the builders' and the audit's runs, with load). RESULTS.md table: range of the median RTF over all runs and the builder's own median per row, a second table with the outside load, a note that the card is shared and the lock was held by other agents.",
+      "before": "kokoro/cuda 0.011, qwen3/cuda 1.825 (single figures)",
+      "after": "kokoro/cuda 0.011-0.173 over 7 runs (new runs 0.013, 0.014, 0.029 at card 16-17-72 %; audit 0.173 at 99 %, 0.019, 0.019 at about 50 %); qwen3/cuda 1.825-2.957 over 6 runs (new runs 1.926, 1.958, 1.868 at card 16-17 %; audit 2.957 at 95-100 %, 2.424 at about 50 %). The one-line proof run (2.197, card 47-49 %) is in _retime_runs but not in retime.json by design of retime.py collect."
+    },
+    {
+      "auditMustFix": "Drop or soften 'Chatterbox 8 threads gave no speedup'",
+      "firstRepair": "none in the documents",
+      "thisFix": "RESULTS.md has a table of 4 against 8 threads on the same four lines; CANDIDATES.md open point rewritten; the comparison of a 15-line median with a 4-line median removed.",
+      "before": "'8 threads gave no speedup'; 0.65 (4 threads, 15 lines) against 0.70 (8 threads, 4 lines)",
+      "after": "4 threads 0.710 (audit), 0.740, 0.736, 0.792 (new); 8 threads 0.532 (audit), 0.559, 0.548, 0.586 (new): 8 threads 24-26 % less time in four paired runs; builder's own pair 0.677 against 0.703 shows no gain; the makers' 3x claim not reproduced"
+    },
+    {
+      "auditMustFix": "Voices of unstated origin (Kitten, Kokoro, kitten-blend): decide or mark",
+      "firstRepair": "CANDIDATES.md already said 'not shown' for Kokoro and Kitten.",
+      "thisFix": "New table 'No real person as template' in RESULTS.md: met by method (Qwen3, Chatterbox-Nano), stated by the makers (Phonon, their statement, not checked), not shown (Kokoro, Kitten). Blend rows follow their model.",
+      "before": "one combined column; only Kokoro and Kitten rows said the origin is open",
+      "after": "status per model in its own table"
+    },
+    {
+      "auditMustFix": "score.py: alignment tie in a name run",
+      "firstRepair": "align() takes, among alignments of equal cost, the one with the fewest ordinary errors; new tests (tie tests, all pass).",
+      "thisFix": "Re-scored through the lock and compared line by line with the earlier scores.json (copy taken before): the only line whose ordinary-error count or name hits changed is qwen3/cuda procedural_convoy (this also settles the claim the verifier could not check).",
+      "before": "qwen3/cuda procedural_convoy 3 errors, WER 0.2143, row worst WER 0.214",
+      "after": "2 errors of 14, WER 0.1429, row worst 0.143; medians unchanged"
+    },
+    {
+      "auditMustFix": "RESULTS.md timing note: shared graphics card, other agents' checks hold the lock",
+      "firstRepair": "none",
+      "thisFix": "Stated above the table and under 'What was not measured': card shared with the owner's desktop programs (about half busy when idle at the audit, 95-100 % in some audit runs, 15-72 % before later runs), other agents' checks held the same lock up to 40 minutes, all timings taken on a busy machine; the cause of the Phonon spread is said to be unmeasured.",
+      "before": "'other agents used the CPU between locked runs'",
+      "after": "as described"
+    },
+    {
+      "auditMustFix": "Words per second should count spoken words of raw lines",
+      "firstRepair": "level_report counts the spoken words of a raw line; test added.",
+      "thisFix": "Re-scored; checks table regenerated from the new scores.json.",
+      "before": "computer_cargo_raw flagged: kokoro 1.44, phonon 1.49, phonon-q8 1.40",
+      "after": "computer_cargo_raw 1.92 (kokoro), 1.98 (phonon), 1.87 (phonon-q8), 2.5 (kitten), 2.19 (chatterbox), 2.20 (qwen3 cuda): none flagged. Remaining flags: phonon radio_readback 1.46, radio_mayday 1.32; phonon-q8 1.46, 1.37; phonon-blend computer_fold 1.32"
+    }
+  ],
+  "verifierMustFixAnswered": [
+    "voice-fix-report.json written (this file)",
+    "scores.json, identity.json, RESULTS.md regenerated; table, checks table and the lists of lines read wrongly come from the new scores.json (generated by a script, not typed)",
+    "retime.json written; ranges and load in RESULTS.md",
+    "Chatterbox 8 threads: see above; CANDIDATES.md open point rewritten",
+    "timing note extended",
+    "Qwen3 seed: one seed 20261115, take 1 for all four voices, takes 2 and 3 unused",
+    "Qwen3 CPU 15 lines with figures",
+    "rule column added (met by method / stated by the makers / not shown)",
+    "Kokoro 0.34 GB downloaded, 0.33 GB model file alone (RESULTS.md, CANDIDATES.md)",
+    "Kitten parameters 82 million, source voice-dossiers.json params_millions, not checked against the card",
+    "CANDIDATES.md Phonon: Mimi CC-BY-4.0 attributed to the kyutai/mimi card; spread cause marked unmeasured",
+    "4-line rows: same voice is one voice with two lines, voices apart uses three voices, not to be ranked"
+  ],
+  "otherChanges": [
+    "tools/voice/retime.py collect: audit file names are split at '__' then '_' (audit runs had been grouped under an empty device); the audit driver log is read after joining lines that nvidia-smi broke (the load of the audit's first runs had been dropped). No timed run was made.",
+    "CANDIDATES.md Qwen3 open point: speed on the card and the CPU given as ranges."
+  ],
+  "timingRanges": {
+    "qwen3/cuda": "1.825-2.957 (6 runs), builder 1.825",
+    "qwen3/cpu": "3.647-3.838 (5 runs), builder 3.838 on 15 lines",
+    "chatterbox-nano/cpu": "0.651-0.792 (5), builder 0.651",
+    "chatterbox-nano-8t/cpu": "0.532-0.703 (5), builder 0.703 on 4 lines",
+    "kokoro/cuda": "0.011-0.173 (7), builder 0.011",
+    "kokoro/cpu": "0.138-0.143 (5), builder 0.142",
+    "phonon/cpu": "0.067-0.074 (5), builder 0.068",
+    "phonon-q8/cpu": "0.062-0.073 (5), builder 0.073",
+    "phonon-blend/cpu": "0.057-0.073 (5), builder 0.057 on 4 lines",
+    "kitten/cpu": "0.153-0.159 (5), builder 0.153",
+    "kitten-blend/cpu": "0.149-0.154 (5), builder 0.149 on 4 lines"
+  },
+  "notVerified": [
+    "How any voice sounds. Nobody listened.",
+    "Why Qwen3 on the CPU has only 8 of 24 words read back on station_contract (model or Whisper).",
+    "Whether the thread limits hold on the CPU runs.",
+    "Why the builder's 8-thread Chatterbox run shows no gain while all four later pairs do.",
+    "Timings with the owner's desktop programs closed: not made; every timing is from a busy machine.",
+    "Load of the audit's second and third Kokoro runs and second Qwen3 run: taken from the audit report ('about 50 %'), not measured per run. The audit's other runs have the load of their queue time, not their start.",
+    "The Kitten figure 82 million against the model card.",
+    "The Mimi weights' licence inside the Phonon repository; licence texts were not re-read at the source.",
+    "Whether Phonon's native runtime fetches nothing (no network trace).",
+    "Whisper small mixes recogniser and model errors."
+  ],
+  "filesWritten": [
+    "assets/audio/voice/retime.json",
+    "assets/audio/voice/scores.json",
+    "assets/audio/voice/identity.json",
+    "assets/audio/voice/_listen/ (score.py --listen)",
+    "tools/voice/RESULTS.md",
+    "tools/voice/CANDIDATES.md",
+    "tools/voice/retime.py",
+    "docs/reports/2026-11-15/voice-fix-report.json"
+  ]
+}

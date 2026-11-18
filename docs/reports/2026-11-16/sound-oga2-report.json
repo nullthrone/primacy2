@@ -1,0 +1,78 @@
+{
+ "role": "oga",
+ "status": "partial",
+ "date": "2026-11-16",
+ "summary": "Ten of the twelve planned items were kept and fetched through tools/audio/fetch.py (no refusal, no redirect off the host). 21 excerpts were cut: hull 8, thruster 5, gear 7, shield 1. Two items dropped (circuit breaker, chain winch). fetch.py --check: 35 entries, 0 problems; python -m unittest discover -s tools/audio/tests: 77 tests OK. Nobody listened to anything; every cut is by file name and level envelope. The shield family has one excerpt, the gear family has no recording of a motor ending in a latch (see problems).",
+ "licenceReads": {
+  "method": "Each page was fetched again on 2026-11-16 (curl, HTML only, no archive) and the licence block read from the HTML. On every page the block reads 'License(s): CC0' and nothing else; the 'Collections:' text after it is a separate field.",
+  "items": [
+   {"page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx", "pageAuthor": "rubberduck", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-metal-wood-sfx", "why": "CC0 only; page does not say how the sounds were made, so recording is NOT verified; a comment thread notes a later copy of the pack on renderhub.com, nothing says the pack derives from other material"},
+   {"page": "https://opengameart.org/content/100-cc0-sfx", "pageAuthor": "rubberduck", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-100-cc0-sfx", "why": "CC0 only; page says 'recorded with an android device'"},
+   {"page": "https://opengameart.org/content/100-cc0-sfx-2", "pageAuthor": "rubberduck", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-100-cc0-sfx-2", "why": "CC0 only; page does not say how the sounds were made (recording not verified)"},
+   {"page": "https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx", "pageAuthor": "rubberduck", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-breaking-falling-hit", "why": "CC0 only; page says 'i made 75 breaking, falling and hit sounds' without saying whether recorded (not verified)"},
+   {"page": "https://opengameart.org/content/metal-clang-sounds", "pageAuthor": "bart", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-metal-clang", "why": "CC0 only; page says 'Metal clang sounds at different pitches', does not say how made. The same author states on his winch page that he synthesised that one, so recording is NOT verified for this pack"},
+   {"page": "https://opengameart.org/content/steam-release-sounds", "pageAuthor": "bart", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-steam-release", "why": "CC0 only; page does not say how made (same author as the synthesised winch, so recording NOT verified)"},
+   {"page": "https://opengameart.org/content/door-lock-sounds", "pageAuthor": "Cough-E", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-door-lock", "why": "CC0 only; page says 'I made my own', not whether recorded (not verified). Copyright notice on the page: use however you want, even commercially"},
+   {"page": "https://opengameart.org/content/sfx-circuit-breaker", "pageAuthor": "CleytonKauffman", "licenceLine": "License(s): CC0", "decision": "dropped", "why": "The brief says drop unless the page explains why the uploader may release another author's work. The page names no such reason. Note for the owner: the first-run report named 'Snabisch / Cleyton Kauffman'; on the page Snabisch is only the commenter and the author line and the copyright notice both say Cleyton Kauffman, so there may be no third-party work at all. Not taken because the brief's condition was not met and a breaker switch is a weak fit for the gear anyway; can be added back on the owner's word"},
+   {"page": "https://opengameart.org/content/various-sound-effects", "pageAuthor": "laleksic", "licenceLine": "License(s): CC0", "decision": "kept", "entry": "oga-various-sfx", "why": "CC0 only; page says recorded on a phone and cleaned up in Audacity"},
+   {"page": "https://opengameart.org/content/chain-winch-sounds", "pageAuthor": "bart", "licenceLine": "License(s): CC0", "decision": "dropped", "why": "the author writes in a comment on the page: 'I synthesized a single metal clicking noise ... then arranged that sound myself'. Not a recording"},
+   {"page": "https://opengameart.org/content/elevatordoor", "pageAuthor": "PagDev", "licenceLine": "License(s): CC0", "decision": "kept (downloaded, no excerpt)", "entry": "oga-elevator-door", "why": "CC0 only; page says 'Opening a elevator door Sound Effect'; a commenter thanks the author 'for recording'. No excerpt cut: the file is 3.58 s and still within 7 dB of its maximum at its end, so the event is cut off by the end of the file"},
+   {"page": "https://opengameart.org/content/electricity-sound-effects-0", "pageAuthor": "BMacZero (Brian MacIntosh)", "licenceLine": "License(s): CC0", "decision": "kept (spark.wav only)", "entry": "oga-tesla-spark", "why": "CC0 only; page says 'recorded from a small Tesla generator'. continuousspark.wav not fetched: it is a continuous file, not an event"}
+  ]
+ },
+ "pageAuthorCorrection": "The first-run report took the author from a comment in several cases. Per the pages: the four packs 100-cc0-metal-and-wood-sfx, 100-cc0-sfx, 100-cc0-sfx-2 and 75-cc0-breaking-falling-hit-sfx are by rubberduck (not Barina, aijikl, geekygnome, frances); metal-clang and steam-release are by bart (not HaelDB, XilliX); door-lock is by Cough-E (not davesch); elevatordoor is by PagDev (not maocleal). downloads.json and the credits use the page author lines.",
+ "fetch": {
+  "entriesAdded": ["oga-metal-wood-sfx", "oga-100-cc0-sfx", "oga-100-cc0-sfx-2", "oga-breaking-falling-hit", "oga-metal-clang", "oga-steam-release", "oga-door-lock", "oga-various-sfx", "oga-elevator-door", "oga-tesla-spark"],
+  "file": "assets/audio/downloads.json (the brief says tools/audio/downloads.json; that path does not exist, fetch.py reads assets/audio/downloads.json). A source block for OpenGameArt and a notTaken line for circuit breaker and winch were added; the file keeps its CRLF and no trailing newline, round-tripped byte-identical before the edit",
+  "command": ".venv-audio/Scripts/python.exe tools/audio/fetch.py --only <the ten ids>  -> 'fetched' for all ten, no refusal, no redirect refused",
+  "hashCollection": "downloads.json needs bytes and SHA-256 before fetch.py can run, so the ten files were read once through fetch.py's own checked opener (fetch.open_url, host and redirect check included) into memory, hashed, and not written to disk. Bytes equal the first run's numbers. The earlier curl copies were not used.",
+  "bytesDownloaded": 16257188,
+  "unpackedKB_onDisk": "about 54700 (du -sk of the ten oga-* directories)",
+  "perEntryBytes": {"oga-metal-wood-sfx": 1990361, "oga-100-cc0-sfx": 2921904, "oga-100-cc0-sfx-2": 2367871, "oga-breaking-falling-hit": 1624406, "oga-metal-clang": 2529890, "oga-steam-release": 622313, "oga-door-lock": 371527, "oga-various-sfx": 2537204, "oga-elevator-door": 1261972, "oga-tesla-spark": 29740},
+  "check": ".venv-audio/Scripts/python.exe tools/audio/fetch.py --check -> 35 entries, 0 with problems, 217.6 MB on disk",
+  "credits": ".venv-audio/Scripts/python.exe tools/audio/fetch.py --credits -> wrote assets\\audio\\CREDITS.md (867 file rows)",
+  "tests": ".venv-audio/Scripts/python.exe -m unittest discover -s tools/audio/tests -> Ran 77 tests, OK",
+  "selectionJson": "not touched; the files are not in assets/audio/selection.json"
+ },
+ "excerpts": {
+  "total": 21,
+  "perFamily": {"hull": 8, "thruster": 5, "gear": 7, "shield": 1},
+  "table": "tools/sound/oga_cuts.json",
+  "adapter": "tools/sound/adapters/oga.py, run as .venv-audio/Scripts/python.exe -I tools/sound/adapters/oga.py -> 21 excerpts written to assets/audio/gen/oga/raw/<family>__<name>.wav and assets/audio/gen/oga/gen.json (git-ignored)",
+  "rawSizeKB": 6112,
+  "form": "float32 WAV, the file's own sample rate and channels (44.1 or 48 kHz, 1 or 2 channels), no gain, no fade, no resampling. Ten sources are .ogg: they are decoded by libsndfile to float32, so those excerpts are decoded lossy audio and a few peaks read slightly above 1.0 (up to 1.008: hull__metal-hit-02, hull__sfx1-metal-12, hull__metal-slam-01). Not clipped by the adapter. gen.json records sourceDecodedFrom per item",
+  "cutRule": "start 30 ms before the first 10 ms frame within 40 dB of the file's maximum; end 50 ms after the last frame within 45 dB of it, but at most the family length (hull 3 s, thruster 2 s, gear 4 s, shield 3 s). By envelope and file name only; no file was listened to. Because there is no fade, a cut that starts at 0.00 s or ends on a still-sounding sample can carry a step; this was not checked",
+  "hull": ["clang2 and clang10 (oga-metal-clang, Marker #2 and #10; 2.84 s and 3.00 s, the 3.00 s one is cut by the family cap, 51 dB under at the cut)", "breaking-metal-hit-02 (oga-breaking-falling-hit, bfh1_metal_hit_02)", "metal-slam-01 and metal-hit-02 (oga-metal-wood-sfx)", "sfx2-metal-hit-01 (oga-100-cc0-sfx-2)", "various-clang-metal (oga-various-sfx)", "sfx1-metal-12 (oga-100-cc0-sfx)"],
+  "thruster": ["steam-hiss-1, -3, -5 (oga-steam-release; 0.91 s each, a decay from the start into digital silence)", "sfx2-air-02 (1.05 s) and sfx2-air-03 (0.28 s) (oga-100-cc0-sfx-2)"],
+  "gear": ["lock-open-01 (oga-metal-wood-sfx)", "sfx2-lock-open-01 (oga-100-cc0-sfx-2)", "manhole-open and various-lock and various-door-open (oga-various-sfx)", "unlock-door (oga-door-lock)", "sfx1-door-close-02 (oga-100-cc0-sfx)"],
+  "shield": ["tesla-spark (oga-tesla-spark, 0.34 s, mono, 44.1 kHz)"]
+ },
+ "problems": [
+  "gear: no credible recording of a motor or mechanism that runs and ends in a latch was found among the ten items. The seven gear excerpts are short (0.5 to 0.85 s) lock, door and manhole events whose envelope ends in a click or decay; they do not have a running motor phase and do not fit the family text 'extends and locks' except at its end. The 3.58 s elevator door has a long running phase but is cut off by the end of the file, so it was not cut. The winch (the one with a mechanism) is synthesised and dropped. Left thin on purpose",
+  "thruster: no recording of a gas burst by name; the five excerpts are steam releases and two 'air' files chosen from names and decay envelopes. sfx100v2_air_01 (2.64 s, 'air flowing', slow decay) was not taken. Whether they fit 'a thruster fires for a fraction of a second' is for the owner's ear",
+  "shield: exactly one excerpt (the Tesla spark). No other item names or shows an electrical event; electricity packs elsewhere on the site were excluded in the first run as synthesised (sfxr, synth) or unverified. Left at one",
+  "hull: the files are small-object metal hits and clangs, not recordings of a heavy impact heard from inside; fit to 'something heavy hits the hull' is unknown",
+  "steam-hiss-1, -3, -5 have nearly the same level and shape (peak 0.234 to 0.241, end at 0.91 to 0.92 s); they may be close variants of one take. Not compared by ear or by correlation",
+  "tools/sound/tests has no tests (unittest finds 0); the adapter was run, not unit tested"
+ ],
+ "notVerified": [
+  "whether any item is a recording at all: pages of rubberduck (4 packs), bart (clangs, steam), Cough-E and PagDev do not say how the sounds were made; only 100-cc0-sfx, various-sound-effects and the Tesla spark say 'recorded'",
+  "how any excerpt sounds; speech marks in downloads.json are 'none' by file name, not by listening or by a speech recogniser",
+  "that no excerpt starts or ends on a step (no fade, cut at 30 ms before the onset or at the file start)",
+  "that the licence of the packs is the author's to give (the page of 100-cc0-metal-and-wood-sfx has a comment saying a later renderhub copy exists; nothing on the page says the pack derives from another source)",
+  "the page HTML was read with curl (text only, not an archive) and a regex; the licence block was checked by eye on all twelve pages, not through any API",
+  "the audition page and the publish step were not run; nothing was added to assets/audio/ratings.json or to the page"
+ ],
+ "disk": {"freeBefore": "509G (df -h . before the first download)", "freeAfter": "509G (df -h . after the last write)", "limit": "stop at 200 GB free, not reached"},
+ "graphicsCard": "not used; no lock taken; no process left running",
+ "filesChanged": [
+  "assets/audio/downloads.json",
+  "assets/audio/CREDITS.md",
+  "assets/audio/downloads/oga-* (ten directories, git-ignored, through fetch.py)",
+  "tools/sound/oga_cuts.json",
+  "tools/sound/adapters/oga.py",
+  "assets/audio/gen/oga/raw/*.wav and assets/audio/gen/oga/gen.json (git-ignored)",
+  "docs/reports/2026-11-16/sound-oga2-report.json"
+ ],
+ "changeNeededElsewhere": "publish.py and screen.py (not mine) must read assets/audio/gen/oga/gen.json: items have no prompt or seed, key is '<family>__<name>', and the per-item licence, author and pageUrl are in the record and must reach the page. The first-run RESULTS.md says the recording slot of each family was filled by a second MOSS pick; that can now be a recording for hull, thruster, gear and shield"
+}

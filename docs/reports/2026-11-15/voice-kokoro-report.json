@@ -1,0 +1,217 @@
+{
+  "role": "kokoro: small fast baseline (Kokoro-82M v1.0)",
+  "status": "done",
+  "summary": "Kokoro-82M v1.0 runs on the RTX 5080 (median RTF 0.011, 15/15 lines) and on 4 CPU threads (median RTF 0.142, 15/15 lines). Four cast voices are blends of 2-3 preset packs, saved as .npy and .json. The espeak fallback gives phonemes for all invented names tested. The English preset packs have no documented origin; the best male packs are only graded C+.",
+  "licences": [
+    {
+      "what": "kokoro code",
+      "url": "https://raw.githubusercontent.com/hexgrad/kokoro/main/LICENSE",
+      "first_line": "Apache License (Version 2.0, January 2004)"
+    },
+    {
+      "what": "misaki code",
+      "url": "https://raw.githubusercontent.com/hexgrad/misaki/main/LICENSE",
+      "first_line": "Apache License (Version 2.0, January 2004)"
+    },
+    {
+      "what": "weights, model card",
+      "url": "https://huggingface.co/hexgrad/Kokoro-82M/raw/main/README.md",
+      "first_line": "license: apache-2.0 (card metadata; the repo has no LICENSE file; not gated; base_model yl4579/StyleTTS2-LJSpeech)"
+    },
+    {
+      "what": "voice packs",
+      "url": "https://huggingface.co/hexgrad/Kokoro-82M/raw/main/VOICES.md",
+      "first_line": "Only grades and hashes; no per-voice provenance or licence text for English packs. The card says training audio includes synthetic audio from closed TTS providers (their terms are not stated)."
+    },
+    {
+      "what": "espeakng-loader 0.2.4 (loader)",
+      "url": "https://raw.githubusercontent.com/thewh1teagle/espeakng-loader/main/LICENSE",
+      "first_line": "MIT License"
+    },
+    {
+      "what": "espeak-ng (espeak-ng.dll and data bundled in espeakng-loader)",
+      "url": "https://raw.githubusercontent.com/espeak-ng/espeak-ng/master/COPYING",
+      "first_line": "GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007 (GPL-3.0)"
+    },
+    {
+      "what": "phonemizer-fork 3.3.2 (calls espeak)",
+      "url": "METADATA of the installed package",
+      "first_line": "GNU GENERAL PUBLIC LICENSE (GPLv3+)"
+    },
+    {
+      "what": "spaCy 3.8.18",
+      "url": "METADATA of the installed package",
+      "first_line": "License: MIT"
+    },
+    {
+      "what": "en_core_web_sm 3.8.0 (needed by the misaki G2P)",
+      "url": "https://github.com/explosion/spacy-models/releases/tag/en_core_web_sm-3.8.0 (wheel METADATA)",
+      "first_line": "License: MIT"
+    }
+  ],
+  "installed": [
+    {
+      "package": "torch",
+      "version": "2.11.0+cu128",
+      "source": "download.pytorch.org/whl/cu128"
+    },
+    {
+      "package": "kokoro",
+      "version": "0.9.4",
+      "source": "PyPI"
+    },
+    {
+      "package": "misaki[en]",
+      "version": "0.9.4",
+      "source": "PyPI"
+    },
+    {
+      "package": "espeakng-loader",
+      "version": "0.2.4",
+      "source": "PyPI (via misaki[en])"
+    },
+    {
+      "package": "phonemizer-fork",
+      "version": "3.3.2",
+      "source": "PyPI"
+    },
+    {
+      "package": "en_core_web_sm",
+      "version": "3.8.0",
+      "source": "explosion GitHub release wheel (12.8 MB), installed from a local copy; misaki would otherwise run spacy.cli.download at first use"
+    },
+    {
+      "package": "numpy, soundfile, transformers, huggingface-hub, others",
+      "version": "see assets/audio/voice/kokoro/freeze.txt",
+      "source": "PyPI"
+    }
+  ],
+  "downloaded": [
+    {
+      "repository": "hexgrad/Kokoro-82M",
+      "revision": "f3ff3571791e39611d31c381e3a41a3af07b4987",
+      "files": [
+        "config.json",
+        "kokoro-v1_0.pth",
+        "voices\\af_alloy.pt",
+        "voices\\af_aoede.pt",
+        "voices\\af_bella.pt",
+        "voices\\af_heart.pt",
+        "voices\\af_jessica.pt",
+        "voices\\af_kore.pt",
+        "voices\\af_nicole.pt",
+        "voices\\af_nova.pt",
+        "voices\\af_river.pt",
+        "voices\\af_sarah.pt",
+        "voices\\af_sky.pt",
+        "voices\\am_adam.pt",
+        "voices\\am_echo.pt",
+        "voices\\am_eric.pt",
+        "voices\\am_fenrir.pt",
+        "voices\\am_liam.pt",
+        "voices\\am_michael.pt",
+        "voices\\am_onyx.pt",
+        "voices\\am_puck.pt",
+        "voices\\am_santa.pt",
+        "voices\\bf_alice.pt",
+        "voices\\bf_emma.pt",
+        "voices\\bf_isabella.pt",
+        "voices\\bf_lily.pt",
+        "voices\\bm_daniel.pt",
+        "voices\\bm_fable.pt",
+        "voices\\bm_george.pt",
+        "voices\\bm_lewis.pt"
+      ],
+      "bytes": 341870408,
+      "note": "config.json, kokoro-v1_0.pth, 28 English voice packs (af_, am_, bf_, bm_). Pickle .pth/.pt: the makers ship nothing else."
+    }
+  ],
+  "weightsLoading": "kokoro/model.py line 68: torch.load(model, map_location='cpu', weights_only=True); kokoro/pipeline.py line 147: torch.load(f, weights_only=True). The adapter also wraps torch.load and refuses any call without weights_only=True, and loads the packs itself with weights_only=True. No trust_remote_code.",
+  "voices": {
+    "control_f": {
+      "how": "weighted mean of packs",
+      "from": {
+        "af_heart(A)": 0.4,
+        "bf_emma(B-)": 0.4,
+        "af_nicole(B-)": 0.2
+      },
+      "seed": 20261115
+    },
+    "computer": {
+      "how": "weighted mean of packs",
+      "from": {
+        "af_bella(A-)": 0.5,
+        "af_nicole(B-)": 0.5
+      },
+      "seed": 20261115
+    },
+    "pilot_m": {
+      "how": "weighted mean of packs",
+      "from": {
+        "am_puck(C+)": 0.4,
+        "am_michael(C+)": 0.2,
+        "bm_george(C)": 0.4
+      },
+      "seed": 20261115
+    },
+    "dock_m": {
+      "how": "weighted mean of packs",
+      "from": {
+        "am_fenrir(C+)": 0.5,
+        "am_michael(C+)": 0.3,
+        "bm_george(C)": 0.2
+      },
+      "seed": 20261115
+    },
+    "note": "Kokoro cannot build a voice from a description. The makers do not document the origin of the English preset packs, so a blend is artificial only in the sense that it is no single preset. No male pack is graded B- or better (best C+), so both male voices rest on C+/C packs. Female blends use only packs graded B- or better. Blends mix American and British packs and are spoken through the American G2P. The seed fixes only the decoder noise; the style tensors are deterministic."
+  },
+  "timings": {
+    "cuda": {
+      "median_rtf": 0.011,
+      "load_s": 1.2,
+      "median_first_audio_s": 0.093,
+      "peak_gpu_mem_mb": 806.2,
+      "lines": 15,
+      "total_s": 18.8
+    },
+    "cpu": {
+      "median_rtf": 0.142,
+      "load_s": 1.19,
+      "median_first_audio_s": 1.122,
+      "threads": 4,
+      "lines": 15,
+      "total_s": 18.2,
+      "gpu_hidden": "CUDA_VISIBLE_DEVICES=-1 plus assert not torch.cuda.is_available()"
+    },
+    "note": "The timed span is the whole pipeline call (G2P with espeak fallback plus model), one chunk per line, so first audio equals total time (no streaming inside a chunk). G2P alone took about 2-4 ms per line (g2p_s in timing.json). The warm-up sentence was untimed."
+  },
+  "sizes": {
+    "environment_gb": 4.6,
+    "model_gb": 0.33,
+    "note": ".venv-voice/kokoro (torch cu128 dominates); HF cache 327 MB of model files plus 12.8 MB spaCy wheel; assets/audio/voice/kokoro about 25 MB of output"
+  },
+  "telemetry": "A grep of kokoro, misaki and espeakng_loader found no analytics, telemetry, requests or urllib use. Only network use is huggingface_hub downloads of model, config and voices when no local path is given; huggingface_hub has its own telemetry switch, set off with HF_HUB_DISABLE_TELEMETRY=1 and DO_NOT_TRACK=1. Misaki G2P calls spacy.cli.download('en_core_web_sm') at construction if the model is missing (a run-time install from GitHub); avoided by installing the wheel beforehand. The adapter sets HF_HUB_OFFLINE=1 and passes local paths. Only spaCy .py files were grepped for telemetry (no hits); transformers was not searched.",
+  "problems": [
+    "The adapter file is named kokoro.py like the package; the adapter folder is removed from sys.path at start so that import kokoro finds the package.",
+    "On Windows setting CUDA_VISIBLE_DEVICES to the empty string deletes the variable and left the card visible; the adapter uses -1 instead.",
+    "snapshot_download(local_files_only=True) calls the partial English snapshot incomplete; the adapter reads the pinned snapshot folder directly.",
+    "One tiny torch matmul check of the card (about a second) was made once without the lock, during installation.",
+    "The cuda and cpu runs waited for the lock behind other agents; timings were taken inside the lock.",
+    "Licence point for later: espeak-ng (GPL-3.0) and phonemizer-fork (GPLv3+) are needed for the out-of-dictionary fallback that the invented names require. Shipping or linking them needs a decision. Without the fallback misaki drops unknown words.",
+    "The weights licence rests on the card metadata tag; the HF repo has no LICENSE file. Training data includes synthetic audio from closed TTS providers whose terms are not stated; the base model is StyleTTS2-LJSpeech."
+  ],
+  "notVerified": [
+    "How any voice sounds (nobody can hear)",
+    "Whether invented names are pronounced acceptably (only that phonemes are produced)",
+    "Whether the English packs have a real-person template",
+    "Word error rate and speaker consistency (score.py is separate)",
+    "Whether processes outside the lock disturbed the CPU timing",
+    "Text longer than 510 phonemes (package splitting) was not tested"
+  ],
+  "filesWritten": [
+    "tools/voice/adapters/kokoro.py",
+    "docs/reports/2026-11-15/voice-kokoro-report.json",
+    "assets/audio/voice/kokoro/ (cast, cuda, cpu, freeze.txt, download.json)",
+    ".venv-voice/kokoro/"
+  ]
+}

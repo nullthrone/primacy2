@@ -1,0 +1,58 @@
+{
+  "note": "What the sources of the sound comparison are asked for. Four families of short events, the ones the owner has rejected in every form so far. A model gets each prompt as it stands (an adapter may add what its makers recommend, for example a prefix, and says so in its record) with each seed, and returns 'seconds' of audio; the event is cut out of that afterwards. Prompts describe a real sound a microphone could record, because that is what the models were trained on; 'spaceship' words are kept out except where no real sound exists (the shield). 'lufs' is the level every candidate of a family gets on the page: the level of the direction samples of round 3, so that old and new can be compared.",
+  "seeds": [11, 12, 13, 14, 15, 16],
+  "families": [
+    {
+      "id": "hull",
+      "de": "Rumpftreffer",
+      "en": "Hull hit",
+      "what": "Something heavy hits the ship's hull from outside; heard inside.",
+      "seconds": 3,
+      "lufs": -34.0,
+      "prompts": [
+        {"id": "hull_1", "text": "A heavy object slams into a large steel ship hull, deep boom and a hard metallic clang, heard from inside, resonant"},
+        {"id": "hull_2", "text": "Sledgehammer hits a thick steel tank, single hit, deep thud with ringing metal, close microphone"},
+        {"id": "hull_3", "text": "Massive impact on a metal shipping container, low-end thump, metal rattling briefly afterwards"}
+      ]
+    },
+    {
+      "id": "thruster",
+      "de": "Düsenstoß",
+      "en": "Thruster pulse",
+      "what": "A manoeuvring thruster fires for a fraction of a second.",
+      "seconds": 2,
+      "lufs": -34.0,
+      "prompts": [
+        {"id": "thruster_1", "text": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst"},
+        {"id": "thruster_2", "text": "Air cannon fires once, short powerful blast of air, close microphone"},
+        {"id": "thruster_3", "text": "Solenoid valve clacks open and a short jet of gas shoots out, then the valve snaps shut"}
+      ]
+    },
+    {
+      "id": "gear",
+      "de": "Fahrwerk ausfahren",
+      "en": "Landing gear deploying",
+      "what": "The landing gear extends and locks.",
+      "seconds": 4,
+      "lufs": -35.0,
+      "prompts": [
+        {"id": "gear_1", "text": "Heavy hydraulic landing gear extending, electric servo motor whine, then a solid metal clunk as it locks"},
+        {"id": "gear_2", "text": "Large industrial hydraulic actuator moves for two seconds and locks into place with a heavy clunk"},
+        {"id": "gear_3", "text": "Big electric motor drives a heavy mechanism, gears turning, ending with a loud latch"}
+      ]
+    },
+    {
+      "id": "shield",
+      "de": "Schildtreffer",
+      "en": "Shield hit",
+      "what": "A shot hits the ship's energy shield.",
+      "seconds": 3,
+      "lufs": -24.0,
+      "prompts": [
+        {"id": "shield_1", "text": "Energy shield absorbs an impact, deep bass whoomp with crackling electricity, science fiction force field hit"},
+        {"id": "shield_2", "text": "Powerful electric arc discharge with a deep sub-bass thump and electric sizzle fading out"},
+        {"id": "shield_3", "text": "Force field struck by a projectile, low humming pulse and a burst of electrical crackle"}
+      ]
+    }
+  ]
+}

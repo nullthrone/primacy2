@@ -1,0 +1,475 @@
+{
+ "task": "independent check of the countdown demo",
+ "date": "2026-11-15",
+ "new_files": {
+  "qwen3__single": {
+   "format": {
+    "subtype": "FLOAT",
+    "samples": 478944,
+    "dur_s": 9.978,
+    "peak_dbfs": -5.51,
+    "true_peak_dbfs_4x": -5.5,
+    "clipped": 0,
+    "lufs": -23.0
+   },
+   "intervals_ms": {
+    "voicing": [
+     999.6,
+     996.3,
+     997.9,
+     971.7
+    ],
+    "band15": [
+     998.6,
+     997.3,
+     1000.9,
+     994.7
+    ],
+    "env50": [
+     1001.4,
+     1000.8,
+     994.4,
+     1007.9
+    ]
+   },
+   "median_of_three_detectors_ms": [
+    999.6,
+    997.3,
+    997.9,
+    994.7
+   ],
+   "max_abs_dev_from_1000_by_detector_ms": {
+    "voicing": 28.3,
+    "band15": 5.3,
+    "env50": 7.9
+   },
+   "per_word_detector_range_ms_five_to_one": [
+    16.5,
+    17.8,
+    22.3,
+    19.5,
+    55.0
+   ],
+   "gaps_between_words": [
+    {
+     "gap_ms": 337.7,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 428.3,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 526.9,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 680.8,
+     "max_dbfs": -240.0
+    }
+   ],
+   "edge_max_step_first_last_1ms_over_p99_step_of_loud_part": 0.0169,
+   "edge_max_abs_first_last_sample": 6.079433205741225e-07,
+   "levels": {
+    "word_sounding_dbfs": [
+     -20.6,
+     -20.6,
+     -20.26,
+     -20.93,
+     -20.51
+    ],
+    "spread_db": 0.67,
+    "whole_word_rms_spread_db": 1.83,
+    "intro_sounding_dbfs": -21.26,
+    "count_minus_intro_db": 0.68,
+    "each_word_minus_intro_db": [
+     0.66,
+     0.66,
+     1.0,
+     0.33,
+     0.75
+    ]
+   }
+  },
+  "qwen3__list": {
+   "format": {
+    "subtype": "FLOAT",
+    "samples": 478944,
+    "dur_s": 9.978,
+    "peak_dbfs": -5.15,
+    "true_peak_dbfs_4x": -5.14,
+    "clipped": 0,
+    "lufs": -23.0
+   },
+   "intervals_ms": {
+    "voicing": [
+     1000.3,
+     990.8,
+     1007.2,
+     991.8
+    ],
+    "band15": [
+     997.3,
+     998.8,
+     1004.3,
+     988.8
+    ],
+    "env50": [
+     1000.8,
+     1001.8,
+     997.0,
+     991.9
+    ]
+   },
+   "median_of_three_detectors_ms": [
+    1000.3,
+    998.8,
+    1004.3,
+    991.8
+   ],
+   "max_abs_dev_from_1000_by_detector_ms": {
+    "voicing": 9.2,
+    "band15": 11.2,
+    "env50": 8.1
+   },
+   "per_word_detector_range_ms_five_to_one": [
+    13.5,
+    13.9,
+    24.9,
+    15.5,
+    14.7
+   ],
+   "gaps_between_words": [
+    {
+     "gap_ms": 429.4,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 553.8,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 611.3,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 659.9,
+     "max_dbfs": -240.0
+    }
+   ],
+   "edge_max_step_first_last_1ms_over_p99_step_of_loud_part": 0.0169,
+   "edge_max_abs_first_last_sample": 6.183373102430778e-07,
+   "levels": {
+    "word_sounding_dbfs": [
+     -20.25,
+     -20.96,
+     -20.66,
+     -21.28,
+     -20.45
+    ],
+    "spread_db": 1.02,
+    "whole_word_rms_spread_db": 1.29,
+    "intro_sounding_dbfs": -21.17,
+    "count_minus_intro_db": 0.46,
+    "each_word_minus_intro_db": [
+     0.92,
+     0.21,
+     0.51,
+     -0.1,
+     0.72
+    ]
+   }
+  },
+  "chatterbox-nano__single": {
+   "format": {
+    "subtype": "FLOAT",
+    "samples": 497136,
+    "dur_s": 10.357,
+    "peak_dbfs": -4.67,
+    "true_peak_dbfs_4x": -4.67,
+    "clipped": 0,
+    "lufs": -23.0
+   },
+   "intervals_ms": {
+    "voicing": [
+     996.8,
+     1000.7,
+     998.8,
+     990.2
+    ],
+    "band15": [
+     1001.8,
+     995.7,
+     1004.8,
+     998.2
+    ],
+    "env50": [
+     1000.4,
+     1037.4,
+     964.5,
+     1003.9
+    ]
+   },
+   "median_of_three_detectors_ms": [
+    1000.4,
+    1000.7,
+    998.8,
+    998.2
+   ],
+   "max_abs_dev_from_1000_by_detector_ms": {
+    "voicing": 9.8,
+    "band15": 4.8,
+    "env50": 37.4
+   },
+   "per_word_detector_range_ms_five_to_one": [
+    10.4,
+    14.0,
+    50.8,
+    16.5,
+    30.1
+   ],
+   "gaps_between_words": [
+    {
+     "gap_ms": 361.8,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 561.7,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 553.8,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 632.3,
+     "max_dbfs": -240.0
+    }
+   ],
+   "edge_max_step_first_last_1ms_over_p99_step_of_loud_part": 0.0051,
+   "edge_max_abs_first_last_sample": 2.5261957148359215e-07,
+   "levels": {
+    "word_sounding_dbfs": [
+     -20.78,
+     -21.15,
+     -21.54,
+     -20.78,
+     -20.96
+    ],
+    "spread_db": 0.76,
+    "whole_word_rms_spread_db": 1.37,
+    "intro_sounding_dbfs": -21.54,
+    "count_minus_intro_db": 0.51,
+    "each_word_minus_intro_db": [
+     0.75,
+     0.39,
+     -0.0,
+     0.76,
+     0.58
+    ]
+   }
+  },
+  "chatterbox-nano__list": {
+   "format": {
+    "subtype": "FLOAT",
+    "samples": 497136,
+    "dur_s": 10.357,
+    "peak_dbfs": -5.58,
+    "true_peak_dbfs_4x": -5.58,
+    "clipped": 0,
+    "lufs": -23.0
+   },
+   "intervals_ms": {
+    "voicing": [
+     998.2,
+     1000.1,
+     1002.6,
+     942.5
+    ],
+    "band15": [
+     1001.2,
+     999.1,
+     970.6,
+     1025.5
+    ],
+    "env50": [
+     1003.2,
+     1000.7,
+     996.0,
+     1009.9
+    ]
+   },
+   "median_of_three_detectors_ms": [
+    1001.2,
+    1000.1,
+    996.0,
+    1009.9
+   ],
+   "max_abs_dev_from_1000_by_detector_ms": {
+    "voicing": 57.5,
+    "band15": 29.4,
+    "env50": 9.9
+   },
+   "per_word_detector_range_ms_five_to_one": [
+    10.4,
+    15.5,
+    16.0,
+    29.9,
+    76.8
+   ],
+   "gaps_between_words": [
+    {
+     "gap_ms": 552.2,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 600.2,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 546.7,
+     "max_dbfs": -240.0
+    },
+    {
+     "gap_ms": 548.5,
+     "max_dbfs": -240.0
+    }
+   ],
+   "edge_max_step_first_last_1ms_over_p99_step_of_loud_part": 0.0062,
+   "edge_max_abs_first_last_sample": 3.0071788614804973e-07,
+   "levels": {
+    "word_sounding_dbfs": [
+     -21.32,
+     -21.03,
+     -20.37,
+     -20.66,
+     -21.09
+    ],
+    "spread_db": 0.95,
+    "whole_word_rms_spread_db": 1.95,
+    "intro_sounding_dbfs": -21.5,
+    "count_minus_intro_db": 0.62,
+    "each_word_minus_intro_db": [
+     0.18,
+     0.48,
+     1.13,
+     0.84,
+     0.41
+    ]
+   }
+  }
+ },
+ "originals_intervals_ms": {
+  "orig_qwen3": {
+   "sr": 24000,
+   "intervals_ms": {
+    "voicing": [
+     630.0,
+     454.0,
+     466.0,
+     188.0
+    ],
+    "band15": [
+     630.0,
+     465.0,
+     465.0,
+     180.0
+    ],
+    "env50": [
+     632.9,
+     465.5,
+     461.1,
+     192.2
+    ]
+   },
+   "onsets_s_voicing": [
+    5.094,
+    5.724,
+    6.178,
+    6.644,
+    6.832
+   ]
+  },
+  "orig_chatterbox": {
+   "sr": 24000,
+   "intervals_ms": {
+    "voicing": [
+     744.0,
+     648.0,
+     654.0,
+     568.0
+    ],
+    "band15": [
+     750.0,
+     645.0,
+     655.0,
+     595.0
+    ],
+    "env50": [
+     751.5,
+     642.0,
+     657.2,
+     602.3
+    ]
+   },
+   "onsets_s_voicing": [
+    4.598,
+    5.343,
+    5.99,
+    6.644,
+    7.213
+   ]
+  }
+ },
+ "asr": {
+  "qwen3__single": "Fold drive charged, destination was sold prime. Jump in five, four, three, two, one.",
+  "qwen3__list": "same",
+  "chatterbox-nano__single": "full drive charged. Destination Yulzode Prime. Jump in five, four, three, two, one.",
+  "chatterbox-nano__list": "full drive charged. Destination Yulzode Prime. Jump in 5, 4, 3, 2, 1.",
+  "published_16bit_copies_checked": [
+   "voice_5_countdown_1_qwen3_single",
+   "voice_5_countdown_4_chatterbox_list"
+  ],
+  "note": "whisper-small through with_lock; numbers in order in all four"
+ },
+ "page": {
+  "manifest": "132 sounds, 24 in voice, validate_manifest: no problems; 20 old entries match round3.json by sha256[:12] of the file; 4 new: place 0, path cabin, wav and png exist, hash field equals sha256[:12]",
+  "audition_level_defaults_peak_sounding_dbfs": {
+   "voice_5_countdown_1_qwen3_single": [
+    -12.2,
+    -26.7
+   ],
+   "voice_5_countdown_2_qwen3_list": [
+    -12.1,
+    -26.5
+   ],
+   "voice_5_countdown_3_chatterbox_single": [
+    -11.6,
+    -27.2
+   ],
+   "voice_5_countdown_4_chatterbox_list": [
+    -11.5,
+    -27.1
+   ],
+   "voice_2_computer_1_qwen3": [
+    -12.4,
+    -26.7
+   ],
+   "voice_2_computer_2_chatterbox": [
+    -13.6,
+    -28.1
+   ]
+  },
+  "overload_lamp": "unchanged for all six",
+  "audition_check": "48 passed 0 failed (49 with AUDITION_FILE_FAULTS listing); 0 faults caused by the page; file faults only in test_step (control) and the two Chatterbox countdown files (listing only: 4 clicks each, 3 of them in the shared intro at 0.875, 1.997, 3.511 s, ratio 2.1-2.8; the list file has one with ratio>=3, its largest step is at 8.281 s inside the word two, 20 ms after the word start); voice_2_computer_2_chatterbox has 3 listed, 1 with ratio>=3; the Qwen3 files none",
+  "vite": "own server on port 5263, scratch ratings file, killed by pid 38704, no listener afterwards"
+ },
+ "scored_audio": {
+  "compared_with_audit_before": "32 files under qwen3/cuda and chatterbox-nano/cpu byte-identical (sha256); chatterbox-nano/cast 4 files identical; qwen3/cast has no copy in _audit/before (git status clean on tracked files, no file under qwen3 or chatterbox-nano with a modification time today)",
+  "ratings_json_sha256": "f916ed364561b57618647545bfe8a11adeb8871219743cb244b23c87c01ecac4 before and after"
+ },
+ "tests": {
+  "test_countdown.py": "all passed",
+  "test_score.py": "rc 0"
+ }
+}

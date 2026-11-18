@@ -1,0 +1,75 @@
+{
+  "role": "audit: independent check of the sound-source listening test before the owner hears it",
+  "status": "done",
+  "summary": "Both generators are sound: scope, licences, pickle loading, pinned commits, offline running, prompts, untouched output and seed reproducibility all check out (4 of 4 re-made files bit-identical). The choice is reproducible only with the six hand skips (same 16 ids, same status of all 144 files, same samples in the 16 listening copies). The published 16 meet the file rules. Open points: OpenGameArt has no candidates; levels inside a family are equal by LUFS only; one published gear file is cut while still at full level; one file is 0.8 dB off its target.",
+  "licences": {
+    "moss": "https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0/raw/main/README.md, read 2026-11-15: front matter 'license: apache-2.0'; API sha e35df4d82fbe87fcd5d14e5d100e349c0c3c076d equals the revision in the adapter and gen.json",
+    "sa3": "https://huggingface.co/stabilityai/stable-audio-3-small-sfx-base/raw/main/LICENSE.md, read 2026-11-15: 'STABILITY AI COMMUNITY LICENSE AGREEMENT'; API sha b332479a012f83c24c4381f331ce594284ec8a81 equals the revision on disk, gated false",
+    "oga": "nothing downloaded, so nothing on disk to check; the 12 planned item pages were fetched again with curl and each shows 'License(s): CC0' (100-cc0-metal-and-wood-sfx, 100-cc0-sfx, 100-cc0-sfx-2, 75-cc0-breaking-falling-hit-sfx, metal-clang-sounds, steam-release-sounds, door-lock-sounds, sfx-circuit-breaker, various-sound-effects, chain-winch-sounds, elevatordoor, electricity-sound-effects-0 on opengameart.org/content/)"
+  },
+  "installed": {
+    "moss": "code OpenMOSS/MOSS-TTS at 934d6826b084c46a0d033402174d5f8ac4ed2519 (clean working tree, equals the pin in adapter and gen.json); venv with torch 2.9.0+cu128, transformers 4.57.1, diffusers 0.37.1, descript-audiotools 0.7.2, huggingface_hub 0.36.2",
+    "sa3": "Stability-AI/stable-audio-3 at 790793b89ddceea612be9ce42ff6830d18f6fa57 (clean tree, editable install stable_audio_3 0.1.0); torch 2.7.1+cu128, transformers 5.23.0, huggingface_hub 2.4.0, safetensors 0.8.0; gradio and wandb are not installed"
+  },
+  "downloaded": "Nothing by me. On disk from the builders: MOSS repo at e35df4d8... in assets/audio/gen/moss/model (11 GB, incl. text_encoder Qwen3 safetensors 4.06 GB, transformer 5.66 GB, vae_128d_48k.pth 1.49 GB); SA3 base repo at b332479a... in .venv-sound/sa3/weights (4.5 GB, incl. t5gemma-b-b-ul2 and the unused svd_bases.pt 1.27 GB). The Hugging Face cache holds exactly the models that were there before, nothing new (no MOSS, no Stable Audio 3; stable-audio-open-1.0 is still empty). assets/audio/downloads has no OpenGameArt entry and downloads.json no opengameart line.",
+  "settings": {
+    "moss": "100 steps, cfg 4.0, sigma_shift 5.0, bf16, seed per file; prompt text of prompts.json plus ' duration: <s>s' which the makers' pipeline appends itself (append_duration_suffix=True); verified in all 72 gen.json entries",
+    "sa3": "50 steps, cfg 7.0, euler, fp16; prompt = 'TrackType: SFX, ' + prompts.json text (makers' prompting guide line 122: 'TrackType: SFX' for effects); apg_scale 1.0 and duration_padding_sec 6.0 are generate() defaults; verified in all 72 gen.json entries",
+    "screen": "re-run with --root of my own scratch folder and the six --skip arguments read from screen.json"
+  },
+  "sizes": {
+    "environmentGB": ".venv-sound total 16 GB: moss/venv 4.9 + moss/src 0.03, sa3 Lib 5.7 + src 0.12 + weights 4.5",
+    "filesGB": "assets/audio/gen/moss model 11 + raw 0.04; sa3 raw 0.07; render/source 0.007; scratch of mine outside the repository under 0.1",
+    "freeDiskAfterGB": 509
+  },
+  "safety": {
+    "pickles": "The only pickles on disk are vae_128d_48k.pth (MOSS) and svd_bases.pt (SA3). I read their pickle opcodes with pickletools: VAE holds only collections.OrderedDict, torch._utils._rebuild_tensor_v2, torch.FloatStorage; svd_bases holds the same plus torch.HalfStorage. The MOSS adapter replaces DAC.load by a loader with torch.load(weights_only=True) and an empty allow-list (asserted); the log of my re-run shows 'VAE loaded with weights_only=True: missing=0 unexpected=0'. All other MOSS weights are safetensors; the only other torch.load in the package (utils.py:83) has weights_only=True; trainers/utils.py:610 (torch.load without weights_only) and dac_vae.py:51 (np.load allow_pickle for .dac files) are training/export code that is not reached. SA3: model.safetensors and t5gemma are safetensors; svd_bases.pt is never opened by the adapter; the package opens it only with weights_only=True (loader.py:91, bake_dora.py:128, diffusion.py:102); lora/utils.py:304 uses weights_only=False but only for LoRA checkpoints that are never loaded.",
+    "trustRemoteCode": "none in either adapter or package code (grep)",
+    "telemetry": "grep in both source trees and audiotools found no posthog, sentry, analytics or telemetry; wandb appears only in SA3 training/interface code and is not installed; both adapters set HF_HUB_OFFLINE=1, HF_HUB_DISABLE_TELEMETRY=1, DO_NOT_TRACK=1 and the SA3 adapter pops HF_TOKEN. My re-runs ran fully offline and worked, which also shows the gated sibling repository is never needed.",
+    "networkScripts": "none found: no curl|bash, no irm|iex in the adapters or tools/sound",
+    "ownFiles": "ratings.json sha256 begins f916ed364561b576 (the value the selector named), .venv-audio pip freeze identical to venv-audio-freeze-before.txt, ports 5190/8420/8421 not started by me (5190 is held by pid 98340, not mine)"
+  },
+  "verdicts": {
+    "moss": "sound",
+    "sa3": "sound",
+    "oga": "no candidates (blocked by tools/audio/fetch.py host allow-list; nothing substituted)"
+  },
+  "checks": {
+    "reproducibility": "Re-made through with_lock.py in a scratch copy of the adapters with my own output folder: MOSS hull_1__s11 and thruster_2__s14, SA3 hull_1__s11 and gear_2__s15. All four are bit-identical to the raw files (np.array_equal true, max abs diff 0.0, same shape and rate). MOSS took 23.0 and 23.7 s.",
+    "promptsAndRawOutput": "text_given of all 144 gen.json entries equals prompts.json text (+ duration suffix for MOSS, + 'TrackType: SFX, ' for SA3); 0 mismatches. All 144 raw files are finite, at most 1.0 in magnitude; MOSS 48 kHz mono, SA3 44.1 kHz stereo; adapters write the returned array without trim, gain, resample or channel mix (common.write_wav only squeezes and transposes). MOSS peaks near 0.9995 come from the makers' final Tanh in the VAE decoder; SA3 full-scale samples come from the makers' clamp(-1,1) in generate().",
+    "testMaterialMarking": "SA3 is marked: gen.json top-level 'terms' and 'terms' in each item; all 6 SA3 entries on the page carry 'test only' in en and de names and the licence line 'generated with Stable Audio 3 Small-SFX Base (Stability AI Community License): test material, not to be shipped until the owner has decided', and the intent adds the base-checkpoint note.",
+    "choice": "screen.py re-run on a copy of the raw files with models on cpu and the six skips: same 16 chosen ids and source files, same status and reason for all 144 files, listening copies sample-identical (0.0 max diff; the wav bytes differ only in header). Without the six --skip arguments the script would pick differently, so the README sentence that screen.py chooses is not literally true. Rejections: clipped 40 (all SA3), cut-off 11 (all MOSS, gear 8, shield 3), several-events 2 (one MOSS, one SA3; 4 clipped files also have several events), 53 in all as reported. Rejection reasons use only peak runs, the level envelope, Whisper and CLAP; no rule uses spectrum, brightness or attack. Spectrum only enters the variety vector for picking, which the README allows.",
+    "tenThrownOutByMyOwnMeasurement": "sa3 gear_1 s12, gear_3 s13, hull_1 s16, shield_1 s14, shield_3 s16, thruster_3 s11: 9 to 117 samples at full scale (0.010 to 0.088 percent), first full-scale sample inside the cut in all six, runs of 3 or more present. moss gear_1 s11 and gear_3 s11: still sounding at the end of the 4 s file (last 50 ms 10.4 dB and 9.9 dB under the maximum by the script's own formula, which I reproduced). moss shield_2 s11: level within 0 to 3 dB of its maximum to the end of the 3 s file. moss thruster_3 s15 and sa3 thruster_3 s16: 100 ms profiles show two separate bursts (second onset at 1.18 s and 1.49 s). All ten confirmed. Note the clipped rule discards 40 of 72 SA3 files on at most 0.09 percent of samples; that is a judgement the owner may want to know, not a script fault.",
+    "published": "16 entries of category 'source' (10 MOSS, 6 SA3): all files exist; 48 kHz; mono 10 with place 0, stereo 6 without place; dry false; gain 1.0; true peak -9.9 to -23.6 dBFS (ceiling -1); first sample at most -68.7 dBFS and last at most -70.3 dBFS, last 10 ms at most -62.4 dBFS; dc offset at most 0.00024; LUFS equals the family target within 0.02 except src_1_hull_1_moss (-33.19 against -34.0); source field synth; category name 'Klangquellen (Runde 4)'. Manifest has 148 sounds; all 128 hashes of rounds/round3.json are unchanged; the 4 other new ids are voice_5_countdown_* from another agent.",
+    "suites": "test_screen.py 23 tests 0 failed; unittest discover tools/audio/tests 77 tests OK; fetch.py --check 25 entries 0 problems; tsc -p packages/client --noEmit no output; vitest packages/client/src/dev 1 file 26 tests passed"
+  },
+  "problems": [
+    "Level inside a family: LUFS is equal within 0.02 but the true peaks of the sixteen differ within a family (thruster -23.6 to -12.4 dBFS, hull -19.5 to -15.0, gear -23.7 to -15.1, shield -12.3 to -9.9), and the selector measured 5 to 16 dB spread of sounding level. A listener comparing candidates in a family will hear unequal loudness.",
+    "src_1_hull_1_moss reaches -33.19 LUFS, not -34.0: set_level in tools/audio/synth/levels.py applies one gain computed from a gated BS.1770 measure and never checks the result. I believe the gate threshold moves with the gain for a short event followed by a quiet tail; I did not prove that.",
+    "src_3_gear_1_moss (gear_2 s16) is cut at the family length of 3.8 s while the level is within 0.2 dB of its maximum (100 ms window before the fade; RESULTS.md says 6.6 dB), so the sound is ended by a 30 ms fade, not by itself. src_3_gear_3_moss (-19 dB) and src_4_shield_1_moss (-34 dB) are also capped but decayed. screen.py rejects raw files that are cut off by the end of the file but not events cut off by its own length cap.",
+    "OpenGameArt contributed no candidate (fetch.py allows only kenney.nl and nasa.gov and the edit was refused), so slot 3 of every family is a second MOSS pick and the page offers two sources, not three.",
+    "The oga builder fetched 12 archives (about 17 MB) with curl into a temp folder outside the repository, not through fetch.py; the README (rule 8) wants fetch.py. They are not in the repository, are deliverables of nothing and should be deleted if the owner does not approve the fetch.py change.",
+    "svd_bases.pt (1.27 GB pickle) was downloaded with the SA3 repository although no adapter path opens it.",
+    "The six hand skips (screen.json skippedAsPick) are documented in RESULTS.md, but the sixteen cannot be reproduced by running screen.py without them, and some reasons are about spectrum features (a 12.5 kHz line, a 50 Hz sine)."
+  ],
+  "mustFix": [
+    "tools/sound/screen.py and tools/audio/synth/levels.py: src_1_hull_1_moss is 0.81 dB under its family target (-33.19 against -34.0 LUFS, seen in the manifest and by my own measurement); iterate the gain until the measured LUFS is within 0.05 of target or say so on the page.",
+    "assets/audio/render/source/src_3_gear_1_moss.wav: the event is cut by the family cap at 3.8 s with no decay (within 0.2 dB of its maximum just before the 30 ms fade); either choose another gear pick or let the cut end the event, and make screen.py reject or mark events capped while still within about 20 dB of the maximum.",
+    "tools/sound/README.md: state that the sixteen need the six --skip arguments of screen.json (or add them to the script as a list) so that 'run screen.py and publish.py' reproduces the page; today a plain run picks a different set.",
+    "Page levels (tools/sound/screen.py listening_copy): peaks inside one family differ by up to 11 dB; if the owner is to compare by ear, equalise by something that tracks sounding level of the event (for example loudness of the cut event itself without the quiet tail) and say which one.",
+    "OpenGameArt: no candidates; needs the owner's decision on the fetch.py host allow-list before the test has its third source. Delete the oga builder's curl scratch copies if that is refused."
+  ],
+  "notVerified": [
+    "How anything sounds: nobody can hear. Whether the SA3 'TrackType: SFX' prefix helps the base checkpoint is unproven (guide only).",
+    "Only 4 of 144 candidates were re-made (2 per model); the other 140 rely on the builders' word and on the bit-identity of those four.",
+    "The cause of the 0.8 dB level miss and of the per-family peak spread.",
+    "Hugging Face file hashes of the downloaded weights against the hub were not compared (only repository revisions, file sizes and the pickle opcodes).",
+    "That no network call is made by transformers/audiotools in every code path: I grepped the sources and ran offline successfully, but did not monitor sockets during a run.",
+    "The audition page in a browser (no vite started; audition-check.mjs not run).",
+    "OpenGameArt item licences were read only on the item pages, not the author pages or the files inside the archives."
+  ],
+  "filesWritten": [
+    "docs/reports/2026-11-15/sound-audit-report.json",
+    "scratch only, outside the repository: C:/Users/Thomas/AppData/Local/Temp/claude/c9297f7a0d106409/07b978c7-5e17-4c62-8163-b07dfd2048d2/scratchpad (aud, gen2, cmp.py, chk5.py, logs)"
+  ]
+}

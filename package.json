@@ -1,0 +1,31 @@
+{
+  "name": "primacy2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PRIMACY2 - a federated open-source space sim MMORPG for the browser",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "npm run build && npm run server",
+    "server": "tsx packages/server/src/main.ts",
+    "dev": "tsx scripts/dev.ts",
+    "dev:client": "npm run dev -w @primacy2/client",
+    "build": "npm run build -w @primacy2/client",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/server && tsc -p packages/client",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "playwright": "^1.65.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

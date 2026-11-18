@@ -1,0 +1,8726 @@
+{
+ "script": "tools/sound/compare.py --analysis",
+ "date": "2026-11-18",
+ "inputs": {
+  "kept": [
+   "assets/audio/gen/_kept/round4/kept.json",
+   "assets/audio/gen/_kept/round5/kept.json",
+   "assets/audio/gen/_kept/round6/kept.json"
+  ],
+  "ratings": "assets/audio/ratings.json",
+  "ratingsSavedAt": "2026-11-18T14:40:34.900Z",
+  "ratingsSha256": "28ba828550516814fff3fc617dfa32fbfdbaae7cdfb418be5db157819c0961d4",
+  "prompts6": "tools/sound/prompts6.json",
+  "generated": "assets/audio/generated.json"
+ },
+ "counts": {
+  "rows": 47,
+  "byRound": {
+   "4": 16,
+   "5": 17,
+   "6": 14
+  },
+  "round6": {
+   "fits": 4,
+   "close": 2,
+   "wrong": 8,
+   "n": 14
+  },
+  "rawShaOkForAll": true
+ },
+ "reference": {
+  "hull": [
+   {
+    "id": "src_1_hull_1_moss_p1s16",
+    "round": 4,
+    "source": "moss",
+    "family": "hull",
+    "promptId": "hull_1",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/moss/raw/hull_1__s16.wav",
+    "rawFile": "assets/audio/gen/moss/raw/hull_1__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 2.5,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -7.76,
+     "above2kHzLoud": 0.0257,
+     "above60Hz": 0.3228,
+     "under250Hz": 0.7805,
+     "above4kHz": 0.0083,
+     "centroidHz": 308.1,
+     "crestDb": 16.65,
+     "peakDb": -0.01,
+     "lengthS": 2.5,
+     "activeS": 2.414,
+     "tailDb": -44.52,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_1_hull_2_sa3_p2s11",
+    "round": 4,
+    "source": "sa3",
+    "family": "hull",
+    "promptId": "hull_2",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/hull_2__s11.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/hull_2__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 2.5,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -7.79,
+     "above2kHzLoud": 0.0078,
+     "above60Hz": 0.9087,
+     "under250Hz": 0.7779,
+     "above4kHz": 0.0022,
+     "centroidHz": 243.7,
+     "crestDb": 19.3,
+     "peakDb": 1.17,
+     "lengthS": 2.5,
+     "activeS": 2.499,
+     "tailDb": -39.45,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_1_hull_3_oga_sfx2-metal-hit-01",
+    "round": 4,
+    "source": "oga",
+    "family": "hull",
+    "promptId": null,
+    "event": "hull",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/oga/raw/hull__sfx2-metal-hit-01.wav",
+    "rawFile": "assets/audio/gen/oga/raw/hull__sfx2-metal-hit-01.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0055,
+     "endS": 0.75,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -14.55,
+     "above2kHzLoud": 0.2903,
+     "above60Hz": 0.9978,
+     "under250Hz": 0.4654,
+     "above4kHz": 0.1497,
+     "centroidHz": 1646.8,
+     "crestDb": 24.02,
+     "peakDb": -0.62,
+     "lengthS": 0.745,
+     "activeS": 0.615,
+     "tailDb": -51.8,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_1_hull_4_sa3_p1s13",
+    "round": 4,
+    "source": "sa3",
+    "family": "hull",
+    "promptId": "hull_1",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/hull_1__s13.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/hull_1__s13.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0238,
+     "endS": 1.747,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -7.65,
+     "above2kHzLoud": 0.0131,
+     "above60Hz": 0.9636,
+     "under250Hz": 0.8245,
+     "above4kHz": 0.0055,
+     "centroidHz": 282.7,
+     "crestDb": 16.71,
+     "peakDb": 0.57,
+     "lengthS": 1.723,
+     "activeS": 1.549,
+     "tailDb": -46.13,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_1_hull_light_1_moss_p2s15",
+    "round": 5,
+    "source": "moss",
+    "family": "hull_light",
+    "promptId": "hull_light_2",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r5/moss/raw/hull_light_2__s15.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/hull_light_2__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.644,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -6.41,
+     "above2kHzLoud": 0.2544,
+     "above60Hz": 0.9984,
+     "under250Hz": 0.0435,
+     "above4kHz": 0.0233,
+     "centroidHz": 1407.6,
+     "crestDb": 14.86,
+     "peakDb": -0.0,
+     "lengthS": 0.644,
+     "activeS": 0.554,
+     "tailDb": -43.31,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_1_hull_light_2_moss_p1s11",
+    "round": 5,
+    "source": "moss",
+    "family": "hull_light",
+    "promptId": "hull_light_1",
+    "event": "hull",
+    "verdict": "close",
+    "note": "klingt als ob es mehrere kurze Töne hintereinander wären, wie ein Echo ohne doppler effekt. Ansonsten ok",
+    "raw": "assets/audio/gen/r5/moss/raw/hull_light_1__s11.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/hull_light_1__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0044,
+     "endS": 0.437,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -12.48,
+     "above2kHzLoud": 0.8698,
+     "above60Hz": 0.9999,
+     "under250Hz": 0.0004,
+     "above4kHz": 0.2622,
+     "centroidHz": 3655.3,
+     "crestDb": 17.89,
+     "peakDb": -0.04,
+     "lengthS": 0.433,
+     "activeS": 0.419,
+     "tailDb": -33.75,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_2_hull_heavy_1_moss_p2s16",
+    "round": 5,
+    "source": "moss",
+    "family": "hull_heavy",
+    "promptId": "hull_heavy_2",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r5/moss/raw/hull_heavy_2__s16.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/hull_heavy_2__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.772,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -3.44,
+     "above2kHzLoud": 0.0174,
+     "above60Hz": 0.6345,
+     "under250Hz": 0.8211,
+     "above4kHz": 0.0033,
+     "centroidHz": 226.9,
+     "crestDb": 10.76,
+     "peakDb": -0.0,
+     "lengthS": 3.772,
+     "activeS": 3.532,
+     "tailDb": -48.96,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_2_hull_heavy_2_moss_p1s14",
+    "round": 5,
+    "source": "moss",
+    "family": "hull_heavy",
+    "promptId": "hull_heavy_1",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r5/moss/raw/hull_heavy_1__s14.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/hull_heavy_1__s14.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8006,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -3.57,
+     "above2kHzLoud": 0.0027,
+     "above60Hz": 0.2881,
+     "under250Hz": 0.9236,
+     "above4kHz": 0.0002,
+     "centroidHz": 87.6,
+     "crestDb": 12.62,
+     "peakDb": -0.0,
+     "lengthS": 3.801,
+     "activeS": 3.753,
+     "tailDb": -47.28,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev6_1_hull_light_1_moss_p1s22",
+    "round": 6,
+    "source": "moss",
+    "family": "hull_light",
+    "promptId": "hull_light_1",
+    "event": "hull",
+    "verdict": "fits",
+    "note": "ist ok, schauen wir mal wie es weiterhin wird",
+    "raw": "assets/audio/gen/r6/moss/raw/hull_light_1__s22.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/hull_light_1__s22.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.467,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -8.51,
+     "above2kHzLoud": 0.6706,
+     "above60Hz": 0.9995,
+     "under250Hz": 0.0117,
+     "above4kHz": 0.1582,
+     "centroidHz": 2766.0,
+     "crestDb": 15.21,
+     "peakDb": -0.01,
+     "lengthS": 0.467,
+     "activeS": 0.415,
+     "tailDb": -41.53,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev6_1_hull_light_2_moss_p1s21",
+    "round": 6,
+    "source": "moss",
+    "family": "hull_light",
+    "promptId": "hull_light_1",
+    "event": "hull",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/hull_light_1__s21.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/hull_light_1__s21.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.651,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -10.98,
+     "above2kHzLoud": 0.8593,
+     "above60Hz": 0.9486,
+     "under250Hz": 0.1316,
+     "above4kHz": 0.1064,
+     "centroidHz": 2929.1,
+     "crestDb": 17.63,
+     "peakDb": -0.01,
+     "lengthS": 0.651,
+     "activeS": 0.575,
+     "tailDb": -41.8,
+     "lufs": -34.0
+    }
+   }
+  ],
+  "thruster": [
+   {
+    "id": "src_2_thruster_1_moss_p2s11",
+    "round": 4,
+    "source": "moss",
+    "family": "thruster",
+    "promptId": "thruster_2",
+    "event": "thruster",
+    "verdict": "close",
+    "note": "Grundidee passt, es muss aber doller, knalliger klingen",
+    "raw": "assets/audio/gen/moss/raw/thruster_2__s11.wav",
+    "rawFile": "assets/audio/gen/moss/raw/thruster_2__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.9875,
+     "endS": 1.474,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -14.82,
+     "above2kHzLoud": 0.1449,
+     "above60Hz": 0.9811,
+     "under250Hz": 0.0603,
+     "above4kHz": 0.0868,
+     "centroidHz": 1508.3,
+     "crestDb": 24.15,
+     "peakDb": -0.01,
+     "lengthS": 0.486,
+     "activeS": 0.403,
+     "tailDb": -38.97,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_2_thruster_2_sa3_p2s12",
+    "round": 4,
+    "source": "sa3",
+    "family": "thruster",
+    "promptId": "thruster_2",
+    "event": "thruster",
+    "verdict": "close",
+    "note": "Grundidee passt, es muss aber doller, knalliger klingen. Aktuell klingt es eher \"hauchig\"",
+    "raw": "assets/audio/gen/sa3/raw/thruster_2__s12.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/thruster_2__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.9708,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -9.21,
+     "above2kHzLoud": 0.2083,
+     "above60Hz": 0.9895,
+     "under250Hz": 0.2538,
+     "above4kHz": 0.1339,
+     "centroidHz": 1725.5,
+     "crestDb": 18.6,
+     "peakDb": 3.58,
+     "lengthS": 0.971,
+     "activeS": 0.943,
+     "tailDb": -37.22,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_2_thruster_3_oga_steam-hiss-3",
+    "round": 4,
+    "source": "oga",
+    "family": "thruster",
+    "promptId": null,
+    "event": "thruster",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/oga/raw/thruster__steam-hiss-3.wav",
+    "rawFile": "assets/audio/gen/oga/raw/thruster__steam-hiss-3.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.92,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -24.55,
+     "above2kHzLoud": 0.9647,
+     "above60Hz": 1.0,
+     "under250Hz": 0.0001,
+     "above4kHz": 0.8387,
+     "centroidHz": 11825.4,
+     "crestDb": 18.18,
+     "peakDb": -12.61,
+     "lengthS": 0.92,
+     "activeS": 0.851,
+     "tailDb": -57.39,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "src_2_thruster_4_moss_p1s11",
+    "round": 4,
+    "source": "moss",
+    "family": "thruster",
+    "promptId": "thruster_1",
+    "event": "thruster",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/moss/raw/thruster_1__s11.wav",
+    "rawFile": "assets/audio/gen/moss/raw/thruster_1__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.006,
+     "endS": 0.409,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -15.21,
+     "above2kHzLoud": 0.9753,
+     "above60Hz": 0.9932,
+     "under250Hz": 0.0174,
+     "above4kHz": 0.9174,
+     "centroidHz": 10872.1,
+     "crestDb": 13.02,
+     "peakDb": -5.21,
+     "lengthS": 0.403,
+     "activeS": 0.389,
+     "tailDb": -30.28,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_3_thruster_valve_1_moss_r4p1s12",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_valve",
+    "promptId": "thruster_1",
+    "event": "thruster",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/moss/raw/thruster_1__s12.wav",
+    "rawFile": "assets/audio/gen/moss/raw/thruster_1__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.004,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -25.43,
+     "above2kHzLoud": 0.9685,
+     "above60Hz": 0.9778,
+     "under250Hz": 0.0229,
+     "above4kHz": 0.9721,
+     "centroidHz": 12991.4,
+     "crestDb": 13.07,
+     "peakDb": -13.6,
+     "lengthS": 1.004,
+     "activeS": 1.003,
+     "tailDb": -12.66,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_3_thruster_valve_2_moss_r4p1s15",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_valve",
+    "promptId": "thruster_1",
+    "event": "thruster",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/moss/raw/thruster_1__s15.wav",
+    "rawFile": "assets/audio/gen/moss/raw/thruster_1__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.787,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -17.54,
+     "above2kHzLoud": 0.9736,
+     "above60Hz": 0.9996,
+     "under250Hz": 0.0023,
+     "above4kHz": 0.9365,
+     "centroidHz": 9897.4,
+     "crestDb": 14.21,
+     "peakDb": -4.94,
+     "lengthS": 0.787,
+     "activeS": 0.753,
+     "tailDb": -41.07,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_4_thruster_bang_1_moss_p2s11",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_bang",
+    "promptId": "thruster_bang_2",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun",
+    "raw": "assets/audio/gen/r5/moss/raw/thruster_bang_2__s11.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/thruster_bang_2__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.9874,
+     "endS": 1.474,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -13.26,
+     "above2kHzLoud": 0.1316,
+     "above60Hz": 0.982,
+     "under250Hz": 0.0607,
+     "above4kHz": 0.0711,
+     "centroidHz": 1379.6,
+     "crestDb": 22.56,
+     "peakDb": -0.01,
+     "lengthS": 0.487,
+     "activeS": 0.403,
+     "tailDb": -39.17,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_4_thruster_bang_2_moss_p1s11",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_bang",
+    "promptId": "thruster_bang_1",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r5/moss/raw/thruster_bang_1__s11.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/thruster_bang_1__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0736,
+     "endS": 1.2766,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -9.61,
+     "above2kHzLoud": 0.1139,
+     "above60Hz": 0.7275,
+     "under250Hz": 0.8063,
+     "above4kHz": 0.1508,
+     "centroidHz": 1736.1,
+     "crestDb": 19.55,
+     "peakDb": -1.06,
+     "lengthS": 1.203,
+     "activeS": 1.203,
+     "tailDb": -24.88,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_5_thruster_gatling_1_moss_p2s12",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_gatling",
+    "promptId": "thruster_gatling_2",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "klingt wie eine kleine Plastikkanone",
+    "raw": "assets/audio/gen/r5/moss/raw/thruster_gatling_2__s12.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/thruster_gatling_2__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.3382,
+     "endS": 1.439,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -12.08,
+     "above2kHzLoud": 0.2344,
+     "above60Hz": 0.8284,
+     "under250Hz": 0.4738,
+     "above4kHz": 0.1213,
+     "centroidHz": 1536.9,
+     "crestDb": 15.33,
+     "peakDb": -0.76,
+     "lengthS": 1.101,
+     "activeS": 1.032,
+     "tailDb": -43.44,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev5_5_thruster_gatling_2_moss_p1s11",
+    "round": 5,
+    "source": "moss",
+    "family": "thruster_gatling",
+    "promptId": "thruster_gatling_1",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "klingt wie eine kleine Gaspistole, nicht wie eine mächtige Gatling Gun",
+    "raw": "assets/audio/gen/r5/moss/raw/thruster_gatling_1__s11.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/thruster_gatling_1__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.9874,
+     "endS": 1.792,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -11.82,
+     "above2kHzLoud": 0.1832,
+     "above60Hz": 0.9554,
+     "under250Hz": 0.1476,
+     "above4kHz": 0.1222,
+     "centroidHz": 1732.1,
+     "crestDb": 22.66,
+     "peakDb": -0.01,
+     "lengthS": 0.805,
+     "activeS": 0.453,
+     "tailDb": -47.17,
+     "lufs": -34.0
+    }
+   },
+   {
+    "id": "ev6_2_thruster_mighty_1_moss_p1s12",
+    "round": 6,
+    "source": "moss",
+    "family": "thruster_mighty",
+    "promptId": "thruster_mighty_1",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_1__s12.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/thruster_mighty_1__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.5,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -2.65,
+     "above2kHzLoud": 0.0098,
+     "above60Hz": 0.4864,
+     "under250Hz": 0.9096,
+     "above4kHz": 0.0033,
+     "centroidHz": 157.7,
+     "crestDb": 6.36,
+     "peakDb": -0.01,
+     "lengthS": 1.5,
+     "activeS": 1.498,
+     "tailDb": -31.02,
+     "lufs": -28.0
+    }
+   },
+   {
+    "id": "ev6_2_thruster_mighty_2_moss_p3s11",
+    "round": 6,
+    "source": "moss",
+    "family": "thruster_mighty",
+    "promptId": "thruster_mighty_3",
+    "event": "thruster",
+    "verdict": "close",
+    "note": "Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht. Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel",
+    "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s11.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0522,
+     "endS": 1.5552,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -4.54,
+     "above2kHzLoud": 0.0569,
+     "above60Hz": 0.7418,
+     "under250Hz": 0.6506,
+     "above4kHz": 0.0226,
+     "centroidHz": 492.8,
+     "crestDb": 10.67,
+     "peakDb": -0.0,
+     "lengthS": 1.503,
+     "activeS": 1.503,
+     "tailDb": -32.92,
+     "lufs": -28.0
+    }
+   },
+   {
+    "id": "ev6_2_thruster_mighty_3_moss_p3s12",
+    "round": 6,
+    "source": "moss",
+    "family": "thruster_mighty",
+    "promptId": "thruster_mighty_3",
+    "event": "thruster",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s12.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.5,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -5.77,
+     "above2kHzLoud": 0.0614,
+     "above60Hz": 0.9569,
+     "under250Hz": 0.6917,
+     "above4kHz": 0.014,
+     "centroidHz": 484.4,
+     "crestDb": 10.74,
+     "peakDb": -0.0,
+     "lengthS": 1.5,
+     "activeS": 1.5,
+     "tailDb": -31.69,
+     "lufs": -28.0
+    }
+   }
+  ],
+  "gear": [
+   {
+    "id": "src_3_gear_1_moss_p2s12",
+    "round": 4,
+    "source": "moss",
+    "family": "gear",
+    "promptId": "gear_2",
+    "event": "gear",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/moss/raw/gear_2__s12.wav",
+    "rawFile": "assets/audio/gen/moss/raw/gear_2__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0013,
+     "endS": 3.8043,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -7.96,
+     "above2kHzLoud": 0.0959,
+     "above60Hz": 0.9988,
+     "under250Hz": 0.4769,
+     "above4kHz": 0.0372,
+     "centroidHz": 816.0,
+     "crestDb": 16.65,
+     "peakDb": -0.01,
+     "lengthS": 3.803,
+     "activeS": 3.803,
+     "tailDb": -31.01,
+     "lufs": -35.0
+    }
+   },
+   {
+    "id": "src_3_gear_2_sa3_p3s15",
+    "round": 4,
+    "source": "sa3",
+    "family": "gear",
+    "promptId": "gear_3",
+    "event": "gear",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/gear_3__s15.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/gear_3__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0429,
+     "endS": 3.064,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -11.52,
+     "above2kHzLoud": 0.1841,
+     "above60Hz": 0.7885,
+     "under250Hz": 0.3189,
+     "above4kHz": 0.2114,
+     "centroidHz": 2303.3,
+     "crestDb": 20.44,
+     "peakDb": 0.79,
+     "lengthS": 3.021,
+     "activeS": 2.988,
+     "tailDb": -39.33,
+     "lufs": -35.0
+    }
+   },
+   {
+    "id": "src_3_gear_3_oga_sfx2-lock-open-01",
+    "round": 4,
+    "source": "oga",
+    "family": "gear",
+    "promptId": null,
+    "event": "gear",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/oga/raw/gear__sfx2-lock-open-01.wav",
+    "rawFile": "assets/audio/gen/oga/raw/gear__sfx2-lock-open-01.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0238,
+     "endS": 0.504,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -22.74,
+     "above2kHzLoud": 0.9603,
+     "above60Hz": 1.0,
+     "under250Hz": 0.0051,
+     "above4kHz": 0.8361,
+     "centroidHz": 5563.0,
+     "crestDb": 28.13,
+     "peakDb": -1.88,
+     "lengthS": 0.48,
+     "activeS": 0.477,
+     "tailDb": -23.4,
+     "lufs": -35.0
+    }
+   },
+   {
+    "id": "src_3_gear_4_sa3_p2s15",
+    "round": 4,
+    "source": "sa3",
+    "family": "gear",
+    "promptId": "gear_2",
+    "event": "gear",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/gear_2__s15.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/gear_2__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0564,
+     "endS": 3.512,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -9.75,
+     "above2kHzLoud": 0.0356,
+     "above60Hz": 0.9995,
+     "under250Hz": 0.5299,
+     "above4kHz": 0.0439,
+     "centroidHz": 758.7,
+     "crestDb": 22.91,
+     "peakDb": -1.3,
+     "lengthS": 3.456,
+     "activeS": 3.397,
+     "tailDb": -42.88,
+     "lufs": -35.0
+    }
+   }
+  ],
+  "shield": [
+   {
+    "id": "src_4_shield_1_moss_p3s14",
+    "round": 4,
+    "source": "moss",
+    "family": "shield",
+    "promptId": "shield_3",
+    "event": "shield",
+    "verdict": "close",
+    "note": "Klingt hochwertiger als die letzten Samples, allerdings klingt es etwas zu bass-lastig. ich würde ein minimales knistern/wummern mit einbauen",
+    "raw": "assets/audio/gen/moss/raw/shield_3__s14.wav",
+    "rawFile": "assets/audio/gen/moss/raw/shield_3__s14.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.987,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -1.42,
+     "above2kHzLoud": 0.002,
+     "above60Hz": 0.2544,
+     "under250Hz": 0.9619,
+     "above4kHz": 0.0007,
+     "centroidHz": 76.2,
+     "crestDb": 5.89,
+     "peakDb": -0.0,
+     "lengthS": 1.987,
+     "activeS": 1.985,
+     "tailDb": -26.06,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "src_4_shield_2_sa3_p3s11",
+    "round": 4,
+    "source": "sa3",
+    "family": "shield",
+    "promptId": "shield_3",
+    "event": "shield",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/shield_3__s11.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/shield_3__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 2.1391,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -8.13,
+     "above2kHzLoud": 0.0031,
+     "above60Hz": 0.5196,
+     "under250Hz": 0.9643,
+     "above4kHz": 0.0021,
+     "centroidHz": 95.9,
+     "crestDb": 15.59,
+     "peakDb": -1.27,
+     "lengthS": 2.139,
+     "activeS": 2.126,
+     "tailDb": -38.97,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "src_4_shield_3_oga_tesla-spark",
+    "round": 4,
+    "source": "oga",
+    "family": "shield",
+    "promptId": null,
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/oga/raw/shield__tesla-spark.wav",
+    "rawFile": "assets/audio/gen/oga/raw/shield__tesla-spark.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0852,
+     "endS": 0.3367,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -22.69,
+     "above2kHzLoud": 0.9609,
+     "above60Hz": 0.9998,
+     "under250Hz": 0.0013,
+     "above4kHz": 0.8595,
+     "centroidHz": 6858.8,
+     "crestDb": 26.1,
+     "peakDb": -3.54,
+     "lengthS": 0.251,
+     "activeS": 0.187,
+     "tailDb": -42.16,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "src_4_shield_4_sa3_p2s16",
+    "round": 4,
+    "source": "sa3",
+    "family": "shield",
+    "promptId": "shield_2",
+    "event": "shield",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/sa3/raw/shield_2__s16.wav",
+    "rawFile": "assets/audio/gen/sa3/raw/shield_2__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0366,
+     "endS": 2.3207,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 44100,
+    "channels": 2,
+    "measures": {
+     "loud50Db": -8.97,
+     "above2kHzLoud": 0.0088,
+     "above60Hz": 0.3366,
+     "under250Hz": 0.9872,
+     "above4kHz": 0.0062,
+     "centroidHz": 133.8,
+     "crestDb": 15.01,
+     "peakDb": -0.77,
+     "lengthS": 2.284,
+     "activeS": 2.266,
+     "tailDb": -40.15,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev5_6_shield_bright_1_moss_p1s15",
+    "round": 5,
+    "source": "moss",
+    "family": "shield_bright",
+    "promptId": "shield_bright_1",
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer sein",
+    "raw": "assets/audio/gen/r5/moss/raw/shield_bright_1__s15.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/shield_bright_1__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 2.5,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -4.4,
+     "above2kHzLoud": 0.0373,
+     "above60Hz": 0.8888,
+     "under250Hz": 0.7575,
+     "above4kHz": 0.0214,
+     "centroidHz": 440.9,
+     "crestDb": 10.87,
+     "peakDb": -0.0,
+     "lengthS": 2.5,
+     "activeS": 2.5,
+     "tailDb": -30.79,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev5_6_shield_bright_2_moss_p2s11",
+    "round": 5,
+    "source": "moss",
+    "family": "shield_bright",
+    "promptId": "shield_bright_2",
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "klingt wie ein Knistern eines kaputten Kabels",
+    "raw": "assets/audio/gen/r5/moss/raw/shield_bright_2__s11.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/shield_bright_2__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0051,
+     "endS": 2.5081,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -22.07,
+     "above2kHzLoud": 0.8649,
+     "above60Hz": 0.9902,
+     "under250Hz": 0.0383,
+     "above4kHz": 0.7269,
+     "centroidHz": 7844.7,
+     "crestDb": 34.21,
+     "peakDb": -0.35,
+     "lengthS": 2.503,
+     "activeS": 2.412,
+     "tailDb": -34.87,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev5_6_shield_bright_3_moss_p2s14",
+    "round": 5,
+    "source": "moss",
+    "family": "shield_bright",
+    "promptId": "shield_bright_2",
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "übersteuert, zu lang, zu viel rauschen",
+    "raw": "assets/audio/gen/r5/moss/raw/shield_bright_2__s14.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/shield_bright_2__s14.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.711,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -8.25,
+     "above2kHzLoud": 0.1006,
+     "above60Hz": 0.4464,
+     "under250Hz": 0.814,
+     "above4kHz": 0.1161,
+     "centroidHz": 1177.5,
+     "crestDb": 15.3,
+     "peakDb": -0.01,
+     "lengthS": 1.711,
+     "activeS": 1.535,
+     "tailDb": -43.41,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_3_shield_tight_1_moss_p1s11",
+    "round": 6,
+    "source": "moss",
+    "family": "shield_tight",
+    "promptId": "shield_tight_1",
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/shield_tight_1__s11.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/shield_tight_1__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0742,
+     "endS": 0.334,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -10.94,
+     "above2kHzLoud": 0.042,
+     "above60Hz": 0.8884,
+     "under250Hz": 0.7715,
+     "above4kHz": 0.0282,
+     "centroidHz": 570.3,
+     "crestDb": 17.31,
+     "peakDb": -0.01,
+     "lengthS": 0.26,
+     "activeS": 0.259,
+     "tailDb": -41.64,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_3_shield_tight_2_moss_p2s11",
+    "round": 6,
+    "source": "moss",
+    "family": "shield_tight",
+    "promptId": "shield_tight_2",
+    "event": "shield",
+    "verdict": "close",
+    "note": "Es wird besser, ich würde den Ton vielleicht leicht heller machen als bisher, aber die Idee, dass der Schild ein Projektil oder einen Energiestrahl \"verschluckt\", und so klingt es hier ein wenig, ist die richtige Richtung",
+    "raw": "assets/audio/gen/r6/moss/raw/shield_tight_2__s11.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/shield_tight_2__s11.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0018,
+     "endS": 0.906,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -4.44,
+     "above2kHzLoud": 0.0145,
+     "above60Hz": 0.5021,
+     "under250Hz": 0.9463,
+     "above4kHz": 0.0051,
+     "centroidHz": 160.8,
+     "crestDb": 12.73,
+     "peakDb": -0.02,
+     "lengthS": 0.904,
+     "activeS": 0.847,
+     "tailDb": -44.89,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_3_shield_tight_3_moss_p1s16",
+    "round": 6,
+    "source": "moss",
+    "family": "shield_tight",
+    "promptId": "shield_tight_1",
+    "event": "shield",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/shield_tight_1__s16.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/shield_tight_1__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.37,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -12.77,
+     "above2kHzLoud": 0.7588,
+     "above60Hz": 0.824,
+     "under250Hz": 0.2909,
+     "above4kHz": 0.4398,
+     "centroidHz": 4146.7,
+     "crestDb": 21.22,
+     "peakDb": -0.01,
+     "lengthS": 0.37,
+     "activeS": 0.287,
+     "tailDb": -39.41,
+     "lufs": -24.0
+    }
+   }
+  ],
+  "fold jump": [
+   {
+    "id": "ev5_7_fold_jump_1_moss_p1s13",
+    "round": 5,
+    "source": "moss",
+    "family": "fold_jump",
+    "promptId": "fold_jump_1",
+    "event": "fold jump",
+    "verdict": "wrong",
+    "note": "zu übersteuert",
+    "raw": "assets/audio/gen/r5/moss/raw/fold_jump_1__s13.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/fold_jump_1__s13.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0122,
+     "endS": 3.8152,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -6.95,
+     "above2kHzLoud": 0.1601,
+     "above60Hz": 0.9063,
+     "under250Hz": 0.6669,
+     "above4kHz": 0.1131,
+     "centroidHz": 1434.5,
+     "crestDb": 11.77,
+     "peakDb": -0.0,
+     "lengthS": 3.803,
+     "activeS": 3.802,
+     "tailDb": -36.35,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev5_7_fold_jump_2_moss_p2s14",
+    "round": 5,
+    "source": "moss",
+    "family": "fold_jump",
+    "promptId": "fold_jump_2",
+    "event": "fold jump",
+    "verdict": "wrong",
+    "note": "zu übersteuert",
+    "raw": "assets/audio/gen/r5/moss/raw/fold_jump_2__s14.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/fold_jump_2__s14.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.016,
+     "endS": 3.819,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -5.44,
+     "above2kHzLoud": 0.1506,
+     "above60Hz": 0.8298,
+     "under250Hz": 0.6373,
+     "above4kHz": 0.0751,
+     "centroidHz": 1143.6,
+     "crestDb": 9.53,
+     "peakDb": -0.0,
+     "lengthS": 3.803,
+     "activeS": 3.803,
+     "tailDb": -18.68,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_4_fold_jump_1_moss_p1s14",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_jump",
+    "promptId": "fold_jump_1",
+    "event": "fold jump",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_jump_1__s14.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_jump_1__s14.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -9.86,
+     "above2kHzLoud": 0.4832,
+     "above60Hz": 0.8513,
+     "under250Hz": 0.2335,
+     "above4kHz": 0.2708,
+     "centroidHz": 3987.8,
+     "crestDb": 14.94,
+     "peakDb": -0.16,
+     "lengthS": 3.8,
+     "activeS": 3.8,
+     "tailDb": -22.13,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_4_fold_jump_2_moss_p2s15",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_jump",
+    "promptId": "fold_jump_2",
+    "event": "fold jump",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_jump_2__s15.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_jump_2__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -10.5,
+     "above2kHzLoud": 0.6319,
+     "above60Hz": 0.9985,
+     "under250Hz": 0.0616,
+     "above4kHz": 0.4036,
+     "centroidHz": 4486.2,
+     "crestDb": 17.58,
+     "peakDb": -0.04,
+     "lengthS": 3.8,
+     "activeS": 3.8,
+     "tailDb": -33.94,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_4_fold_jump_3_moss_p2s12",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_jump",
+    "promptId": "fold_jump_2",
+    "event": "fold jump",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_jump_2__s12.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_jump_2__s12.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8002,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -14.71,
+     "above2kHzLoud": 0.8037,
+     "above60Hz": 0.9994,
+     "under250Hz": 0.0691,
+     "above4kHz": 0.669,
+     "centroidHz": 7426.6,
+     "crestDb": 18.37,
+     "peakDb": -2.72,
+     "lengthS": 3.8,
+     "activeS": 3.8,
+     "tailDb": -33.78,
+     "lufs": -24.0
+    }
+   }
+  ],
+  "fold exit": [
+   {
+    "id": "ev5_8_fold_exit_1_moss_p1s15",
+    "round": 5,
+    "source": "moss",
+    "family": "fold_exit",
+    "promptId": "fold_exit_1",
+    "event": "fold exit",
+    "verdict": "close",
+    "note": "zu viel hochtöniges Rauscshen",
+    "raw": "assets/audio/gen/r5/moss/raw/fold_exit_1__s15.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/fold_exit_1__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.1344,
+     "endS": 3.795,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -10.71,
+     "above2kHzLoud": 0.4176,
+     "above60Hz": 0.9616,
+     "under250Hz": 0.3253,
+     "above4kHz": 0.2257,
+     "centroidHz": 3032.9,
+     "crestDb": 14.98,
+     "peakDb": -0.46,
+     "lengthS": 3.661,
+     "activeS": 3.564,
+     "tailDb": -42.37,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev5_8_fold_exit_2_moss_p2s15",
+    "round": 5,
+    "source": "moss",
+    "family": "fold_exit",
+    "promptId": "fold_exit_2",
+    "event": "fold exit",
+    "verdict": "wrong",
+    "note": "klingt gehaucht, nach Luft, die es im Vakuum nicht gibt..",
+    "raw": "assets/audio/gen/r5/moss/raw/fold_exit_2__s15.wav",
+    "rawFile": "assets/audio/gen/r5/moss/raw/fold_exit_2__s15.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -11.17,
+     "above2kHzLoud": 0.7965,
+     "above60Hz": 0.9997,
+     "under250Hz": 0.0017,
+     "above4kHz": 0.538,
+     "centroidHz": 6444.0,
+     "crestDb": 14.75,
+     "peakDb": -0.04,
+     "lengthS": 3.8,
+     "activeS": 3.797,
+     "tailDb": -32.73,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_5_fold_exit_1_moss_p3s16",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_exit",
+    "promptId": "fold_exit_3",
+    "event": "fold exit",
+    "verdict": "wrong",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_exit_3__s16.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_exit_3__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.8,
+     "cappedAtFamilyLength": true
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -9.72,
+     "above2kHzLoud": 0.1308,
+     "above60Hz": 0.999,
+     "under250Hz": 0.3478,
+     "above4kHz": 0.0508,
+     "centroidHz": 958.9,
+     "crestDb": 13.9,
+     "peakDb": -0.61,
+     "lengthS": 3.8,
+     "activeS": 3.8,
+     "tailDb": -27.21,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_5_fold_exit_2_moss_p1s13",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_exit",
+    "promptId": "fold_exit_1",
+    "event": "fold exit",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_exit_1__s13.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_exit_1__s13.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.0,
+     "endS": 3.121,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -2.92,
+     "above2kHzLoud": 0.002,
+     "above60Hz": 0.4298,
+     "under250Hz": 0.9674,
+     "above4kHz": 0.0008,
+     "centroidHz": 93.4,
+     "crestDb": 8.59,
+     "peakDb": -0.0,
+     "lengthS": 3.121,
+     "activeS": 2.927,
+     "tailDb": -52.23,
+     "lufs": -24.0
+    }
+   },
+   {
+    "id": "ev6_5_fold_exit_3_moss_p1s16",
+    "round": 6,
+    "source": "moss",
+    "family": "fold_exit",
+    "promptId": "fold_exit_1",
+    "event": "fold exit",
+    "verdict": "fits",
+    "note": "",
+    "raw": "assets/audio/gen/r6/moss/raw/fold_exit_1__s16.wav",
+    "rawFile": "assets/audio/gen/r6/moss/raw/fold_exit_1__s16.wav",
+    "rawShaOk": true,
+    "cut": {
+     "startS": 0.1449,
+     "endS": 3.883,
+     "cappedAtFamilyLength": false
+    },
+    "sr": 48000,
+    "channels": 1,
+    "measures": {
+     "loud50Db": -4.04,
+     "above2kHzLoud": 0.0015,
+     "above60Hz": 0.3681,
+     "under250Hz": 0.9128,
+     "above4kHz": 0.0001,
+     "centroidHz": 106.9,
+     "crestDb": 11.56,
+     "peakDb": -0.01,
+     "lengthS": 3.738,
+     "activeS": 3.611,
+     "tailDb": -47.28,
+     "lufs": -24.0
+    }
+   }
+  ]
+ },
+ "saturationRule": {
+  "rule": {
+   "loud50Db": -9.5,
+   "above2kHz": 0.03
+  },
+  "nearDb": 1.5,
+  "ruleFamiliesRound6": [
+   "fold_exit",
+   "fold_jump",
+   "shield_tight"
+  ],
+  "round6": {
+   "candidates": 14,
+   "listed": [
+    {
+     "id": "ev6_1_hull_light_1_moss_p1s22",
+     "event": "hull",
+     "family": "hull_light",
+     "verdict": "fits",
+     "note": "ist ok, schauen wir mal wie es weiterhin wird",
+     "loud50Db": -8.51,
+     "above2kHzLoud": 0.6706,
+     "lufs": -34.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": 0.99,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_1_hull_light_2_moss_p1s21",
+     "event": "hull",
+     "family": "hull_light",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -10.98,
+     "above2kHzLoud": 0.8593,
+     "lufs": -34.0,
+     "overLevel": false,
+     "overShare": true,
+     "overBoth": false,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": -1.48,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_2_thruster_mighty_2_moss_p3s11",
+     "event": "thruster",
+     "family": "thruster_mighty",
+     "verdict": "close",
+     "note": "Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht. Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel",
+     "loud50Db": -4.54,
+     "above2kHzLoud": 0.0569,
+     "lufs": -28.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 4.96,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_2_thruster_mighty_3_moss_p3s12",
+     "event": "thruster",
+     "family": "thruster_mighty",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -5.77,
+     "above2kHzLoud": 0.0614,
+     "lufs": -28.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 3.73,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_3_shield_tight_1_moss_p1s11",
+     "event": "shield",
+     "family": "shield_tight",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -10.94,
+     "above2kHzLoud": 0.042,
+     "lufs": -24.0,
+     "overLevel": false,
+     "overShare": true,
+     "overBoth": false,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": -1.44,
+     "familyHasTheRule": true
+    },
+    {
+     "id": "ev6_4_fold_jump_1_moss_p1s14",
+     "event": "fold jump",
+     "family": "fold_jump",
+     "verdict": "fits",
+     "note": "",
+     "loud50Db": -9.86,
+     "above2kHzLoud": 0.4832,
+     "lufs": -24.0,
+     "overLevel": false,
+     "overShare": true,
+     "overBoth": false,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": -0.36,
+     "familyHasTheRule": true
+    },
+    {
+     "id": "ev6_4_fold_jump_2_moss_p2s15",
+     "event": "fold jump",
+     "family": "fold_jump",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -10.5,
+     "above2kHzLoud": 0.6319,
+     "lufs": -24.0,
+     "overLevel": false,
+     "overShare": true,
+     "overBoth": false,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": -1.0,
+     "familyHasTheRule": true
+    },
+    {
+     "id": "ev6_5_fold_exit_1_moss_p3s16",
+     "event": "fold exit",
+     "family": "fold_exit",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -9.72,
+     "above2kHzLoud": 0.1308,
+     "lufs": -24.0,
+     "overLevel": false,
+     "overShare": true,
+     "overBoth": false,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": -0.22,
+     "familyHasTheRule": true
+    }
+   ],
+   "overBoth": {
+    "fits": 1,
+    "close": 1,
+    "wrong": 1,
+    "n": 3
+   },
+   "withinNearOfLevelThreshold": {
+    "fits": 2,
+    "close": 0,
+    "wrong": 4,
+    "n": 6
+   },
+   "ruleFamiliesOnly": {
+    "fits": 3,
+    "close": 1,
+    "wrong": 5,
+    "n": 9
+   },
+   "ruleFamiliesOverBoth": {
+    "fits": 0,
+    "close": 0,
+    "wrong": 0,
+    "n": 0
+   }
+  },
+  "allRoundsOverBoth": {
+   "rows": [
+    {
+     "id": "ev5_1_hull_light_1_moss_p2s15",
+     "event": "hull",
+     "family": "hull_light",
+     "verdict": "fits",
+     "note": "",
+     "loud50Db": -6.41,
+     "above2kHzLoud": 0.2544,
+     "lufs": -34.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 3.09,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_1_hull_light_1_moss_p1s22",
+     "event": "hull",
+     "family": "hull_light",
+     "verdict": "fits",
+     "note": "ist ok, schauen wir mal wie es weiterhin wird",
+     "loud50Db": -8.51,
+     "above2kHzLoud": 0.6706,
+     "lufs": -34.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": 0.99,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "src_2_thruster_2_sa3_p2s12",
+     "event": "thruster",
+     "family": "thruster",
+     "verdict": "close",
+     "note": "Grundidee passt, es muss aber doller, knalliger klingen. Aktuell klingt es eher \"hauchig\"",
+     "loud50Db": -9.21,
+     "above2kHzLoud": 0.2083,
+     "lufs": -34.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": 0.29,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_2_thruster_mighty_2_moss_p3s11",
+     "event": "thruster",
+     "family": "thruster_mighty",
+     "verdict": "close",
+     "note": "Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht. Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel",
+     "loud50Db": -4.54,
+     "above2kHzLoud": 0.0569,
+     "lufs": -28.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 4.96,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev6_2_thruster_mighty_3_moss_p3s12",
+     "event": "thruster",
+     "family": "thruster_mighty",
+     "verdict": "wrong",
+     "note": "",
+     "loud50Db": -5.77,
+     "above2kHzLoud": 0.0614,
+     "lufs": -28.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 3.73,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "src_3_gear_1_moss_p2s12",
+     "event": "gear",
+     "family": "gear",
+     "verdict": "fits",
+     "note": "",
+     "loud50Db": -7.96,
+     "above2kHzLoud": 0.0959,
+     "lufs": -35.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 1.54,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev5_6_shield_bright_1_moss_p1s15",
+     "event": "shield",
+     "family": "shield_bright",
+     "verdict": "wrong",
+     "note": "Klingt zu voll und übersteuert, auch zu lang gezogen. Es muss kürzer sein",
+     "loud50Db": -4.4,
+     "above2kHzLoud": 0.0373,
+     "lufs": -24.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 5.1,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev5_6_shield_bright_3_moss_p2s14",
+     "event": "shield",
+     "family": "shield_bright",
+     "verdict": "wrong",
+     "note": "übersteuert, zu lang, zu viel rauschen",
+     "loud50Db": -8.25,
+     "above2kHzLoud": 0.1006,
+     "lufs": -24.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": true,
+     "distanceToLevelThresholdDb": 1.25,
+     "familyHasTheRule": false
+    },
+    {
+     "id": "ev5_7_fold_jump_1_moss_p1s13",
+     "event": "fold jump",
+     "family": "fold_jump",
+     "verdict": "wrong",
+     "note": "zu übersteuert",
+     "loud50Db": -6.95,
+     "above2kHzLoud": 0.1601,
+     "lufs": -24.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 2.55,
+     "familyHasTheRule": true
+    },
+    {
+     "id": "ev5_7_fold_jump_2_moss_p2s14",
+     "event": "fold jump",
+     "family": "fold_jump",
+     "verdict": "wrong",
+     "note": "zu übersteuert",
+     "loud50Db": -5.44,
+     "above2kHzLoud": 0.1506,
+     "lufs": -24.0,
+     "overLevel": true,
+     "overShare": true,
+     "overBoth": true,
+     "withinNearOfLevelThreshold": false,
+     "distanceToLevelThresholdDb": 4.06,
+     "familyHasTheRule": true
+    }
+   ],
+   "tally": {
+    "fits": 3,
+    "close": 2,
+    "wrong": 5,
+    "n": 10
+   }
+  },
+  "separation": {
+   "round6All_fitsVsWrong": {
+    "n": 12,
+    "accepted": [
+     "fits"
+    ],
+    "rowsAccepted": 4,
+    "rowsRejected": 8,
+    "currentRule": {
+     "acceptedRejectedByRule": 1,
+     "rejectedNotCaughtByRule": 7
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -15.71,
+     "above2kHz": 0.0059,
+     "acceptedRejectedByRule": 2,
+     "rejectedNotCaughtByRule": 0
+    }
+   },
+   "round6All_notWrongVsWrong": {
+    "n": 14,
+    "accepted": [
+     "fits",
+     "close"
+    ],
+    "rowsAccepted": 6,
+    "rowsRejected": 8,
+    "currentRule": {
+     "acceptedRejectedByRule": 2,
+     "rejectedNotCaughtByRule": 7
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -15.71,
+     "above2kHz": 0.0059,
+     "acceptedRejectedByRule": 4,
+     "rejectedNotCaughtByRule": 0
+    }
+   },
+   "round6RuleFamilies_fitsVsWrong": {
+    "n": 8,
+    "accepted": [
+     "fits"
+    ],
+    "rowsAccepted": 3,
+    "rowsRejected": 5,
+    "currentRule": {
+     "acceptedRejectedByRule": 0,
+     "rejectedNotCaughtByRule": 5
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -15.71,
+     "above2kHz": 0.022,
+     "acceptedRejectedByRule": 1,
+     "rejectedNotCaughtByRule": 0
+    }
+   },
+   "rounds456All_fitsVsWrong": {
+    "n": 40,
+    "accepted": [
+     "fits"
+    ],
+    "rowsAccepted": 19,
+    "rowsRejected": 21,
+    "currentRule": {
+     "acceptedRejectedByRule": 3,
+     "rejectedNotCaughtByRule": 16
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -23.64,
+     "above2kHz": 0.0364,
+     "acceptedRejectedByRule": 7,
+     "rejectedNotCaughtByRule": 1
+    }
+   },
+   "rounds456All_notWrongVsWrong": {
+    "n": 47,
+    "accepted": [
+     "fits",
+     "close"
+    ],
+    "rowsAccepted": 26,
+    "rowsRejected": 21,
+    "currentRule": {
+     "acceptedRejectedByRule": 5,
+     "rejectedNotCaughtByRule": 16
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -23.64,
+     "above2kHz": 0.0364,
+     "acceptedRejectedByRule": 12,
+     "rejectedNotCaughtByRule": 1
+    }
+   },
+   "singleMeasure_byEvent": {
+    "hull": {
+     "nFits": 7,
+     "nWrong": 2,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -8.51,
+        -3.44
+       ],
+       "wrong": [
+        -14.55,
+        -10.98
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.0027,
+        0.6706
+       ],
+       "wrong": [
+        0.2903,
+        0.8593
+       ],
+       "separates": "none"
+      },
+      "above60Hz": {
+       "fits": [
+        0.2881,
+        0.9995
+       ],
+       "wrong": [
+        0.9486,
+        0.9978
+       ],
+       "separates": "none"
+      },
+      "under250Hz": {
+       "fits": [
+        0.0117,
+        0.9236
+       ],
+       "wrong": [
+        0.1316,
+        0.4654
+       ],
+       "separates": "none"
+      },
+      "above4kHz": {
+       "fits": [
+        0.0002,
+        0.1582
+       ],
+       "wrong": [
+        0.1064,
+        0.1497
+       ],
+       "separates": "none"
+      },
+      "centroidHz": {
+       "fits": [
+        87.6,
+        2766.0
+       ],
+       "wrong": [
+        1646.8,
+        2929.1
+       ],
+       "separates": "none"
+      },
+      "crestDb": {
+       "fits": [
+        10.76,
+        19.3
+       ],
+       "wrong": [
+        17.63,
+        24.02
+       ],
+       "separates": "none"
+      },
+      "peakDb": {
+       "fits": [
+        -0.01,
+        1.17
+       ],
+       "wrong": [
+        -0.62,
+        -0.01
+       ],
+       "separates": "none"
+      },
+      "lengthS": {
+       "fits": [
+        0.467,
+        3.801
+       ],
+       "wrong": [
+        0.651,
+        0.745
+       ],
+       "separates": "none"
+      },
+      "activeS": {
+       "fits": [
+        0.415,
+        3.753
+       ],
+       "wrong": [
+        0.575,
+        0.615
+       ],
+       "separates": "none"
+      },
+      "tailDb": {
+       "fits": [
+        -48.96,
+        -39.45
+       ],
+       "wrong": [
+        -51.8,
+        -41.8
+       ],
+       "separates": "none"
+      },
+      "lufs": {
+       "fits": [
+        -34.0,
+        -34.0
+       ],
+       "wrong": [
+        -34.0,
+        -34.0
+       ],
+       "separates": "none"
+      }
+     }
+    },
+    "thruster": {
+     "nFits": 4,
+     "nWrong": 6,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -25.43,
+        -15.21
+       ],
+       "wrong": [
+        -13.26,
+        -2.65
+       ],
+       "separates": "fits all under wrong"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.9647,
+        0.9753
+       ],
+       "wrong": [
+        0.0098,
+        0.2344
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above60Hz": {
+       "fits": [
+        0.9778,
+        1.0
+       ],
+       "wrong": [
+        0.4864,
+        0.982
+       ],
+       "separates": "none"
+      },
+      "under250Hz": {
+       "fits": [
+        0.0001,
+        0.0229
+       ],
+       "wrong": [
+        0.0607,
+        0.9096
+       ],
+       "separates": "fits all under wrong"
+      },
+      "above4kHz": {
+       "fits": [
+        0.8387,
+        0.9721
+       ],
+       "wrong": [
+        0.0033,
+        0.1508
+       ],
+       "separates": "fits all over wrong"
+      },
+      "centroidHz": {
+       "fits": [
+        9897.4,
+        12991.4
+       ],
+       "wrong": [
+        157.7,
+        1736.1
+       ],
+       "separates": "fits all over wrong"
+      },
+      "crestDb": {
+       "fits": [
+        13.02,
+        18.18
+       ],
+       "wrong": [
+        6.36,
+        22.66
+       ],
+       "separates": "none"
+      },
+      "peakDb": {
+       "fits": [
+        -13.6,
+        -4.94
+       ],
+       "wrong": [
+        -1.06,
+        -0.0
+       ],
+       "separates": "fits all under wrong"
+      },
+      "lengthS": {
+       "fits": [
+        0.403,
+        1.004
+       ],
+       "wrong": [
+        0.487,
+        1.5
+       ],
+       "separates": "none"
+      },
+      "activeS": {
+       "fits": [
+        0.389,
+        1.003
+       ],
+       "wrong": [
+        0.403,
+        1.5
+       ],
+       "separates": "none"
+      },
+      "tailDb": {
+       "fits": [
+        -57.39,
+        -12.66
+       ],
+       "wrong": [
+        -47.17,
+        -24.88
+       ],
+       "separates": "none"
+      },
+      "lufs": {
+       "fits": [
+        -34.0,
+        -34.0
+       ],
+       "wrong": [
+        -34.0,
+        -28.0
+       ],
+       "separates": "none"
+      }
+     }
+    },
+    "gear": {
+     "nFits": 3,
+     "nWrong": 1,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -11.52,
+        -7.96
+       ],
+       "wrong": [
+        -22.74,
+        -22.74
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.0356,
+        0.1841
+       ],
+       "wrong": [
+        0.9603,
+        0.9603
+       ],
+       "separates": "fits all under wrong"
+      },
+      "above60Hz": {
+       "fits": [
+        0.7885,
+        0.9995
+       ],
+       "wrong": [
+        1.0,
+        1.0
+       ],
+       "separates": "fits all under wrong"
+      },
+      "under250Hz": {
+       "fits": [
+        0.3189,
+        0.5299
+       ],
+       "wrong": [
+        0.0051,
+        0.0051
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above4kHz": {
+       "fits": [
+        0.0372,
+        0.2114
+       ],
+       "wrong": [
+        0.8361,
+        0.8361
+       ],
+       "separates": "fits all under wrong"
+      },
+      "centroidHz": {
+       "fits": [
+        758.7,
+        2303.3
+       ],
+       "wrong": [
+        5563.0,
+        5563.0
+       ],
+       "separates": "fits all under wrong"
+      },
+      "crestDb": {
+       "fits": [
+        16.65,
+        22.91
+       ],
+       "wrong": [
+        28.13,
+        28.13
+       ],
+       "separates": "fits all under wrong"
+      },
+      "peakDb": {
+       "fits": [
+        -1.3,
+        0.79
+       ],
+       "wrong": [
+        -1.88,
+        -1.88
+       ],
+       "separates": "fits all over wrong"
+      },
+      "lengthS": {
+       "fits": [
+        3.021,
+        3.803
+       ],
+       "wrong": [
+        0.48,
+        0.48
+       ],
+       "separates": "fits all over wrong"
+      },
+      "activeS": {
+       "fits": [
+        2.988,
+        3.803
+       ],
+       "wrong": [
+        0.477,
+        0.477
+       ],
+       "separates": "fits all over wrong"
+      },
+      "tailDb": {
+       "fits": [
+        -42.88,
+        -31.01
+       ],
+       "wrong": [
+        -23.4,
+        -23.4
+       ],
+       "separates": "fits all under wrong"
+      },
+      "lufs": {
+       "fits": [
+        -35.0,
+        -35.0
+       ],
+       "wrong": [
+        -35.0,
+        -35.0
+       ],
+       "separates": "none"
+      }
+     }
+    },
+    "shield": {
+     "nFits": 2,
+     "nWrong": 6,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -8.97,
+        -8.13
+       ],
+       "wrong": [
+        -22.69,
+        -4.4
+       ],
+       "separates": "none"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.0031,
+        0.0088
+       ],
+       "wrong": [
+        0.0373,
+        0.9609
+       ],
+       "separates": "fits all under wrong"
+      },
+      "above60Hz": {
+       "fits": [
+        0.3366,
+        0.5196
+       ],
+       "wrong": [
+        0.4464,
+        0.9998
+       ],
+       "separates": "none"
+      },
+      "under250Hz": {
+       "fits": [
+        0.9643,
+        0.9872
+       ],
+       "wrong": [
+        0.0013,
+        0.814
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above4kHz": {
+       "fits": [
+        0.0021,
+        0.0062
+       ],
+       "wrong": [
+        0.0214,
+        0.8595
+       ],
+       "separates": "fits all under wrong"
+      },
+      "centroidHz": {
+       "fits": [
+        95.9,
+        133.8
+       ],
+       "wrong": [
+        440.9,
+        7844.7
+       ],
+       "separates": "fits all under wrong"
+      },
+      "crestDb": {
+       "fits": [
+        15.01,
+        15.59
+       ],
+       "wrong": [
+        10.87,
+        34.21
+       ],
+       "separates": "none"
+      },
+      "peakDb": {
+       "fits": [
+        -1.27,
+        -0.77
+       ],
+       "wrong": [
+        -3.54,
+        -0.0
+       ],
+       "separates": "none"
+      },
+      "lengthS": {
+       "fits": [
+        2.139,
+        2.284
+       ],
+       "wrong": [
+        0.251,
+        2.503
+       ],
+       "separates": "none"
+      },
+      "activeS": {
+       "fits": [
+        2.126,
+        2.266
+       ],
+       "wrong": [
+        0.187,
+        2.5
+       ],
+       "separates": "none"
+      },
+      "tailDb": {
+       "fits": [
+        -40.15,
+        -38.97
+       ],
+       "wrong": [
+        -43.41,
+        -30.79
+       ],
+       "separates": "none"
+      },
+      "lufs": {
+       "fits": [
+        -24.0,
+        -24.0
+       ],
+       "wrong": [
+        -24.0,
+        -24.0
+       ],
+       "separates": "none"
+      }
+     }
+    },
+    "fold jump": {
+     "nFits": 1,
+     "nWrong": 4,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -9.86,
+        -9.86
+       ],
+       "wrong": [
+        -14.71,
+        -5.44
+       ],
+       "separates": "none"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.4832,
+        0.4832
+       ],
+       "wrong": [
+        0.1506,
+        0.8037
+       ],
+       "separates": "none"
+      },
+      "above60Hz": {
+       "fits": [
+        0.8513,
+        0.8513
+       ],
+       "wrong": [
+        0.8298,
+        0.9994
+       ],
+       "separates": "none"
+      },
+      "under250Hz": {
+       "fits": [
+        0.2335,
+        0.2335
+       ],
+       "wrong": [
+        0.0616,
+        0.6669
+       ],
+       "separates": "none"
+      },
+      "above4kHz": {
+       "fits": [
+        0.2708,
+        0.2708
+       ],
+       "wrong": [
+        0.0751,
+        0.669
+       ],
+       "separates": "none"
+      },
+      "centroidHz": {
+       "fits": [
+        3987.8,
+        3987.8
+       ],
+       "wrong": [
+        1143.6,
+        7426.6
+       ],
+       "separates": "none"
+      },
+      "crestDb": {
+       "fits": [
+        14.94,
+        14.94
+       ],
+       "wrong": [
+        9.53,
+        18.37
+       ],
+       "separates": "none"
+      },
+      "peakDb": {
+       "fits": [
+        -0.16,
+        -0.16
+       ],
+       "wrong": [
+        -2.72,
+        -0.0
+       ],
+       "separates": "none"
+      },
+      "lengthS": {
+       "fits": [
+        3.8,
+        3.8
+       ],
+       "wrong": [
+        3.8,
+        3.803
+       ],
+       "separates": "none"
+      },
+      "activeS": {
+       "fits": [
+        3.8,
+        3.8
+       ],
+       "wrong": [
+        3.8,
+        3.803
+       ],
+       "separates": "none"
+      },
+      "tailDb": {
+       "fits": [
+        -22.13,
+        -22.13
+       ],
+       "wrong": [
+        -36.35,
+        -18.68
+       ],
+       "separates": "none"
+      },
+      "lufs": {
+       "fits": [
+        -24.0,
+        -24.0
+       ],
+       "wrong": [
+        -24.0,
+        -24.0
+       ],
+       "separates": "none"
+      }
+     }
+    },
+    "fold exit": {
+     "nFits": 2,
+     "nWrong": 2,
+     "measures": {
+      "loud50Db": {
+       "fits": [
+        -4.04,
+        -2.92
+       ],
+       "wrong": [
+        -11.17,
+        -9.72
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above2kHzLoud": {
+       "fits": [
+        0.0015,
+        0.002
+       ],
+       "wrong": [
+        0.1308,
+        0.7965
+       ],
+       "separates": "fits all under wrong"
+      },
+      "above60Hz": {
+       "fits": [
+        0.3681,
+        0.4298
+       ],
+       "wrong": [
+        0.999,
+        0.9997
+       ],
+       "separates": "fits all under wrong"
+      },
+      "under250Hz": {
+       "fits": [
+        0.9128,
+        0.9674
+       ],
+       "wrong": [
+        0.0017,
+        0.3478
+       ],
+       "separates": "fits all over wrong"
+      },
+      "above4kHz": {
+       "fits": [
+        0.0001,
+        0.0008
+       ],
+       "wrong": [
+        0.0508,
+        0.538
+       ],
+       "separates": "fits all under wrong"
+      },
+      "centroidHz": {
+       "fits": [
+        93.4,
+        106.9
+       ],
+       "wrong": [
+        958.9,
+        6444.0
+       ],
+       "separates": "fits all under wrong"
+      },
+      "crestDb": {
+       "fits": [
+        8.59,
+        11.56
+       ],
+       "wrong": [
+        13.9,
+        14.75
+       ],
+       "separates": "fits all under wrong"
+      },
+      "peakDb": {
+       "fits": [
+        -0.01,
+        -0.0
+       ],
+       "wrong": [
+        -0.61,
+        -0.04
+       ],
+       "separates": "fits all over wrong"
+      },
+      "lengthS": {
+       "fits": [
+        3.121,
+        3.738
+       ],
+       "wrong": [
+        3.8,
+        3.8
+       ],
+       "separates": "fits all under wrong"
+      },
+      "activeS": {
+       "fits": [
+        2.927,
+        3.611
+       ],
+       "wrong": [
+        3.797,
+        3.8
+       ],
+       "separates": "fits all under wrong"
+      },
+      "tailDb": {
+       "fits": [
+        -52.23,
+        -47.28
+       ],
+       "wrong": [
+        -32.73,
+        -27.21
+       ],
+       "separates": "fits all under wrong"
+      },
+      "lufs": {
+       "fits": [
+        -24.0,
+        -24.0
+       ],
+       "wrong": [
+        -24.0,
+        -24.0
+       ],
+       "separates": "none"
+      }
+     }
+    }
+   }
+  },
+  "holdout": {
+   "fittedOn": "rounds 4 and 5, fits against wrong",
+   "fit": {
+    "n": 28,
+    "accepted": [
+     "fits"
+    ],
+    "rowsAccepted": 15,
+    "rowsRejected": 13,
+    "currentRule": {
+     "acceptedRejectedByRule": 2,
+     "rejectedNotCaughtByRule": 9
+    },
+    "bestRuleOfThisKind": {
+     "loud50Db": -23.64,
+     "above2kHz": 0.0364,
+     "acceptedRejectedByRule": 5,
+     "rejectedNotCaughtByRule": 0
+    }
+   },
+   "triedOnRound6FitsVsWrong": {
+    "n": 12,
+    "acceptedRejectedByRule": 2,
+    "nAccepted": 4,
+    "rejectedNotCaughtByRule": 1,
+    "nRejected": 8
+   },
+   "currentRuleOnRound6FitsVsWrong": {
+    "n": 12,
+    "acceptedRejectedByRule": 1,
+    "nAccepted": 4,
+    "rejectedNotCaughtByRule": 7,
+    "nRejected": 8
+   }
+  },
+  "ruleEventsAllRounds": {
+   "events": [
+    "shield",
+    "fold jump",
+    "fold exit"
+   ],
+   "overBoth": {
+    "fits": 0,
+    "close": 0,
+    "wrong": 4,
+    "n": 4
+   },
+   "notOverBoth": {
+    "fits": 5,
+    "close": 3,
+    "wrong": 8,
+    "n": 16
+   }
+  },
+  "notesNamingOverdrive": {
+   "4": [],
+   "5": [
+    "ev5_6_shield_bright_1_moss_p1s15",
+    "ev5_6_shield_bright_3_moss_p2s14",
+    "ev5_7_fold_jump_1_moss_p1s13",
+    "ev5_7_fold_jump_2_moss_p2s14"
+   ],
+   "6": []
+  }
+ },
+ "libraryPulses": [
+  {
+   "libraryId": "g_thruster_pulse_a",
+   "libraryRawFile": "assets/audio/generated/g_thruster_pulse_a.wav",
+   "renderedFileOnDisk": null,
+   "libraryWithdrawn": true,
+   "libraryVerdict": "wrong",
+   "libraryNote": "",
+   "libraryRatedAt": "2026-11-18T14:36:38.602Z",
+   "library": {
+    "measures": {
+     "loud50Db": -25.98,
+     "above2kHzLoud": 0.9753,
+     "above60Hz": 0.9932,
+     "under250Hz": 0.0174,
+     "above4kHz": 0.9174,
+     "centroidHz": 10872.1,
+     "crestDb": 13.02,
+     "peakDb": -15.98,
+     "lengthS": 0.403,
+     "activeS": 0.382,
+     "tailDb": -30.45,
+     "lufs": -25.75
+    },
+    "lufsMeasured": -25.75,
+    "truePeakDb": -15.91,
+    "durationS": 0.403,
+    "lastSampleAbs": 0.0,
+    "windows50msWithin3DbOfLoudest": 5,
+    "plateauWithin3DbS": 0.25,
+    "profile50msDbUnderLoudest": [
+     -11.2,
+     -2.8,
+     -0.6,
+     -0.1,
+     -0.5,
+     -2.8,
+     -8.0,
+     -28.4,
+     -83.0
+    ]
+   },
+   "candidate": {
+    "id": "src_2_thruster_4_moss_p1s11",
+    "round": 4,
+    "verdict": "fits",
+    "note": "",
+    "cut": {
+     "startS": 0.006,
+     "endS": 0.409,
+     "cappedAtFamilyLength": false
+    },
+    "playedAtLufs": -34.0,
+    "measuresRawCut": {
+     "loud50Db": -15.21,
+     "above2kHzLoud": 0.9753,
+     "above60Hz": 0.9932,
+     "under250Hz": 0.0174,
+     "above4kHz": 0.9174,
+     "centroidHz": 10872.1,
+     "crestDb": 13.02,
+     "peakDb": -5.21,
+     "lengthS": 0.403,
+     "activeS": 0.389,
+     "tailDb": -30.28,
+     "lufs": -34.0
+    },
+    "listeningCopy": {
+     "file": "assets/audio/gen/_kept/round4/listen/src_2_thruster_4_moss_p1s11.wav",
+     "lufsMeasured": -34.0,
+     "truePeakDb": -24.16,
+     "durationS": 0.413
+    },
+    "profile50msDbUnderLoudest": [
+     -11.2,
+     -2.8,
+     -0.6,
+     -0.1,
+     -0.5,
+     -2.8,
+     -8.0,
+     -28.3,
+     -45.4
+    ]
+   },
+   "sameSignal": {
+    "gainLibraryOverListeningCopyDb": 8.25,
+    "lagSamples": 1,
+    "residualRelative": 0.0
+   },
+   "origin": {
+    "seed": 11,
+    "round": 4,
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s"
+   }
+  },
+  {
+   "libraryId": "g_thruster_pulse_b",
+   "libraryRawFile": "assets/audio/generated/g_thruster_pulse_b.wav",
+   "renderedFileOnDisk": null,
+   "libraryWithdrawn": true,
+   "libraryVerdict": "wrong",
+   "libraryNote": "",
+   "libraryRatedAt": "2026-11-18T14:36:39.204Z",
+   "library": {
+    "measures": {
+     "loud50Db": -29.73,
+     "above2kHzLoud": 0.9685,
+     "above60Hz": 0.9778,
+     "under250Hz": 0.0229,
+     "above4kHz": 0.9721,
+     "centroidHz": 12991.4,
+     "crestDb": 13.07,
+     "peakDb": -17.9,
+     "lengthS": 1.004,
+     "activeS": 1.003,
+     "tailDb": -12.65,
+     "lufs": -27.23
+    },
+    "lufsMeasured": -27.23,
+    "truePeakDb": -17.37,
+    "durationS": 1.004,
+    "lastSampleAbs": 2.5268143009926247e-05,
+    "windows50msWithin3DbOfLoudest": 17,
+    "plateauWithin3DbS": 0.85,
+    "profile50msDbUnderLoudest": [
+     -5.7,
+     -1.1,
+     -0.6,
+     -0.9,
+     -0.5,
+     -0.7,
+     -0.8,
+     -0.5,
+     -0.3,
+     -0.2,
+     -0.2,
+     -0.5,
+     -0.5,
+     -0.5,
+     -0.3,
+     -0.7,
+     -0.4,
+     -3.0,
+     -9.3,
+     -12.0,
+     -46.0
+    ]
+   },
+   "candidate": {
+    "id": "ev5_3_thruster_valve_1_moss_r4p1s12",
+    "round": 5,
+    "verdict": "fits",
+    "note": "",
+    "cut": {
+     "startS": 0.0,
+     "endS": 1.004,
+     "cappedAtFamilyLength": false
+    },
+    "playedAtLufs": -34.0,
+    "measuresRawCut": {
+     "loud50Db": -25.43,
+     "above2kHzLoud": 0.9685,
+     "above60Hz": 0.9778,
+     "under250Hz": 0.0229,
+     "above4kHz": 0.9721,
+     "centroidHz": 12991.4,
+     "crestDb": 13.07,
+     "peakDb": -13.6,
+     "lengthS": 1.004,
+     "activeS": 1.003,
+     "tailDb": -12.66,
+     "lufs": -34.0
+    },
+    "listeningCopy": {
+     "file": "assets/audio/gen/_kept/round5/listen/ev5_3_thruster_valve_1_moss_r4p1s12.wav",
+     "lufsMeasured": -34.0,
+     "truePeakDb": -24.14,
+     "durationS": 1.014
+    },
+    "profile50msDbUnderLoudest": [
+     -5.7,
+     -1.1,
+     -0.6,
+     -0.9,
+     -0.5,
+     -0.7,
+     -0.8,
+     -0.5,
+     -0.3,
+     -0.2,
+     -0.2,
+     -0.5,
+     -0.5,
+     -0.5,
+     -0.3,
+     -0.7,
+     -0.4,
+     -3.0,
+     -9.3,
+     -12.0,
+     -46.0
+    ]
+   },
+   "sameSignal": {
+    "gainLibraryOverListeningCopyDb": 6.77,
+    "lagSamples": 0,
+    "residualRelative": 0.0059
+   },
+   "origin": {
+    "seed": 12,
+    "round": 5,
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s"
+   }
+  },
+  {
+   "libraryId": "g_thruster_pulse_c",
+   "libraryRawFile": "assets/audio/generated/g_thruster_pulse_c.wav",
+   "renderedFileOnDisk": {
+    "file": "assets/audio/render/generated/g_thruster_pulse_c.wav",
+    "sameLength": true,
+    "residualRelative": 0.00061
+   },
+   "libraryWithdrawn": false,
+   "libraryVerdict": "fits",
+   "libraryNote": "",
+   "libraryRatedAt": "2026-11-18T14:36:32.178Z",
+   "library": {
+    "measures": {
+     "loud50Db": -30.45,
+     "above2kHzLoud": 0.9736,
+     "above60Hz": 0.9996,
+     "under250Hz": 0.0023,
+     "above4kHz": 0.9365,
+     "centroidHz": 9897.5,
+     "crestDb": 14.22,
+     "peakDb": -17.85,
+     "lengthS": 0.788,
+     "activeS": 0.755,
+     "tailDb": -42.24,
+     "lufs": -28.26
+    },
+    "lufsMeasured": -28.26,
+    "truePeakDb": -17.85,
+    "durationS": 0.7885,
+    "lastSampleAbs": 0.0,
+    "windows50msWithin3DbOfLoudest": 11,
+    "plateauWithin3DbS": 0.55,
+    "profile50msDbUnderLoudest": [
+     -3.7,
+     -0.8,
+     -0.1,
+     -0.1,
+     -0.2,
+     -0.3,
+     -0.4,
+     -0.1,
+     -0.2,
+     -0.8,
+     -0.5,
+     -0.8,
+     -4.8,
+     -24.8,
+     -33.6,
+     -44.6
+    ]
+   },
+   "candidate": {
+    "id": "ev5_3_thruster_valve_2_moss_r4p1s15",
+    "round": 5,
+    "verdict": "fits",
+    "note": "",
+    "cut": {
+     "startS": 0.0,
+     "endS": 0.787,
+     "cappedAtFamilyLength": false
+    },
+    "playedAtLufs": -34.0,
+    "measuresRawCut": {
+     "loud50Db": -17.54,
+     "above2kHzLoud": 0.9736,
+     "above60Hz": 0.9996,
+     "under250Hz": 0.0023,
+     "above4kHz": 0.9365,
+     "centroidHz": 9897.4,
+     "crestDb": 14.21,
+     "peakDb": -4.94,
+     "lengthS": 0.787,
+     "activeS": 0.753,
+     "tailDb": -41.07,
+     "lufs": -34.0
+    },
+    "listeningCopy": {
+     "file": "assets/audio/gen/_kept/round5/listen/ev5_3_thruster_valve_2_moss_r4p1s15.wav",
+     "lufsMeasured": -33.99,
+     "truePeakDb": -23.58,
+     "durationS": 0.7985
+    },
+    "profile50msDbUnderLoudest": [
+     -3.5,
+     -0.8,
+     -0.1,
+     -0.1,
+     -0.2,
+     -0.3,
+     -0.3,
+     -0.2,
+     -0.1,
+     -0.8,
+     -0.5,
+     -0.9,
+     -5.0,
+     -25.6,
+     -33.9,
+     -42.6
+    ]
+   },
+   "sameSignal": {
+    "gainLibraryOverListeningCopyDb": 5.73,
+    "lagSamples": 0,
+    "residualRelative": 0.0
+   },
+   "origin": {
+    "seed": 15,
+    "round": 5,
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s"
+   }
+  }
+ ],
+ "ranges": {
+  "thruster": {
+   "allRoundsAllSources": {
+    "rows": 13,
+    "tally": {
+     "fits": 4,
+     "close": 3,
+     "wrong": 6,
+     "n": 13
+    },
+    "ranges": {
+     "loud50Db": {
+      "fits": {
+       "n": 4,
+       "min": -25.43,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -15.21,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -25.43
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         -24.55
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -17.54
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -15.21
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": -14.82,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -4.54,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -14.82
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -9.21
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -4.54
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -13.26,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -2.65,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -13.26
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -12.08
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -11.82
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -9.61
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -5.77
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -2.65
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "fits": {
+       "n": 4,
+       "min": 0.9647,
+       "minId": "src_2_thruster_3_oga_steam-hiss-3",
+       "max": 0.9753,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         0.9647
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9685
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9736
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9753
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.0569,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.2083,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0569
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.1449
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.2083
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0098,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.2344,
+       "maxId": "ev5_5_thruster_gatling_1_moss_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0098
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.0614
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1139
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.1316
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1832
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.2344
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "fits": {
+       "n": 4,
+       "min": 0.9778,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": 1.0,
+       "maxId": "src_2_thruster_3_oga_steam-hiss-3",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9778
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9932
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9996
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         1.0
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.7418,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.9895,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.7418
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.9811
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.9895
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.4864,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.982,
+       "maxId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.4864
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.7275
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.8284
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.9554
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.9569
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.982
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "fits": {
+       "n": 4,
+       "min": 0.0001,
+       "minId": "src_2_thruster_3_oga_steam-hiss-3",
+       "max": 0.0229,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         0.0001
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.0023
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.0174
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.0229
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.0603,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 0.6506,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0603
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.2538
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.6506
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0607,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 0.9096,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0607
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1476
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.4738
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.6917
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.8063
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.9096
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "fits": {
+       "n": 4,
+       "min": 0.8387,
+       "minId": "src_2_thruster_3_oga_steam-hiss-3",
+       "max": 0.9721,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         0.8387
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9174
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9365
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9721
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.0226,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.1339,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0226
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0868
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.1339
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0033,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.1508,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0033
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.014
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0711
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.1213
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1222
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1508
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "fits": {
+       "n": 4,
+       "min": 9897.4,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": 12991.4,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         9897.4
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         10872.1
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         11825.4
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         12991.4
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 492.8,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 1725.5,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         492.8
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         1508.3
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         1725.5
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 157.7,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 1736.1,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         157.7
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         484.4
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         1379.6
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1536.9
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         1732.1
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1736.1
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "fits": {
+       "n": 4,
+       "min": 13.02,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 18.18,
+       "maxId": "src_2_thruster_3_oga_steam-hiss-3",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         13.02
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         13.07
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         14.21
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         18.18
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 10.67,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 24.15,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         10.67
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         18.6
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         24.15
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 6.36,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 22.66,
+       "maxId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         6.36
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         10.74
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         15.33
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         19.55
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         22.56
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         22.66
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "fits": {
+       "n": 4,
+       "min": -13.6,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -4.94,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -13.6
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         -12.61
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -5.21
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -4.94
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": -0.01,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 3.58,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -0.0
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         3.58
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -1.06,
+       "minId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -1.06
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -0.76
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "fits": {
+       "n": 4,
+       "min": 0.403,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.004,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.403
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.787
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         0.92
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.004
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.486,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.486
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.971
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.487,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.487
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.805
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.101
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.5
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "fits": {
+       "n": 4,
+       "min": 0.389,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.003,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.389
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.753
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         0.851
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.003
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": 0.403,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.943
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.403,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.453
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.032
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.498
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "fits": {
+       "n": 4,
+       "min": -57.39,
+       "minId": "src_2_thruster_3_oga_steam-hiss-3",
+       "max": -12.66,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         -57.39
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -41.07
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -30.28
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -12.66
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": -38.97,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -32.92,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -38.97
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -37.22
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -32.92
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -47.17,
+       "minId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "max": -24.88,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -47.17
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -43.44
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -39.17
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -31.69
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -31.02
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -24.88
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "fits": {
+       "n": 4,
+       "min": -34.0,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -34.0,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -34.0
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -34.0
+        ],
+        [
+         "src_2_thruster_3_oga_steam-hiss-3",
+         -34.0
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -34.0
+        ]
+       ]
+      },
+      "close": {
+       "n": 3,
+       "min": -34.0,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -28.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -34.0,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -28.0
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -28.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "mossOnly": {
+    "rows": 11,
+    "tally": {
+     "fits": 3,
+     "close": 2,
+     "wrong": 6,
+     "n": 11
+    },
+    "ranges": {
+     "loud50Db": {
+      "fits": {
+       "n": 3,
+       "min": -25.43,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -15.21,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -25.43
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -17.54
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -15.21
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -14.82,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -4.54,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -14.82
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -4.54
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -13.26,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -2.65,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -13.26
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -12.08
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -11.82
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -9.61
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -5.77
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -2.65
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "fits": {
+       "n": 3,
+       "min": 0.9685,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": 0.9753,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9685
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9736
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9753
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.0569,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.1449,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0569
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.1449
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0098,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.2344,
+       "maxId": "ev5_5_thruster_gatling_1_moss_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0098
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.0614
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1139
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.1316
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1832
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.2344
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "fits": {
+       "n": 3,
+       "min": 0.9778,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": 0.9996,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9778
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9932
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9996
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.7418,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.9811,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.7418
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.9811
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.4864,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.982,
+       "maxId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.4864
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.7275
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.8284
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.9554
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.9569
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.982
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "fits": {
+       "n": 3,
+       "min": 0.0023,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": 0.0229,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.0023
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.0174
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.0229
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.0603,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 0.6506,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0603
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.6506
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0607,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 0.9096,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0607
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1476
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.4738
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.6917
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.8063
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.9096
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "fits": {
+       "n": 3,
+       "min": 0.9174,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 0.9721,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9174
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9365
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9721
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.0226,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.0868,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0226
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0868
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0033,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.1508,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0033
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.014
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0711
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.1213
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1222
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1508
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "fits": {
+       "n": 3,
+       "min": 9897.4,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": 12991.4,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         9897.4
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         10872.1
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         12991.4
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 492.8,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 1508.3,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         492.8
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         1508.3
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 157.7,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 1736.1,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         157.7
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         484.4
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         1379.6
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1536.9
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         1732.1
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1736.1
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "fits": {
+       "n": 3,
+       "min": 13.02,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 14.21,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         13.02
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         13.07
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         14.21
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 10.67,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 24.15,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         10.67
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         24.15
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 6.36,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 22.66,
+       "maxId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         6.36
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         10.74
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         15.33
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         19.55
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         22.56
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         22.66
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "fits": {
+       "n": 3,
+       "min": -13.6,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -4.94,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -13.6
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -5.21
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -4.94
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -0.01,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -0.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -1.06,
+       "minId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -1.06
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -0.76
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "fits": {
+       "n": 3,
+       "min": 0.403,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.004,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.403
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.787
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.004
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.486,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.486
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.487,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.487
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.805
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.101
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.5
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "fits": {
+       "n": 3,
+       "min": 0.389,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.003,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.389
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.753
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.003
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.403,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.403,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.453
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.032
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.498
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "fits": {
+       "n": 3,
+       "min": -41.07,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": -12.66,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -41.07
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -30.28
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -12.66
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -38.97,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -32.92,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -38.97
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -32.92
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -47.17,
+       "minId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "max": -24.88,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -47.17
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -43.44
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -39.17
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -31.69
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -31.02
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -24.88
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "fits": {
+       "n": 3,
+       "min": -34.0,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -34.0,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -34.0
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -34.0
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -34.0
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -34.0,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -28.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -34.0,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -28.0
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -28.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "round6Only": {
+    "rows": 3,
+    "tally": {
+     "fits": 0,
+     "close": 1,
+     "wrong": 2,
+     "n": 3
+    },
+    "ranges": {
+     "loud50Db": {
+      "close": {
+       "n": 1,
+       "min": -4.54,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": -4.54,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -4.54
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -5.77,
+       "minId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "max": -2.65,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -5.77
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -2.65
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "close": {
+       "n": 1,
+       "min": 0.0569,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.0569,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0569
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.0098,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.0614,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0098
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.0614
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "close": {
+       "n": 1,
+       "min": 0.7418,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.7418,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.7418
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.4864,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.9569,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.4864
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.9569
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "close": {
+       "n": 1,
+       "min": 0.6506,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.6506,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.6506
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.6917,
+       "minId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "max": 0.9096,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.6917
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.9096
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "close": {
+       "n": 1,
+       "min": 0.0226,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.0226,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0226
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.0033,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.014,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0033
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.014
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "close": {
+       "n": 1,
+       "min": 492.8,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 492.8,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         492.8
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 157.7,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 484.4,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         157.7
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         484.4
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "close": {
+       "n": 1,
+       "min": 10.67,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 10.67,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         10.67
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 6.36,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 10.74,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         6.36
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         10.74
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "close": {
+       "n": 1,
+       "min": -0.0,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -0.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -0.01,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "close": {
+       "n": 1,
+       "min": 1.503,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 1.5,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.5
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "close": {
+       "n": 1,
+       "min": 1.503,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 1.498,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.498
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "close": {
+       "n": 1,
+       "min": -32.92,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": -32.92,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -32.92
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -31.69,
+       "minId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "max": -31.02,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -31.69
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -31.02
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "close": {
+       "n": 1,
+       "min": -28.0,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -28.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -28.0,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -28.0
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -28.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "valvePromptMoss": {
+    "rows": 3,
+    "tally": {
+     "fits": 3,
+     "close": 0,
+     "wrong": 0,
+     "n": 3
+    },
+    "ranges": {
+     "loud50Db": {
+      "fits": {
+       "n": 3,
+       "min": -25.43,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -15.21,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -25.43
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -17.54
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -15.21
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "fits": {
+       "n": 3,
+       "min": 0.9685,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": 0.9753,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9685
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9736
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9753
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "fits": {
+       "n": 3,
+       "min": 0.9778,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": 0.9996,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9778
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9932
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9996
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "fits": {
+       "n": 3,
+       "min": 0.0023,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": 0.0229,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.0023
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.0174
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.0229
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "fits": {
+       "n": 3,
+       "min": 0.9174,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 0.9721,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.9174
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.9365
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         0.9721
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "fits": {
+       "n": 3,
+       "min": 9897.4,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": 12991.4,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         9897.4
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         10872.1
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         12991.4
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "fits": {
+       "n": 3,
+       "min": 13.02,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 14.21,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         13.02
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         13.07
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         14.21
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "fits": {
+       "n": 3,
+       "min": -13.6,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -4.94,
+       "maxId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -13.6
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -5.21
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -4.94
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "fits": {
+       "n": 3,
+       "min": 0.403,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.004,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.403
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.787
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.004
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "fits": {
+       "n": 3,
+       "min": 0.389,
+       "minId": "src_2_thruster_4_moss_p1s11",
+       "max": 1.003,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "src_2_thruster_4_moss_p1s11",
+         0.389
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         0.753
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         1.003
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "fits": {
+       "n": 3,
+       "min": -41.07,
+       "minId": "ev5_3_thruster_valve_2_moss_r4p1s15",
+       "max": -12.66,
+       "maxId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "values": [
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -41.07
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -30.28
+        ],
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -12.66
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "fits": {
+       "n": 3,
+       "min": -34.0,
+       "minId": "ev5_3_thruster_valve_1_moss_r4p1s12",
+       "max": -34.0,
+       "maxId": "src_2_thruster_4_moss_p1s11",
+       "values": [
+        [
+         "ev5_3_thruster_valve_1_moss_r4p1s12",
+         -34.0
+        ],
+        [
+         "ev5_3_thruster_valve_2_moss_r4p1s15",
+         -34.0
+        ],
+        [
+         "src_2_thruster_4_moss_p1s11",
+         -34.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "cannonLikeMossAndSa3": {
+    "rows": 9,
+    "tally": {
+     "fits": 0,
+     "close": 3,
+     "wrong": 6,
+     "n": 9
+    },
+    "ranges": {
+     "loud50Db": {
+      "close": {
+       "n": 3,
+       "min": -14.82,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -4.54,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -14.82
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -9.21
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -4.54
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -13.26,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -2.65,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -13.26
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -12.08
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -11.82
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -9.61
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -5.77
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -2.65
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "close": {
+       "n": 3,
+       "min": 0.0569,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.2083,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0569
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.1449
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.2083
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0098,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.2344,
+       "maxId": "ev5_5_thruster_gatling_1_moss_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0098
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.0614
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1139
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.1316
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1832
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.2344
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "close": {
+       "n": 3,
+       "min": 0.7418,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.9895,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.7418
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.9811
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.9895
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.4864,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.982,
+       "maxId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.4864
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.7275
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.8284
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.9554
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.9569
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.982
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "close": {
+       "n": 3,
+       "min": 0.0603,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 0.6506,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0603
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.2538
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.6506
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0607,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 0.9096,
+       "maxId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0607
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1476
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.4738
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.6917
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.8063
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.9096
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "close": {
+       "n": 3,
+       "min": 0.0226,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 0.1339,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         0.0226
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.0868
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.1339
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0033,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 0.1508,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         0.0033
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         0.014
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.0711
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         0.1213
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.1222
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         0.1508
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "close": {
+       "n": 3,
+       "min": 492.8,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 1725.5,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         492.8
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         1508.3
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         1725.5
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 157.7,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 1736.1,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         157.7
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         484.4
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         1379.6
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1536.9
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         1732.1
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1736.1
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "close": {
+       "n": 3,
+       "min": 10.67,
+       "minId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "max": 24.15,
+       "maxId": "src_2_thruster_1_moss_p2s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         10.67
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         18.6
+        ],
+        [
+         "src_2_thruster_1_moss_p2s11",
+         24.15
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 6.36,
+       "minId": "ev6_2_thruster_mighty_1_moss_p1s12",
+       "max": 22.66,
+       "maxId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "values": [
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         6.36
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         10.74
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         15.33
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         19.55
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         22.56
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         22.66
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "close": {
+       "n": 3,
+       "min": -0.01,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 3.58,
+       "maxId": "src_2_thruster_2_sa3_p2s12",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -0.0
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         3.58
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -1.06,
+       "minId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "max": -0.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -1.06
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -0.76
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -0.01
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -0.01
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "close": {
+       "n": 3,
+       "min": 0.486,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.486
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.971
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.487,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.487
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.805
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.101
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.5
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "close": {
+       "n": 3,
+       "min": 0.403,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": 1.503,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         0.943
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         1.503
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.403,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": 1.5,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         0.403
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         0.453
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         1.032
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         1.203
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         1.498
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         1.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "close": {
+       "n": 3,
+       "min": -38.97,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -32.92,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -38.97
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -37.22
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -32.92
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -47.17,
+       "minId": "ev5_5_thruster_gatling_2_moss_p1s11",
+       "max": -24.88,
+       "maxId": "ev5_4_thruster_bang_2_moss_p1s11",
+       "values": [
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -47.17
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -43.44
+        ],
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -39.17
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -31.69
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -31.02
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -24.88
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "close": {
+       "n": 3,
+       "min": -34.0,
+       "minId": "src_2_thruster_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_2_moss_p3s11",
+       "values": [
+        [
+         "src_2_thruster_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "src_2_thruster_2_sa3_p2s12",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_2_moss_p3s11",
+         -28.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -34.0,
+       "minId": "ev5_4_thruster_bang_1_moss_p2s11",
+       "max": -28.0,
+       "maxId": "ev6_2_thruster_mighty_3_moss_p3s12",
+       "values": [
+        [
+         "ev5_4_thruster_bang_1_moss_p2s11",
+         -34.0
+        ],
+        [
+         "ev5_4_thruster_bang_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_1_moss_p2s12",
+         -34.0
+        ],
+        [
+         "ev5_5_thruster_gatling_2_moss_p1s11",
+         -34.0
+        ],
+        [
+         "ev6_2_thruster_mighty_1_moss_p1s12",
+         -28.0
+        ],
+        [
+         "ev6_2_thruster_mighty_3_moss_p3s12",
+         -28.0
+        ]
+       ]
+      }
+     }
+    }
+   }
+  },
+  "shield": {
+   "allRoundsAllSources": {
+    "rows": 10,
+    "tally": {
+     "fits": 2,
+     "close": 2,
+     "wrong": 6,
+     "n": 10
+    },
+    "ranges": {
+     "loud50Db": {
+      "fits": {
+       "n": 2,
+       "min": -8.97,
+       "minId": "src_4_shield_4_sa3_p2s16",
+       "max": -8.13,
+       "maxId": "src_4_shield_2_sa3_p3s11",
+       "values": [
+        [
+         "src_4_shield_4_sa3_p2s16",
+         -8.97
+        ],
+        [
+         "src_4_shield_2_sa3_p3s11",
+         -8.13
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -4.44,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -1.42,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -4.44
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -1.42
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -22.69,
+       "minId": "src_4_shield_3_oga_tesla-spark",
+       "max": -4.4,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         -22.69
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -22.07
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -12.77
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -10.94
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -8.25
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -4.4
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "fits": {
+       "n": 2,
+       "min": 0.0031,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 0.0088,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         0.0031
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         0.0088
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.002,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.0145,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.002
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0145
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0373,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 0.9609,
+       "maxId": "src_4_shield_3_oga_tesla-spark",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.0373
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.042
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.1006
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.7588
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.8649
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.9609
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "fits": {
+       "n": 2,
+       "min": 0.3366,
+       "minId": "src_4_shield_4_sa3_p2s16",
+       "max": 0.5196,
+       "maxId": "src_4_shield_2_sa3_p3s11",
+       "values": [
+        [
+         "src_4_shield_4_sa3_p2s16",
+         0.3366
+        ],
+        [
+         "src_4_shield_2_sa3_p3s11",
+         0.5196
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.2544,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.5021,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.2544
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.5021
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.4464,
+       "minId": "ev5_6_shield_bright_3_moss_p2s14",
+       "max": 0.9998,
+       "maxId": "src_4_shield_3_oga_tesla-spark",
+       "values": [
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.4464
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.824
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.8884
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.8888
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.9902
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.9998
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "fits": {
+       "n": 2,
+       "min": 0.9643,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 0.9872,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         0.9643
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         0.9872
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.9463,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.9619,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.9463
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.9619
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0013,
+       "minId": "src_4_shield_3_oga_tesla-spark",
+       "max": 0.814,
+       "maxId": "ev5_6_shield_bright_3_moss_p2s14",
+       "values": [
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.0013
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.0383
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.2909
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.7575
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.7715
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.814
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "fits": {
+       "n": 2,
+       "min": 0.0021,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 0.0062,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         0.0021
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         0.0062
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.0007,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.0051,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.0007
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0051
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.0214,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 0.8595,
+       "maxId": "src_4_shield_3_oga_tesla-spark",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.0214
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.0282
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.1161
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.4398
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.7269
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.8595
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "fits": {
+       "n": 2,
+       "min": 95.9,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 133.8,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         95.9
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         133.8
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 76.2,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 160.8,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         76.2
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         160.8
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 440.9,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 7844.7,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         440.9
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         570.3
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1177.5
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         4146.7
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         6858.8
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         7844.7
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "fits": {
+       "n": 2,
+       "min": 15.01,
+       "minId": "src_4_shield_4_sa3_p2s16",
+       "max": 15.59,
+       "maxId": "src_4_shield_2_sa3_p3s11",
+       "values": [
+        [
+         "src_4_shield_4_sa3_p2s16",
+         15.01
+        ],
+        [
+         "src_4_shield_2_sa3_p3s11",
+         15.59
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 5.89,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 12.73,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         5.89
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         12.73
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 10.87,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 34.21,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         10.87
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         15.3
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         17.31
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         21.22
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         26.1
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         34.21
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "fits": {
+       "n": 2,
+       "min": -1.27,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": -0.77,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         -1.27
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         -0.77
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -0.02,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -0.0,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -0.02
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -0.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -3.54,
+       "minId": "src_4_shield_3_oga_tesla-spark",
+       "max": -0.0,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         -3.54
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -0.35
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -0.01
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -0.01
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "fits": {
+       "n": 2,
+       "min": 2.139,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 2.284,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         2.139
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         2.284
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.904,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 1.987,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.904
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         1.987
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.251,
+       "minId": "src_4_shield_3_oga_tesla-spark",
+       "max": 2.503,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.251
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.26
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.37
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1.711
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         2.5
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         2.503
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "fits": {
+       "n": 2,
+       "min": 2.126,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": 2.266,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         2.126
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         2.266
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": 0.847,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 1.985,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.847
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         1.985
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": 0.187,
+       "minId": "src_4_shield_3_oga_tesla-spark",
+       "max": 2.5,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         0.187
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.259
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.287
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1.535
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         2.412
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         2.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "fits": {
+       "n": 2,
+       "min": -40.15,
+       "minId": "src_4_shield_4_sa3_p2s16",
+       "max": -38.97,
+       "maxId": "src_4_shield_2_sa3_p3s11",
+       "values": [
+        [
+         "src_4_shield_4_sa3_p2s16",
+         -40.15
+        ],
+        [
+         "src_4_shield_2_sa3_p3s11",
+         -38.97
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -44.89,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -26.06,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -44.89
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -26.06
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -43.41,
+       "minId": "ev5_6_shield_bright_3_moss_p2s14",
+       "max": -30.79,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -43.41
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         -42.16
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -41.64
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -39.41
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -34.87
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -30.79
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "fits": {
+       "n": 2,
+       "min": -24.0,
+       "minId": "src_4_shield_2_sa3_p3s11",
+       "max": -24.0,
+       "maxId": "src_4_shield_4_sa3_p2s16",
+       "values": [
+        [
+         "src_4_shield_2_sa3_p3s11",
+         -24.0
+        ],
+        [
+         "src_4_shield_4_sa3_p2s16",
+         -24.0
+        ]
+       ]
+      },
+      "close": {
+       "n": 2,
+       "min": -24.0,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -24.0,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -24.0
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -24.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 6,
+       "min": -24.0,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": -24.0,
+       "maxId": "src_4_shield_3_oga_tesla-spark",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -24.0
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -24.0
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -24.0
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -24.0
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -24.0
+        ],
+        [
+         "src_4_shield_3_oga_tesla-spark",
+         -24.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "mossOnly": {
+    "rows": 7,
+    "tally": {
+     "fits": 0,
+     "close": 2,
+     "wrong": 5,
+     "n": 7
+    },
+    "ranges": {
+     "loud50Db": {
+      "close": {
+       "n": 2,
+       "min": -4.44,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -1.42,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -4.44
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -1.42
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": -22.07,
+       "minId": "ev5_6_shield_bright_2_moss_p2s11",
+       "max": -4.4,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -22.07
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -12.77
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -10.94
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -8.25
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -4.4
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "close": {
+       "n": 2,
+       "min": 0.002,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.0145,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.002
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0145
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.0373,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 0.8649,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.0373
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.042
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.1006
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.7588
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.8649
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "close": {
+       "n": 2,
+       "min": 0.2544,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.5021,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.2544
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.5021
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.4464,
+       "minId": "ev5_6_shield_bright_3_moss_p2s14",
+       "max": 0.9902,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.4464
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.824
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.8884
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.8888
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.9902
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "close": {
+       "n": 2,
+       "min": 0.9463,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.9619,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.9463
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.9619
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.0383,
+       "minId": "ev5_6_shield_bright_2_moss_p2s11",
+       "max": 0.814,
+       "maxId": "ev5_6_shield_bright_3_moss_p2s14",
+       "values": [
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.0383
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.2909
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.7575
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.7715
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.814
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "close": {
+       "n": 2,
+       "min": 0.0007,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 0.0051,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         0.0007
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0051
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.0214,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 0.7269,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         0.0214
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.0282
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         0.1161
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.4398
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         0.7269
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "close": {
+       "n": 2,
+       "min": 76.2,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 160.8,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         76.2
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         160.8
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 440.9,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 7844.7,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         440.9
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         570.3
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1177.5
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         4146.7
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         7844.7
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "close": {
+       "n": 2,
+       "min": 5.89,
+       "minId": "src_4_shield_1_moss_p3s14",
+       "max": 12.73,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "src_4_shield_1_moss_p3s14",
+         5.89
+        ],
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         12.73
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 10.87,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": 34.21,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         10.87
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         15.3
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         17.31
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         21.22
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         34.21
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "close": {
+       "n": 2,
+       "min": -0.02,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -0.0,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -0.02
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -0.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": -0.35,
+       "minId": "ev5_6_shield_bright_2_moss_p2s11",
+       "max": -0.0,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -0.35
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -0.01
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -0.01
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -0.0
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "close": {
+       "n": 2,
+       "min": 0.904,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 1.987,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.904
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         1.987
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.26,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 2.503,
+       "maxId": "ev5_6_shield_bright_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.26
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.37
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1.711
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         2.5
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         2.503
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "close": {
+       "n": 2,
+       "min": 0.847,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 1.985,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.847
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         1.985
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": 0.259,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 2.5,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.259
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.287
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         1.535
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         2.412
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         2.5
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "close": {
+       "n": 2,
+       "min": -44.89,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -26.06,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -44.89
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -26.06
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": -43.41,
+       "minId": "ev5_6_shield_bright_3_moss_p2s14",
+       "max": -30.79,
+       "maxId": "ev5_6_shield_bright_1_moss_p1s15",
+       "values": [
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -43.41
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -41.64
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -39.41
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -34.87
+        ],
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -30.79
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "close": {
+       "n": 2,
+       "min": -24.0,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -24.0,
+       "maxId": "src_4_shield_1_moss_p3s14",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -24.0
+        ],
+        [
+         "src_4_shield_1_moss_p3s14",
+         -24.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 5,
+       "min": -24.0,
+       "minId": "ev5_6_shield_bright_1_moss_p1s15",
+       "max": -24.0,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev5_6_shield_bright_1_moss_p1s15",
+         -24.0
+        ],
+        [
+         "ev5_6_shield_bright_2_moss_p2s11",
+         -24.0
+        ],
+        [
+         "ev5_6_shield_bright_3_moss_p2s14",
+         -24.0
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -24.0
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -24.0
+        ]
+       ]
+      }
+     }
+    }
+   },
+   "round6Only": {
+    "rows": 3,
+    "tally": {
+     "fits": 0,
+     "close": 1,
+     "wrong": 2,
+     "n": 3
+    },
+    "ranges": {
+     "loud50Db": {
+      "close": {
+       "n": 1,
+       "min": -4.44,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -4.44,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -4.44
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -12.77,
+       "minId": "ev6_3_shield_tight_3_moss_p1s16",
+       "max": -10.94,
+       "maxId": "ev6_3_shield_tight_1_moss_p1s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -12.77
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -10.94
+        ]
+       ]
+      }
+     },
+     "above2kHzLoud": {
+      "close": {
+       "n": 1,
+       "min": 0.0145,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.0145,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0145
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.042,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 0.7588,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.042
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.7588
+        ]
+       ]
+      }
+     },
+     "above60Hz": {
+      "close": {
+       "n": 1,
+       "min": 0.5021,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.5021,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.5021
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.824,
+       "minId": "ev6_3_shield_tight_3_moss_p1s16",
+       "max": 0.8884,
+       "maxId": "ev6_3_shield_tight_1_moss_p1s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.824
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.8884
+        ]
+       ]
+      }
+     },
+     "under250Hz": {
+      "close": {
+       "n": 1,
+       "min": 0.9463,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.9463,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.9463
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.2909,
+       "minId": "ev6_3_shield_tight_3_moss_p1s16",
+       "max": 0.7715,
+       "maxId": "ev6_3_shield_tight_1_moss_p1s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.2909
+        ],
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.7715
+        ]
+       ]
+      }
+     },
+     "above4kHz": {
+      "close": {
+       "n": 1,
+       "min": 0.0051,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.0051,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.0051
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.0282,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 0.4398,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.0282
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.4398
+        ]
+       ]
+      }
+     },
+     "centroidHz": {
+      "close": {
+       "n": 1,
+       "min": 160.8,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 160.8,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         160.8
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 570.3,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 4146.7,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         570.3
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         4146.7
+        ]
+       ]
+      }
+     },
+     "crestDb": {
+      "close": {
+       "n": 1,
+       "min": 12.73,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 12.73,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         12.73
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 17.31,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 21.22,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         17.31
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         21.22
+        ]
+       ]
+      }
+     },
+     "peakDb": {
+      "close": {
+       "n": 1,
+       "min": -0.02,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -0.02,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -0.02
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -0.01,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": -0.01,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -0.01
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -0.01
+        ]
+       ]
+      }
+     },
+     "lengthS": {
+      "close": {
+       "n": 1,
+       "min": 0.904,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.904,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.904
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.26,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 0.37,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.26
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.37
+        ]
+       ]
+      }
+     },
+     "activeS": {
+      "close": {
+       "n": 1,
+       "min": 0.847,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": 0.847,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         0.847
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": 0.259,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": 0.287,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         0.259
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         0.287
+        ]
+       ]
+      }
+     },
+     "tailDb": {
+      "close": {
+       "n": 1,
+       "min": -44.89,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -44.89,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -44.89
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -41.64,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": -39.41,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -41.64
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -39.41
+        ]
+       ]
+      }
+     },
+     "lufs": {
+      "close": {
+       "n": 1,
+       "min": -24.0,
+       "minId": "ev6_3_shield_tight_2_moss_p2s11",
+       "max": -24.0,
+       "maxId": "ev6_3_shield_tight_2_moss_p2s11",
+       "values": [
+        [
+         "ev6_3_shield_tight_2_moss_p2s11",
+         -24.0
+        ]
+       ]
+      },
+      "wrong": {
+       "n": 2,
+       "min": -24.0,
+       "minId": "ev6_3_shield_tight_1_moss_p1s11",
+       "max": -24.0,
+       "maxId": "ev6_3_shield_tight_3_moss_p1s16",
+       "values": [
+        [
+         "ev6_3_shield_tight_1_moss_p1s11",
+         -24.0
+        ],
+        [
+         "ev6_3_shield_tight_3_moss_p1s16",
+         -24.0
+        ]
+       ]
+      }
+     }
+    }
+   }
+  }
+ },
+ "voices": {
+  "rows": [
+   {
+    "id": "voice_1_clearance_1_qwen3",
+    "lineNumber": 1,
+    "line": "clearance",
+    "slot": 1,
+    "model": "qwen3",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:40:34.391Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_1_clearance_2_chatterbox",
+    "lineNumber": 1,
+    "line": "clearance",
+    "slot": 2,
+    "model": "chatterbox",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:40:22.021Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_1_clearance_3_kokoro",
+    "lineNumber": 1,
+    "line": "clearance",
+    "slot": 3,
+    "model": "kokoro",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:40:13.366Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_1_clearance_4_kitten",
+    "lineNumber": 1,
+    "line": "clearance",
+    "slot": 4,
+    "model": "kitten",
+    "variant": null,
+    "verdict": "fits",
+    "note": "Klingt sehr gut und sie sagt \"Niner,\" statt \"Nine\", was sehr gut ist für Funksprache",
+    "ratedAt": "2026-11-18T14:40:08.661Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_1_clearance_5_phonon",
+    "lineNumber": 1,
+    "line": "clearance",
+    "slot": 5,
+    "model": "phonon",
+    "variant": null,
+    "verdict": "close",
+    "note": "zu langsam gesprochen",
+    "ratedAt": "2026-11-18T14:39:45.183Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_2_computer_1_qwen3",
+    "lineNumber": 2,
+    "line": "computer",
+    "slot": 1,
+    "model": "qwen3",
+    "variant": null,
+    "verdict": "close",
+    "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+    "ratedAt": "2026-11-15T19:34:02.489Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_2_computer_2_chatterbox",
+    "lineNumber": 2,
+    "line": "computer",
+    "slot": 2,
+    "model": "chatterbox",
+    "variant": null,
+    "verdict": "close",
+    "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+    "ratedAt": "2026-11-15T19:34:11.836Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_2_computer_3_kokoro",
+    "lineNumber": 2,
+    "line": "computer",
+    "slot": 3,
+    "model": "kokoro",
+    "variant": null,
+    "verdict": "close",
+    "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+    "ratedAt": "2026-11-15T19:34:17.099Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_2_computer_4_kitten",
+    "lineNumber": 2,
+    "line": "computer",
+    "slot": 4,
+    "model": "kitten",
+    "variant": null,
+    "verdict": "close",
+    "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+    "ratedAt": "2026-11-15T19:34:21.824Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_2_computer_5_phonon",
+    "lineNumber": 2,
+    "line": "computer",
+    "slot": 5,
+    "model": "phonon",
+    "variant": null,
+    "verdict": "close",
+    "note": "Countdown wird nicht wirklich in Sekunden gezählt, die Abstände sind unregelmäßig und kürzer",
+    "ratedAt": "2026-11-15T19:34:29.135Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_3_dock_1_qwen3",
+    "lineNumber": 3,
+    "line": "dock",
+    "slot": 1,
+    "model": "qwen3",
+    "variant": null,
+    "verdict": "fits",
+    "note": "Klingt natürlich",
+    "ratedAt": "2026-11-18T14:39:12.137Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_3_dock_2_chatterbox",
+    "lineNumber": 3,
+    "line": "dock",
+    "slot": 2,
+    "model": "chatterbox",
+    "variant": null,
+    "verdict": "close",
+    "note": "Klingt wie vorgelesen",
+    "ratedAt": "2026-11-18T14:38:57.717Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_3_dock_3_kokoro",
+    "lineNumber": 3,
+    "line": "dock",
+    "slot": 3,
+    "model": "kokoro",
+    "variant": null,
+    "verdict": "close",
+    "note": "Klingt wie vorgelesen",
+    "ratedAt": "2026-11-18T14:38:28.597Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_3_dock_4_kitten",
+    "lineNumber": 3,
+    "line": "dock",
+    "slot": 4,
+    "model": "kitten",
+    "variant": null,
+    "verdict": "close",
+    "note": "Klingt wie vorgelesen",
+    "ratedAt": "2026-11-18T14:38:27.095Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_3_dock_5_phonon",
+    "lineNumber": 3,
+    "line": "dock",
+    "slot": 5,
+    "model": "phonon",
+    "variant": null,
+    "verdict": "fits",
+    "note": "Klingt natürlich",
+    "ratedAt": "2026-11-18T14:39:14.996Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_4_convoy_1_qwen3",
+    "lineNumber": 4,
+    "line": "convoy",
+    "slot": 1,
+    "model": "qwen3",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:45.159Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_4_convoy_2_chatterbox",
+    "lineNumber": 4,
+    "line": "convoy",
+    "slot": 2,
+    "model": "chatterbox",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:39.796Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_4_convoy_3_kokoro",
+    "lineNumber": 4,
+    "line": "convoy",
+    "slot": 3,
+    "model": "kokoro",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:39.082Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_4_convoy_4_kitten",
+    "lineNumber": 4,
+    "line": "convoy",
+    "slot": 4,
+    "model": "kitten",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:36.581Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_4_convoy_5_phonon",
+    "lineNumber": 4,
+    "line": "convoy",
+    "slot": 5,
+    "model": "phonon",
+    "variant": null,
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:26.327Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_5_countdown_1_qwen3_single",
+    "lineNumber": 5,
+    "line": "countdown",
+    "slot": 1,
+    "model": "qwen3",
+    "variant": "single",
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:10.921Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_5_countdown_2_qwen3_list",
+    "lineNumber": 5,
+    "line": "countdown",
+    "slot": 2,
+    "model": "qwen3",
+    "variant": "list",
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:37:06.684Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_5_countdown_3_chatterbox_single",
+    "lineNumber": 5,
+    "line": "countdown",
+    "slot": 3,
+    "model": "chatterbox",
+    "variant": "single",
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:36:57.728Z",
+    "hasHistory": false
+   },
+   {
+    "id": "voice_5_countdown_4_chatterbox_list",
+    "lineNumber": 5,
+    "line": "countdown",
+    "slot": 4,
+    "model": "chatterbox",
+    "variant": "list",
+    "verdict": "fits",
+    "note": "",
+    "ratedAt": "2026-11-18T14:36:52.913Z",
+    "hasHistory": false
+   }
+  ],
+  "countsByModelAll": {
+   "qwen3": {
+    "fits": 5,
+    "close": 1,
+    "wrong": 0,
+    "n": 6
+   },
+   "chatterbox": {
+    "fits": 4,
+    "close": 2,
+    "wrong": 0,
+    "n": 6
+   },
+   "kokoro": {
+    "fits": 2,
+    "close": 2,
+    "wrong": 0,
+    "n": 4
+   },
+   "kitten": {
+    "fits": 2,
+    "close": 2,
+    "wrong": 0,
+    "n": 4
+   },
+   "phonon": {
+    "fits": 2,
+    "close": 2,
+    "wrong": 0,
+    "n": 4
+   }
+  },
+  "countsByModelRatedOn2026-11-18": {
+   "qwen3": {
+    "fits": 5,
+    "close": 0,
+    "wrong": 0,
+    "n": 5
+   },
+   "chatterbox": {
+    "fits": 4,
+    "close": 1,
+    "wrong": 0,
+    "n": 5
+   },
+   "kokoro": {
+    "fits": 2,
+    "close": 1,
+    "wrong": 0,
+    "n": 3
+   },
+   "kitten": {
+    "fits": 2,
+    "close": 1,
+    "wrong": 0,
+    "n": 3
+   },
+   "phonon": {
+    "fits": 2,
+    "close": 1,
+    "wrong": 0,
+    "n": 3
+   }
+  },
+  "ratedBefore2026-11-18": [
+   "voice_2_computer_1_qwen3",
+   "voice_2_computer_2_chatterbox",
+   "voice_2_computer_3_kokoro",
+   "voice_2_computer_4_kitten",
+   "voice_2_computer_5_phonon"
+  ],
+  "voiceIdsInManifest": 24,
+  "voiceIdsInManifestWithoutRating": []
+ }
+}

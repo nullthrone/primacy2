@@ -1,0 +1,98 @@
+{
+ "role": "generate",
+ "round": 6,
+ "date": "2026-11-16",
+ "commands": [
+  "nvidia-smi; df -h",
+  "moss.py --prompts-file tools/sound/prompts6.json --out-root assets/audio/gen/r6 --list-jobs (78 jobs)",
+  "with_lock.py --wait 7200 -- moss.py --prompts-file tools/sound/prompts6.json --out-root assets/audio/gen/r6",
+  "stats script in scratchpad gen6/stats.py"
+ ],
+ "preconditions": {
+  "diskFreeGB": 537,
+  "gpuBefore": "15 % utilization, 1429 MiB of 16303 MiB used (nvidia-smi, one sample)"
+ },
+ "made": {
+  "files": 78,
+  "genJsonItems": 78,
+  "wallS": 1513,
+  "synthS": {
+   "min": 17.21,
+   "mean": 18.72,
+   "max": 26.99
+  },
+  "note": "first item hull_light_1 s21 took 26.99 s (warm-up); run ended with exit 0 in one pass, no restart"
+ },
+ "folderCheck": "assets/audio/gen/r6 holds only moss/ (raw/ with 78 wav files and gen.json)",
+ "perFamily": {
+  "fold_exit": {
+   "files": 18,
+   "len_min": 4.0,
+   "len_max": 4.0,
+   "over_099": 10,
+   "crest_db_median": 12.9,
+   "share_above_4k_median": 0.019,
+   "share_below_125_median": 0.5102,
+   "sr": [
+    48000
+   ]
+  },
+  "fold_jump": {
+   "files": 18,
+   "len_min": 4.0,
+   "len_max": 4.0,
+   "over_099": 10,
+   "crest_db_median": 13.9,
+   "share_above_4k_median": 0.1326,
+   "share_below_125_median": 0.1432,
+   "sr": [
+    48000
+   ]
+  },
+  "hull_light": {
+   "files": 6,
+   "len_min": 2.0,
+   "len_max": 2.0,
+   "over_099": 5,
+   "crest_db_median": 22.8,
+   "share_above_4k_median": 0.1293,
+   "share_below_125_median": 0.0239,
+   "sr": [
+    48000
+   ]
+  },
+  "shield_tight": {
+   "files": 18,
+   "len_min": 2.0,
+   "len_max": 2.0,
+   "over_099": 15,
+   "crest_db_median": 17.4,
+   "share_above_4k_median": 0.0224,
+   "share_below_125_median": 0.7268,
+   "sr": [
+    48000
+   ]
+  },
+  "thruster_mighty": {
+   "files": 18,
+   "len_min": 2.0,
+   "len_max": 2.0,
+   "over_099": 18,
+   "crest_db_median": 6.5,
+   "share_above_4k_median": 0.0036,
+   "share_below_125_median": 0.677,
+   "sr": [
+    48000
+   ]
+  }
+ },
+ "jobsNote": "13 prompts x 6 seeds = 78: hull_light 1, fold_exit 3, fold_jump 3, shield_tight 3, thruster_mighty 3",
+ "statsMethod": "mono mean of channels; crest = peak/RMS in dB over the whole file; band shares from the power spectrum of the whole file; over_099 = files with peak above 0.99",
+ "wentWrong": "nothing",
+ "notVerified": [
+  "nobody listened to any file",
+  "GPU load by other programs during the run was not sampled",
+  "no moss.py or with_lock process of mine is left (command-line search found none); other python processes belong to other work and were not checked",
+  "spectral shares are whole-file, not per event"
+ ]
+}

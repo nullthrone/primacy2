@@ -1,0 +1,21 @@
+{
+ "note": "Candidates that are never picked (they stay in the pool, so the others are chosen as before). Only for a plain fault that the rules do not see and that was found in a spectrogram or in the recorded share above 60 Hz: steady noise instead of an event, a tone over everything, a second event or silence inside the cut, almost no energy above 60 Hz. Never for how a sound sounds. screen.py reads this file by default; --skip adds to it and --skips names another file. Candidate is source/name as in screen.json. Run of 2026-11-16: of the six skips of the first run (2026-11-15) four are dropped because the rules now throw those files out by themselves (moss/thruster_3__s13, moss/thruster_1__s13, moss/thruster_3__s16 and moss/shield_3__s11, all 'cut-off' at the family length); two stay, and two new ones were added after the spectrograms of the new picks.",
+ "skips": [
+  {
+   "candidate": "moss/thruster_1__s16",
+   "reason": "the hiss sits 0.13 s to 0.72 s inside a 1.2 s capped cut, about 0.13 s of near silence before it and 0.45 s after it"
+  },
+  {
+   "candidate": "sa3/thruster_1__s14",
+   "reason": "the thump comes at 0.84 s of the 1.19 s cut (file time 0.95 s), after a quiet hiss 20 to 26 dB under it that the 40 dB onset rule keeps"
+  },
+  {
+   "candidate": "moss/shield_3__s16",
+   "reason": "almost no energy above 60 Hz (9.5 % of the cut's energy, recorded energyAbove60Hz 0.0949): a steady low oscillation for 1.5 s in the waveform, which most loudspeakers would play as silence"
+  },
+  {
+   "candidate": "moss/thruster_2__s12",
+   "reason": "almost no energy above 60 Hz (6.1 % recorded, energyAbove60Hz 0.0613): the waveform is one slow swing of about 0.2 s, no noise burst"
+  }
+ ]
+}

@@ -1,0 +1,44 @@
+{
+  "summary": "Controller input core is in place: pure logic in input/gamepad.ts, Gamepad polling and merge in Input.ts, pad settings and signals in store.ts, pad-aware hints and help lines, and a binding screen (ui/Bindings.tsx) reachable from the start-screen and pause-menu settings. Nothing in shared or server changed.",
+  "built": [
+    "packages/client/src/input/gamepad.ts (codes, device key and style, shapeAxis, defaults, readPads, captureNext, captureProgress, snapshotPads)",
+    "packages/client/src/input/gamepad.test.ts and input.test.ts (56 tests)",
+    "packages/client/src/input/binds.ts (pure edits of the pad settings used by the binding screen)",
+    "packages/client/src/input/Input.ts (poll per animation frame, merge, shared press path, stick aim, lever)",
+    "packages/client/src/state/store.ts (Settings.pad, Settings.padCleared, migration, signals device, padStyle, pads, padButton, padCapturing)",
+    "packages/client/src/ui/Bindings.tsx, Menu.tsx, format.ts, Hud.tsx (hints only), i18n en.ts and de.ts, styles/ui.css",
+    "packages/client/src/game/Game.ts (3 lines: turn rates passed to Input before sample)",
+    "tools/dev/guards/pad-core.json (9 guards)"
+  ],
+  "verified": [
+    "npx vitest run packages/client/src/input: 56 passed",
+    "tools/dev/guards.py tools/dev/guards/pad-core.json: 9 of 9 CAUGHT, 0 problems (dead zone, chord suppression, chord order, device match, release on disconnect, single-press edge, axis hysteresis, capture resting value, stick turn rate)",
+    "npx tsc -p packages/shared, packages/server, packages/client: no errors",
+    "npx vitest run (whole suite): 662 passed, 2 expected failures (606 + 56 new)",
+    "npm run build: succeeded"
+  ],
+  "notVerified": [
+    "No real controller or browser was used: not in Chrome or Firefox, not the binding screen visually, not the CSS layout",
+    "The joystick preset and non-standard devices (axis numbering, hat switches, throttle units) are untested on hardware",
+    "Browser test (Input.testMode, addMouse, window.primacy2.game.input) not run; keyboard and mouse paths were only changed by a refactor of press() into fire() plus device switching",
+    "Feel of the stick turn (lag and stop distance) against the real simulation was reasoned from aimRate in ship.ts, not flown"
+  ],
+  "deviations": [
+    "Chord activation: a chord only starts when its second button is pressed while the modifier is held; holding the target first and then the modifier does not fire it (avoids dock firing when Y is pressed while A is held).",
+    "A pad press while a panel is open only reaches the game for menu, galaxyMap, systemMap, contacts and chat, and not at all while the binding screen listens (store.padCapturing); the brief did not say.",
+    "Device switches to 'pad' only on a fresh press or when a stick starts to move (not every frame), so a held stick does not fight mouse movement; a lever counts as active only when it moves.",
+    "Stick turn: aim per tick is deflection * turnRate * ship turn rate * dt (cruise factor applied in Game.ts); the simulation's AIM_GAIN lag leaves up to about a fourteenth of a second of turn pending, and the ship's angular acceleration stops it, so the stop is not literally instantaneous.",
+    "Joystick preset adds to the existing bindings (device keyed codes next to the std ones) instead of replacing them; it uses the first connected non-standard device.",
+    "The four thrust directions have no row on the binding screen; they live on the analog axes section.",
+    "Assigning a code removes it from any other action; the action left without a pad code is recorded in padCleared.",
+    "hud.keys, keysLanding, keysLanded and ctl.land also became {key} texts, and the capture button of the Hud is hidden while a pad is the device."
+  ],
+  "openIssues": [
+    "Menus cannot yet be driven by controller; only the raw button signal exists.",
+    "Left-stick or axis navigation of menus is not exposed (only button edges).",
+    "Identical devices share one device key.",
+    "Stick drift outside the dead zone keeps the device on 'pad' once it has taken over.",
+    "German and English names for the pad help lines use Xbox or PlayStation labels from padStyle; generic pads show Button N."
+  ],
+  "forNextAgent": "Signals in packages/client/src/state/store.ts: store.device ('keys'|'pad', last used), store.padStyle ('xbox'|'playstation'|'generic'), store.pads (PadInfo[]: index, id, name, dev, standard, style, axes, buttons), store.padCapturing (true while the binding screen listens), store.padButton ({seq, n, standard} | null). A single press reaches the UI in two ways: (1) store.padButton changes once per raw button that goes down on any pad (n is the index of the standard mapping on standard pads: 0 A, 1 B, 2 X, 3 Y, 4 LB, 5 RB, 6 LT, 7 RT, 8 View, 9 Menu, 10 L3, 11 R3, 12 up, 13 down, 14 left, 15 right); read it in an effect or on store.frame and compare seq. (2) Bound actions go through Input.fire and Input.onAction as for keys, but only while phase is playing, no panel is open (or the action is menu, galaxyMap, systemMap, contacts, chat) and not store.padCapturing; the menu navigation agent should use padButton, not the action path. Input.pollPads() runs every animation frame from a requestAnimationFrame loop started in the Input constructor (also on the start screen); it is public for tests. Input.snapshot() returns plain PadSnapshot[]; gamepad.ts exports snapshotPads, readPads, captureNext, captureProgress, padButtonName(n, style), padCodeLabel(code, style), devMatches. Format helpers in ui/format.ts: bindKey(action) returns the pad label when store.device is 'pad'; keyParams(); padHelpParams(). The binding screen is packages/client/src/ui/Bindings.tsx (component Bindings({onBack})); Menu.tsx opens it from the Settings button (prop onBindings) in StartScreen (view replaces the card, class start-card wide) and PauseMenu (panel wide). Pure edits are in packages/client/src/input/binds.ts. Settings: store.settings.value.pad {turnRate, axes}, padCleared, bindings with Pad: codes. Tests: npx vitest run packages/client/src/input; guards: .venv-audio/Scripts/python.exe tools/dev/guards.py tools/dev/guards/pad-core.json (run from the worktree root; it mutates and restores gamepad.ts and Input.ts, so run it when nobody else edits those). Pitfalls: tests fake navigator.getGamepads with plain objects via vi.stubGlobal, never instanceof Gamepad; a menu that wants to focus-navigate must ignore padButton while store.padCapturing is true. The browser test was not run by me."
+}

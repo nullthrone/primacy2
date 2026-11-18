@@ -1,0 +1,64 @@
+{
+ "status": "done",
+ "summary": "All seven wrong sentences and the mustFix shelf text were corrected. One republish of events7 (189 manifest entries, ratings.json unchanged). Intent texts of shield_brighter_2 and _3 (shelf wording) and thruster_three s24 and thruster_hall s21 (no longer 'most typical') changed; wav and png of the seven unchanged candidates are byte for byte as before, the json of thruster_three s24 and brighter_2 differ only in intent.",
+ "ratingsSha256Before": "28ba828550516814fff3fc617dfa32fbfdbaae7cdfb418be5db157819c0961d4",
+ "ratingsSha256After": "28ba828550516814fff3fc617dfa32fbfdbaae7cdfb418be5db157819c0961d4",
+ "changed": [
+  "tools/sound/derive.py: new shelf_words(); say() uses it (corner 300 Hz, +4.0 dB at the corner, +8 dB reached within 0.3 dB above about 700 Hz, read off the filter)",
+  "tools/sound/publish.py: describe_process uses derive.shelf_words (loaded by path); new _typical_sentence: for a round-7 screen.json a first pick with exactly one candidate left to pick says it was the only eligible one and counts what ruled the others out; other picks and older rounds keep their text",
+  "tools/sound/tests/test_screen.py: assertion of the shelf text updated (62 tests, 0 failed)",
+  "tools/sound/prompts7.json: shield_absorb what, 'is 1.2 s of hiss' replaced by cut 1.1577 s, loud50 -9.36 dBFS, share above 2 kHz 0.5932",
+  "tools/sound/README.md: round-6 screen.json comparison now says 106 values, 92 file keys and 14 raw keys, all paths; sole-eligible sentence documented",
+  "tools/sound/RESULTS7.md: window named (rectangular) with Hann values for the shields (whole files: b3 92.9 % / 0.0233 / 211.5 Hz, b2 93.4 % / 0.0217 / 177.5, b1 98.6 % / 0.0040 / 95.7, raw 98.7 % / 0.0036 / 80.4; cuts: 104.8, 210.5, 253.6 Hz); centroid definition of room_3 (443.1 power sum vs 474.1 mono mean as on the page); 16 kHz band 6.2 % in 16000-16050 and 3.0 % in 15950-16000 vs 0.0003-0.0005 neighbours, not shown as a line on the log axis; shelf band measurement; new section After the repair check",
+  "assets/audio/render/events7 and render/manifest.json: republished once with publish.py (11 entries; wav/png of all 11 unchanged by the text fix; intents of brighter_2, brighter_3, thruster_three_1, thruster_hall_1 changed)",
+  "assets/audio/gen/r7/derived/gen.json and gen/r7/screen.json: the old shelf sentence in text_given replaced by the new wording (exact string replacement, 2 places each)"
+ ],
+ "measuredHere": {
+  "shelfBands_b3_vs_b1_scalingRemoved_dB": {
+   "100-200": 0.33,
+   "200-300": 2.48,
+   "300-500": 5.53,
+   "500-700": 7.41,
+   "700-1000": 7.9,
+   "1000-2000": 7.98,
+   "above2000": 8.0,
+   "note": "own script, whole processed files; the task quoted +0.24 for 100-200 Hz and +7.95 to +8.0 above 700 Hz; the file here gives +0.33 and +7.9 at 700-1000 Hz"
+  },
+  "filterGain": "+4.0 dB at 300 Hz, +7.71 dB at 700 Hz, within 0.3 dB of +8 from about 700 Hz",
+  "round6ScreenDiff": {
+   "differingValues": 106,
+   "fileKeys": 92,
+   "rawKeys": 14,
+   "allPaths": true
+  },
+  "snap16kHzBandRawCut": {
+   "16000-16050": "6.23 %",
+   "15950-16000": "3.03 %",
+   "neighbouring50HzBands": "0.03 to 0.055 %"
+  },
+  "centroidRoom3": {
+   "powerSumRect": 443.1,
+   "monoMeanRect": 474.1
+  },
+  "hannVsRect": "rect values reproduced the tool exactly (74.3 %, 0.0813, 627.4 Hz on the cut; 627.3 on the whole file)"
+ },
+ "gates": {
+  "manifestEntries": 189,
+  "outsideEvents7Equal": true,
+  "events7IdsEqualChosen": true,
+  "hashMismatches": 0,
+  "validateManifestProblems": 0,
+  "events7Files": 33,
+  "sevenUnchangedWavPngEqual": "14 of 14",
+  "sevenUnchangedJsonEqual": "5 of 7; ev7_2_thruster_three_1_moss_p1s24 and ev7_4_shield_brighter_2_derived_r6p2s11b differ in intent only"
+ },
+ "problems": [
+  "The task's expected state says 188 manifest entries before; the saved before_fix manifest has 188 and the current has 189 (11 in events7), as RESULTS7 says.",
+  "The Hann values of the cuts differ from those of the whole files; both are given."
+ ],
+ "notVerified": [
+  "No page check (audition-check) was run after the text-only republish; no vite server was started",
+  "publish.py was edited once more after the republish (loader of derive by path, output text identical); the republish was not repeated, the manifest was re-gated afterwards and equals the published one",
+  "Nobody listened to any file"
+ ]
+}

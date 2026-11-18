@@ -1,0 +1,31 @@
+{
+  "role": "score",
+  "status": "done",
+  "summary": "score.py and identity.py were run through the lock on all 11 runs (9 model keys). scores.json, identity.json, 54 listening files in _listen/, RESULTS.md and CANDIDATES.md are written. Whisper small median WER is 0.000 for qwen3, kokoro, kitten and phonon, 0.045 for chatterbox-nano. Names read back: qwen3 15/24, kokoro 13/24, kitten 13/24, chatterbox-nano 12/24, phonon 10/24. Nobody has heard anything.",
+  "scriptChanges": [
+    "score.py: added _spelling_fold (filler er/erm, 'stand by' = standby, km = kilometers, roman iii = 3, ore = or) applied to reference and recogniser output; docstring updated",
+    "test_score.py: new test test_spelling_folds_are_no_errors; one expected WER changed from 2/6 to 2/5 because 'stand by' is now one word; all tests pass"
+  ],
+  "identity": "run with .venv-voice/chatterbox-nano python through the lock; same-voice/apart: chatterbox 0.945/0.683, kokoro 0.954/0.752, kitten 0.961/0.620, phonon 0.948/0.673, qwen3 cuda 0.938/0.672",
+  "fileChecks": "no file shorter than 1 s or longer than 30 s; none missing in the 15-line runs; words/s outside 1.5-4.5: kokoro computer_cargo_raw 1.44, phonon radio_readback 1.46, radio_mayday 1.32, computer_cargo_raw 1.49 (q8 similar), phonon-blend computer_fold 1.32; phonon has pauses over 0.8 s inside 12 (f32) and 13 (q8) lines; phonon-blend station_dock clipped",
+  "filesWritten": [
+    "assets/audio/voice/scores.json",
+    "assets/audio/voice/identity.json",
+    "assets/audio/voice/_listen/ (54 files)",
+    "tools/voice/RESULTS.md",
+    "tools/voice/CANDIDATES.md",
+    "tools/voice/score.py",
+    "tools/voice/tests/test_score.py",
+    "docs/reports/2026-11-15/voice-score-report.json"
+  ],
+  "problems": [
+    "Whisper small mixes recogniser and model errors; 'your' for 'you are' and kokoro '2 point 0 percent' left as errors",
+    "qwen3 cpu has only 3 lines so no same-voice figure; 8t and blend runs have 4 lines",
+    "Kitten Mini parameter count not read in dossier or report"
+  ],
+  "notVerified": [
+    "how any voice sounds",
+    "whether blends are coherent speakers",
+    "listening copies were not opened or played"
+  ]
+}

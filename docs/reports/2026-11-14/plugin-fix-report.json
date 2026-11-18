@@ -1,0 +1,12 @@
+{
+  "summary": "All four fixes applied to auditionPlugin.ts (saved once) and probes added to audition-check.mjs; the full check is green on port 5184 (40 passed), tsc is clean, port 5184 is free.",
+  "outcomes": [
+    {"id": "cross-origin", "state": "fixed", "how": "403 when Origin differs from http://<Host> or Sec-Fetch-Site is not same-origin/none; no Origin still works. Probes: GET and PUT with another Origin, GET with cross-site, curl and same-origin 200."},
+    {"id": "content-type", "state": "fixed", "how": "PUT /ratings needs application/json, else 415. Probe with text/plain. The existing oversized/malformed probes now send the JSON type."},
+    {"id": "write-cap-atomic", "state": "fixed", "how": "Indented text capped at 2 MB (413), written to a temp file and renamed over the ratings file. Probe: 400000-element array body gets 413 and the ratings file is byte-identical afterwards."},
+    {"id": "body-read-limit", "state": "fixed", "how": "Bodies past 1 MB are dropped (413); past 8 MB the connection is destroyed; Content-Length over 8 MB gets 413 at once. Only the 1.1 MB case is exercised."}
+  ],
+  "checks": ["AUDITION_RATINGS_FILE=scratch, vite on 5184: node tools/dev/audition-check.mjs -> 40 passed, 0 failed", "npx tsc -p packages/client -> no output, exit 0", "5184: process 83408 (my vite) stopped, request refused"],
+  "notVerified": ["The 8 MB hard cut and the Content-Length early 413 were not exercised", "Rename over an existing file was exercised only on Windows with no concurrent reader", "A real browser from another origin was not tried, only raw requests with such headers"],
+  "openIssues": ["Saving auditionPlugin.ts restarts Vite servers of this checkout, including the owner's on 5190"]
+}

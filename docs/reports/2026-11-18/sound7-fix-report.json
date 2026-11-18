@@ -1,0 +1,81 @@
+{
+ "status": "done",
+ "ratingsSha256": "28ba828550516814fff3fc617dfa32fbfdbaae7cdfb418be5db157819c0961d4 before the publish, after it and after the page checks (never written)",
+ "summary": "Tools carry out the changed plan; round 7 was derived, screened and published once; the page now holds 11 candidates. Chosen list in order: ev7_1_thruster_room_1_derived_r6p3s11a, ev7_1_thruster_room_2_derived_r6p3s11b, ev7_1_thruster_room_3_derived_r6p3s11c, ev7_1_thruster_room_4_derived_r6p3s11d, ev7_2_thruster_three_1_moss_p1s24, ev7_3_thruster_hall_1_moss_p1s21, ev7_4_shield_brighter_1_derived_r6p2s11a, ev7_4_shield_brighter_2_derived_r6p2s11b, ev7_4_shield_brighter_3_derived_r6p2s11c, ev7_5_shield_swallow_1_moss_p1s22, ev7_7_shield_snap_1_moss_p1s24 (the snap replacement for seed 22 is seed 24; nothing for shield_absorb). Tests: test_screen.py 62 passed 0 failed (4 new), tools/audio/listen/tests unittest 80 OK. Round 6 reproduced on a scratch copy: same 14 ids, cuts and listen values, only file paths differ. Gates: ratings.json sha256 unchanged (3 checks); manifest 189 entries, 178 outside events7 equal in every field and order, 11 events7 = chosen ids, 0 hash mismatches of 189, seven unchanged candidates 21 of 21 files byte equal, events7 folder 33 files (3 per id), manifest validates. Page checks: 3 runs of audition-check; run 1 47 passed 1 failed (2 listings of one click, size 0.099 ratio 3.1 at 0.147 s, blamed on the page, in room_4 Headphones), run 3 (same set) 48 passed 0 failed with 0 page faults, run 2 (room_1, room_2, room_4, test_edges) no page fault but its control check failed because test_step was not in that set. File faults: hall seed 21 18 listings (size 0.001 to 0.003), room_4, brighter_3, snap seed 24 none, test_step 10 (control). Level run dry for all 11: largest deviation 0.13 dB from -28 (thrusters), 0.26 dB from -24 (shields).",
+ "stepDetails": {
+  "toolChanges": [
+   "derive.py: operation append {fromS,toS}, refuses unless the 3 levels (10 ms before splice, first and last 10 ms of the copy) are >= 50 dB under the peak, records levels, lengths, splice time, largest step within 1 ms; REFUSED message names the item; say() states the appended part is a copy",
+   "screen.py: family key pressedNoiseFallback (default true); false leaves the slot empty with a note naming the kept count and the two numbers",
+   "publish.py: a pick with pressedNoiseFallback gets a fallback sentence with its two numbers and the family limits, never the most-typical sentence; describe_process knows append",
+   "tests: 4 new tests; the skips7 assertion changed from empty to one skip with reason"
+  ],
+  "derive": {
+   "oldFilesIdentical": "5 of 5 sample for sample, gen.json records equal",
+   "thruster_room_4": {
+    "splice": {"spliceS": 2.0, "copiedS": 1.0, "appendedLengthS": 3.0, "levelsDbUnderPeak": {"beforeSplice": 69.36, "copyFirst": 56.78, "copyLast": 62.67}, "maxStepWithin1ms": 0.000186},
+    "resultLengthS": 5.1,
+    "cut": {"startS": 0.0652, "endS": 3.558, "cappedAtFamilyLength": false},
+    "shotsOnWholeDerivedFile": 3,
+    "onsetsS": [0.07, 1.08, 2.07]
+   },
+   "shield_brighter_3": {"lengthS": 1.6818, "shareUnder250Hz": 0.7429, "shareAbove2kHz": 0.0813, "centroidHz": 627.3}
+  },
+  "screen": {
+   "sevenUnchangedIds": "same cut and same listen values except file path, no other differing key",
+   "removed": ["ev7_3_thruster_hall_1_moss_p1s24", "ev7_6_shield_absorb_1_moss_p1s27", "ev7_7_shield_snap_1_moss_p1s22"],
+   "new": ["ev7_1_thruster_room_4_derived_r6p3s11d", "ev7_3_thruster_hall_1_moss_p1s21", "ev7_4_shield_brighter_3_derived_r6p2s11c", "ev7_7_shield_snap_1_moss_p1s24"],
+   "files": 47, "kept": 36, "thrownOut": {"cut-off": 7, "several-events": 1, "speech": 3}
+  },
+  "snapReplacement": {
+   "tested": ["shield_snap_1 seed 24 (chosen)", "seed 22 (comparison)"],
+   "seed24": {"windows": 6, "windowsOver30dBUnder": 1, "maxRatioInThose": 8.5, "maxRatioAnyWindow": 24.5, "clicks": 0, "levelsDb": [-31.8, -17.5, -15.2, -20.0, -36.0, -51.8]},
+   "seed22": {"windows": 15, "windowsOver30dBUnder": 7, "maxRatioInThose": 18.1, "clicks": 1, "clickWindowFromS": 0.5},
+   "skipAdded": false
+  },
+  "intentTexts": {
+   "thruster_room_4": "Made from the raw file of the candidate ev6_2_thruster_mighty_2_moss_p3s11 of round 6, which the owner called close. A copy of the samples from 0 s to 1 s of the raw file was appended to its end (no fade, no gain): the appended part, 1 s long, is a copy, not new material; it starts at 2 s. Levels under the peak: last 10 ms before the splice 69.36 dB, first 10 ms of the copy 56.78 dB, last 10 ms of the copy 62.67 dB; largest sample step within 1 ms of the splice 0.000186. A room was added: decay time (60 dB) 1.4 s, wet level -4 dB against the dry sound (reached -4 dB), one channel. The output was scaled by -3.5919 dB to stay under a peak of 0.999. Cut out of the processed file (0.07 to 3.56 s). Level: family target -28.0 LUFS (one channel); as the page plays it in the Stereo stage, over two channels with a one-channel file counted on both, -24.99 LUFS, reached -24.99. Share of the event's energy above 60 Hz: 81 %. A fixed candidate: it is on the page whatever the rules find, no pick rule applies to it. Made from a candidate of round 6 that the owner called close. Measured in the file: 3 separate shots.",
+   "hangar_seed21": "Prompt given to MOSS-SoundEffect v2.0: \"Large-caliber machine cannon fires three slow heavy shots inside a large steel hangar, each a chest-thumping boom with a metallic clank, the shots echo off the metal walls duration: 4.0s\" (seed 21). Cut out of the raw file (0.00 to 3.79 s). Level: family target -28.0 LUFS (one channel); as the page plays it in the Stereo stage, over two channels with a one-channel file counted on both, -24.99 LUFS, reached -24.98. Share of the event's energy above 60 Hz: 81 %. Chosen as the most typical candidate of its source in this family. This family is a first try: no prompt of it has been heard yet. Measured in the file: 3 separate shots.",
+   "snap_seed24": "Prompt given to MOSS-SoundEffect v2.0: \"Force field deflects a projectile, a quick clean bright electric snap with a short soft pulse underneath, ends fast duration: 2.0s\" (seed 24). Cut out of the raw file (0.47 to 0.79 s). Level: family target -24.0 LUFS (one channel); as the page plays it in the Stereo stage, over two channels with a one-channel file counted on both, -20.99 LUFS, reached -20.99. Share of the event's energy above 60 Hz: 100 %. Chosen as the most typical candidate of its source in this family. The owner heard a darker wording of this prompt in round 6: one candidate was close, the other kept ones were not shown."
+  },
+  "pageChecks": {
+   "server": "own vite on port 5611, empty ratings file in a new scratchpad folder, stopped by pid (151044 and its npx parent 65316), no listener left, only waiting leftovers",
+   "run1": "47 passed, 1 failed: 2 page-blamed listings (one click) in room_4 Headphones, 0.147 s, size 0.099, ratio 3.1",
+   "run2": "room_1, room_2, room_4, test_edges: no page fault; failed only the control that needs test_step (not in set)",
+   "run3": "48 passed, 0 failed, 0 page faults, 28 file faults (hall seed 21 18, test_step 10)",
+   "screenshots": "screenshots/audition/ in the repository (ignored by git); the script overwrote the 20 files already there, nothing deleted",
+   "levelDry": {"largestDeviationThrustersDb": 0.13, "largestDeviationShieldsDb": 0.26}
+  }
+ },
+ "changed": [
+  "tools/sound/derive.py",
+  "tools/sound/screen.py",
+  "tools/sound/publish.py",
+  "tools/sound/tests/test_screen.py",
+  "tools/sound/README.md (section Round 7)",
+  "tools/sound/RESULTS7.md",
+  "tools/sound/skips7.json (note only)",
+  "assets/audio/gen/r7/derived (derive.py run; gitignored)",
+  "assets/audio/gen/r7/screen.json and _listen (screen.py run)",
+  "assets/audio/render/events7 and assets/audio/render/manifest.json (one publish.py run)",
+  "screenshots/audition/*.png (page check, gitignored)",
+  "docs/reports/2026-11-18/sound7-fix-report.json"
+ ],
+ "problems": [
+  "First page-check run failed once: a click blamed on the page in room_4 Headphones (size 0.099, ratio 3.1 vs threshold 3). Not reproduced in two further runs, not explained.",
+  "The second page-check run (room_1, room_2, room_4, test_edges) had one failed check because it lacked test_step for the control; it is not a complete pass.",
+  "thruster_hall seed 21 has 18 listed file faults (size 0.001 to 0.003); it is 0.0004 over the share-above-2kHz number (the rule is not applied to thrusters).",
+  "The raw file of snap seed 24 has a start of something in its last 50 ms (-52.8 dB) outside the cut; not published.",
+  "The page check script overwrote 20 existing screenshot files in screenshots/audition/ (it has no output option)."
+ ],
+ "notVerified": [
+  "How any of the 11 files sounds; nobody listened.",
+  "Whether three shots with the third a copy of the first, the fixed shields, the hangar pick or the swallow and snap picks are what the owner wants.",
+  "The shot counts rest on screen.py's count_shots alone; the check's own counter differed on four generated files (values quoted from the check report, not measured here).",
+  "The 16 kHz values of RESULTS7.md are approximate (select step and check differ by up to 4 dB).",
+  "Whether the one page fault of run 1 is a property of the file or of the Headphones stage."
+ ],
+ "deviations": [
+  "No stop. Page check was run three times (see problems). screenshots wrote into the repository because the script has no option to move them.",
+  "RESULTS7.md: the first-selection sections were kept and labelled as such; the new state is in the appended section After the first check."
+ ]
+}

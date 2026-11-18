@@ -1,0 +1,42 @@
+node_modules/
+dist/
+*.tsbuildinfo
+data/
+.data/
+*.sqlite
+*.sqlite-*
+.env
+.vite/
+test-results/
+playwright-report/
+screenshots/
+*.blend1
+.DS_Store
+Thumbs.db
+assets/blender/*.blend
+
+# Python
+__pycache__/
+*.pyc
+
+# local scratch
+.claude/
+assets/blender/previews/_spike.glb
+
+# Local Python environment and caches of the audio tools (see tools/audio)
+.venv-audio/
+assets/audio/cache/
+# Rendered sounds and downloaded packs are rebuilt by tools/audio (render and fetch scripts);
+# git keeps the scripts, the sound list, the manifest of downloads and the licence list.
+assets/audio/render/
+assets/audio/downloads/
+# The comparison of speech models (tools/voice): one environment per model and the rendered
+# speech stay local.
+.venv-voice/
+assets/audio/voice/
+# The comparison of ways to make sound (tools/sound): one environment per model, and every
+# generated or cut candidate, stay local.
+.venv-sound/
+assets/audio/gen/
+# Raw phone recordings of the owner stay local; what ships is cut, processed and committed apart.
+assets/audio/recordings/

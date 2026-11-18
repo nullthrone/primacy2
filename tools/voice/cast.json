@@ -1,0 +1,29 @@
+{
+  "note": "The invented voices of the comparison. No voice has a real person as template: a model either builds the voice from 'description', or the adapter of a model without that ability makes the nearest voice by its own artificial means (blending voice vectors, sampling) and says how in its report. 'reference_text' is what a designing model speaks once to produce the reference clip that fixes the voice: about ten seconds, ordinary words, every vowel, no invented names.",
+  "voices": [
+    {
+      "id": "control_f",
+      "role": "radio",
+      "description": "A woman in her forties. Calm, clipped, professional traffic-control delivery. Medium-low pitch, brisk even pace, neutral international English, clear diction, no emotion in the voice.",
+      "reference_text": "Good evening, all stations. Traffic is light tonight and the outer lanes are open. Please keep your speed down near the yards, watch for slow freighters, and report your position before you cross the marker."
+    },
+    {
+      "id": "pilot_m",
+      "role": "radio",
+      "description": "A man in his thirties, a working pilot. Relaxed, dry, matter-of-fact. Medium pitch, slightly gravelly, unhurried, neutral English.",
+      "reference_text": "We left the yard about two hours ago with a full hold and a tired crew. Nothing much to report so far. The engines are running cool, the weather out here is quiet, and I would like to keep it that way."
+    },
+    {
+      "id": "computer",
+      "role": "computer",
+      "description": "A composed ship computer with a woman's voice. Even pitch, precise diction, measured pace, cool and neutral, no emotion, very clear, close to the microphone.",
+      "reference_text": "All systems are operating within normal limits. Power is stable, pressure is steady, and the outer doors are closed. You may begin the procedure when you are ready. I will tell you if anything changes."
+    },
+    {
+      "id": "dock_m",
+      "role": "station",
+      "description": "A man in his fifties, a dock foreman. Rough but warm, low pitch, unhurried, a little tired, plain working English, speaks close to the listener.",
+      "reference_text": "Morning. You are early, which is more than I can say for the others. Park it over there by the blue door and leave the keys with me. We will have a look at it after lunch and tell you what it needs."
+    }
+  ]
+}

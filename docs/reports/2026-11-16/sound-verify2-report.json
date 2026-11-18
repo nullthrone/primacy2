@@ -1,0 +1,164 @@
+{
+ "role": "verify2: independent check of the second run",
+ "date": "2026-11-16",
+ "status": "done; one failing test and several wrong or over-reaching sentences found",
+ "summary": "The sixteen published files, the level setting, the cut rules, the unclamped Stable Audio files, the recordings' licences and the reproduction hold up under my own measurements. One suite fails: tools/sound/tests/test_screen.py (31 of 32 pass) because it still expects the six old hand skips. README and RESULTS carry several wrong or over-reaching sentences (listed). Nobody listened to anything; I state nothing about how anything sounds.",
+ "points": [
+  {
+   "n": 1,
+   "point": "Level and source",
+   "verdict": "holds, with one wording problem",
+   "evidence": [
+    "Own vite server (port 5283, empty scratch ratings file; its process chain 109376/85024/78872/97824/104172 killed by pid afterwards, no process left): AUDITION_URL=http://localhost:5283/dev/audition.html node tools/dev/audition-level.mjs <16 ids>, and the same with --dry. Output equals the RESULTS table in every column (dry file>page: one channel -0.09,-0.06,+0.33,-0.08,-0.09,+0.02; two channels -3.10 for all ten; defaults: two channels -2.90 to -3.00, one channel +0.03 to +0.44). The overload lamp class is 'clip ' (not 'clip hot') before and after for all 16.",
+    "From the published 16-bit files (.venv-audio python, synth.levels.lufs = pyloudnorm BS.1770-4, a clip under 400 ms tiled to 400 ms): the page measure (one channel own+3.0103, two channels own) is within 0.032 LU of the family page target for all 16 (largest: sa3 thruster_2 s12 +0.032, sa3 hull_2 and shield_2 +0.017) and within 0.005 LU of screen.json lufsReachedPage; the own-channel measure is within 0.005 LU of lufsReached. The float _listen copy and the 16-bit file differ by at most 0.001 LU. So every file is within 0.1 LU of what screen.json says it reached.",
+    "Measure used: listening_copy() in tools/sound/screen.py measures BS.1770-4 on the float copy AFTER _finish (resample, gain, 30 ms fade plus 10 ms silence, 1.5 ms ramp, mean removal) and iterates to 0.05 LU. It does not measure the page output (stage, room, radio filter, limiter) and not the 16-bit file; I measured the 16-bit file myself.",
+    "The 0.26 s spark depends on the tiling convention: pyloudnorm on the zero-padded file gives own -27.0 instead of -24.0 (3.0 dB lower). The 0.41, 0.49 and 0.50 s files are not affected that way (about 0.4 s or longer).",
+    "Page output estimated as own LUFS + dry file>page: hull -34.08,-34.07,-34.09,-34.08; thruster -34.06,-34.06,-34.09,-33.67; gear -35.08,-35.09,-35.09,-35.09; shield -24.08,-24.07,-23.98,-24.09. Spread per family 0.02, 0.42, 0.01, 0.11 dB; one-channel and two-channel means differ by 0.00, 0.21, 0.01, 0.05 dB. These equal the FAMILY TARGET (-34,-34,-35,-24) within 0.1 dB (thruster_4 0.33 dB), not the 'page LUFS' column of RESULTS (-30.98 etc.), which is a convention 3.1 dB above what the page outputs.",
+    "Plain measure of audition-level ('both dBFS', mean power over 50 ms windows above -45 dBFS): spreads 3.00, 5.70, 3.20, 3.80 dB. One channel minus two channels: +2.37, +1.05, +1.17, -0.75 dB. Deviation from the family mean: one channel +0.49 dB (n=6), two channels -0.30 dB (n=10); by source MOSS +1.04 (n=5... all MOSS incl. second picks), Stable Audio +0.15 (n=7), recordings -1.56 (n=4). The difference does not follow the channel count (sign flips in shield); by source it is larger (recordings lowest in 3 of 4 families, MOSS highest in 3 of 4) but n is small.",
+    "The thruster spread that RESULTS says it did not explain: I rebuilt 'both dBFS' from the published files (file energy times the measured file>page, over 50 ms windows above -45 dBFS) and got the measured values within 0.2 dB for all 16 (thruster: predicted spread 5.71, measured 5.70). The measure is energy divided by the number of sounding windows: MOSS thruster_1 s11 has 3 windows above -45 dBFS in its 0.50 s, the others 6, 11, 11, so the same energy reads higher. It is a property of that printout, not a K-weighted level difference (whole-file K-weighted mean power spread by RESULTS' own why.py, re-run by me: 2.61, 1.03, 1.36, 0.66 dB, reproduced; unweighted 4.24, 2.26, 3.01, 8.12, reproduced).",
+    "Scripts (scratchpad v2 folder): m12.py, m1b.py, m1c.py, m1d.py, why_copy.py, run with .venv-audio/Scripts/python.exe -I."
+   ]
+  },
+  {
+   "n": 2,
+   "point": "Cuts",
+   "verdict": "holds",
+   "evidence": [
+    "Measured on the raw file at the cut end (mean power over channels, last 50 ms, against the loudest 4 ms of the raw file, as screen.py does), dB under max: hull_1 moss 46.7, hull_2 sa3 42.3, hull_3 oga 56.0, hull_4 sa3 49.7, thruster_1 moss 46.4, thruster_2 sa3 40.0, thruster_3 oga 58.1, thruster_4 moss 31.6, gear_1 moss 34.2, gear_2 sa3 42.8, gear_3 oga 32.5, gear_4 sa3 45.9, shield_1 moss 26.8, shield_2 sa3 43.3, shield_3 oga 50.6, shield_4 sa3 44.2. Smallest margin 26.8 dB against the 20 dB rule; equal to screen.json lastDbBelowMaxAtCap where it exists (46.7, 42.3, 34.1). No published candidate ends while loud.",
+    "Cut by the family length: 3 of 16: hull_1 moss (2.500 s, 46.7 dB under max), hull_2 sa3 (2.500 s, 42.3 dB), gear_1 moss (3.804 s, 34.2 dB). The gear_1 tail is flat (33.8 dB under max 50 ms before the end, 35.5 at the end): not loud, but the event had not ended on its own; the page-side 30 ms fade closes it. moss shield_1 falls from about 31 dB under max 10 ms before its end to 48 dB at the end (its own end in the raw file).",
+    "Same threshold and window for the family cap and the end of the file: yes, read in screen.py raw_faults(): both branches use CUTOFF_S 0.050 and CUTOFF_DB 20.0, the same power measure and the same cut['maxDb'] (loudest 4 ms of the whole raw file). Differences: the cap branch is only tried when the end-of-file branch did not fire and the event is capped, and its window ends at the cut end. README sentences on this are right; I recomputed the gear_2 s16 example: 11.0 dB under the loudest 4 ms, 7.2 under the loudest 50 ms, 0.47 dB under the loudest 100 ms for a window ending at 3.77 s.",
+    "Threshold sensitivity not tested: moss gear_2 s14 is kept with a cap tail 21.8 dB under max (1.8 dB from the rule); moss thruster_3 s16 is thrown out at 20.0 (rounded)."
+   ]
+  },
+  {
+   "n": 3,
+   "point": "Stable Audio without clamp",
+   "verdict": "holds",
+   "evidence": [
+    "All 72 files of raw against raw_clamped (m3a.py): shapes equal; max abs difference where the old file is below 1 in magnitude = 0.0; 50 files with samples at full scale in the old file (1921 samples), in all of them same sign and |new| >= 1; the 22 files with new peak <= 1 are bitwise equal to the old ones; highest new peak 1.9365. Five looked at: thruster_2 s16 (1.9365), gear_3 s13 (1.2695), thruster_1 s12 (1.1123), thruster_3 s16 (1.0732), hull_3 s13 (0.4978, equal).",
+    "Re-made two through the lock (tools/voice/with_lock.py --wait 3600 -- .venv-sound/sa3/Scripts/python.exe m3b.py, which imports load_model and make from tools/sound/adapters/sa3.py and writes to my scratch folder, not into the repository): thruster_2 s16 and gear_3 s13 are bit-identical to assets/audio/gen/sa3/raw (np.array_equal true, max abs diff 0.0; peaks 1.9365 and 1.2695), and clip(new,-1,1) equals the old clamped file bit for bit in both. 17 s wall time, nothing left running. This shows determinism on the same card and driver, not across machines.",
+    "has_flat_top(): synthetic 1.5-amplitude sine as float beyond 1 without a flat top -> False; the same clamped at +-1 -> True (mono, 2-D, one channel of a stereo pair, positive side only, negative side only); clipped at 0.8 -> True; two equal samples at the extreme -> False, three -> True; plateau below the extreme -> False; zeros -> False. Real files: sa3/raw 0 of 72 flat tops (50 have peak > 1), sa3/raw_clamped 39 of 72, moss 0 of 72, oga 0 of 21. raw_faults on thruster_2 s16: clamped -> ['clipped'], unclamped -> []. A plain 'three samples at |x| >= 1' rule would have flagged 48 of the unclamped 72.",
+    "Limits of the rule: a constant value held at the extreme counts (DC 0.5 for 1000 samples -> True); a clipped signal filtered or resampled afterwards is not caught."
+   ]
+  },
+  {
+   "n": 4,
+   "point": "Recordings",
+   "verdict": "holds",
+   "evidence": [
+    "I fetched the 10 item pages of opengameart.org (HTML only, curl, one request each, redirects not followed) into my scratch folder and read the licence block: on all 10 it reads 'License(s): CC0' and nothing else before 'Collections:'. Author field: rubberduck (4 packs), Cough-E, BMacZero, PagDev, bart (2), laleksic; equal to credit in downloads.json and to the authors in tools/sound/oga_cuts.json. Each pack's file link on its page equals the entry's url. 'BMacZero (Brian MacIntosh)': the page says 'Optionally credit Brian MacIntosh.'",
+    "Provenance wording on the pages: 100-cc0-sfx 'recorded with an android device'; electricity page 'recorded from a small Tesla generator'; various-sound-effects 'recorded on my phone'; 75-breaking 'i made 75 ...'; door-lock 'made my own'; sfx #2, metal-wood, metal-clang, steam, elevator: nothing about how made. Of the four published recordings only the spark's page says 'recorded'.",
+    "Files: all 10 entries: size and sha256 on disk equal downloads.json (m4b.py); fetch.py --check: 35 entries, 0 with problems; no .part files; the rows of assets/audio/CREDITS.md match page, licence and credit for every file (100/100/100/75/12/5/8/27 rows, plus 1 and 1 that carry the file url). The four published excerpts equal decode(source)[cut] sample for sample (max diff 0.0). I cannot show from the disk that the bytes came through fetch.py and not another client; I can show that size and hash equal downloads.json, every url host is opengameart.org and no oga-* folder lacks an entry.",
+    "check_url(): exact host only. Refused: www., cdn. subdomains, opengameart.org.evil.com, evilopengameart.org, a trailing dot, a Cyrillic lookalike, an xn-- host, %2e and %00 variants, user info in either direction, port 8443, http, ftp, no scheme, backslash and control characters, evil.com with the host in query or fragment, 127.0.0.1. Allowed: the host itself (also upper case and :443). Also allowed, from the older NASA rule and not new: any *.nasa.gov host, e.g. opengameart.org.nasa.gov (a NASA subdomain, not an OGA lookalike). Redirects run through the same check (read in code, not exercised).",
+    "assets/audio/selection.json: 33 entries, all files under kenney-* or nasa-*; no oga entry, no opengameart string."
+   ]
+  },
+  {
+   "n": 5,
+   "point": "Reproduction",
+   "verdict": "holds for the choice; two of four hand skips rest on a measure",
+   "evidence": [
+    "Plain run: .venv-audio/Scripts/python.exe tools/sound/screen.py --root <scratch folder holding only the three gen.json files; the raw files are found through the paths inside them>, no --skip, default skips file, models on the processor. Chosen ids identical to the published sixteen, in order; all 165 file rows of screen.json identical to the real run's; settings equal; the 16 listen records identical; the 16 _listen float files sample-identical (max diff 0.0; they differ in bytes only by the writer's PEAK timestamp chunk); the published 16-bit files equal the rounded _listen files within 5.1e-5 (about 1.7 LSB). Nothing written under assets/ (git status clean).",
+    "Counts: MOSS 41 kept, Stable Audio 66, recordings 20; thrown out 31 cut-off (MOSS 30, sa3 1), 6 several-events, 1 music; the per-family table in RESULTS matches screen.json exactly.",
+    "Old skips: moss thruster_3 s13, thruster_1 s13, thruster_3 s16, shield_3 s11 are thrown out 'cut-off' at the family length by the rules (tails 4.5, 2.3, 20.0, 13.8 dB under max); moss thruster_1 s16 and sa3 thruster_1 s14 are kept by the rules, as RESULTS says.",
+    "The four skips against my envelopes and spectrograms: moss thruster_1 s16: hiss 0.15 to 0.71 s of a 1.2 s cut, first 0.13 s at -30 to -64 dB, after it median -38 dB: matches, structure fault. sa3 thruster_1 s14: quiet part at -21 to -26 dB, thump from 0.84 s of a 1.185 s cut (text says 0.75 s of 1.3 s; 1.3 s is the file time of the cut's end): structure fault, numbers a little off. moss shield_3 s16: 9.49 % above 60 Hz, level steady about 0 dB for 1.5 s then falling: share exact. moss thruster_2 s12: 6.13 % above 60 Hz, 0.2 s event: share exact. The last two are skipped on the recorded 60 Hz share (under 10 %), which README calls 'Measures only, no rules' and does not name among the plain faults for hand skips. No published pick has a share under 10 % (lowest 25 %).",
+    "Observation, not a rule violation: the published sa3 gear_2 s15 holds a 150 ms dip to 35 to 36 dB under max at 0.75 to 0.9 s between two events (50 ms bins): silence inside the cut in the README's own list of plain faults. RESULTS says the other fourteen spectrograms showed none of the plain faults."
+   ]
+  },
+  {
+   "n": 6,
+   "point": "Scope and safety",
+   "verdict": "holds",
+   "evidence": [
+    "sha256 of assets/audio/ratings.json = f916ed364561b57618647545bfe8a11adeb8871219743cb244b23c87c01ecac4 at the start and at the end of my work; my vite server's /audio-lib/ratings-path returned my empty scratch file.",
+    "pip freeze of .venv-audio equals assets/audio/voice/venv-audio-freeze-before.txt (76 lines, sorted diff empty).",
+    "New on disk since 2026-11-16 00:00: .venv-sound nothing; Hugging Face hub cache nothing (newest file 2026-11-15 15:34, the models there are older); assets/audio/downloads only the ten oga-* folders (16.3 MB of archives, 54.7 MB on disk, README says under 100 MB); assets/audio/gen: oga raw and gen.json, sa3 raw (72 new) and raw_clamped (72 moved), _listen, screen.json. I cannot see network traffic afterwards: judged from disk state and code.",
+    "Manifest: 148 sounds, build.validate_manifest returns no problems; the 128 hashes of rounds/round3.json equal the manifest's; every manifest hash equals sha256[:12] of its file (148 of 148); the four voice_5_countdown ids exist with self-consistent hashes (no earlier value to compare); render/source holds 16 ids x (wav, png, json) = 48 files, none without a manifest id, none missing, no src_* elsewhere under render. render/ is git-ignored, so no earlier manifest to diff.",
+    "Suites: .venv-audio/Scripts/python.exe -I -m unittest discover -s tools/audio/tests: 77 tests OK. npx vitest run: 47 files passed, 807 tests passed, 2 expected fail. tools/sound/tests/test_screen.py is a script, not a unittest module (select2 said unittest finds nothing and pytest is absent, so it did not run it); run as .venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py it gives 32 tests, 1 FAILED: test_the_committed_skips_are_read_by_default_and_skip_adds, lines 571-572 assert len(skips)==6 and 'moss/thruster_3__s13' in skips, but tools/sound/skips.json now holds 4 entries.",
+    "Free disk: df -h . = 508 GB free of 1.9 TB (C:) at the end (509 GB at the start of the sa3 re-make); above the 200 GB stop.",
+    "Graphics card: one use, through the lock, two files, finished. Nothing of mine left running (vite chain killed by its own pids; no process with 'port 5283'; server down). git status clean before my report."
+   ]
+  },
+  {
+   "n": 7,
+   "point": "RESULTS.md and README.md against measurements",
+   "verdict": "mostly right; wrong or over-reaching sentences listed",
+   "evidence": [
+    "See wrongSentences."
+   ]
+  }
+ ],
+ "wrongSentences": [
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "the page LUFS column is -30.96 to -30.99 for hull and thruster, -31.99 for gear and -20.97 to -20.99 for shield, whatever the number of channels (and the column title 'page LUFS')",
+   "problem": "true as a number, but it is a convention (a one-channel file counted on both channels, +3.01), not the loudness the page outputs: own LUFS plus measured dry file>page gives -34.07 (hull), -34.07 (thruster), -35.09 (gear), -24.08 (shield), the family target. README says copies are set to 'the loudness the audition page plays it at', which read literally is 3.1 dB too loud."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "That -3.10 is the page halving the energy of a two-channel file while a one-channel file's energy is put on both channels",
+   "problem": "audition-level shows a one-channel file's energy is kept (file>page -0.09 to +0.33 dB), not doubled; the energy is split over the two channels. 'put on both' suggests it is counted twice at the output, which the measurement contradicts."
+  },
+  {
+   "file": "tools/sound/README.md",
+   "sentence": "one channel -0.09 to +0.33 dB with a median of -0.08, two channels -3.10 dB in all 6 and 10 files measured",
+   "problem": "the median of the six one-channel files is -0.07; -0.08 is from 16 plays in the screen-fix run."
+  },
+  {
+   "file": "tools/sound/README.md",
+   "sentence": "Measures only, no rules. `energyAbove60Hz` is the share ... a hint below 10 %",
+   "problem": "two hand skips (moss shield_3 s16, moss thruster_2 s12) were made only on that share (under 10 %), and the README's list of plain faults for hand skips does not name it."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "21 excerpts of 10 items (hull 8, thruster 5, gear 7, shield 1)",
+   "problem": "the 21 excerpts come from 9 items (oga_cuts.json has 9 entries; oga-elevator-door was fetched and has no excerpt). 10 items were fetched."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "Three decoded .ogg excerpts peak at 1.004 to 1.008 before the ceiling is applied",
+   "problem": "four raw excerpts peak above 1: gear__lock-open-01 1.0002, hull__metal-slam-01 1.0039, hull__sfx1-metal-12 1.0078, hull__metal-hit-02 1.0085."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "the pages of rubberduck, bart, Cough-E and PagDev do not say how the sounds were made",
+   "problem": "rubberduck's '100 CC0 SFX' page says 'recorded with an android device' and Cough-E's door-lock page says 'made my own' (neither is a published item). True for the published packs of rubberduck (sfx #2), bart and for PagDev."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "It does not explain the thruster spread of 5.7 dB at the page ... this was not tested further",
+   "problem": "the cause is measurable and is not the loudness: the printout is energy per number of 50 ms windows above -45 dBFS (3 windows for MOSS thruster_1 s11 against 6, 11, 11); rebuilt from the files it matches within 0.2 dB."
+  },
+  {
+   "file": "tools/sound/RESULTS.md and tools/sound/skips.json",
+   "sentence": "the thump comes at 0.75 s of the 1.3 s cut (sa3 thruster_1 s14)",
+   "problem": "the cut is 1.185 s long and the thump starts at about 0.84 s of it; 1.3 s is the file time of the cut's end (1.295 s)."
+  },
+  {
+   "file": "tools/sound/RESULTS.md",
+   "sentence": "The other fourteen spectrograms showed none of the plain faults (nothing there, a second event of weight, a cut-off end, a tone over everything)",
+   "problem": "claims more than was measured: sa3 gear_2 s15 has a 150 ms hole 35 to 36 dB under max inside the cut (0.75 to 0.9 s); the README lists silence inside the cut as a plain fault. Whether it counts is a call, but the sentence omits it."
+  },
+  {
+   "file": "docs/reports/2026-11-16/sound-select2-report.json",
+   "sentence": "tools/sound/tests has no tests that unittest finds ... the screen-fix test suite was not re-run",
+   "problem": "the suite is a script (run it directly); run directly it fails 1 of 32 because of the stale skips assertion."
+  }
+ ],
+ "mustFix": [
+  "tools/sound/tests/test_screen.py lines 571-572: test_the_committed_skips_are_read_by_default_and_skip_adds asserts 6 skips and 'moss/thruster_3__s13' in the list; tools/sound/skips.json now has 4 (moss/thruster_1__s16, sa3/thruster_1__s14, moss/shield_3__s16, moss/thruster_2__s12). Measured: `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py` gives 32 tests, 1 failed. Update the assertion and run the suite.",
+  "tools/sound/README.md ('Measures only, no rules' for energyAbove60Hz, and the list of plain faults for hand skips) against tools/sound/skips.json (two entries skipped for a 60 Hz share under 10 %): say in the README that this share is used by hand as a skip reason, or remove the two skips.",
+  "tools/sound/README.md and RESULTS.md: say that 'page LUFS' is a convention (one channel counted on both, +3.01 dB) and that the energy at the page output equals the family target (measured dry: -34.07 hull and thruster, -35.09 gear, -24.08 shield); rewrite 'a one-channel file's energy is put on both channels'.",
+  "tools/sound/RESULTS.md: correct '21 excerpts of 10 items' (9), 'Three decoded .ogg excerpts peak at 1.004 to 1.008' (four, 1.0002 to 1.0085), the rubberduck/Cough-E provenance sentence, the sa3 thruster_1 s14 numbers (also in skips.json), and the thruster spread that is stated as unexplained."
+ ],
+ "notVerified": [
+  "How anything sounds; whether any file is right for its family.",
+  "audition-check (the 48 checks and its capture part): not re-run by me, because it writes screenshots into the repository's git-ignored screenshots/audition folder and I was to change nothing in the repository. '48 passed, 0 page faults' is the selector's claim.",
+  "That the pack authors may release their packs as CC0; whether the recordings are recordings (the pages of three of the four published packs do not say); the two dropped items (chain winch, circuit breaker) and their reasons: not in downloads.json, pages not opened.",
+  "That the bytes of the ten oga items came through fetch.py: I show size and hash equality and the host, not the client. No network log exists; scope is judged from disk state and code.",
+  "The first run's figures quoted in RESULTS (MOSS 60 and Stable Audio 31 kept; spreads 5.2, 15.6, 7.1, 6.4 dB) and the 2.5 dB move from a 1.5 ms ramp in the screen-fix run: not re-derived.",
+  "The four voice_5_countdown hashes against an earlier value (none on disk); only that each equals sha256[:12] of its file.",
+  "Redirect handling of fetch.py (read in code, not exercised against a server).",
+  "Bit-identity of the Stable Audio re-make across machines or drivers; the K-weighted loudness at the real page output (estimated from own LUFS plus the broadband file>page ratio, exact only if the dry page path is frequency-independent)."
+ ]
+}

@@ -1,0 +1,14 @@
+{
+ "role": "generate",
+ "date": "2026-11-18",
+ "diskFreeBeforeGB": 547,
+ "card": {"before": "0 % utilization, 1773 MiB used (1 %, 1764 MiB at first look)", "otherUsers": "no game and no model process; compute-apps list showed only desktop programs (CurseForge, explorer, Edge WebView, Discord, VS Code, Claude, Antigravity, Epic launcher, a Prisma browser and shell hosts), all [N/A] memory", "duringRun": "94 % and 12.8 GB seen once during generation"},
+ "generation": {"command": "with_lock.py --wait 3600 -- moss.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7", "jobsListed": 40, "filesMade": 40, "startUtc": "2026-11-18T15:11:29Z", "endUtcApprox": "2026-11-18T15:24:15Z (stamp written after the last check, wall clock about 12.8 min)", "synthSeconds": "thruster_three 27.14 (first file, model load), 18.53, 18.53, then 17.19 to 17.51; every other file 17.12 to 17.53", "logs": "assets/audio/gen/r7/logs/moss-run1.log"},
+ "families": {"thruster_three": {"files": 8, "lengthS": 4.0}, "thruster_hall": {"files": 8, "lengthS": 4.0}, "shield_swallow": {"files": 8, "lengthS": 2.0}, "shield_absorb": {"files": 8, "lengthS": 2.0}, "shield_snap": {"files": 8, "lengthS": 2.0}, "all": "48000 Hz, 1 channel, none silent, gen.json has 40 items and no file is missing from it"},
+ "peaks": {"thruster_three": "0.9994 to 0.9996", "thruster_hall": "0.9995 to 0.9996", "shield_swallow": "0.706 to 0.999", "shield_absorb": "0.811 to 0.999", "shield_snap": "0.280 to 0.995"},
+ "derived": "5 files and derived/gen.json exist; derive.py run again into a scratch out-root: all five samples identical (float32 compare); gen.json differs only in the file paths",
+ "remake": {"thruster_three_1__s21": "samples identical", "shield_snap_1__s28": "not bit-identical: all 96000 samples differ, max 0.00136, rms 2.3e-5 against signal rms 0.0176 (about -58 dB)"},
+ "round6Proof": "screen.py with prompts6.json on a scratch copy of r6/moss/gen.json: 14 chosen ids in the same order, cuts, slots, roles, tags and listening-copy gains/levels equal; 78 file rows equal in every key; skippedAsPick, families, settings, category equal; zero differences (the only expected difference, the listening-copy paths, was not compared)",
+ "odd": ["Only the thruster families and shield_swallow reach the 0.9995 tanh peak in every file; shield_absorb and shield_snap have files with lower peaks (min 0.28).", "The raw WAVs are float32 (format 3); python wave cannot open them, soundfile can.", "A MOSS file is not guaranteed bit-identical on a second run on the card."],
+ "notVerified": ["Nobody listened.", "Shot counts of the new files were not measured (screen step).", "Screen and publish for round 7 were not run (not my role)."]
+}

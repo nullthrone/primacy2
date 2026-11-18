@@ -1,0 +1,145 @@
+{
+  "role": "verify",
+  "date": "2026-11-17",
+  "round": 6,
+  "verdict": "Round 6 stands up to my own measurements. Nothing old moved, the 14 page entries agree with screen.json and prompts6.json, the manifest validates, the pick rule reproduces to 0.005 dB and 0.0006 on all 43 kept files of the three loud families, and a second run of screen.py on copies gives the same picks for round 6 and for round 5. Not clean: the suite of tools/sound has one failing test (known, caused by the 8 g_* sounds of generated.json), the intent line of the two hull_light entries says the prompt was accepted in round 4 when it was accepted in round 5, and RESULTS6.md named only two picks as close to the level threshold when three are (I corrected that text). Hand skips reproduce, with one caveat about the hull count. Nobody listened; nothing here says how anything sounds.",
+  "points": [
+    {
+      "point": "1. Nothing old moved",
+      "holds": "yes",
+      "evidence": "All 165 hashes of assets/audio/rounds/round5.json are in the manifest unchanged (0 missing, 0 changed) and appear in the manifest in the same relative order as in round5.json. The manifest has 187 entries = 165 + 8 with source 'generated' (g_impact_hull_light, _medium, _heavy_a, _heavy_b, g_thruster_pulse_a, _b, _c, g_gear_deploy) + 14 events6. assets/audio/ratings.json is byte-identical to assets/audio/rounds/round5-ratings.json (SHA-256 b41654a8579903a0732245f8ee44bf91bc1364eefb98d1cad5b760d2f5ef4a58). The 17 wavs of render/events5 and the 16 of render/source hash (first 12 hex of sha256) to their manifest entries, and so do the 14 of render/events6 (47 checked, 0 bad); no wav or png in those three folders is without an entry or missing. gen/r5 (117 files and folders) newest file time 2026-11-16 08:12, gen/_kept (182) newest 2026-11-16 23:18; none is newer than 23:30. Before and after my checks the sha256 of every file under gen/r6, gen/r5, render/events6, render/events5, manifest.json and ratings.json (301 files) was identical. Not shown: that the 173 old ids (165 + 8 g_*) were in the manifest with the same hash before this round's publish; render/ and gen/ are gitignored, so there is no earlier copy to compare. The 165 are proven by round5.json; the 8 g_* have no earlier record (generated.json was committed 2026-11-16 23:35, after round 5)."
+    },
+    {
+      "point": "2. Page entries of events6",
+      "holds": "mostly",
+      "evidence": "build.validate_manifest(manifest, render dir) returned []. Categories read events6 ('Ereignisklänge (Runde 6)', correct UTF-8), events5, source, pilot. The 14 ids equal, in order, the 'chosen' list of gen/r6/screen.json and the 'chosen' of every family. For each entry I checked: family number and name, slot, prompt number and seed in the id against prompts6.json and the file name; the prompt text and seed in the intent line against prompts6.json (text is followed by ' duration: 2.0s' or '4.0s' from the family's 'seconds'); the cut in the intent against screen.json (within 0.006 s); family target LUFS; page target and reached page level; share above 60 Hz; the candidate.cut and candidate.listen blocks equal to screen.json; duration, channels (1), gain 1.0, dry false; licence 'generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)'. All 14 agree. The 'proven' sentence: families with proven true (hull_light) say 'rests on a prompt the owner accepted in round 4', the others 'first try'. The hull_light sentence is wrong: the accepted prompt is the wrench prompt, prompt 2 of prompts5.json, accepted as ev5_1_hull_light_1_moss_p2s15 in round 5 (round5-ratings.json 'fits'). The round-4 hull picks used other prompts. publish.py line 100 hard-codes 'round 4'. See mustFix. The role sentences ('most typical candidate of its source' for slot 1, 'A further pick ... farthest' for the others) agree with screen.json 'role'."
+    },
+    {
+      "point": "3. Pick rule notSaturatedNoise",
+      "holds": "yes",
+      "evidence": "I recomputed, with my own code (rms of the loudest 50 ms of the raw cut in dBFS; 2048-sample Hann spectrum, hop 512, channels averaged, frames within 10 dB of the loudest frame, share above 2 kHz), both measures for all 43 kept files of shield_tight, fold_jump and fold_exit. Largest difference to screen.json: 0.005 dB and 0.00056. The same on the whole raw file and with a rectangular window gives the same 14 excluded files. Excluded (loud50 above -9.5 AND share at or above 0.03), 14 of 43: fold_exit 9 (all six of fold_exit_2 s11-s16: -5.14 to -8.20 / 0.045 to 0.107; fold_exit_3 s12, s13, s15), fold_jump 2 (fold_jump_1 s12 -4.41 / 0.136; fold_jump_2 s14 -9.33 / 0.214), shield_tight 3 (shield_tight_1 s15 -7.34 / 0.425; shield_tight_2 s15 -6.27 / 0.031; s16 -5.06 / 0.068). The flag notPickedSaturatedNoise in screen.json equals my set exactly. No pick is an excluded file. No pick is over both thresholds. Pickable files per family (not excluded, not skipped, not low share): shield_tight 5, fold_jump 7, fold_exit 6, each against 3 slots, so no fallback was needed and no note is right to be absent. Picks near the level threshold (noise-like, under -9.5): fold_exit_1 -9.72 (0.22 dB under, share 0.131), fold_jump_1 -9.86 (0.36 dB, 0.483), fold_jump_2 -10.50 (1.0 dB, 0.632), shield_tight_1 -10.94 (1.4 dB, 0.042). RESULTS6.md named only the first and third. Round-5 data, same code: shield_bright_1 s15 -4.40/0.0373, shield_bright_2 s14 -8.25/0.1006, fold_jump_1 s13 -6.95/0.1601, fold_jump_2 s14 -5.44/0.1506 flagged; fold_exit_1 s15 -10.71/0.4176, fold_exit_2 s15 -11.17/0.7965, shield_bright_2 s11 -22.07/0.8649 not flagged. All seven equal the RESULTS6 table to the digits given. The thresholds still rest on four rejected files; shield_bright_1 s15 is 0.0373 against 0.03."
+    },
+    {
+      "point": "4. Every pick: cut, ends, level, peak, length",
+      "holds": "yes",
+      "evidence": "Published wavs, 14 picks. Level by own BS.1770 (tools/audio/synth/levels.py lufs): error to target -0.015 to +0.030 LU (largest +0.030 for ev6_1_hull_light_2); within 0.05 for all 14, limitedByPeak false for all. True peak (4x oversampled): -20.12 to -1.60 dBFS; the highest is ev6_3_shield_tight_3 at -1.60, under the ceiling -1.1. First and last sample: at most 6.1e-05 (-84 dB) at both ends; no flat top (longest run of equal extreme samples 2, rule is 3). Last 50 ms against the loudest 4 ms: 30.0 to 58.0 dB under in the published files (lowest margins fold_jump_1 30.0, thruster_mighty_2 36.2, thruster_mighty_3 36.3, thruster_mighty_1 36.9) and 26.0 to 54.2 on the raw cuts: all at least 20 dB, so none is cut off by the README rule. The three thruster picks and fold_jump_1/fold_exit_1 are cut at the family length (1.5 s, 3.8 s) and have already fallen 26 to 36 dB there. Length 0.12 to 3.81 s: hull 0.48 and 0.66, thruster 1.51, 1.51, 1.51, shield 0.27, 0.92, 0.12, fold 3.81 x3 for jump and exit 3.81, 3.13, 3.75. Second event in the one-event families (hull_light, shield_tight): my region test (10 ms windows, regions within 15 dB of the maximum separated by 80 ms under -25 dB) finds exactly 1 region in all 5 picks, and the 50 ms level never falls under -20 dB and rises above -12 dB again. Caveat: the count of 10 ms envelope peaks within 20 dB does not separate the hull skip from the picks: the two hull picks 6 and 5 on the raw cut (8 and 6 in the published files), the skipped s23 11, and the round-5 file the owner accepted (ev5_1_hull_light_1) 9, the one he called echo-like (ev5_1_hull_light_2) 8. So '11 peaks within 20 dB' in the skip text is not a rule; what sets s23 apart is the second cluster at 0.6 to 0.8 s of a 1.19 s cut. Share above 60 Hz of the cut equals screen.json (hull 100.0 and 94.9, thruster 48.6, 74.2, 95.7, shield 88.8, 50.2, 98.9, fold 85.1, 99.9, 99.9, 99.9, 43.0, 36.8 %); only the two fold_exit picks 2 and 3 and the shield_tight_2 pick are under 60 %, none under the 10 % rule, and shield_tight picks are over the family's 40 % minimum. Content, by measurement only: ev6_2_thruster_mighty_1 (prompt 'single shot') holds about ten separate pulses within 12 dB of its maximum between 0.5 and 1.1 s on a 5 ms envelope, so it is a burst; the family allows several events, but the pick does not answer the single-shot prompt. ev6_3_shield_tight_1 has real steps in its own samples at 0.1905 to 0.1907 s (about 0.03 per sample against a median of 0.0001), the clicks audition-check reported."
+    },
+    {
+      "point": "4b. Hand skips of skips6.json",
+      "holds": "yes, with small differences",
+      "evidence": "All 8 reproduced on the cut stored in screen.json. hull_light_1 s23: cut 1.193 s; 50 ms level -19.4 dB under max at 0.15 s, -12.1 to -11.3 at 0.20 to 0.30 s, -20.0 / -17.8 at 0.60 / 0.70 s; 11 envelope peaks within 20 dB (0.02, 0.13, 0.21, 0.26, 0.31, 0.38, 0.60, 0.65, 0.70, 0.74, 0.78 s). shield_tight_2 s12: 0.121 s, peak 0.999, loudest 50 ms -3.88 dBFS, 84.5 % at 250 to 1000 Hz (Hann spectrum; 91.5 % rectangular), 30.8 % within 25 Hz of 810 Hz, 0.04 % under 250 Hz, dominant 809.9 Hz. fold_jump_3 s12 2.7 % above 60 Hz (rectangular spectrum; 1.7 % with Hann), dominant 22.1 Hz. fold_exit_1 s12 4.4 % above 60 Hz, dominant 22.1 Hz. fold_jump_3 s14 8.7 %. Steady tone: s13 level within 6 dB of its maximum for 2.80 s, s15 2.70 s, s16 2.45 s (50 ms windows); s14 2.35 s; dominant 47.6, 67.1, 35.8 Hz; one 50 Hz band holds 87.0 % (s13), 57.0 % with a Hann spectrum (66.8 % rectangular; s15), 80.9 % (s16); under 60 Hz 84.0 %, 77.5 %. Differences: '98 % under 60 Hz' for fold_jump_3 s12 is 97.3 % on the same spectrum that gives 2.7 % above (98.3 % with Hann); '97 %' for fold_exit_1 s12 is 95.6 % on that spectrum (96.5 % with Hann); '79 % under 60 Hz' for s16 is 77.5 %. These are rounding and window choices; they change no skip. Every kept file of the prompt fold_jump_3 (s12 to s16; s11 was thrown out) is skipped, so that prompt has no pick, as RESULTS6 says. The three s13/s15/s16 skips rest on 'steady tone' judged by level and spectrum only; the envelope of each still has 100 to 130 ripple peaks within 20 dB, so 'steady' is a statement about the 50 ms level, not about modulation."
+    },
+    {
+      "point": "5. RESULTS6.md and README 'Round 6' against my counts",
+      "holds": "mostly",
+      "evidence": "Counts reproduced: 78 raw wavs on disk and 78 items in gen.json (hull_light 6 = 1 prompt x seeds 21 to 26; 4 families x 3 prompts x seeds 11 to 16 = 72), all 48 kHz mono; kept 56 / thrown out 22, all 22 'cut-off' and no other reason; per family hull_light 6/6/0, thruster_mighty 18/7/11, shield_tight 18/13/5 (shield_tight_2 s13, shield_tight_3 s13 to s16), fold_jump 18/14/4 (fold_jump_1 s11 and s15, fold_jump_2 s11, fold_jump_3 s11), fold_exit 18/16/2 (fold_exit_1 s11, fold_exit_3 s11); cut-off at family length 14, at end of file 8; 11 of the 22 are thruster_mighty. Excluded as pressed noise 14 of 43 with the per-family and per-prompt lists and the values quoted. minAbove60Hz kept shield_tight_1 s14 (18.1 %), shield_tight_2 s14 (29.3 %), shield_tight_3 s11 (19.2 %) and s12 (34.9 %) out. The 14-row picks table: id, prompt and seed, cut, length, loud 50 ms, share above 2 kHz, target, reached, above 60 Hz all equal my values. Owner counts of round 5 (5 fit, 2 close, 10 wrong), the accepted five and the quotes agree with round5-ratings.json (his 'Rauscshen' typo is corrected in the quote). Library thruster pulses measure -25.8, -27.2, -28.3 LUFS, so 'sit at -26 to -28' is right. 47 tests now, 43 before (counted in the file at commit a7e1482 and now), 4 new. generated.json was committed 2026-11-16 23:35. README: the setting, the measures, the fallback (lowest loud50Db first, notes, pressedNoiseFallback true) and the commands agree with screen.py and publish.py (--remove exists); the claim that a family without the setting behaves as before holds (point 6). The page numbers (file>page -0.09 to +0.15 dB, all lamp lines unchanged, highest output peak -4.6 dBFS) reproduce (point 7). Wrong sentences found: see wrongSentences; I corrected three in RESULTS6.md."
+    },
+    {
+      "point": "6. Tests and re-runs",
+      "holds": "partly",
+      "evidence": "tools/sound/tests/test_screen.py: 47 tests, 46 pass, 1 fails: test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order (assert order[0] == 'engine_main_t000' and order[1:] == sorted(order[1:]) and len(order) == 17), line 676. Its fake tree gets the 8 g_* ids of the committed generated.json from build.py, so the build order is no longer sorted and no longer 17 (the other agent says 25; I did not count). Not caused by round 6; not fixed; the suite is red. The 4 new tests for the setting pass (test_round_6_run_records_the_measures_and_excludes_pressed_noise, test_saturated_noise_needs_both_and_the_edges_follow_the_brief, test_saturation_measures_on_known_signals, test_round_4_files_have_none_of_the_new_keys). screen.py --prompts-file tools/sound/prompts5.json --device cpu on a COPY of gen/r5 (scratch folder): 17 chosen ids equal gen/r5/screen.json, all 99 file rows and all 17 chosen rows equal apart from paths, families, settings and skips equal, no loud50Db, notPickedSaturatedNoise or pressedNoiseFallback key anywhere. The same with prompts6.json on a COPY of gen/r6: 14 chosen ids equal, all 78 file rows, chosen rows, families, settings and skippedAsPick equal apart from paths (the default skips file for prompts6 is skips6.json, as claimed). Models Whisper and CLAP ran on the processor. Real gen/r5, gen/r6, render and ratings were not written (checksums before and after equal)."
+    },
+    {
+      "point": "7. The page (audition-level --dry)",
+      "holds": "yes",
+      "evidence": "Own vite on port 5440 (packages/client, AUDITION_RATINGS_FILE a new empty file in scratch/verify6/ratings; /audio-lib/ratings-path returned that file), stopped afterwards (taskkill of its process tree; no listener on 5440). node tools/dev/audition-level.mjs <14 ids> --dry: file>page dB per family: hull_light -0.07, -0.07; thruster_mighty -0.09, -0.08, -0.09; shield_tight -0.08, -0.09, +0.15; fold_jump +0.05, +0.02, +0.15; fold_exit -0.08, -0.09, -0.09. So the page passes the level of the file within -0.09 to +0.15 dB, which is the level target of the family: -34 (hull), -28 (thruster), -24 (shield and folds) LUFS own channels. Sounding dBFS: hull -34.8 / -35.1, thruster -27.7 / -27.4 / -28.9, shield -26.0 / -23.1 / -26.3, fold jump -28.9 / -28.8 / -29.5, fold exit -28.1 / -25.0 / -24.0. Peak dBFS highest -4.6 (ev6_3_shield_tight_3, 0.12 s, crest 21.7 dB); every other peak -9.8 or lower; the limiter starts at -2. Overload lamp: the class string was 'unchanged' for all 14 (never lit). RESULTS6 gives -0.10 to +0.15 and hull -0.10 and -0.07; my run gives -0.09 to +0.15 and -0.07, -0.07: run to run the capture differs by up to 0.03 dB. Not run: audition-check.mjs (it writes screenshots into the repository and a long capture), so '48 passed, 0 failed' and '14 faults in files' are not mine; the click steps at 0.19 s of ev6_3_shield_tight_1 are confirmed in the file samples."
+    }
+  ],
+  "mustFix": [
+    {
+      "title": "Intent line of the two hull_light entries names round 4",
+      "detail": "ev6_1_hull_light_1_moss_p1s22 and ev6_1_hull_light_2_moss_p1s21 say 'This family rests on a prompt the owner accepted in round 4.' The wrench prompt was accepted in round 5 (ev5_1_hull_light_1_moss_p2s15, 'fits'). The owner reads this line on the page. The text comes from tools/sound/publish.py line 100 (hard-coded 'round 4') and is stored in render/events6/<id>.json and in manifest.json. Fix: say 'round 5' (or 'an earlier round') in publish.py and republish; the wav hashes do not change, only the two json and the manifest intent. I did not touch it (render/events6 must not change after this check).",
+      "file": "tools/sound/publish.py, assets/audio/render/events6/ev6_1_hull_light_*.json",
+      "fixedByYou": false
+    },
+    {
+      "title": "One test in tools/sound/tests is red",
+      "detail": "test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order fails because tools/audio/build.py adds the 8 g_* sounds of the committed assets/audio/generated.json to its fake tree. Not caused by round 6, but the suite is 46 of 47. The test should either build in a tree without generated.json or count the g_* entries and sort only the part it owns.",
+      "file": "tools/sound/tests/test_screen.py",
+      "fixedByYou": false
+    },
+    {
+      "title": "RESULTS6.md named two picks near the level threshold; three are",
+      "detail": "ev6_4_fold_jump_1 (-9.86 dBFS, share 0.483) is 0.36 dB under the -9.5 threshold and noise-like, closer than ev6_4_fold_jump_2 (1.0 dB). ev6_3_shield_tight_1 (-10.94, 0.042) is 1.4 dB under. I corrected both sentences in RESULTS6.md. The same two-pick wording is in sound6-select-report.json (problems) and in the hand-over summary; those were not changed.",
+      "file": "tools/sound/RESULTS6.md",
+      "fixedByYou": true
+    },
+    {
+      "title": "sound6-select-report.json says 'tests first' and 'not strictly before' in the same file",
+      "detail": "The summary says 'New screen.py setting notSaturatedNoise (tests first: 4 new tests)'; 'problems' says 'The tests were written after the first version of the code, not strictly before it.' The second is the true one. Not changed.",
+      "file": "docs/reports/2026-11-17/sound6-select-report.json",
+      "fixedByYou": false
+    }
+  ],
+  "wrongSentences": [
+    {
+      "file": "assets/audio/render/events6/ev6_1_hull_light_1_moss_p1s22.json (and _2, and the manifest entries)",
+      "sentence": "This family rests on a prompt the owner accepted in round 4.",
+      "right": "This family rests on a prompt the owner accepted in round 5 (the wrench prompt, ev5_1_hull_light_1 s15)."
+    },
+    {
+      "file": "tools/sound/RESULTS6.md (corrected by me)",
+      "sentence": "Two sit close to the edge: ev6_4_fold_jump_2 (-10.50, 0.63) and ev6_5_fold_exit_1 (-9.72, 0.13) are noise-like and 1.0 and 0.2 dB under the level threshold.",
+      "right": "Three sit close to the edge: ev6_4_fold_jump_1 (-9.86, 0.48), ev6_4_fold_jump_2 (-10.50, 0.63) and ev6_5_fold_exit_1 (-9.72, 0.13) are noise-like and 0.4, 1.0 and 0.2 dB under the level threshold; ev6_3_shield_tight_1 (-10.94, 0.042) is noise-like and 1.4 dB under it. The same fix is made in 'What could not be judged'."
+    },
+    {
+      "file": "tools/sound/RESULTS6.md (corrected by me)",
+      "sentence": "shield_tight_1 s12 (pick 3 of the shield, 0.11 s, a tick with 77 % of its energy above 4 kHz and nothing under 250 Hz ...",
+      "right": "... 77 % above 4 kHz and 2 % under 250 Hz (Hann spectrum of the cut; the 0.12 s skip text of shield_tight_2 s12, 'nothing under 250 Hz', is right at 0.04 %)."
+    },
+    {
+      "file": "tools/sound/RESULTS6.md (corrected by me)",
+      "sentence": "fold_exit_1 s13 and s16 (a 41 % and a 65 % band at 47 and 36 Hz, but a clear rise, plateau and fall)",
+      "right": "I could not reproduce 41 % with any 50 Hz band of s13 (best 50 Hz band 88.6 %, fixed bins 0 to 50 Hz 59.5 %); s16 gives 64.7 % (best 50 Hz band, Hann). Text now says an 89 % and a 65 % band, dominant lines at 47 and 36 Hz."
+    },
+    {
+      "file": "tools/sound/skips6.json (not changed)",
+      "sentence": "98 % of the pick ... lies under 60 Hz (fold_jump_3 s12); 97 % ... lies under 60 Hz (fold_exit_1 s12); 79 % of it under 60 Hz (fold_jump_3 s16)",
+      "right": "97.3 %, 95.6 % and 77.5 % on the spectrum that gives the stated 2.7 %, 4.4 % and 22.5 % above 60 Hz (98.3 %, 96.5 % with a Hann window). Rounding only; no skip changes."
+    },
+    {
+      "file": "tools/sound/skips6.json and RESULTS6.md (not changed)",
+      "sentence": "11 separate peaks within 20 dB of the maximum (hull_light_1 s23, offered as the fault)",
+      "right": "The count alone is not the fault: the accepted round-5 hull file has 9 such peaks and the two picks 5 to 8. The fault is the second cluster at 0.6 to 0.8 s (50 ms level -17.8 to -20 dB) after a dip to -27 dB at 0.5 s."
+    },
+    {
+      "file": "docs/reports/2026-11-17/sound6-select-report.json (not changed)",
+      "sentence": "New screen.py setting notSaturatedNoise (tests first: 4 new tests).",
+      "right": "The tests were written after the first version of the code (the same file says so under problems)."
+    }
+  ],
+  "notVerified": [
+    "Nobody listened; no statement about how any file sounds. Whether notSaturatedNoise finds what the owner means by 'uebersteuert' is not shown; it rests on four rejected files.",
+    "That the 8 g_* entries and the 165 others were in the manifest with the same hashes and order before this round's publish: render/ is gitignored, so there is no earlier manifest. Only round5.json (165) and the present files were compared.",
+    "audition-check.mjs was not run (it writes screenshots into the repository and records a long capture): '48 passed, 0 failed, no console errors' and '14 faults in files' are not confirmed; only the click steps in ev6_3_shield_tight_1 were confirmed from the samples.",
+    "The slot choice itself (most typical, then farthest) was not recomputed with my own embedding; it was confirmed only by a second identical run of screen.py (Whisper and CLAP, processor).",
+    "The generation (MOSS) was not repeated; only counts, sample rates, seeds and the file names of the 78 raws were checked. The generate report's timings were not checked.",
+    "Hand-skip review of the other kept files, and of the 3 picks of thruster_mighty, was by levels and spectrum only; no spectrogram image was looked at.",
+    "The failing test: I did not count its 25 entries; I confirmed the assertion that fails and the cause (generated.json g_* ids) only by reading.",
+    "'after four screening runs' (RESULTS6) is not checkable."
+  ],
+ "afterReport": {
+  "by": "orchestrator",
+  "date": "2026-11-17",
+  "note": "Changes made after this report and before the round was shown to the owner. The report above describes the state it was written for.",
+  "changes": [
+   "Third shield pick replaced: ev6_3_shield_tight_3_moss_p1s12 (a 0.11 s tick) is gone, ev6_3_shield_tight_3_moss_p1s16 took the slot. Cause: a ninth hand skip, moss/shield_tight_1__s12 in tools/sound/skips6.json: 3.8 % of its energy under 250 Hz, share above 2 kHz 0.73, loudest 50 ms -22.6 dBFS, the measures of two shields the owner has already rated wrong (the OpenGameArt spark of round 4, the crackle of round 5), while the shields he accepted have 96 to 99 % under 250 Hz.",
+   "The two hull_light entries say 'accepted in round 5' (they said round 4): publish.py reads the family's new key provenRound (default 4), prompts6.json sets it to 5 for hull_light. A rerun of round 5 gives its old text.",
+   "The reason of the hull_light_1 s23 skip names the second cluster of peaks at 0.60 to 0.78 s; the count of peaks alone is no fault.",
+   "tools/sound/tests/test_screen.py: 47 of 47 pass. The three tests that publish into a fake tree point build.GENERATED_LIST at a file that does not exist, so the 8 g_ sounds of the library are not built into them.",
+   "screen.py and publish.py were run once more on the real tree. Manifest: 187 entries, one id changed (the shield pick), no hash of the other 186 changed, same order; the 165 hashes of rounds/round5.json unchanged; every wav on disk has the hash of its entry; assets/audio/ratings.json byte-identical to rounds/round5-ratings.json before and after.",
+   "audition-level.mjs --dry for the 14 ids as they stand (own server, port 5460, stopped): file>page -0.09 to +0.15 dB, highest output peak -9.0 dBFS (ev6_3_shield_tight_3_moss_p1s16), overload lamp unchanged for all 14. audition-check.mjs was not run again.",
+   "Measured with the numbers of the pick rule: the thruster picks 2 and 3 (thruster_mighty_3 s11 and s12) are pressed (-4.54 and -5.77 dBFS) and noise-like (0.057 and 0.061), as the four files the owner called overdriven; pick 1 is pressed (-2.65) and not noise-like (0.010). The family has no rule (0 of 18 raw files under the level threshold) and the picks were left as they are; RESULTS6.md says so."
+  ],
+  "notVerified": [
+   "Nobody listened.",
+   "audition-check.mjs (clicks and clipped samples in what the page plays) was not repeated for ev6_3_shield_tight_3_moss_p1s16."
+  ],
+  "settled": [
+   "mustFix 1 (hull_light intent names round 4): fixed in publish.py (provenRound), republished, the wav hashes did not change.",
+   "mustFix 2 (one red test in tools/sound/tests): fixed, 47 of 47.",
+   "mustFix 4 ('tests first' in the select report): corrected there.",
+   "wrongSentences on skips6.json: the s23 reason is corrected; the three percentages (98, 97, 79 % under 60 Hz) are rounding only and were left."
+  ]
+ }
+}

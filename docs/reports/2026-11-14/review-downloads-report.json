@@ -1,0 +1,115 @@
+{
+  "role": "review-downloads",
+  "findings": [
+    {
+      "id": "nasa-guidelines-overstated",
+      "file": "assets/audio/CREDITS.md",
+      "severity": "medium",
+      "claim": "CREDITS.md and downloads.json present NASA's guidelines as a general permission that covers a commercial game; the page splits NON-COMMERCIAL and COMMERCIAL use and says more than the file reports.",
+      "scenario": "The owner reads 'public domain, credit NASA, do not imply endorsement' and ships the game commercially. On the live page (read today) the sentence 'may use ... without needing explicit permission' sits under the educational / news-outlet text. The COMMERCIAL USE section says NASA imagery 'can be generally used editorially within published works that are not promotional in nature', that clearances may be needed for NASA logos or employees, and that commercial use must not convey endorsement. A game's store page or trailer is promotional. CREDITS.md also omits the NFT/cryptocurrency paragraph and a new 'Super Intelligence (SI) Applications' section (no attribution to NASA for SI products, no insignia). The per-download evidence quotes the sentence three different ways with an ellipsis that removes 'such as texture maps and polygon data in any format'; meaning is kept but it is not a verbatim quote.",
+      "evidence": "curl of https://www.nasa.gov/nasa-brand-center/images-and-media/ stripped to text, lines 364-408; compared with CREDITS.md 'NASA, public domain in general' and the 'Licence evidence per download' list. Artemis page line 355 and 739-764 confirm the quoted 'cleared for use' sentence."
+    },
+    {
+      "id": "speech-not-marked-per-file",
+      "file": "assets/audio/CREDITS.md",
+      "severity": "medium",
+      "claim": "Only selection.json flags speech (15 files). The 470 CREDITS rows and the 52 NASA entries carry no speech marker, and the ISS and Artemis II files involve people NASA's guidelines exclude from commercial use.",
+      "scenario": "Someone copies a file from downloads/ by its CREDITS row. Unselected but speech-bearing files such as nasa-mercury6-god-speed, nasa-mercury7-*, nasa-mercury4-clock-started, nasa-sts-apu-shutdown, nasa-sts-computers-in-control, nasa-sts1-dust-it-off, nasa-apollo11-day03-highlights, nasa-artemis2-integrity-voice-check, nasa-artemis2-good-burn, nasa-artemis2-go-no-go-poll all read 'Public domain (NASA)' with no warning. The two ISS items are June 5, 2026 radio calls to named current NASA astronauts (Chris Williams, Jessica Meir) and capcoms; the guidelines say currently employed astronauts or employees cannot appear in commercial products. downloads.json also says the library items are 'credited to NASA ... in its metadata', but the API record has no credit or rights field at all (only center JSC, title, description, keywords). Speech content of unselected files is inferred from titles only; I did not listen.",
+      "evidence": "selection.json speech flags listed (15 True); CREDITS.md grep for 'speech' finds only the general paragraph and the JFK line; images-api.nasa.gov/search?nasa_id=... for both ISS items printed all metadata keys and descriptions; guidelines text lines 380-383."
+    },
+    {
+      "id": "kenney-licence-text-misquoted",
+      "file": "assets/audio/downloads.json",
+      "severity": "low",
+      "claim": "The Kenney evidence and the sources text say every archive License.txt has the wording 'License: (Creative Commons Zero, CC0)' and allows 'personal, educational and commercial projects'; that is true for 3 of 5 packs.",
+      "scenario": "kenney-digital-audio and kenney-ui-audio License.txt read 'License (Creative Commons Zero, CC0)' (no colon) and 'You may use these assets in personal and commercial projects' (no 'educational'). The licence is still CC0 in all five, so the conclusion stands; the quoted evidence is not exact for two packs.",
+      "evidence": "Read License.txt of all five packs under assets/audio/downloads; the five pack pages fetched today each show 'License / Creative Commons CC0' and the meta tags robots 'noai, noimageai' and tdm-reservation 1, as CREDITS.md says."
+    },
+    {
+      "id": "stored-name-unquote-escape",
+      "file": "tools/audio/fetch.py",
+      "severity": "low",
+      "claim": "stored_name() takes the basename first and URL-decodes afterwards, so an encoded slash or backslash in a non-archive URL becomes a path separator; entry ids are not validated either.",
+      "scenario": "An entry with url .../x%2F..%2F..%2Fescape.mp3 and archive false gives stored_name 'x/../../escape.mp3'; download() would write one level above downloads/<id>/ (and with id '../..' further). I ran stored_name on three such URLs: results resolved to <downloads>/escape.mp3, <id>/escape.mp3 via a backslash form, and <review>/x.mp3 for '..%2f..%2fx.mp3'. Needs an edited downloads.json (owner-controlled), and the SHA-256 must still match, so risk is low; the zip path code has the right checks, this one does not.",
+      "evidence": "Imported fetch.py by file path in a throwaway script (assets/audio/cache/review/attack.py) and called stored_name and entry_dir on crafted entries."
+    },
+    {
+      "id": "zip-mode-filter-skips-silently",
+      "file": "tools/audio/fetch.py",
+      "severity": "low",
+      "claim": "safe_members() treats any external_attr mode without the regular-file type bits as 'symlink, device and the like' and skips it, and nothing reports a zero-file unpack.",
+      "scenario": "A zip written by Python's zipfile (mode 0o600, which I printed) or by other tools that store only permission bits makes every member skipped: unpack() returns 0, verify() uses the same filter so it finds nothing missing, and run_fetch prints 'fetched'. The five Kenney zips are not affected (create_system 0, attr 0, no symlink members), so today's data is complete. A future archive from a different tool would produce an empty entry that looks fine.",
+      "evidence": "attack.py: members written with writestr(name) were all filtered ('ok/fine.ogg' -> []); with external_attr 0o100644<<16 the same member passed and a 0o120777 symlink member was filtered."
+    },
+    {
+      "id": "unpacked-files-checked-by-size-only",
+      "file": "tools/audio/fetch.py",
+      "severity": "low",
+      "claim": "After unpacking, verify() compares only file size; CREDITS.md is built from whatever audio files are on disk, not from the archive listing.",
+      "scenario": "A file in downloads/kenney-*/ replaced by another of equal size, or an extra .ogg dropped into that folder, passes '--check' and gets a 'CC0 1.0 / Kenney' row in CREDITS.md. State today is clean: I recomputed the CRC-32 of all 470 unpacked members against the zips (0 differ), found no file on disk that is not a member, and the 52 non-archive files plus the 5 zips pass SHA-256 via fetch.py --check (57 entries, 0 problems).",
+      "evidence": "assets/audio/cache/review/zipcmp.py (crc-bad 0, extra on disk none for all five packs); fetch.py --check output; fetch.py lines 165-195 and 250-267."
+    },
+    {
+      "id": "redirect-and-scheme-unchecked",
+      "file": "tools/audio/fetch.py",
+      "severity": "low",
+      "claim": "The approved-host rule is applied only to the first URL; redirects are followed by urllib without a host check, and http:// and ftp:// URLs on an approved host are accepted. The host test uses netloc, which a backslash can fool.",
+      "scenario": "If a NASA URL ever redirects to another host (or to ftp), the request goes there; the SHA-256 and byte count still reject different content, so nothing wrong is stored, but the request leaves the approved hosts. resolve_url accepted ftp://www.nasa.gov/x, http://www.nasa.gov/x and r'https://evil.com\\@a.nasa.gov/x' in my test (refused: nasa.gov.evil.com, nasa.gov@evil.com, file:///, port 8080). Today I sent HEAD to all 52 NASA URLs without following redirects: all 200, none redirects. The redirect path itself was not exercised.",
+      "evidence": "attack.py resolve_url cases; head.py HEAD results (52 x 200, Content-Length equals bytes in downloads.json); reading download() which uses urllib.request.urlopen with default redirect handling."
+    },
+    {
+      "id": "disk-rule-partial",
+      "file": "tools/audio/fetch.py",
+      "severity": "low",
+      "claim": "The 10 % free-space rule is real but only an entry-level pre-check on 2x the archive size; unpacked size, leftover .part files and write-time growth are not covered.",
+      "scenario": "disk_ok(extra) refuses when free minus extra falls below 10 % of the disk: I called it on this disk (12.9 % free) at free-5 %, free-11 %, and 1 byte either side of the line and it flipped exactly there. But an archive may unpack to 400 MB while only 2x its compressed size is reserved; a disk-full error during a download is caught per entry, leaves entry.part behind (it is deleted only on size or hash mismatch) and the run goes on. TOTAL_LIMIT sums all entries even when present. For the current 5.9 MB Kenney zips and the largest NASA file (about 82 MB) this does not matter.",
+      "evidence": "attack.py disk_ok boundary run; fetch.py lines 67-71, 101-123, 204-232. Not run: a real disk-full condition."
+    },
+    {
+      "id": "audition-trusts-vite-defaults",
+      "file": "packages/client/dev/auditionPlugin.ts",
+      "severity": "low",
+      "claim": "The plugin has no Origin, Host or Content-Type check of its own; protection against web pages comes from Vite 8's default CORS and host check, which still let any page on localhost, 127.0.0.1 or [::1] at any port read the served files and PUT ratings.json.",
+      "scenario": "On a throwaway Vite 8.3.8 server (127.0.0.1:5251, fake audio tree inside assets/audio/cache/review, the real plugin file): a GET with Origin https://evil.example gets no Access-Control-Allow-Origin, the PUT preflight from that origin gets no allow-origin (so a browser page on another site can neither read nor write); Host: evil.example gets 403 for GET and PUT (DNS rebinding blocked). Origin http://localhost:9999 gets Access-Control-Allow-Origin and an approved PUT preflight, so another local web app (game server on 8420, another dev server) can overwrite ratings.json and read render/ and downloads/. If anyone starts the server with --host (IP-address Hosts are allowed by default), sets server.cors true or allowedHosts true, the LAN or any site can do the same. The launch config does not use --host. Impact is limited to ratings.json (up to 1 MB) and the sound files.",
+      "evidence": "curl runs with Origin and Host headers against the throwaway server; package.json vite ^8.3.8, installed 8.3.8; .claude/launch.json has no --host."
+    },
+    {
+      "id": "audition-put-amplification",
+      "file": "packages/client/dev/auditionPlugin.ts",
+      "severity": "low",
+      "claim": "The 1 MB body limit does not bound the file written: JSON.stringify with indent 2 expands nested input, and there is no schema or atomic write.",
+      "scenario": "A 6 KB body of 1000 nested objects wrote a 2.0 MB ratings.json (about 330x); 9 KB (1500 levels) hit the stack limit and returned 500 without touching the file, so growth is capped at a few MB on this Node 22.14. Any JSON object replaces the owner's ratings. The file is written in place with writeFile (no temp file and rename); eight rounds of two simultaneous 1 MB PUTs always left valid JSON, so I could not show corruption. After 1 MB the handler keeps reading and discarding the stream, so a client that never stops holds the connection; not tested.",
+      "evidence": "PUT runs against the throwaway server, ls -l of the fake ratings.json after each; 2 MB body returned 413; plugin lines 28-40 and 73-90."
+    },
+    {
+      "id": "selection-credit-shortened",
+      "file": "assets/audio/selection.json",
+      "severity": "low",
+      "claim": "selection.json shortens the credit of the EMFISIS chorus file compared with downloads.json (the licence matches everywhere).",
+      "scenario": "n_emfisis_chorus has 'NASA. Courtesy of the EMFISIS team at the University of Iowa'; downloads.json and the NASA page have 'Courtesy of Electric and Magnetic Field Instrument Suite and Integrated Science (EMFISIS) team at the University of Iowa'. A credit screen built from selection.json would use the short form. The other 49 credits and all 50 licences are identical.",
+      "evidence": "consist.py comparison of every selection entry with its downloads.json entry; NASA Historical Sounds page text line 516."
+    }
+  ],
+  "covered": [
+    "Kenney: all five pack pages (fetched today) show License 'Creative Commons CC0'; all five License.txt files read, each CC0 with the creativecommons.org/publicdomain/zero/1.0 link and 'commercial projects'; robots noai and tdm-reservation tags exist as CREDITS.md states.",
+    "NASA source pages: all 50 www.nasa.gov entries are linked on the page named as their pageUrl (anchor text matches the title in downloads.json for the ones with plain anchors; Artemis files found as URLs on the page); the two ISS items were checked through images-api.nasa.gov and are on images-assets.nasa.gov.",
+    "NASA pages quoted by downloads.json: Historical Sounds and Sounds from Beyond say 'For sound file use policy, please see Media Usage Guidelines.'; Artemis page says 'All audio files are free to download and cleared for use in accordance with NASA's media usage guidelines'; the credit lines for Perseverance, Juno, EMFISIS and the plasma recordings equal what downloads.json records; no restriction or copyright mark besides the credits was found on those pages.",
+    "All 52 NASA URLs answer 200 on a HEAD request with no redirect, on www.nasa.gov or images-assets.nasa.gov, and Content-Length equals the bytes in downloads.json.",
+    "Consistency: 480 files on disk = 470 audio + 5 zips + 5 License.txt, no .part files; every audio file has exactly one CREDITS row and every row has a file; every folder belongs to an entry and every entry has a folder; 50 of 50 selection files exist, ids unique, licences equal downloads.json; downloads/ and cache/ are git-ignored.",
+    "fetch.py --check run today: 57 entries, 0 problems. SHA-256 and size are checked before any unpacking in both code paths (download() verifies before os.replace; unpack only after the hash matches).",
+    "zip safety, run on crafted archives: absolute paths, leading backslash, drive letters, 'C:x', '..' in slash and backslash form, empty path parts, 'x:y/z' are all rejected; symlink members are skipped and anyway extraction copies bytes into a regular file; alternate-stream and trailing dot or space names are filtered by the extension rule; NUL, aux and COM1 names unpack as ordinary files on this Windows 11. Nothing downloaded is executed or imported (extensions limited to audio, txt, md, pdf; .url and .exe dropped); the unpacked-size guard uses declared sizes, which zipfile enforces while reading.",
+    "A size mismatch (more or fewer bytes) removes the .part file and fails the entry.",
+    "auditionPlugin GET, run on a throwaway Vite 8.3.8 server: plain, encoded (%2e, %2f, %5c, %252e) and raw backslash traversal, absolute and drive-letter paths, UNC form, NUL byte, a directory request, sibling folder with the same prefix, and two NTFS junctions (render to outside, downloads to a sibling folder) were all refused (403, 400 or 404); realpath check works. Only render/, downloads/ and ratings.json are served.",
+    "PUT: only the path /ratings writes, and only to ratings.json (variants /ratings/, /ratings.json gave 404; /x/../ratings and a query string are normalised by the server to the same target); 2 MB body gives 413; non-object bodies give 400.",
+    "No code, sound or data was copied; I started one server on port 5251 only and stopped it by its own process id; ports 5190, 8420, 8421, 5183 were not touched."
+  ],
+  "notCovered": [
+    "I did not download the Kenney archives again or compare them with the live site; consistency rests on the stored SHA-256 and my CRC check of the unpacked files against the stored zips.",
+    "Per NASA entry only cheap checks were done (link on page, anchor title, third-party credit lines in the page text, HEAD); I did not open each audio file, so speech content and per-file credits of unselected files are inferred from titles and page text.",
+    "I did not exercise a redirect to another host, a real full disk, or a stream that never ends against the plugin.",
+    "Symbolic links were tested with NTFS junctions only (creating symlinks needs a privilege); the plugin uses realpath, which resolves both. Non-Windows behaviour (backslash as a file name character) was not run.",
+    "The throwaway server used a minimal Vite config with only this plugin; the real vite.config.ts adds a proxy for /ws, /api and /fed, which was not run.",
+    "NASA Image and Video Library item pages are a script-driven page; I used images-api.nasa.gov metadata instead of the rendered page.",
+    "No legal review: the reading of NASA's guidelines is a plain reading of the page text, not advice."
+  ]
+}

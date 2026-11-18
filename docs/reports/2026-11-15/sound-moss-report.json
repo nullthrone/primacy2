@@ -1,0 +1,81 @@
+{
+ "role": "sound source moss: MOSS-SoundEffect v2.0",
+ "status": "done",
+ "summary": "All 72 candidates (4 families x 3 prompts x seeds 11-16) exist as raw 48 kHz mono float32 WAV in assets/audio/gen/moss/raw/ with gen.json. Runs on native Windows with the RTX 5080 without compilation (TORCHDYNAMO_DISABLE=1). Same seed gives bit-identical files. Uncontended: 17-18 s per candidate (100 steps, bf16). While a game held the GPU, four candidates took 384-547 s, so seeds 11-13 were made first (the 3-minute rule), then 14-16 when the card was free again.",
+ "licences": {
+  "code": {
+   "url": "https://raw.githubusercontent.com/OpenMOSS/MOSS-TTS/main/LICENSE",
+   "first_line": "Apache License (Version 2.0, January 2004)",
+   "read": "2026-11-15"
+  },
+  "weights": {
+   "url": "https://huggingface.co/api/models/OpenMOSS-Team/MOSS-SoundEffect-v2.0 and https://huggingface.co/OpenMOSS-Team/MOSS-SoundEffect-v2.0/raw/main/README.md",
+   "first_line": "license: apache-2.0 (card metadata; the repository has no LICENSE file, gated=False)",
+   "read": "2026-11-15"
+  },
+  "note": "Training data and output terms are not stated by the makers; the DAC VAE's own licence and the dependency descript-audiotools were not read."
+ },
+ "installed": {
+  "code_repository": "https://github.com/OpenMOSS/MOSS-TTS at commit 934d6826b084c46a0d033402174d5f8ac4ed2519, checkout in .venv-sound/moss/src/MOSS-TTS (not pip-installed; put on sys.path, package moss_soundeffect_v2)",
+  "environment": ".venv-sound/moss/venv, Python 3.12.9, uv 0.11.14",
+  "pins": "torch 2.9.0+cu128, torchaudio 2.9.0+cu128, torchvision 0.24.0+cu128 (PyTorch cu128 index), numpy 1.26.4, transformers 4.57.1, diffusers 0.37.1, descript-audiotools 0.7.2, safetensors 0.7.0, einops 0.8.2, pillow 12.2.0, soundfile 0.13.1, huggingface_hub (unpinned by makers); full list in assets/audio/gen/moss/freeze.txt. gradio, torchcodec, peft, accelerate not installed (not needed by the inference path)."
+ },
+ "downloaded": {
+  "repository": "OpenMOSS-Team/MOSS-SoundEffect-v2.0",
+  "revision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+  "files": "16 files via curl from the pinned revision into assets/audio/gen/moss/model/: transformer/diffusion_pytorch_model.safetensors 5664274560 B, text_encoder 2 safetensors shards 3441185608 + 622329984 B, vae/vae_128d_48k.pth 1486465965 B, tokenizer, configs, README; sizes match the HF API listing",
+  "bytes": "about 11.23e9 (11 GB on disk)",
+  "token": "none, HF_TOKEN unset, no login"
+ },
+ "settings": {
+  "steps": 100,
+  "cfg_scale": 4.0,
+  "sigma_shift": 5.0,
+  "dtype": "bfloat16 (autocast), VAE decode float32",
+  "channels": 1,
+  "sample_rate": 48000,
+  "seconds": "family seconds of prompts.json (hull 3, thruster 2, gear 4, shield 3); the pipeline always denoises a 30 s latent and crops",
+  "text": "prompt as it stands; the makers' pipeline appends ' duration: <s>s' (append_duration_suffix default True), recorded in gen.json text_given",
+  "negative_prompt": "empty",
+  "seed": "torch.Generator('cpu').manual_seed(seed) draws the initial noise; same seed gave bit-identical output (hull_1 s11 generated twice, and a third time with the offload shim, np.array_equal true)",
+  "compile": "disabled with TORCHDYNAMO_DISABLE=1 from the start; no Triton needed"
+ },
+ "sizes": {
+  "environment_GB": 4.9,
+  "files_GB": 11.0,
+  "raw_audio_MB": 40,
+  "free_disk_after": "507 GB free of 1.9 TB (was 543 GB before), above the 200 GB floor"
+ },
+ "safety": {
+  "vae_pickle": "vae_128d_48k.pth read with pickletools before loading: globals are only collections.OrderedDict, torch.FloatStorage, torch._utils._rebuild_tensor_v2 (zip with weights/data.pkl); top-level dict has keys state_dict and metadata (metadata.kwargs plain ints, lists, bools). Loaded with torch.load(weights_only=True) with an EMPTY allow-list (no add_safe_globals), missing=0 unexpected=0 keys.",
+  "patch": "The makers' DAC.load (audiotools BaseModel.load) first tries torch.package and then torch.load without weights_only; adapter replaces DAC.load by a loader with weights_only=True (tools/sound/adapters/moss.py, _safe_dac_load), so neither path runs.",
+  "other_weights": "transformer and text encoder are safetensors; the makers' own load_state_dict_from_bin already uses weights_only=True.",
+  "trust_remote_code": "not used",
+  "telemetry": "searched moss_soundeffect_v2 source and audiotools for analytics/telemetry/posthog/sentry/wandb/requests/urllib: nothing in the inference path. diffusers has hub telemetry only in from_pretrained-style hub utils, not called; HF_HUB_DISABLE_TELEMETRY=1, DISABLE_TELEMETRY=1, DO_NOT_TRACK=1 and HF_HUB_OFFLINE=1 set in the adapter. Network use at run time not measured with a packet capture. tensorboard and protobuf are installed as dependencies of audiotools, not used.",
+  "ports": "none opened"
+ },
+ "problems": [
+  "The GPU was shared with a game (Wow.exe, 4-4.6 GB, owned by the user, not touched). During that time candidates took 384-547 s (hull_1 s11 451 s, thruster_2 s11-s13 547/385/~400 s) versus 17-18 s uncontended; one run stalled for over 6 minutes and I stopped my own worker (the only processes I stopped) twice. To lower memory pressure the adapter now moves the text encoder (4 GB) and the denoiser (5.7 GB) to the CPU when they are not needed (encode, VAE decode) and calls empty_cache per candidate; this changes where weights sit, not the numbers (hull_1 s11 came out bit-identical to the version without it). It did not remove the slowdown; the slowdown ended when the game was gone.",
+  "The first 23 files were made by earlier versions of the adapter (no offload, no empty_cache); outputs are the same by the identity test but their synth_s are not comparable.",
+  "38 of 72 files have a peak of 0.999 or more (max 0.9996, none above 1.0): the model returns near full scale, no clipping measured beyond the peak, adapter does no gain.",
+  "The with_lock wrapper of the first full run was killed when I stopped its worker; the bench lock directory was released correctly each time."
+ ],
+ "notVerified": [
+  "Nothing was listened to; whether any candidate is usable is the owner's.",
+  "Number of samples at the digital ceiling per file was not counted beyond peak.",
+  "Whether the model generalises to the prompts is not judged.",
+  "No network capture to prove absence of run-time calls; offline flags were set.",
+  "Training data, output terms and the DAC licence of the makers are not stated."
+ ],
+ "filesWritten": [
+  "tools/sound/adapters/moss.py",
+  "docs/reports/2026-11-15/sound-moss-report.json",
+  ".venv-sound/moss/ (venv and src/MOSS-TTS checkout, git-ignored)",
+  "assets/audio/gen/moss/model/ (weights, git-ignored)",
+  "assets/audio/gen/moss/raw/*.wav (72)",
+  "assets/audio/gen/moss/gen.json",
+  "assets/audio/gen/moss/freeze.txt",
+  "assets/audio/gen/moss/run*.log (logs)"
+ ],
+ "candidates": "72 raw: hull 18, thruster 18, gear 18, shield 18 (3 prompts x seeds 11-16 each)"
+}

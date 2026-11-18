@@ -1,0 +1,83 @@
+{
+  "role": "review-lib-page",
+  "summary": "Two high-severity defects and several medium ones. (1) The two kept Quindar files are 10 s excerpts that contain NASA flight-controller speech; Whisper read the words back, yet downloads.json says speech none and CREDITS.md says no voices. (2) The build fades every one-shot in over 8 ms whenever its first millisecond is not silent: the Kenney impacts, landings, tick, bong, toggle and door-open have their attack at 0.5 to 3 ms, so the fade removes the transient and the level step then boosts what is left (k_tick_2: +16 dB). Determinism, stereo handling, resampling, the limiter make-up compensation, fade scheduling, tsc, vitest and the Python suites are fine. The audition check can write the owner's ratings file if the vite server was started without the environment variable.",
+  "findings": [
+    {
+      "file": "assets/audio/selection.json (n_quindar_1, n_quindar_2), assets/audio/downloads.json, assets/audio/CREDITS.md",
+      "severity": "high",
+      "defect": "The two Quindar entries are the excerpt [14, 24] s of whole radio recordings and that window contains NASA flight-controller speech. downloads.json marks both speech 'none' and CREDITS.md lists no voices, so the owner's rule 'no NASA radio speech' is broken and the licence record is wrong.",
+      "scenario": "Build the manifest and run tools/audio/listen/transcribe.py on render/downloads/n_quindar_1.wav: 'one two three four five four three two one, enter test. Okay, we checked all four systems ... modulation all four and keying was a go. Roger'. n_quindar_2.wav: 'one, two, three, four, five, four, three, two, one, end of test. ... contact Hawaii ... 100% modulation ... Roger Hawaii'. The owner presses play on the 'radio' rows and hears speech.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "tools/audio/build.py (process_download, FADE_IN_MS / SILENT_EDGE_DB)",
+      "severity": "high",
+      "defect": "The fade-in rule looks only at whether the first millisecond is above -60 dB and then always applies the full 8 ms raised-cosine ramp. Sounds whose clean attack sits inside the first 0.5 to 3 ms (the file simply starts at full level) lose the attack, and the level step runs after the fade, so the remaining soft rise is normalised up to the category peak. The result is a duller sound than the source, which is exactly what the owner rejected.",
+      "scenario": "Run process_download on k_hit_metal_medium_2: peak moves from 0.6 ms to 6.5 ms and 90 % of peak is reached at 6.4 ms instead of 0.5 ms; k_land_metal_light_3: t90 6.9 ms against 0.1 ms; k_door_open_1: t90 6.5 ms against 0.1 ms; k_toggle_1: t90 6.6 ms against 0.9 ms; k_tick_2 (20 ms long): peak 5.1 ms against 0.6 ms and the gain applied is -1.0 dB with the fade against -17.0 dB without it, so a 16 dB boost of the remnant. Also affected: k_hit_metal_heavy_0, k_hit_plate_heavy_1, k_land_plate_medium_0, k_bong_1. The source files start non-silent (first sample about -1 to -5 dB), so some start fade is needed, but its length (8 ms) is longer than the attack itself; 1 to 2 ms would remove the click and keep the transient.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "tools/audio/build.py (process_download, loops) and the engine loop path",
+      "severity": "medium",
+      "defect": "Four download loops are shipped with a hard seam (no crossfade, no fade at the wrap) and flagged 'loop-seam' failed. The engine fades only the start of a loop, so every wrap of these loops clicks.",
+      "scenario": "Manifest checks.loop: n_ingenuity seamRatio 102.33 (edge level diff 1.2 dB, a pure step), n_plasma_hiss seamRatio 2.38 and edge diff 15 dB, n_rover_driving 1.6 and 9.4 dB (first sample 0.039, last 0.045), n_cassini_saturn_1 edge diff 12 dB and level swing 19.5 dB. Looping n_ingenuity (10 s) gives a click every 10 s that the owner will read as crackling.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "tools/dev/audition-check.mjs (lines 21-28, finally block)",
+      "severity": "medium",
+      "defect": "The guard against touching the owner's ratings only compares the environment variable in the check's own shell with the owner's path (case-sensitive string compare after path.resolve). It never asks the server which file it writes. If the vite server was started without AUDITION_RATINGS_FILE (default is assets/audio/ratings.json) while the check's shell has it set, the check passes the guard and its page PUTs go to the owner's file.",
+      "scenario": "Server started with plain 'npx vite'; check run with AUDITION_RATINGS_FILE=scratch.json. The step 'a rating reaches assets/audio/ratings.json' rates manifest.sounds[0] with 4 stars, verdict close, note 'audition-check note' through the page, and the server writes that into the owner's ratings.json (overwriting any rating of that sound); the check then fails on the empty scratch file but the damage is done, and the finally block restores/removes only the scratch file. The same applies to a path that differs from the owner's only in case on Windows. Not run, because it would write the owner's file; read from auditionPlugin.ts line 78 and the guard.",
+      "confirmedByRunning": false
+    },
+    {
+      "file": "packages/client/src/dev/audition/capture.ts (CLICK_STEP, CLICK_RATIO, analyseChannel)",
+      "severity": "medium",
+      "defect": "The click detector has an absolute floor of 0.05 on the sample step, so it can never see a click in a quiet sound, and a relative test (8 times the 99.9th percentile of steps in 50 ms) that cannot fire in dense bright noise. Faults can only be attributed to 'file' where the file has a quarter-size step, which can also hide a page click that happens to coincide with a file step.",
+      "scenario": "A step is at most twice the peak: k_computer_noise_1 (peak -37.3 dBFS = 0.0136) and cabin loops at -45 LUFS (peak about -37 dBFS) give steps of at most 0.027, below 0.05, so a full-scale click inside them is never reported and the check prints '0 caused by the page'. In loud broadband noise (SLS, rover, thrusters) a click needs a step above 8 times the noise's own large steps, which can exceed full scale. Reasoned from the code and the manifest levels; no synthetic click was injected.",
+      "confirmedByRunning": false
+    },
+    {
+      "file": "tools/audio/build.py (DOWNLOAD_TARGETS cabin long) and selection.json",
+      "severity": "medium",
+      "defect": "A cabin one-shot longer than 1.5 s is set to -45 LUFS, the level of the cabin ambience loop bed. Discrete events in that category come out nearly inaudible next to the rendered cabin sounds and the other downloads.",
+      "scenario": "k_computer_noise_1 (5 s one-shot) ends at true peak -37.3 dBFS; n_dinks_donks (10 s, dinks and donks) at peak -23.4 dBFS, both -45 LUFS, while the short cabin one-shot k_tick_2 sits at -16 dBFS peak and radio one-shots at -19.5. At the page's default volume the owner may hear nothing and rate the sound as dead.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "tools/audio/build.py (set_level use) and the manifest field checks.level",
+      "severity": "low",
+      "defect": "n_laser_shots needs more than the 20 dB gain it is given, so the ceiling limits it: it ends at -35.55 LUFS (target -27) with a true peak of -1.05 dBFS, about 15 dB hotter in peak than the other sensor one-shots (-17 to -10 dB) and 8.5 dB quieter in loudness: a few loud snaps over a quiet floor. The manifest says level.gainDb 20.0 although the applied gain is lower after the limiting step.",
+      "scenario": "Read manifest entry n_laser_shots: checks.level {mode lufs, target -27, gainDb 20.0, truePeakDb -1.05, limited true}, lufs -35.55. The snaps will sound like the crackle the owner complained about.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "assets/audio/selection.json (n_sls_test_fire)",
+      "severity": "low",
+      "defect": "A source that the build itself marks as clipped (1362 clipped samples) stays in the library. It is honestly flagged 'source-clipped' (manifest pass false), but the owner will still hear a distorted file in an 'engines' row.",
+      "scenario": "Play n_sls_test_fire: source peak 1.143 with plateaus; the detector counts 1362 samples. No missed clipping elsewhere: a plateau scan at any level over all 35 sources found only low-frequency crest, no further clipped file.",
+      "confirmedByRunning": true
+    },
+    {
+      "file": "tools/dev/audition-check.mjs, step 'the room is audible' (with engine.ts START_LEAD 0.03)",
+      "severity": "low",
+      "defect": "One of two full runs failed this step (tail 0.2985 at Room 0 against 0.1905 at Room 1); the second run passed. The one-second test tone was still sounding when the tail was measured, which fits the start now being at least 30 ms after the call instead of 5 ms. Timing flake, cause not proven.",
+      "scenario": "First run with AUDITION_CAPTURE_ONLY set: FAIL on that step; rerun with AUDITION_CAPTURE=skip: 41 passed, 0 failed.",
+      "confirmedByRunning": true
+    }
+  ],
+  "checksRun": [
+    "git diff 4562e19 of build.py, engine.ts, scenes.ts, sceneRunner.ts, App.tsx, capture.ts, audition-check.mjs, downloads.json, CREDITS.md, selection.json read in full",
+    ".venv-audio python -m unittest tools.audio.tests.test_downloads_build tools.audio.tests.test_fetch: 50 tests OK",
+    "npx tsc -p packages/client --noEmit: no errors; npx vitest run packages/client/src/dev: 9 passed",
+    "Manifest build run twice into scratch folders (build.py --manifest-only --out): all 35 processed wav files byte-identical between runs and identical to assets/audio/render/downloads",
+    "Read back all 35 processed files with numpy: sample rate 48000 everywhere, channels kept (1 or 2), no peak above -1 dBFS, LUFS equal to target for long files, peak equal to target for short ones, durations equal to the excerpts, no NaN",
+    "process_download re-run with and without the 8 ms fade for the nine clean-attack one-shots (attack times and gains quoted above)",
+    "Source-clipping detector compared with a plateau scan at any level over all 35 sources: no miss found, no false positive found",
+    "Whisper (transcribe.py) on all 13 NASA-derived files: speech only in n_quindar_1 and n_quindar_2; the others return silence artefacts ('you', 'Oh')",
+    "selection/downloads.json/CREDITS.md cross-check: 27 entries left, 30 struck were all speech entries, all 5 Kenney packs kept, no voice mark left in downloads.json, every remaining file appears in CREDITS.md except the 5 pack zips and 5 License.txt files, no empty folders",
+    "Audition check run twice on my own vite server (port 5217, scratch ratings file, server stopped afterwards): limiter make-up measured 1.14 dB, a -20 dBFS sine passes with -0.000 dB, a +6 dBFS mix leaves at -1.42 dBFS; Stereo, Mono and Headphones steps, chained passes (butt joint to the sample), thrust crossfade and overload lamp all passed; 41 of 41 passed in the full run without capture",
+    "Engine code read: play() awaits ready (limiter measurement) before scheduling, so nothing sounds with a missing compensation; fade ramps are cancelled by stop(); setGain is only used on loops and groups; no listener or node leak found (injectTone and capture node are created only on request)",
+    "Not verified: listening to anything; the full capture of every sound (about a quarter of an hour); the ratings-file overwrite scenario (would touch the owner's file); a synthetic click injected into a quiet sound to confirm the detector blind spot"
+  ]
+}

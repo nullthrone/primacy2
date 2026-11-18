@@ -1,0 +1,41 @@
+{
+ "note": "Hand skips of round 6, read by screen.py when it is run with --prompts-file tools/sound/prompts6.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips5.json (candidate as source/name, reason). One entry is of another kind and no precedent for hand skips: moss/shield_tight_1__s12 has no plain fault; the orchestrator took it out of the picks because its measures are those of two shields the owner has already rated wrong, so that a slot of three is not spent on them. Its reason says so.",
+ "skips": [
+  {
+   "candidate": "moss/hull_light_1__s23",
+   "reason": "a second event inside a one-event cut: in the 1.19 s cut of the pick ev6_1_hull_light_2_moss_p1s23 the level falls to -19 dB under the maximum at 0.15 s, comes back up to -11 dB at 0.20 s to 0.35 s and again to -18 dB at 0.6 to 0.8 s: a second cluster of peaks at 0.60 s to 0.78 s of the 1.19 s cut, after the knock has died away (the number of peaks alone is no fault: the cut has 11 within 20 dB of the maximum, the hull hit he accepted in round 5 has 9); found in the 50 ms levels and the 10 ms envelope"
+  },
+  {
+   "candidate": "moss/shield_tight_2__s12",
+   "reason": "a tone and not a thump: the whole pick ev6_3_shield_tight_3_moss_p2s12 is a 0.12 s burst at full scale (raw peak 1.00, loudest 50 ms at -3.9 dBFS) with 84 % of its energy at 250 to 1000 Hz, 31 % of it within 25 Hz of 810 Hz, and nothing under 250 Hz; the family asks for a low thump with a brief crackle; found in the spectrum and the 50 ms levels"
+  },
+  {
+   "candidate": "moss/shield_tight_1__s12",
+   "reason": "a tick without the low thump the family asks for, and with the measures of two shields the owner has already rated wrong: the 0.11 s cut of the pick ev6_3_shield_tight_3_moss_p1s12 has 3.8 % of its energy under 250 Hz and 57 % above 4 kHz, the share above 2 kHz in its loud frames is 0.73 and its loudest 50 ms are at -22.6 dBFS. The OpenGameArt spark of round 4 (0.1 % under 250 Hz, share 0.96, -22.7 dBFS, rated wrong) and the crackle of round 5 (3.8 % under 250 Hz, share 0.87, -22.1 dBFS, 'klingt wie ein Knistern eines kaputten Kabels') measure the same; the two shields he accepted have 96 to 99 % of their energy under 250 Hz. One of three slots is not spent on measures he has turned down twice; found in the spectrum and the 50 ms levels of the raw cut, added by the orchestrator on 2026-11-17 before the round was shown to him"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s12",
+   "reason": "under 10 % of the energy above 60 Hz (2.7 %): 98 % of the pick ev6_4_fold_jump_2_moss_p3s12 lies under 60 Hz (dominant 22 Hz), which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_exit_1__s12",
+   "reason": "under 10 % of the energy above 60 Hz (4.4 %): 97 % of the pick ev6_5_fold_exit_2_moss_p1s12 lies under 60 Hz (dominant 22 Hz), which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s15",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_3_moss_p3s15 the level stays within 6 dB of its maximum for 2.70 s, and one 50 Hz band (dominant 67 Hz) holds 57 % of the energy; no onset and no end shape beyond a slow fall; found in the 50 ms levels and the spectrum"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s16",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_2_moss_p3s16 the level stays within 6 dB of its maximum for 2.45 s, and one 50 Hz band (dominant 36 Hz) holds 82 % of the energy, 79 % of it under 60 Hz; found in the 50 ms levels and the spectrum"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s14",
+   "reason": "under 10 % of the energy above 60 Hz (8.7 %): the pick ev6_4_fold_jump_2_moss_p3s14 lies almost entirely under 60 Hz, which plays as silence on most loudspeakers; found in energyAbove60Hz of screen.json"
+  },
+  {
+   "candidate": "moss/fold_jump_3__s13",
+   "reason": "a steady tone instead of an event: in the 3.8 s cut of the pick ev6_4_fold_jump_2_moss_p3s13 the level stays within 6 dB of its maximum for 2.80 s of the 3.8 s (no onset, a slow fall at the end), one 50 Hz band (dominant 48 Hz) holds 86 % of the energy and 84 % lies under 60 Hz; found in the 50 ms levels and the spectrum"
+  }
+ ]
+}

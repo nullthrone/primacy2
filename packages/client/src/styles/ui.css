@@ -1,0 +1,401 @@
+:root {
+  --cyan: #7fe9ff;
+  --amber: #ffb347;
+  --red: #ff4d6d;
+  --green: #7dffa8;
+  --ink: #dff4ff;
+  --dim: rgba(190, 220, 240, 0.62);
+  --glass: rgba(6, 14, 28, 0.82);
+  --line: rgba(127, 233, 255, 0.28);
+  --u: clamp(11px, 0.85vw, 17px);
+}
+
+#ui {
+  font: 500 calc(var(--u) * 1.15) / 1.35 'Rajdhani', 'Segoe UI', sans-serif;
+  color: var(--ink);
+  pointer-events: none;
+  user-select: none;
+}
+#ui button, #ui input, #ui select, #ui a, #ui .panel, #ui .start-card, #ui .backdrop, #ui .chat.open { pointer-events: auto; }
+#ui code, #ui .num, #ui input[type='number'], .speed, .dim.mono { font-family: 'Share Tech Mono', ui-monospace, monospace; }
+#ui .dim { color: var(--dim); }
+#ui .small { font-size: 0.85em; }
+#ui .ok { color: var(--green); }
+#ui .bad { color: var(--red); margin: 0.4em 0; }
+#ui h1, #ui h2, #ui h3, #ui h4 { margin: 0; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+#ui a { color: var(--cyan); }
+
+#ui button {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(127, 233, 255, 0.08);
+  border: 1px solid var(--line);
+  padding: 0.35em 0.9em;
+  cursor: pointer;
+  clip-path: polygon(0.5em 0, 100% 0, 100% calc(100% - 0.5em), calc(100% - 0.5em) 100%, 0 100%, 0 0.5em);
+  transition: background 0.12s, border-color 0.12s;
+}
+#ui button:hover:not(:disabled) { background: rgba(127, 233, 255, 0.2); border-color: var(--cyan); }
+#ui button:disabled { opacity: 0.4; cursor: default; }
+#ui button.primary { background: rgba(127, 233, 255, 0.22); border-color: var(--cyan); color: #fff; }
+#ui button.danger { border-color: rgba(255, 77, 109, 0.6); color: var(--red); }
+#ui button.on { background: rgba(127, 233, 255, 0.28); border-color: var(--cyan); }
+#ui input, #ui select {
+  font: inherit;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+  padding: 0.3em 0.5em;
+  min-width: 0;
+}
+#ui input:focus, #ui select:focus, #ui button:focus-visible { outline: 1px solid var(--cyan); }
+#ui .row { display: flex; gap: 0.5em; align-items: center; }
+#ui .row.wrap { flex-wrap: wrap; }
+#ui .stack { display: flex; flex-direction: column; gap: 0.5em; align-items: flex-start; }
+#ui .scroll { overflow: auto; max-height: 62vh; padding-right: 0.3em; }
+#ui .market-scroll { max-height: 46vh; }
+
+/* Start screen */
+.start { position: absolute; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 40%, rgba(3, 8, 18, 0.25), rgba(3, 6, 12, 0.8)); pointer-events: auto; overflow: auto; }
+.start-card { width: min(34em, 92vw); padding: 2em 2.2em; background: var(--glass); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 0.8em; backdrop-filter: blur(6px); }
+.start-card h1 { font-size: 3.2em; letter-spacing: 0.22em; color: var(--cyan); text-shadow: 0 0 24px rgba(127, 233, 255, 0.45); }
+.start-card .tagline { margin: -0.6em 0 0.6em; color: var(--dim); letter-spacing: 0.06em; }
+.start-card label, .settings label { display: flex; flex-direction: column; gap: 0.2em; color: var(--dim); }
+.start-card .primary { font-size: 1.25em; padding: 0.5em; }
+.tabs { display: flex; gap: 0.4em; flex-wrap: wrap; }
+.settings { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6em 1em; }
+.settings label.check { flex-direction: row; align-items: center; gap: 0.5em; color: var(--ink); }
+.controls { display: flex; flex-direction: column; gap: 0.25em; font-size: 0.95em; }
+.identity { display: flex; flex-direction: column; gap: 0.5em; }
+.identity .secret { word-break: break-all; color: var(--amber); user-select: text; }
+.identity input { flex: 1; }
+.identity p { margin: 0; }
+
+/* Panels */
+.backdrop { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(2, 5, 10, 0.55); }
+/* A panel that is taller than a low view (a phone held sideways) scrolls inside itself. */
+.panel { background: var(--glass); border: 1px solid var(--line); padding: 1.2em 1.4em; display: flex; flex-direction: column; gap: 0.8em; max-height: 90vh; overflow: auto; backdrop-filter: blur(6px); }
+.panel.wide { width: min(70em, 94vw); }
+.panel.narrow { width: min(36em, 94vw); }
+.panel header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1em; border-bottom: 1px solid var(--line); padding-bottom: 0.6em; }
+.panel h2 { color: var(--cyan); font-size: 1.5em; }
+.panel .credits { color: var(--amber); font-family: 'Share Tech Mono', monospace; }
+.panel table { width: 100%; border-collapse: collapse; }
+.panel th { text-align: left; color: var(--dim); font-weight: 600; padding: 0.25em 0.5em; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; background: #07101f; }
+.panel td { padding: 0.2em 0.5em; border-bottom: 1px solid rgba(127, 233, 255, 0.08); }
+.panel td.num { text-align: right; }
+.panel tr.held td:first-child { color: var(--green); }
+.panel td input { width: 4.5em; }
+.slot { border-left: 2px solid var(--line); padding: 0.4em 0.8em; margin-bottom: 0.6em; display: flex; flex-direction: column; gap: 0.3em; align-items: flex-start; }
+.list { display: flex; flex-direction: column; gap: 0.25em; }
+#ui .list button { display: grid; grid-template-columns: 1.4fr 1fr auto; gap: 0.8em; text-align: left; clip-path: none; }
+.map-body { display: grid; grid-template-columns: 1fr 21em; gap: 1em; min-height: 0; }
+.map-body canvas { width: 100%; height: 64vh; background: radial-gradient(circle at 50% 50%, #081425, #03070e); border: 1px solid var(--line); cursor: grab; }
+.map-body aside { display: flex; flex-direction: column; gap: 0.6em; max-height: 64vh; overflow: auto; padding-right: 0.3em; }
+
+/* Trade between sectors. One colour per meaning in every panel and on the map:
+   green passes freely, cyan trades within limits, amber has no value here, red does not enter. */
+#ui .caution { color: var(--amber); }
+.chip { display: inline-block; padding: 0 0.5em; border: 1px solid currentColor; font-size: 0.82em; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+.chip.union, .chip.free { color: var(--green); }
+.chip.partner, .chip.import { color: var(--cyan); }
+.chip.visitor, .chip.sealed, .chip.bound { color: var(--amber); }
+.chip.blocked { color: var(--red); }
+.origins h4, .untraded h4, .forecast h4, .sectors h4 { font-size: 0.8em; color: var(--dim); }
+
+/* Market: import licence gauge and the origins of foreign cargo side by side above the table. */
+.customs { display: grid; grid-template-columns: minmax(18em, 2fr) 3fr; gap: 0.6em 1.6em; align-items: start; padding: 0.2em 0 0.8em; }
+.licence { display: flex; flex-direction: column; gap: 0.25em; }
+.licence-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.1em 1em; letter-spacing: 0.06em; }
+.licence-head > * { white-space: nowrap; }
+.gauge { display: block; height: 0.55em; background: rgba(127, 233, 255, 0.12); border: 1px solid rgba(127, 233, 255, 0.25); }
+.gauge-fill { display: block; height: 100%; background: var(--cyan); }
+/* No licence yet: an outline only. Licence used up: the empty track turns amber. */
+.gauge.none { border-style: dashed; }
+.gauge.spent { border-color: var(--amber); background: rgba(255, 179, 71, 0.12); }
+.origins { display: flex; flex-direction: column; gap: 0.25em; }
+.panel .origins th { position: static; background: none; }
+/* Foreign lots stand under their commodity; the row above drops its rule so the two read as one. */
+.panel tr.has-lots td { border-bottom: none; }
+.panel tr.lots td { padding: 0 0.5em 0.4em 1.6em; }
+.lot-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1em 0.7em; font-size: 0.9em; }
+.untraded { display: flex; flex-direction: column; gap: 0.3em; margin-top: 0.8em; padding: 0.4em 0.8em; border-left: 2px solid var(--line); }
+.sale-note { padding: 0.3em 0.8em; border-left: 2px solid currentColor; }
+.bound-note { margin: 0 0 0.6em; padding: 0.3em 0.8em; border-left: 2px solid var(--amber); color: var(--dim); font-size: 0.9em; }
+.slot.bound-ship { border-left-color: var(--amber); }
+
+/* Galaxy map: relation of the selected sector, what a jump there does, and the list of sectors. */
+.relation { display: flex; flex-direction: column; gap: 0.25em; align-self: stretch; }
+.forecast { display: flex; flex-direction: column; gap: 0.3em; align-self: stretch; padding: 0.4em 0.7em; border-left: 2px solid var(--amber); font-size: 0.9em; line-height: 1.25; }
+.forecast.free { border-left-color: var(--green); }
+.sectors { display: flex; flex-direction: column; gap: 0.45em; margin-top: auto; padding-top: 0.6em; border-top: 1px solid var(--line); }
+.sector-row .row { justify-content: space-between; }
+
+/* HUD */
+.hud { position: absolute; inset: 0; overflow: hidden; text-shadow: 0 0 6px rgba(0, 0, 0, 0.9), 0 0 2px #000; }
+.reticle { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; border: 1px solid rgba(127, 233, 255, 0.75); border-radius: 50%; }
+.reticle::after { content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px; background: var(--cyan); border-radius: 50%; }
+.velocity { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border: 1px solid var(--green); transform-origin: 0 0; rotate: 45deg; opacity: 0.8; }
+.marker { position: absolute; left: 0; top: 0; white-space: nowrap; }
+.marker-glyph { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border: 1px solid var(--cyan); rotate: 45deg; opacity: 0.75; }
+.marker-text { position: absolute; left: 14px; top: -0.7em; font-size: 0.92em; }
+.marker-text em { display: block; font-style: normal; color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 0.9em; }
+.marker.nav .marker-glyph { border-color: var(--amber); border-width: 2px; opacity: 1; width: 16px; height: 16px; left: -8px; top: -8px; }
+.marker.nav .marker-text { color: var(--amber); }
+.marker.body .marker-glyph { border-radius: 50%; rotate: none; opacity: 0.5; }
+.marker.ent .marker-glyph { rotate: none; width: 10px; height: 10px; left: -5px; top: -5px; border-color: rgba(220, 240, 255, 0.8); }
+.marker.ent.pilot .marker-glyph { border-color: var(--green); }
+.marker.ent.hostile .marker-glyph { border-color: var(--red); }
+.marker.ent.loot .marker-glyph { border-color: var(--amber); width: 6px; height: 6px; left: -3px; top: -3px; }
+.marker.ent.target .marker-glyph { width: 34px; height: 34px; left: -17px; top: -17px; border-width: 2px; }
+.marker.ent.target .marker-text { left: 24px; }
+
+.hud-block { position: absolute; display: flex; flex-direction: column; gap: 0.3em; }
+.hud-left { left: 2vw; bottom: 3vh; width: 15em; }
+.hud-right { right: 2vw; top: 3vh; width: 15em; align-items: stretch; }
+.hud-topleft { left: 2vw; top: 3vh; }
+.hud-centre { left: 50%; bottom: 3vh; transform: translateX(-50%); align-items: center; text-align: center; min-width: 18em; }
+.hud .big { font-size: 1.3em; font-weight: 700; letter-spacing: 0.05em; }
+.bar { display: grid; grid-template-columns: 4.6em 1fr; align-items: center; gap: 0.5em; font-size: 0.9em; letter-spacing: 0.08em; }
+.bar-track { display: block; height: 0.5em; background: rgba(127, 233, 255, 0.12); border: 1px solid rgba(127, 233, 255, 0.25); }
+.bar-fill { display: block; height: 100%; background: var(--cyan); }
+.bar.hull .bar-fill { background: #e9f2f7; }
+.bar.energy .bar-fill { background: #b79bff; }
+.bar.heat .bar-fill { background: var(--amber); }
+.bar.fuel .bar-fill { background: var(--green); }
+.bar.warn .bar-fill { background: var(--red); }
+.bar.warn .bar-label { color: var(--red); }
+.bar.salvage .bar-fill { background: var(--amber); }
+/* Shields switched off by silent running. */
+.bar.offline .bar-label { color: var(--dim); }
+.bar.offline .bar-track { border-style: dashed; }
+/* Heat that cannot be shed: the fill is striped and the stripes drift toward the limit. */
+.bar.heat.rising .bar-track { border-color: var(--amber); }
+.bar.heat.rising .bar-fill { --c: var(--amber); background: repeating-linear-gradient(90deg, var(--c) 0 0.4em, color-mix(in srgb, var(--c) 55%, #fff) 0.4em 0.8em); background-size: 0.8em 100%; animation: heat-rise 1.6s linear infinite; }
+.bar.heat.rising.warn .bar-track { border-color: var(--red); }
+.bar.heat.rising.warn .bar-fill { --c: var(--red); }
+/* The power block stands beside the status bars; both use rows of one fixed height so they line up. */
+.hud-left .bar, .side-row { height: 1.35em; line-height: 1.35; }
+.hud-power { left: calc(2vw + 16.2em); bottom: 3vh; white-space: nowrap; }
+.side-row { display: flex; align-items: center; gap: 0.6em; font-size: 0.9em; letter-spacing: 0.08em; }
+.pip-label { width: 2.4em; }
+.pip-track { display: flex; gap: 0.22em; }
+.pip { width: 1.15em; height: 0.56em; border: 1px solid rgba(127, 233, 255, 0.4); background: rgba(127, 233, 255, 0.08); }
+.pip.full { background: var(--cyan); border-color: var(--cyan); }
+.pip.half { background: linear-gradient(90deg, var(--cyan) 50%, rgba(127, 233, 255, 0.08) 50%); border-color: var(--cyan); }
+.pip-key { color: var(--dim); font-family: 'Share Tech Mono', ui-monospace, monospace; }
+.heat-note { color: var(--amber); }
+.heat-note.hot { color: var(--red); }
+.heat-row .num { min-width: 3em; text-align: right; color: var(--dim); }
+.heat-row.rising, .heat-row.rising .num { color: var(--amber); }
+.heat-row.hot, .heat-row.hot .num { color: var(--red); }
+.silent-tag { padding: 0 0.5em; border: 1px solid var(--cyan); background: var(--glass); color: var(--cyan); }
+.sig-row { color: var(--dim); }
+.sig-row.low { color: var(--cyan); }
+.speed { font-size: 2em; color: #fff; }
+.throttle { width: 100%; height: 0.35em; background: rgba(127, 233, 255, 0.14); }
+.throttle span { display: block; height: 100%; background: var(--cyan); }
+.throttle span.rev { background: var(--amber); margin-left: auto; }
+.mode { display: flex; gap: 1em; justify-content: center; align-items: baseline; letter-spacing: 0.12em; font-size: 0.95em; }
+.mode .off { color: var(--amber); }
+.mode .on { color: var(--dim); }
+.charge { width: 100%; display: flex; flex-direction: column; gap: 0.2em; color: var(--amber); letter-spacing: 0.1em; }
+.prompt { margin-top: 0.3em; padding: 0.2em 0.9em; border: 1px solid var(--line); background: var(--glass); color: var(--cyan); }
+/* Ground instruments around the speed readout: height, sink rate and ground speed in a row above
+   it, and with a landing near the slope to its left and the tilt to its right. The columns have
+   fixed widths and the numbers are in the monospaced face, so a changing digit moves nothing, and
+   the cluster is narrow enough to stay clear of the chat and the power display at 1280 px. The
+   bars below keep their own width. */
+.hud-centre .throttle, .hud-centre .charge { width: 18em; }
+/* Near a landable body the ground fills the lower half of the view and can be sunlit: the centre
+   block then stands on a dark plate, like the prompts and the target panel do. */
+.hud-centre.over-ground { padding: 0.5em 1em; background: rgba(6, 14, 28, 0.72); }
+.ground { display: grid; grid-template-columns: 9.2em 8em 9.2em; column-gap: 0.8em; justify-content: center; margin-bottom: 0.2em; white-space: nowrap; }
+.speed-row { display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 0.8em; align-items: end; width: 100%; white-space: nowrap; }
+.ground-cell { display: flex; flex-direction: column; align-items: center; }
+.ground-cell .label { font-size: 0.8em; letter-spacing: 0.08em; color: var(--dim); }
+.ground-cell .num { font-size: 1.1em; color: #fff; }
+.ground-cell .limit { color: var(--dim); }
+/* A landing limit that is exceeded right now: the cell and the line that names it turn red. Until then both stay calm. */
+.ground-cell.over .label, .ground-cell.over .num { color: var(--red); }
+.landing-over { color: var(--red); font-weight: 700; letter-spacing: 0.14em; }
+.mode .landed { padding: 0 0.7em; border: 1px solid var(--cyan); background: var(--glass); color: var(--cyan); font-size: 1.15em; font-weight: 700; }
+.gravity-note { color: var(--amber); letter-spacing: 0.08em; }
+.panel-mini { background: rgba(6, 14, 28, 0.55); border-left: 2px solid var(--cyan); padding: 0.5em 0.8em; display: flex; flex-direction: column; gap: 0.15em; }
+.panel-mini h4 { font-size: 0.8em; color: var(--dim); }
+.panel-mini .tag { color: var(--amber); letter-spacing: 0.15em; }
+.panel-mini .hint { font-size: 0.88em; white-space: nowrap; }
+.marker.ent.wreck .marker-glyph { border-style: dashed; border-color: var(--amber); }
+.wanted { color: var(--red); letter-spacing: 0.15em; }
+.insurance { display: flex; flex-direction: column; gap: 0.3em; min-width: 24em; max-width: 34em; padding: 0.8em 1.2em; background: var(--glass); border: 1px solid var(--line); }
+.insurance .ins-row { display: flex; justify-content: space-between; gap: 2em; letter-spacing: 0.06em; }
+.insurance .ins-row b { font-family: 'Share Tech Mono', ui-monospace, monospace; font-weight: 400; }
+.insurance p { margin: 0.3em 0 0; }
+.insurance .short { color: var(--amber); }
+.insurance-note { margin-top: 0.4em; padding-top: 0.6em; border-top: 1px solid var(--line); }
+.warnings { position: absolute; left: 50%; top: 22vh; transform: translateX(-50%); text-align: center; color: var(--red); font-size: 1.3em; font-weight: 700; letter-spacing: 0.18em; animation: pulse 1s infinite; }
+/* Notices lie above open panels (the z-index lifts them over the backdrop) and wrap instead of running off the screen. */
+.notices { position: absolute; left: 50%; top: 4vh; z-index: 5; transform: translateX(-50%); width: max-content; max-width: 92vw; display: flex; flex-direction: column; gap: 0.3em; align-items: center; }
+.notice { max-width: min(46em, 92vw); padding: 0.25em 1em; background: var(--glass); border: 1px solid var(--line); text-align: center; }
+.notice.warn { border-color: var(--amber); color: var(--amber); }
+.notice.danger { border-color: var(--red); color: var(--red); }
+.notice-head { display: block; font-size: 0.82em; font-weight: 700; letter-spacing: 0.16em; }
+/* The customs report after arriving in a sector: several full sentences, so it reads left to right. */
+.notice.customs-report { display: flex; flex-direction: column; gap: 0.25em; padding: 0.5em 1em; border-color: var(--amber); text-align: left; }
+.customs-report .notice-head { color: var(--amber); }
+.customs-line { display: flex; gap: 1em; color: var(--amber); font-size: 0.9em; letter-spacing: 0.1em; }
+#ui button.capture { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); font-size: 1.2em; background: var(--glass); }
+/* The controls worth naming, in the corner: a key cap and a word each, in two columns, so that a
+   controller's longer names ("Y+View") read as well as single keys. */
+.keys { position: absolute; right: 2vw; bottom: 2vh; font-size: 0.82em; color: var(--dim); text-align: right; }
+.keys-grid { display: grid; grid-template-columns: auto auto; justify-content: end; column-gap: 1.2em; row-gap: 0.25em; text-align: left; }
+.key-item { white-space: nowrap; }
+.keys-note { margin-bottom: 0.3em; }
+.overlay-text { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 1em; align-items: center; justify-content: center; pointer-events: none; }
+.overlay-text h2 { font-size: 2.2em; color: var(--cyan); letter-spacing: 0.2em; }
+.overlay-text.dead { background: rgba(30, 0, 8, 0.45); }
+.overlay-text.dead h2 { color: var(--red); }
+.chat { position: absolute; left: 2vw; bottom: calc(3vh + 9.5em); width: min(30em, 40vw); display: flex; flex-direction: column; gap: 0.15em; font-size: 0.95em; }
+.chat-line { background: rgba(6, 14, 28, 0.4); padding: 0 0.4em; overflow-wrap: anywhere; }
+.chat-ch { color: var(--dim); margin-right: 0.4em; font-size: 0.85em; text-transform: uppercase; }
+.chat-form { display: flex; gap: 0.3em; }
+.chat-form input { flex: 1; }
+
+@keyframes pulse { 50% { opacity: 0.45; } }
+@keyframes heat-rise { to { background-position-x: 0.8em; } }
+@media (prefers-reduced-motion: reduce) { .warnings, .bar.heat.rising .bar-fill { animation: none; } }
+/* A narrow view has no room for full-width status bars beside the power display and the speed readout. */
+@media (max-width: 900px) { .hud-left { width: 11em; } .hud-power { left: calc(2vw + 12.2em); } .pip-key { display: none; } }
+@media (max-width: 900px) { .map-body { grid-template-columns: 1fr; } .map-body aside { max-height: none; } .settings { grid-template-columns: 1fr; } .customs { grid-template-columns: 1fr; } }
+
+/* Controller binding screen */
+.settings .span-all { grid-column: 1 / -1; }
+.start-card.wide { width: min(58em, 94vw); max-height: 92vh; overflow: auto; }
+.panel.wide:has(.bindings) { overflow: auto; }
+.bindings { display: flex; flex-direction: column; gap: 0.5em; }
+.bindings h3, .bindings h4 { color: var(--cyan); }
+.bindings h4 { font-size: 0.85em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); margin-top: 0.6em; }
+.bindings .row.between { justify-content: space-between; }
+.bindings .small { font-size: 0.85em; margin: 0; }
+.bindings .device { display: flex; justify-content: space-between; gap: 1em; border-left: 2px solid var(--line); padding: 0.15em 0.8em; }
+.bindings .listen { border-left: 2px solid var(--amber); padding: 0.3em 0.8em; color: var(--amber); }
+.bind-table { width: 100%; border-collapse: collapse; }
+.bind-table th { text-align: left; color: var(--dim); font-weight: 600; padding: 0.2em 0.5em; border-bottom: 1px solid var(--line); }
+.bind-table td { padding: 0.15em 0.5em; border-bottom: 1px solid rgba(127, 233, 255, 0.08); }
+.bind-table tr.listening td { background: rgba(255, 179, 71, 0.1); color: var(--amber); }
+.bind-table td.acts { display: flex; gap: 0.4em; justify-content: flex-end; }
+.bindings .slider { display: flex; flex-direction: column; gap: 0.1em; color: var(--dim); min-width: 9em; }
+.bindings .check { display: flex; flex-direction: row; align-items: center; gap: 0.4em; }
+.axis-block { display: flex; flex-direction: column; gap: 0.3em; padding: 0.4em 0.8em; border-left: 2px solid var(--line); }
+.axis-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6em 1em; }
+.axis-row .axis-name { min-width: 11em; color: var(--dim); }
+.meter { position: relative; flex: 0 0 9em; height: 0.7em; background: rgba(127, 233, 255, 0.08); border: 1px solid var(--line); }
+.meter::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line); }
+.meter i { position: absolute; top: 0; bottom: 0; background: var(--cyan); }
+
+/* Controller navigation: a mark of our own, because :focus-visible does not follow script focus reliably. */
+[data-device="pad"] #ui .padfocus { outline: 2px solid var(--amber); outline-offset: 2px; box-shadow: 0 0 12px rgba(255, 179, 71, 0.45); }
+/* Buttons are cut to their chamfered shape by a clip-path, which also cuts away an outline and an
+   outer glow. Their mark is drawn inside the shape instead: an amber frame, a warm fill and amber
+   text, so that the focused button reads at a glance among its neighbours. */
+[data-device="pad"] #ui button.padfocus {
+  box-shadow: inset 0 0 0 2px var(--amber), inset 0 0 1.1em rgba(255, 179, 71, 0.4);
+  background-color: rgba(255, 179, 71, 0.16);
+  color: var(--amber);
+}
+.sys-pick { display: flex; flex-direction: column; gap: 0.3em; }
+.sys-pick h4 { font-size: 0.8em; color: var(--dim); }
+#ui .sys-list { max-height: 14em; }
+
+/* Direction indicators. Whatever matters and is off screen has an arrow on an ellipse around the
+   middle of the view, clear of the HUD blocks in the corners: small ones for every place to dock
+   and every gate, a large one for the chosen place (amber) and for the locked ship. */
+.edge { position: absolute; left: 0; top: 0; white-space: nowrap; color: var(--cyan); }
+.edge-glyph { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 2.2; opacity: 0.85; }
+.edge-glyph .tail { stroke-width: 1.6; opacity: 0.7; }
+.edge.big .edge-glyph { left: -14px; top: -14px; width: 28px; height: 28px; opacity: 1; }
+.edge-text { position: absolute; top: -1.2em; font-size: 0.85em; line-height: 1.2; color: var(--ink); opacity: 0.85; }
+.edge-text em { display: block; font-style: normal; font-weight: 500; color: var(--dim); font-family: 'Share Tech Mono', monospace; font-size: 0.82em; }
+.edge.right .edge-text { left: 14px; }
+.edge.left .edge-text { right: 14px; text-align: right; }
+.edge.big .edge-text { font-size: 1em; font-weight: 600; color: inherit; opacity: 1; }
+.edge.big.right .edge-text { left: 20px; }
+.edge.big.left .edge-text { right: 20px; }
+.edge.nav { color: var(--amber); }
+.edge.npc, .edge.wreck, .edge.loot { color: var(--ink); }
+.edge.pilot { color: var(--green); }
+.edge.hostile { color: var(--red); }
+/* The compass stands to the left of the speed readout: one dot per chosen target, filled when it
+   lies ahead and hollow when it lies behind, the middle being dead ahead (or dead astern). */
+.speed-row { position: relative; }
+.compass { position: absolute; right: calc(100% + 1em); top: 50%; width: 3.4em; height: 3.4em; margin-top: -1.7em; border: 1px solid rgba(127, 233, 255, 0.55); border-radius: 50%; background: rgba(6, 14, 28, 0.55); }
+.compass::before, .compass::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(127, 233, 255, 0.55); }
+.compass::before { width: 0.5em; height: 1px; margin-left: -0.25em; }
+.compass::after { width: 1px; height: 0.5em; margin-top: -0.25em; }
+.compass-dot { position: absolute; box-sizing: border-box; width: 0.66em; height: 0.66em; margin: -0.33em; border: 1.5px solid currentColor; border-radius: 50%; color: var(--ink); z-index: 1; }
+.compass-dot.front { background: currentColor; }
+.compass-dot.nav { color: var(--amber); }
+.compass-dot.pilot { color: var(--green); }
+.compass-dot.hostile { color: var(--red); }
+/* The radar stands to the right of the speed readout, tied to the centre block so that it moves
+   when that block grows wider over the ground. The ship's plane is a disc seen from behind and
+   above; contacts are points on stalks, places are marks on the rim with a stalk that points up or
+   down. Lines keep their width in pixels whatever the size of the drawing. */
+.radar { position: absolute; left: calc(100% + 1.2em); bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 0.1em; }
+.radar-plate { display: block; width: 12em; height: 12em; }
+.radar-plate * { vector-effect: non-scaling-stroke; stroke-width: 1px; fill: none; }
+.radar-sphere { fill: rgba(6, 14, 28, 0.76); stroke: rgba(127, 233, 255, 0.2); }
+.radar-disc { fill: rgba(127, 233, 255, 0.05); stroke: rgba(127, 233, 255, 0.6); }
+.radar-ring, .radar-axis { stroke: rgba(127, 233, 255, 0.2); }
+.radar-axis.ahead { stroke: rgba(127, 233, 255, 0.5); }
+.radar-own { fill: var(--cyan); }
+.radar-blip, .radar-mark { color: var(--ink); }
+.radar-stalk, .radar-foot { stroke: currentColor; opacity: 0.8; }
+.radar-blip.below .radar-stalk { opacity: 0.5; }
+.radar-blip .radar-head { fill: currentColor; }
+.radar-blip.hostile { color: var(--red); }
+.radar-blip.pilot { color: var(--green); }
+.radar-blip.loot, .radar-blip.wreck { color: var(--amber); }
+/* A wreck is a hollow square, and so is whatever is farther off than the rim reaches. */
+.radar-blip.wreck .radar-head, .radar-blip.beyond .radar-head { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
+.radar-lock { stroke: #fff; stroke-width: 1.2px; }
+.radar-mark { color: var(--cyan); }
+.radar-rim { fill: rgba(6, 14, 28, 0.9); stroke: currentColor; stroke-width: 1.2px; }
+.radar-tip { fill: currentColor; }
+.radar-mark.chosen { color: var(--amber); }
+.radar-mark.chosen .radar-rim { fill: currentColor; }
+.radar-scale { font-size: 0.82em; line-height: 1.2; color: var(--dim); white-space: nowrap; }
+/* The bottom row of a narrow view is full without it: the radar waits for a layout of that size. */
+@media (max-width: 900px) { .radar { display: none; } }
+/* The chosen place stands under the locked ship, in the colour of its marker. */
+.panel-mini.place { border-left-color: var(--amber); }
+.panel-mini.place .big { color: var(--amber); }
+.panel-mini .pair { display: flex; justify-content: space-between; align-items: baseline; gap: 0.8em; }
+/* What the system holds: two lines under the system name, each with the controls that choose.
+   They stand on a dark plate, like the list under them: over a sunlit planet they would wash out. */
+.sys-lines { align-self: flex-start; display: grid; grid-template-columns: auto auto auto; justify-content: start; column-gap: 0.8em; row-gap: 0.15em; margin-top: 0.35em; padding: 0.3em 0.7em; background: rgba(6, 14, 28, 0.62); border-left: 2px solid var(--line); font-size: 0.9em; align-items: baseline; white-space: nowrap; }
+.sys-line { display: contents; }
+.sys-label { color: var(--cyan); letter-spacing: 0.08em; }
+.sys-keys { color: var(--dim); }
+.keycap { display: inline-block; min-width: 1.25em; padding: 0 0.3em; margin-right: 0.25em; border: 1px solid var(--line); background: rgba(6, 14, 28, 0.55); color: var(--cyan); font-family: 'Share Tech Mono', ui-monospace, monospace; font-size: 0.92em; line-height: 1.3; text-align: center; }
+/* The list of places is open while the pilot steps through it. */
+.place-list { align-self: flex-start; display: flex; flex-direction: column; gap: 0.05em; min-width: 21em; margin-top: 0.35em; padding: 0.4em 0.7em; background: rgba(6, 14, 28, 0.62); border-left: 2px solid var(--amber); font-size: 0.95em; white-space: nowrap; }
+.place-row { display: grid; grid-template-columns: 1em 1fr auto; column-gap: 0.5em; align-items: baseline; margin: 0 -0.3em; padding: 0 0.3em; }
+.place-row .num { color: var(--dim); font-size: 0.9em; padding-left: 1em; }
+.place-kind { color: var(--dim); }
+.place-row.on { background: rgba(255, 179, 71, 0.16); outline: 1px solid rgba(255, 179, 71, 0.55); color: var(--amber); }
+.place-row.on .num, .place-row.on .place-kind { color: var(--amber); }
+.place-glyph { align-self: center; justify-self: center; width: 0.55em; height: 0.55em; border: 1px solid var(--cyan); rotate: 45deg; }
+.place-row.on .place-glyph { border-color: var(--amber); }
+.g-gate .place-glyph { rotate: none; }
+.g-site .place-glyph { width: 0.4em; height: 0.4em; opacity: 0.7; }
+.g-body .place-glyph { border-radius: 50%; rotate: none; opacity: 0.7; }
+.place-more { color: var(--dim); font-size: 0.88em; }
+
+/* The station screen keeps one size on every tab: the window is as tall as the view allows, and
+   what a tab holds scrolls inside it. `#ui .scroll` caps other lists by the height of the view; here
+   the window itself is the cap. */
+.panel.station { box-sizing: border-box; height: min(56em, 94vh); max-height: none; }
+.panel.station > .scroll, .panel.station > .stack { flex: 1 1 0; min-height: 0; overflow: auto; }
+#ui .panel.station > .scroll { max-height: none; }
+.panel.station > .customs { flex: 0 1 auto; min-height: 0; max-height: 38%; overflow: auto; }

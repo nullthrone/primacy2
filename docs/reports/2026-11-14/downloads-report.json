@@ -1,0 +1,36 @@
+{
+  "summary": "tools/audio/fetch.py (stdlib only) downloads, verifies (size + SHA-256) and safely unpacks the 57 entries of assets/audio/downloads.json: 5 Kenney CC0 packs and 52 NASA-hosted files, 329.3 MB on disk. CREDITS.md (generated, 470 file rows plus licence evidence and the not-taken list) and selection.json (50 files) exist and agree with the disk.",
+  "built": [
+    "tools/audio/fetch.py with --check, --credits, --only",
+    "assets/audio/downloads.json (57 entries, sources, notTaken)",
+    "assets/audio/CREDITS.md (generated)",
+    "assets/audio/selection.json (50 files, 15 excerpts, 15 speech flags)",
+    "assets/audio/downloads/** (git-ignored, 329.3 MB)"
+  ],
+  "verified": [
+    "fetch.py --check: 57 entries, 0 problems, 329.3 MB",
+    "deleted downloads/kenney-ui-audio: --check reported it missing, fetch.py --only kenney-ui-audio re-downloaded and unpacked it, full --check passed again",
+    "fetch.py --credits is reproducible: output identical after the clean rebuild (cmp)",
+    "all 50 selected files open with soundfile (no librosa fallback needed) with positive duration; excerpts lie inside the file durations; categories exist in sounds.json",
+    "Kenney: each pack page says CC0 and each archive License.txt names CC0 (read in this session)",
+    "free disk afterwards about 259 GB of 2047 GB (12.7 %)"
+  ],
+  "notVerified": [
+    "No file was listened to; titles and intents come from page text and file names",
+    "speech flags and the excerpt of Apollo 11 day 5 and the ISS calls come from level and modulation heuristics or titles, not from hearing or transcription",
+    "interior ambience of a station or spacecraft was not found on any NASA host (gap, listed in not taken)",
+    "NASA image-library items carry no explicit rights line in their metadata; the basis is NASA's media usage guidelines"
+  ],
+  "deviations": [
+    "52 NASA files instead of the 15 to 40 aimed at (the Mars and plasma material is small)",
+    ".url files in the Kenney archives are not extracted (allowed by the brief but useless and a double-click risk)",
+    "Kenney links are short-lived signed links; fetch.py resolves them through kenney.nl/download-link with the pack page as Referer",
+    "the 15 speech files include identifiable astronaut and controller voices: CREDITS.md says they are test material, not for shipping without a decision"
+  ],
+  "openIssues": [
+    "Kenney pages carry a robots noai / tdm-reservation tag; noted in CREDITS.md",
+    "the Voyager interstellar sounds link is dead (404)",
+    "the selection picks excerpts for 15 long files; the owner should confirm by ear"
+  ],
+  "forNextAgent": "Run .venv-audio/Scripts/python.exe -I tools/audio/fetch.py to rebuild assets/audio/downloads/ (about 40 s), --check to verify, --credits to regenerate CREDITS.md. Selection files are paths relative to assets/audio/downloads; speech true marks 15 clips for radio filter tests; excerpt is [start, end] in seconds."
+}

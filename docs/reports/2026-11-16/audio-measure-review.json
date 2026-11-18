@@ -1,0 +1,528 @@
+{
+ "role": "review of the measuring tools of the sound library (three finders, two verifiers that reproduced each finding with an experiment of their own)",
+ "date": "2026-11-16",
+ "reviewed": [
+  "tools/audio/listen/measure.py",
+  "tools/audio/synth/rules.py",
+  "tools/audio/synth/levels.py",
+  "how tools/audio/build.py applies them",
+  "tools/audio/listen/tests",
+  "tools/audio/synth/tests"
+ ],
+ "snapshot": "git commit 5f4f1d2 (before the step for generated sounds was added to build.py)",
+ "counts": {
+  "findings": 22,
+  "confirmed": 21,
+  "unclear": 1
+ },
+ "note": "A finding is listed with the finder's claim and evidence and, under 'verification', the verdict and the numbers of the verifier. 'affectsRenderedFiles' says whether repairing it would change the bytes or the level of a rendered sound file; the owner's ratings are tied to file hashes. The scripts named under 'reproduce' lie in a scratch folder of the session and are not kept. What was repaired afterwards is in docs/reports/2026-11-17/audio-measure-fix-report.json.",
+ "findings": [
+  {
+   "n": 1,
+   "title": "Band shares, centroid, peaks and peakShare never read the end of the file",
+   "file": "tools/audio/listen/measure.py",
+   "line": 60,
+   "claim": "mean_psd uses scipy welch with 8192-sample Hann segments at 50 % overlap. Samples after the last full segment are never read (up to 4095 samples, 85 ms at 48 kHz). The last 4096 samples before that are also weighted down to zero by the Hann taper. This is the end-of-file twin of the known start problem. lowShare, highShare, centroid, fundamental and peakShare all come from this one spectrum, and rules.py checks them (lines 83, 85, 102, 119, 123). I ran one case through rules.check and the verdict changed.",
+   "evidence": "A 0.5 s sound with 100 Hz hum and a 100 ms white-noise burst: burst at the start reads >4k share 0.762 (true whole-file 0.775). Burst at the end reads 0.059 (true 0.780). Centroid 971 Hz against a true 11141 Hz. A 12000-sample file, 8000 samples of 200 Hz tone then 4000 samples of noise: highShare 0.0000, lowShare 1.000, while the whole-file FFT says 22 % above 4 kHz and 73 % below 500 Hz. rules.check on a structure one-shot built like that returns [] (pass). The same samples with the noise moved to the front return ['tail-not-silent','structure-low-share','structure-high-share']. An impulse in the very last sample gives welch power 1e-39 for n = 9000, 12287 and 10000. I did not check whether any real sound in the library has loud material in its last 85 ms. Most tails are probably quiet, so the practical size of this is unknown.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t14_welch_edges.py (parts A and B) and t17_swing_and_rules.py (part C). Run with .venv-audio/Scripts/python.exe. Related: t6_bands.py part D.",
+   "severity": "wrong-number",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Make every sample count equally: pad the file so the last segment ends at or after the last sample and use a window pair that sums to a constant (for example welch with boundary and padded set, or a plain Hann-windowed periodogram of the whole file for n up to a few seconds). Then decide on purpose whether the start and the end are to be weighted like the middle. No wav byte changes. Manifest numbers and some verdicts will change, so re-run the build report after the change.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 1,
+    "title": "Band shares, centroid, peaks and peakShare never read the end of the file",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Cause is as claimed: scipy welch with nperseg 8192 and 50 percent overlap skips the samples after the last full segment and tapers the last 4096 to zero. I did not run the finder's script. Repair changes no wav bytes (manifest numbers and some verdicts could change). Not checked: whether any real library sound has loud material in its last 85 ms.",
+    "ownEvidence": "Script v1.py in the scratch folder review-verify-1, run on the snapshot. A 200 Hz tone plus a white-noise part, with the noise in the last third of the file (loop kind, structure path, swing_max 100). n=12000 with the noise at the end: welch highShare 0.0000, lowShare 1.0000, centroid 200 Hz. The whole-file FFT says 41.9 percent above 4 kHz and 50.8 percent below 500 Hz. rules.check returns no structure-* failure. The same samples time-reversed (noise first): welch highShare 0.531, lowShare 0.377, and rules.check gives ['structure-low-share','structure-high-share']. A whole-file FFT is identical for both orders. n=20000 with the noise at the end: welch highShare 0.038 against a true 0.383, and only structure-high-share fires. n=9000: both orders fail. A single impulse in the last sample gives welch power sum 2.8e-40 (n=9000) and 1.1e-39 (n=10000 and 12287). The same impulse in the first sample gives 2.2e-8, so the end is blind and the start is only weak."
+   }
+  },
+  {
+   "n": 2,
+   "title": "Loop level swing ignores digital silence and cannot reach 80 dB",
+   "file": "tools/audio/listen/measure.py",
+   "line": 246,
+   "claim": "levelSwingDb takes 100 ms windows (hop 50 ms) and throws away every window under -90 dB before taking max minus min. A loop that is silent for half its length therefore reads a swing of a few dB. The reported swing can never exceed (loudest window level + 90 dB). The alarm rows with swing_max=80 in cat_alarms.py (alarm_heat, alarm_missile, alarm_fuel_low, alarm_hull_critical and others) can therefore not fail unless the loudest 100 ms window is above -10 dB RMS, which is not the case for sounds levelled at -20 LUFS. Also, a loop shorter than 0.2 s returns no levelSwingDb at all, and rules.py line 80 reads that as 0.0 (pass). A loop shorter than 0.1 s skips the edge comparison and edgeOk is True.",
+   "evidence": "Noise 0.5 s, digital silence 1.0 s, noise 0.5 s, cuts on the 50 ms grid, 5 ms tapers: seamOk True, edgeOk True, levelSwingDb 3.5 (true: -20 dB against -inf), rules.check fails nothing, limit is 6.0. A loop dipping 110 dB: loudest window -17 dB gives 71.1, -10 dB gives 79.2, -1 dB gives 86.6, so only the last one can exceed 80. 1 s tone + 1 s digital silence reads 3.0. Noise at -20 dB for 1 s then -120 dB for 1 s reads 3.2. Pulse loops with silent gaps read about 20 dB where the true figure is unbounded. Loop of 0.15 s: levelSwingDb absent, pass True. Loop of 0.08 s: edge fields absent, pass True. In these demos the silence loops were caught only where the cut also made a seam or an edge fault. I did not check which real loops have silent windows.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t17_swing_and_rules.py (parts A and B), t9_loop.py parts B and C, t10_swing.py, t11_spec.py part F.",
+   "severity": "rule-cannot-fail",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Floor silent windows at -120 dB instead of dropping them (or report an infinite swing), and compare against the 80 dB limit with a cap that does not depend on level. Return a failing result (or an error field that rules.py treats as a fail) when the loop is too short for the swing or edge test. No wav changes. Any alarm loop that really has silent gaps and a swing_max of 80 would then need its limit looked at again.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 2,
+    "title": "Loop level swing ignores digital silence and cannot reach 80 dB",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Repair changes no wav bytes or levels, as the finder says. Alarm loops with silent gaps and swing_max 80 would be re-judged, and any whose limit was never meant to be 80 could flip pass/fail. I did not check which real loops have silent windows.",
+    "ownEvidence": "Scripts e1_swing.py, e2_swing.py, e3_manifest.py in the verify-2 scratch folder, run on the snapshot. (A) Noise 0.5 s, digital silence 1.0 s, noise 0.5 s, 5 ms tapers: loop_check gives seamOk True, edgeOk True, levelSwingDb 3.6. The same windows without the -90 cut give 100.1 dB, min -120. (B) A 1 s tone then a 1 s bed at -89 dB reads 72.0 when the loudest window is -17, 79.0 at -10 and 88.0 at -1. With the bed at -95 or -120 dB the reading falls to 3.0 for all three. So the reading is capped near loudest window + 90 and collapses once the quiet part drops below -90. A limit of 80 can only be exceeded when the loudest 100 ms window is above about -10 dB. (C) A 200 Hz tone of 0.15 s: levelSwingDb absent (None) and rules.check returns []. At 0.08 s the edge fields are absent, edgeOk True, pass True, rules.check []. Manifest read (snapshot-time render): alarm_heat 13.3, alarm_missile 15.1, alarm_fuel_low 76.3, alarm_hull_critical 9.4, all pass True. The rules.py code line 80 uses lp.get('levelSwingDb', 0.0), which reads a missing value as 0 (pass)."
+   }
+  },
+  {
+   "n": 3,
+   "title": "Default pyloudnorm K-weighting reads 0.04 dB low everywhere",
+   "file": "tools/audio/listen/measure.py",
+   "line": 54,
+   "claim": "pyloudnorm.Meter(sr) with the default filter class uses a generic shelf (+4 dB, 1500 Hz) and high-pass (38 Hz) approximation, not the BS.1770 coefficients. Every LUFS number is about 0.04 dB too low at 48 kHz and 44.1 kHz. filter_class='DeMan' gives the standard values. The same Meter(SR) call is also in synth/levels.py lufs(), which sets the level of every LUFS-levelled sound. The unit test allows 0.2 dB, so it cannot see this. Note on the brief's anchor: the standard gives 0.00 LKFS for a full-scale 997 Hz sine on both channels and -3.01 for one channel. The brief's -3.01 for two channels is a slip. My own independent BS.1770 code agrees with 0.00 and -3.01.",
+   "evidence": "48 kHz, 997 Hz, 20 s, full scale: default one channel -3.052, two channels -0.041; DeMan one channel -3.010, two channels 0.000. 44.1 kHz: default -3.052 / -0.042; DeMan -3.008 / 0.003. Filter response against the standard prototype at 100 Hz to 20 kHz: 0.038 to 0.047 dB low at 44.1 and 48 kHz, 0.016 to 0.022 at 96 kHz. Noise 20 s: measure -13.894, reference -13.851 (48 kHz). I did not check the two-channel gating weights beyond this, and I did not look at 96 kHz files in use.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t15_kweight_default.py and t4_lufs_ref.py (independent reference in ref1770.py)",
+   "severity": "wrong-number",
+   "affectsRenderedFiles": true,
+   "suggestedFix": "Use pyln.Meter(sr, filter_class='DeMan') in measure.loudness_lufs. Changing measure.py alone changes no wav bytes, but then the manifest LUFS and the build level disagree by 0.04 dB. levels.lufs() must change in step, and that raises the gain of every LUFS-levelled sound by about 0.04 dB, so those wav bytes and the owner's file hashes change. Decide with the owner whether 0.04 dB is worth new hashes; the other choice is to keep the number and document that it is pyloudnorm-default loudness.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 3,
+    "title": "Default pyloudnorm K-weighting reads 0.04 dB low everywhere",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": true,
+    "note": "Finder's byte statement is right. Switching levels.lufs to filter_class DeMan lowers the gain of every LUFS-levelled sound by about 0.04 dB. That changes the wav bytes and the file hashes of the 27 LUFS sounds, plus any download level set through set_level in lufs mode. Changing only measure.py changes no bytes but makes the manifest LUFS disagree with the build level by 0.04 dB. The brief's anchor of -3.01 for two channels is wrong, as the finder says. Not checked: the 0.2 dB test tolerance (I did not read that test) and 96 kHz.",
+    "ownEvidence": "Scripts v3.py and v3b.py. I used my own BS.1770-4 reference with the published 48 kHz coefficients, ungated stage 1 and 2 filters, and standard gating. 997 Hz full-scale sine, 20 s, 48 kHz. Reference: one channel -3.010, two channels 0.000. The code, measure.loudness_lufs with the default Meter: one channel -3.052, two channels -0.041. pyloudnorm 0.2.0 with filter_class DeMan gives -3.010 and 0.000. At 44.1 kHz the default reads -3.052 and -0.042. Offset by frequency (code minus reference): 100 Hz -0.038, 1 kHz -0.041, 5 kHz -0.043, 15 kHz -0.043. White noise: reference -16.862, measure -16.905, levels.lufs -16.905 (-0.043). The error is a near-constant 0.04 dB."
+   }
+  },
+  {
+   "n": 4,
+   "title": "Loudness of clips under 0.4 s depends on trailing silence by up to 3 dB; empty file crashes",
+   "file": "tools/audio/listen/measure.py",
+   "line": 47,
+   "claim": "A clip shorter than 0.4 s (and a clip of exactly 0.400 s, because of the +1 in min_len) is repeated to fill one block. That reads the mean level over the clip's own length. The same sound with a little silence after it, so that the file is longer than 0.4 s, reads the level of one 400 ms block instead. The reading jumps 3 dB at the 0.4 s boundary for the same hit. The repeat also joins the end to the start with a step, which the K filter turns into extra energy. An empty array crashes (ZeroDivisionError). A single sample of 0.5 reads -32.3 LUFS (a DC step), not 'undefined'. levels.lufs() has the same tiling.",
+   "evidence": "0.2 s decaying 1 kHz hit (tau 40 ms), amp 0.5, 48 kHz: file 0.20 s reads -19.07 (tiled); with 0.19 s of silence added (0.39 s) -20.64 (tiled with silence); with 0.20 s added (0.40 s) -22.08; with 0.25 s or 0.5 s added -22.08. analyse() on n=0 raises ValueError in the first np.max. loudness_lufs on an empty array raises ZeroDivisionError. 1 sample and 2 samples both read -32.33.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t5_blocks.py (part C), t3_lufs.py (parts 1, 5), t7_short.py (part A)",
+   "severity": "wrong-number",
+   "affectsRenderedFiles": true,
+   "suggestedFix": "Pick one definition for clips under 0.5 s and apply it on both sides of 0.4 s: for example zero-pad to one block (reads the hit as one block, like a longer file) and write that in the note. Return None with a note for n == 0 or n < 2. Same change is needed in levels.lufs(). Changing measure.py alone changes no wav bytes. Changing levels.lufs() changes the level of any LUFS-levelled sound under 0.4 s.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 4,
+    "title": "Loudness of clips under 0.4 s depends on trailing silence by up to 3 dB; empty file crashes",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": true,
+    "note": "Two corrections. (1) The jump at the exact 0.4 s boundary is 1.4 dB (0.39 s reads -20.64, 0.40 s reads -22.08). The 3 dB figure is the spread for this 0.2 s hit between the bare clip and the clip with 0.25 s of silence. The spread is not capped at 3 dB: it grows as 10*log10(0.4/duration), so a 0.1 s hit can differ by about 6 dB. The extra energy at the boundary comes from the tile joining the end to the start. (2) The finder's flag is right but vague: levels.lufs() has the same tiling, and the manifest shows exactly two LUFS-levelled rendered sounds under 0.4 s, sensor_proximity_tick (0.08 s) and sensor_fire_outside (0.25 s). Changing levels.lufs() would change the gain, and so the bytes and ratings hashes, of those two sounds. g_thruster_pulse_a is 0.403 s long and is not tiled. Changing only measure.py changes no wav bytes, only reported lufs and the lufsNote, unless some other build path (for example the generator loop) calls measure.loudness_lufs for levelling. I did not check that.",
+    "ownEvidence": "e4_short.py, e9_short_lufs.py. 0.2 s decaying 1 kHz hit, amp 0.5: bare clip reads -19.07 (tiled note given). With silence added: 0.39 s total -20.64 (tiled), 0.40 s -22.08 (still tiled, note present), 0.45 s and 0.70 s -22.08 (no note). Samples 19199 and 19200 are tiled, 19201 is not (min_len has +1). levels.lufs gives identical numbers at each length. Empty array (0,1): loudness_lufs raises ZeroDivisionError, analyse raises ValueError. One sample of 0.5 and two samples both read -32.33."
+   }
+  },
+  {
+   "n": 5,
+   "title": "Two-channel stats call a silent channel 'equal': corr 1.0 and levelDiffDb 0.0",
+   "file": "tools/audio/listen/measure.py",
+   "line": 282,
+   "claim": "stereo_stats returns correlation 1.0 when either channel has zero energy, and returns a level difference of 0.0 dB when either channel has zero power. A hard-panned file with a digitally silent side reads 'identical and equal level'. The rule levelDiffDb < 1.5 dB therefore cannot fail by itself for that case. Today the correlation rule (0.3 to 0.9) still fails such a file, so no wrong verdict follows from this alone. Written files carry dither on both channels, so the case does not arise from synth.write_wav; it can from a download or a hand-made file.",
+   "evidence": "Left noise, right all zeros: corr 1.0, corrLow 1.0, levelDiffDb 0.0 (true: infinite). Left noise, right 1 LSB dither: corr 0.0017, levelDiffDb 72.07, as it should be. Both silent: corr 1.0, level difference 0. Independent noise: corr 0.0045, level difference 0.045. R = 0.5 L: level difference 6.021 (exact). L = -R: corr -1.0, mono sum -120 dB and all spectral shares zero (centroid None).",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t8_stereo_env_loop.py (part A and B)",
+   "severity": "rule-cannot-fail",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "When exactly one channel has zero power return levelDiffDb as a large number (for example 120) and corr as 0.0 (undefined); when both are silent return None and let rules.py fail the sound. No wav changes.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 5,
+    "title": "Two-channel stats call a silent channel 'equal': corr 1.0 and levelDiffDb 0.0",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "The claim that no wrong verdict follows today is also right. With an exactly silent channel corr is always 1.0, so stereo-correlation (0.3 to 0.9) fires; stereo-level-diff is dead in that case, but it never decides alone. Repair changes no wav bytes.",
+    "ownEvidence": "Script v5.py. Left noise, right exact zeros: corr 1.0, corrLow 1.0, levelDiffDb 0.0. Left noise, right 1e-5 noise: corr 0.0042, levelDiffDb 79.96. Both channels zero: corr 1.0, levelDiffDb 0.0, monoRmsDb -120. R = 0.5 L: levelDiffDb 6.021. rules.check on the left-only file (structure one-shot, 2 channels) gives ['tail-not-silent','structure-low-share','structure-high-share','structure-mid-share','stereo-correlation']. stereo-level-diff is absent."
+   }
+  },
+  {
+   "n": 6,
+   "title": "attackMs reads 3 to 5 ms for a low steady tone that has no attack",
+   "file": "tools/audio/listen/measure.py",
+   "line": 146,
+   "claim": "The attack time is the gap between the first 1 ms peak-hold block at 10 % and the first at 90 % of the file peak. For a low-frequency tone that starts at full level, the first carrier cycle itself takes that long to rise. So a bass hum or rumble with an instant start reads a slow attack. The figure is printed for the owner and is not used by rules.py, so no verdict changes. Smaller notes: the 10 ms frame table drops the last (n mod 480) samples, so a 9 ms burst at the very end of a 1.0095 s file appears in no frame (peak frame level -120 dB; lastTenMsDb still sees it); lastTenMsDb is an RMS level, so a single-sample click of -33.2 dBFS peak in the last 10 ms reads -60.0 (rules.py checks the peak itself, so the hard rule is fine).",
+   "evidence": "Sine from sample 0 at 0.8 amplitude, 48 kHz: 30 Hz attackMs 5.0, 50 Hz 3.0, 100 Hz 1.0, 400 Hz 0.0, 2 kHz 0.0. A 20 ms linear ramp reads 16.0 ms (right). A 2 ms ramp reads 2.0 (1.6 expected, 1 ms resolution). 50 ms ramp reads 40.0. Fall of 60 dB in exactly 500 ms reads 500.0 (noise) and 510.0 (tone). Onset of a pre-echo at -41 dB is skipped and at -40 dB is found (threshold as written).",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t8_stereo_env_loop.py (part E) and t14_welch_edges.py (part C)",
+   "severity": "minor",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Measure attack on a smoothed envelope (for example the peak-hold over at least half a period of the lowest frequency, or the Hilbert envelope), and keep the last partial frame in the frame table. No wav changes.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 6,
+    "title": "attackMs reads 3 to 5 ms for a low steady tone that has no attack",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "rules.py has no reference to attackMs, so no verdict changes. One small mismatch: my 2 ms linear ramp read 1.0 ms (the finder wrote 2.0), which is within the stated 1 ms resolution and not a fault. Repair changes no wav.",
+    "ownEvidence": "e5_attack.py. Sine from sample 0 at 0.8 amplitude, 48 kHz: 30 Hz attackMs 5.0, 50 Hz 3.0, 100 Hz 1.0, 400 Hz 0.0, 2 kHz 0.0. Linear ramps read 16.0 ms (20 ms ramp) and 40.0 ms (50 ms ramp), which are right. File of 1.0095 s (n mod 480 = 456) with a 9 ms burst at its end: the largest frame level in frameDb is -120.0, while lastTenMsDb is -13.9. A single sample of 0.022 (peak -33.15 dBFS) in the last 10 ms gives lastTenMsDb -60.0."
+   }
+  },
+  {
+   "n": 7,
+   "title": "Hard-rule inputs that no test pins down (mutation run)",
+   "file": "tools/audio/listen/tests/test_listen.py",
+   "line": 35,
+   "claim": "I changed measure.py in a copy, one thing at a time, and ran the listen MeasureTests (16) and test_synth (38). These changes passed both suites although they feed hard rules or the manifest: lowShare summing 3 bands instead of the 4 below 500 Hz; the 4000 Hz band edge moved to 3000 Hz (highShare is the structure rule above 4 kHz); true-peak oversampling cut from 4x to 2x; the edge-level limit raised from 3 dB to 30 dB; the edge compare window cut from 50 ms to 5 ms; the swing floor lowered so silent windows count; the seam percentile 99 changed to the maximum; the centroid weighted by amplitude instead of power (switch-centroid rule); dcOffset taking the smallest channel mean instead of the largest; the short-clip repeat replaced by zero padding; LUFS using only the first channel; the mono-sum level of the stereo stats using a sum instead of a mean. Tests that are too loose: the full-scale-sine loudness test allows 0.2 dB (the real error is 0.04); the true-peak test only asserts above -0.3 dB, which 2x oversampling also meets. Mutants that survived but are equivalent (not findings): mean not removed in mean_psd (welch detrends anyway), first channel only in the welch average (analyse always passes one column).",
+   "evidence": "Mutation script run: 41 mutants, 20 survived the listen tests, of those 18 also survived test_synth (the stereo cutoff 150 Hz, levelDiff, and the channel-1 spectral mutants were killed there). Survivors that feed rules.py: lowShare 3 bands, band edge 4000 to 3000, edge level 3 to 30 dB, 50 to 5 ms edge window, swing floor, true-peak 2x, centroid weights, dcOffset per channel.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp/t12_mutants.py then t13_mut2.py (results in t13_out.txt). The mutants ran on a copy under scratchpad/review-measure-dsp/mut, not on the real tree.",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add tests with known answers before the rules get new numbers: a tone at 300 Hz and one at 3.5 kHz (they must land in the lowShare and the non-highShare side), a tone just either side of 500 Hz and 4000 Hz with a gap of at least 30 Hz, a fs/4 45 degree sine whose true peak must read 3.01 dB above sample peak within 0.15 dB at 4x (and fail at 2x), a loop whose first 50 ms is 10 dB quieter (edgeOk False), a loop with a silent half (swing large), a two-channel file with different DC per channel, and the BS.1770 anchors at +-0.02 dB. No rendered-file change.",
+   "lens": "measure-dsp",
+   "verification": {
+    "n": 7,
+    "title": "Hard-rule inputs that no test pins down (mutation run)",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "I tested 12 of the finder's measure.py mutants, not all 41. Not reproduced: the finder's counts (41 and 20 and 18) and the claim that the stereo cutoff, levelDiff and channel-1 mutants are killed in test_synth. The baseline listen suite here has 22 tests, not 16 plus 38 (test_synth: 38 OK). I did not read the loose-test claims (0.2 dB for loudness, true-peak asserting only above -0.3 dB). Adding tests changes no wav bytes.",
+    "ownEvidence": "Script mut.py, results in mut_out.txt. Each mutant was applied to a copy of the snapshot. I ran the listen suite (22 tests) and then the synth, pilot_energy and pilot_mech suites, all CPU only. All 12 survived both: lowShare using 3 bands, the 4000 Hz edge moved to 3000, true peak at 2x, edge level limit 3 to 30 dB, edge window 50 to 5 ms, swing floor -90 to -200, seam percentile 99 to 100, centroid weighted by amplitude, dcOffset taking the smallest channel, short-clip tiling replaced by zero padding, LUFS from the first channel only, and the mono sum without the factor 0.5."
+   }
+  },
+  {
+   "n": 8,
+   "title": "Loop level swing ignores every 100 ms window below -90 dB, so a loop that goes silent passes; the alarm limit of 80 dB does not guard either",
+   "file": "tools/audio/synth/rules.py",
+   "line": 80,
+   "claim": "rules.py reads levelSwingDb from measure.loop_check, which drops all windows at or below -90 dB (measure.py line 249: levs = [v for v in levs if v > -90]). A loop that is digital silence (or dither only, about -96 dB) between bursts therefore prints a swing of 3 dB and passes loop-level-swing. The same loop with gaps at -40 dB prints 40 dB and fails: the rule is inverted for the worst case. Second part: the four alarm loops are exempted with swing_max=80 (cat_alarms.py 147-151). With the drop at -90 and alarms set to about -20 LUFS, the loudest window sits about 14 dB under full scale, so the printable swing is capped near 76 dB. My sweep of beeps from 20 ms to 1 s never printed more than 74.4. The real alarm_fuel_low prints 76.3 (last manifest), the other three 9.4 to 15.1. So 80 is 3.7 dB over the worst real alarm and 65 dB over the others, and protects nothing. It is not strictly unreachable (a hotter, squarer beep could get there).",
+   "evidence": "f1: digital silence in gaps levelSwingDb=3.0 rules.check -> [] ; gaps at -40 dB 40.0 -> ['loop-level-swing'] ; gaps at -60 dB 60.0 -> fails ; unfiltered window levels of the same loop: max -9.0 dB, min -96.5 dB, swing 87.5 dB (measure printed 3.0). f2 (alarm at -20 LUFS, 1 kHz, bed at -89 dB): beep 20 ms 74.4, 50 ms 74.4, 100 ms 74.4, 300 ms 71.2, 1000 ms 68.8; check(swing_max=80) -> [] every time. Manifest: alarm_fuel_low 76.3.",
+   "reproduce": "cd C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels ; .venv-audio/Scripts/python.exe f1_swing_blind_to_gaps.py ; .venv-audio/Scripts/python.exe f2_alarm_swing_80.py (scripts: C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/f1_swing_blind_to_gaps.py and f2_alarm_swing_80.py; run with the venv python from the repo root, no -I because they import _common.py from their own folder)",
+   "severity": "wrong-number",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Count windows below the floor at the floor (-120) instead of dropping them, or report a second figure (share of windows under -60 dB) and fail on it. Then replace swing_max=80 for the alarms by a per-alarm limit set from the pattern (for example 20 dB for heat, missile, hull_critical) and treat alarm_fuel_low on its own. No WAV byte or level changes. The current alarm loops would be re-judged: alarm_fuel_low (and any loop with silent gaps) could flip its checks.pass until its limit is set.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 8,
+    "title": "Loop level swing ignores every 100 ms window below -90 dB, so a loop that goes silent passes; the alarm limit of 80 dB does not guard either",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Same root cause as finding 2 and 16. The part that the alarm limit protects nothing is right for the -20 LUFS alarms: the reachable swing is capped near loudest window + 90 dB, and alarm_fuel_low already sits at 76.3 in the manifest. I did not run the finder's beep-length sweep. I only showed the cap by the bed-level sweep in finding 2. No byte or level change from a repair.",
+    "ownEvidence": "e1_swing.py and e2_swing.py. A burst/gap loop with digital silence in the gaps reads levelSwingDb 3.0. With gaps at -40 dB it reads 40.0 and with gaps at -60 dB 60.0 (pass False in my build because of an unwindowed seam, but the swing figure is the point). 1 kHz pulse loop with 20 ms raised-cosine edges inside the pulse, cut on the 50 ms grid: reads 4.3 and rules.check returns []. The same loop shifted by 13 ms reads 17.7 and rules.check returns ['loop-level-swing']; shifted by 25 ms it reads 9.0 and fails. Unfiltered window swing of the same loop: 106.5 dB. Manifest lufs and swing for the four alarm loops: -20.0/13.3, -18.0/15.1, -20.0/76.3, -20.0/9.4."
+   }
+  },
+  {
+   "n": 9,
+   "title": "26 of 51 mutants of rules.py and levels.py survive the test suites; no test would notice 22 of the 36 rules being switched off",
+   "file": "tools/audio/synth/rules.py",
+   "line": 58,
+   "claim": "I switched each rule off (or loosened it) in a copy of the snapshot and ran the suites (synth/tests/test_synth.py, test_pilot_energy.py, test_pilot_mech.py, tests/test_downloads_build.py). 22 mutants were killed, 26 survived. Survivors: sample-rate, channels, true-peak (off and limit -1 -> 0 dBFS), clipped, dc-offset, onset-late (off and 5 ms -> 50 ms), tail-not-silent (off and 10 ms -> 1 ms), loop-seam, loop-level-swing (off and default 6 -> 60 dB), structure-low-share, switch-too-long, switch-centroid, the duration gate of the switch rules, alarm-fundamental, alarm-high-energy, sensor-high-energy, radio-band, DRY_CATEGORIES empty, the rule 'stereo rules also apply to kind ir', levels CEILING_DB -1.0 -> 0.0, levels lufs() no longer raising on silence, and the CATEGORY_DEFAULTS row for alarm oneshots. Killed: structure high/mid/sub share, pressure exemptions, all four energy rules, all stereo rules, ceiling limiter, mono_sum, short-clip tiling, 4x oversampling, peak gain sign, LEVELS table, the limited flag. So the all-sounds rules and every category rule (switches, alarms, sensors, radio) have no test.",
+   "evidence": "mutate_out.txt: baseline 'FAILED (errors=1)'; 22 KILLED, 26 SURVIVED, 0 bad patterns. The one baseline error is tests.test_downloads_build.Level.test_target_table: it opens assets/audio/selection.json, which the git-archive snapshot does not hold (the snapshot is tools/audio only). That test checks build.DOWNLOAD_TARGETS only, not levels.py, and its asserts before the file open still ran; the error is the same for every mutant, so it does not hide the levels survivors. Test counts: test_synth 38 OK, pilot tests 16 OK, downloads tests 48 with that 1 error.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/mutate.py (run from that folder with the venv python, about 5 minutes, 3 workers, CPU only; result list in mutate_out.txt and mutate_result.json next to it)",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Before the numbers change, add one tiny test per surviving rule that feeds a synthetic signal known to break it (a step at sample 0 is not needed; a 10 ms tail at -50 dBFS, a 0.002 DC offset, a true peak of -0.5 dBFS, a loop cut mid-cycle, a 0.3 s file for a 0.15 s switch, a 300 Hz alarm, 7 kHz energy in a sensor, 100 Hz in radio) and one that asserts the ceiling is exactly -1.0. Tests change no WAV.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 9,
+    "title": "26 of 51 mutants of rules.py and levels.py survive the test suites; no test would notice 22 of the 36 rules being switched off",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "I ran 26 rules/levels mutants of my own, not the finder's 51. The pattern matches: all but three survive. Not reproduced: the exact counts 22/26 and 22 of 36. I did not run tests/test_downloads_build.py. The finder's account of its one baseline error (it needs assets/audio/selection.json) is plausible but I did not check it. Adding tests changes no wav bytes.",
+    "ownEvidence": "Script mut.py, mut_out.txt. Survived both suites: sample-rate off, channels off, true-peak limit 0 and off, clipped off, dc-offset off, onset 5 to 50 ms, tail window 10 to 1 ms and off, loop-seam off, swing off and 6 to 60 dB, structure-low-share off, switch-too-long off, switch-centroid off, removing the duration gate of the switch rules, alarm-fundamental off, alarm-high-energy off, sensor-high-energy off, radio-band off, DRY_CATEGORIES empty, CEILING_DB -1 to 0, true_peak_db returning the sample peak, alarm_missile -18 to -8, engine t050/t075 swapped, lufs() not raising on silence, alarms/oneshot default -20 to -10. Killed: structure-high-share off (test_the_mono_sum_is_held_to_the_path_rules), energy-peak off (test_a_standing_pitch_fails), and opening the stereo correlation range (test_good_width_passes_and_no_width_fails and test_too_wide_fails)."
+   }
+  },
+  {
+   "n": 10,
+   "title": "No rule compares the reached level with the table target; a limited sound passes, and info['gainDb'] reports the requested gain, not the applied one",
+   "file": "tools/audio/synth/levels.py",
+   "line": 116,
+   "claim": "set_level cuts the gain when the target would put the true peak over the ceiling and sets info['limited']=True, but info['gainDb'] keeps the requested gain, build_sound only stores the dict in checks.level, and rules.check never reads loudness or the target. A loop asked for -17 LUFS that is limited ends 7.7 dB too quiet and checks.pass stays true. The docstring says 'the build then shows the loudness it actually reached'; the manifest shows lufs, but nothing flags the miss (build.py's download branch already corrects gainDb after limiting, line 476; the render branch does not). Today 0 of 75 synth sounds are limited, so this is latent. Second observation, deliberate by design (Space section): for two-channel loops the table value is the mono-sum loudness, so checks.lufs of the file reads 3.4 to 4.8 dB higher (13 loops). BS.1770 gives +3.01 dB for equal channels, so the side signal adds 0.4 to 1.8 dB beyond that; the levels.py comment that the side 'never changes the level' is true for the mono sum only. Not a fault, but the louder-than-table figure is what the page plays, and no field says so.",
+   "evidence": "f5(a): set_level(lufs -17) -> gainDb 7.54, limited True, truePeakDb -1.0; applied gain measured -0.14 dB; read back lufs -24.68, rules.check -> [] (short by 7.7 dB). f5(b): mono_sum target -27.0 -> file lufs -22.65, lufsMono -27.0 (+4.35). Manifest (manifest_levels.py): 51 one-channel/ir sounds max |reached-target| 0.00 dB; 0 limited; 13 stereo loops +3.41 to +4.80 dB (engine_main_t000 +3.41 ... engine_main_boost +4.80).",
+   "reproduce": "cd C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels ; .venv-audio/Scripts/python.exe f5_level_not_verified.py ; manifest side: .venv-audio/Scripts/python.exe -I C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/manifest_levels.py (run from the repo root; reads assets/audio/render/manifest.json only)",
+   "severity": "rule-missing",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add a hard rule 'level-not-reached': for a sound with a LEVELS target, |measured (lufsMono for mid/side loops, truePeakDb for peak mode) - target| above 0.5 dB fails, and report the applied gain (as build.py does for downloads). With 0 limited sounds today this changes no current pass flag and no WAV.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 10,
+    "title": "No rule compares the reached level with the table target; a limited sound passes, and info['gainDb'] reports the requested gain, not the applied one",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed. Correction to the second observation: the table value is the mono-sum loudness for 13 stereo loops, but not for all two-channel loops. cabin_ambience_loop and silent_running_loop have file lufs equal to the target (-45.0 and -55.0) and lufsMono 6.0 and 4.72 dB lower (-51.0 and -59.72), so they are levelled on the stereo file, not the mono sum. A rule or note about 'reached versus target' would need to know which basis each sound uses. No wav change from adding a rule. Today no sound in the manifest loop list is limited (I looked at all loops, not at one-shots).",
+    "ownEvidence": "e6_levels.py, e7_limited.py, e3_manifest.py. 3 s Gaussian noise (0.1 sigma) at lufs -8: info gainDb 8.9, limited True, truePeakDb -1.0, reached loudness -11.6; rules.check returns []. Same noise at -3: reached -11.6, rules.check []. At -20 not limited, reached -20.0. A spiky test signal (clicks over quiet noise) at -17: gainDb 23.7 reported, applied gain measured -0.15 dB, reached -40.85. rules.py source contains none of the words lufs, LEVELS, target, gainDb, limited. Stereo mid/side loop with mono_sum=True at -27: mono sum reads -27.00, the file reads -23.02 (+3.98). Manifest: engine_main_t000 file -34.59 vs lufsMono -38.0 (+3.41), engine_main_boost -12.2 vs -17.0 (+4.80)."
+   }
+  },
+  {
+   "n": 11,
+   "title": "The structure rule 'no steady pure tone for a whole loop' is stated and not coded; a ruler-straight sine loop passes every structure rule",
+   "file": "tools/audio/synth/rules.py",
+   "line": 82,
+   "claim": "SOUND_DESIGN.md section 2 says no steady pure tone stands alone for the whole length of a loop. rules.py has nothing for it on the structure path (peakShare is read only by the energy path). A 200 Hz or 300 Hz sine loop with whole cycles passes structure-low/high/mid/sub share, seam and swing. synth/tests/test_synth.py line 150 asserts exactly this case as passing ([]). Note for the repair: the energy-path limit of 0.15 cannot be reused, because the real structure loops already have peakShare 0.09 to 0.94 (manifest): 12 of 13 would fail it. A steadiness measure over time is needed (pitch and level drift of the strongest peak), with weapon_beam_loop (0.941) and mining_laser_loop (0.640) the first to look at.",
+   "evidence": "f3: pure 200 Hz loop peakShare=1.000 fundamental=200.1 seamRatio=0.98 rules.check -> [] ; pure 300 Hz same. Manifest peakShare of the 13 structure loops: engine t000 0.176, t025 0.418, t050 0.416, t075 0.378, t100 0.365, boost 0.355, thruster_burn 0.248, ground_scrape 0.346, dust_patter 0.092, cruise 0.462, fold_tunnel 0.377, weapon_beam 0.941, mining_laser 0.640.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/f3_steady_tone_structure.py (venv python, run from that folder); peak shares: manifest_peakshare.py in the same folder",
+   "severity": "rule-missing",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add a rule on the drift of the strongest spectral peak over 1 s frames (for example the strongest peak holds within 1 Hz and 1 dB for the whole loop) and fix the test at line 150 to use a tone with drift. The rule would likely flag weapon_beam_loop and mining_laser_loop; a repair means re-rendering them, which changes their bytes and invalidates ratings tied to their hashes, so decide with the owner first. The rule itself changes no file.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 11,
+    "title": "The structure rule 'no steady pure tone for a whole loop' is stated and not coded",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "SOUND_DESIGN.md line 155 states the rule and rules.py only reads peakShare in the energy path. The finder's claim that test_synth line 150 asserts this case as passing is slightly off. That test uses a one-shot spec with fades, so it is a pure-tone one-shot, not a loop. The conclusion stands. The manifest peakShare values of the 13 structure loops match the finder (read from assets/audio/render/*/*.json; weapon_beam_loop 0.9408, mining_laser_loop 0.6404, dust_patter_loop 0.0919). A new rule would likely flag weapon_beam_loop and mining_laser_loop, and re-rendering them would change their bytes. The rule alone changes no bytes.",
+    "ownEvidence": "Script v_rules.py. A 1 s, 48 kHz, 0.5 amplitude sine loop with whole cycles, kind loop, path structure. 200 Hz: rules.check returns [], peakShare 0.9999, seamRatio 1.0, swing 0.0. 300 Hz: also []. The only line in rules.py that mentions peakShare is the energy-peak check."
+   }
+  },
+  {
+   "n": 12,
+   "title": "A silent file passes all rules for path pilot, for kind ir, and for category cabin; set_level in peak mode turns silence into +228 dB of gain without an error",
+   "file": "tools/audio/synth/levels.py",
+   "line": 128,
+   "claim": "If a renderer returns zeros, true_peak_db(0) is clamped to -240 dB and set_level('peak', target) returns gainDb 228.0, limited False, no error (LUFS mode raises 'silent or fully gated', so loops stop; one-shots and IRs do not). Written with the build's dither, the file has only +-1 LSB noise, and rules.check returns [] for a pilot one-shot (11 pilot sounds, which only get the all-sounds rules) and for an ir in category cabin. Only paths with band rules (structure, energy) and categories with their own rules happen to catch silence by accident.",
+   "evidence": "f4: set_level(zeros,'peak',-12.0) -> {'gainDb': 228.0, 'truePeakDb': -240.0, 'limited': False}; read back max|x|=0.000031 (dither), truePeakDb -84.32, lufs None; rules.check: pilot one-shot -> [], cabin ir -> [], structure one-shot -> ['structure-low-share','structure-high-share','structure-mid-share'].",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/f4_silent_passes.py (venv python, run from that folder)",
+   "severity": "rule-cannot-fail",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "In set_level raise on a peak below about -80 dBFS (as lufs() does) and add a rule 'silent' (true peak below -60 dBFS or lufs None for a loop). No current sound is silent, so no WAV changes.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 12,
+    "title": "A silent file passes all rules for path pilot, for kind ir, and for category cabin; set_level in peak mode turns silence into +228 dB of gain without an error",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed. I did not check how many pilot sounds exist or whether any current sound is silent, so 'no WAV changes' rests on the finder's statement that none is. A repair that makes set_level raise on silence only affects a render that is silent, so it changes no existing bytes.",
+    "ownEvidence": "e6_levels.py. set_level(zeros, 'peak', -12.0) returns gainDb 228.0, truePeakDb -240.0, limited False and no exception. set_level(zeros, 'lufs', -20.0) raises 'silent or fully gated'. ±1 LSB TPDF-like noise standing for dithered silence: analyse gives truePeakDb -87.74, lufs None; rules.check returns [] for a oneshot with path pilot in category cabin and [] for an ir with path pilot. The same file as a oneshot with path structure returns ['structure-low-share','structure-high-share','structure-mid-share'], an accidental catch."
+   }
+  },
+  {
+   "n": 13,
+   "title": "The cabin switch rules are applied only when the list duration is 0.5 s or less, and the length half of them cannot fail in the build",
+   "file": "tools/audio/synth/rules.py",
+   "line": 116,
+   "claim": "Spec: cabin switches are shorter than the list duration and have a spectral centre between 800 Hz and 5 kHz. Code gates both on spec['duration'] <= 0.5. systems_power_up and systems_power_down (category switches, duration 3 s) get neither rule: a 150 Hz thud passes. Also, the file length is fixed by the list (registry.Ctx.n = round(duration*SR), render_dry rejects any other shape), so n/SR > duration + 1e-6 can never be true for a rendered sound: switch-too-long cannot fail at all, whatever the cut-off. (The spec says 'shorter than', the code fails only 'longer than'; equal passes.)",
+   "evidence": "f6: a low-pass thud (centroid 152 Hz) listed at 0.4 s -> ['dc-offset','switch-too-long','switch-centroid'] ; the same kind of sound (centroid 181 Hz) listed at 3.0 s -> []. Part 2: 8 switch sounds, largest (file length - list duration) = 0.00e+00 s against tolerance 1e-6, rule can fail: False; skipped by the gate: systems_power_up, systems_power_down. Their real centroids (manifest) are 1286 and 1150 Hz, so both would pass once the gate is removed.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/f6_switch_rules_skipped.py (venv python, run from that folder)",
+   "severity": "rule-cannot-fail",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Drop the duration <= 0.5 gate for the centroid rule; compare the file's non-silent length (envelope fall60Ms) with the list duration instead of the fixed file length, or remove switch-too-long. No WAV changes; no current switch sound newly fails.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 13,
+    "title": "The cabin switch rules are applied only when the list duration is 0.5 s or less, and the length half of them cannot fail in the build",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "The wrong conclusion would be that the length rule can never fail in any input. For a duration that is not a whole number of samples (none in the list), rounding could exceed 1e-6, so 'cannot fail' holds for today's list only. No wav bytes change when the gate is removed. The two current centroids (1286.1 and 1150.0 Hz, read from assets/audio/render/switches/systems_power_*.json) would pass.",
+    "ownEvidence": "Script v_rules.py. A 150 Hz low-passed thud, switches category, one-shot: listed at 0.4 s it gets 'switch-centroid' (centroid 100.2 Hz). Listed at 3.0 s (centroid 116.9 Hz) it gets no centroid failure. The file length is round(duration*SR) (synth/registry.py, Ctx.n, and render_dry rejects any other shape). For the 8 switch sounds in sounds.json the largest (file length minus list duration) is 0.0 s against the 1e-6 limit. The gate skips systems_power_up and systems_power_down (3 s)."
+   }
+  },
+  {
+   "n": 14,
+   "title": "Downloaded files never go through rules.check; the all-sounds rules and category rules are not applied to them",
+   "file": "tools/audio/build.py",
+   "line": 512,
+   "claim": "The download branch of build.py (_excerpt_downloads) builds its own failed list from three names only (source-clipped, loop-seam, loop-crossfade-level) and never calls rules.check. SOUND_DESIGN.md says downloaded files are 'processed and checked as well' and lists all-sounds rules (true peak, no DC offset, start and end). A download with a DC offset of 0.01 goes through process_download unchanged in that respect, and rules.check would fail it. In the last manifest k_door_close_1 has centroid 13383 Hz in category switches and failed [] (the cabin switch rule would fail it if applied; whether that rule is meant for downloads is a judgement).",
+   "evidence": "f9: processed download dcOffset=0.0094 truePeakDb=-14.00; rules.check on it -> ['dc-offset','tail-not-silent'] (the tail flag is from my synthetic test signal); 'rules.check' in the download branch: False; names it can put in failed: ['loop-crossfade-level','loop-seam','source-clipped']. Manifest: k_door_close_1 centroid 13383.0, k_door_open_1 13392.8, failed [].",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels/f9_downloads_skip_rules.py (venv python, run from that folder)",
+   "severity": "rule-missing",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Call the all-sounds part of rules.check (sample rate, true peak, clipped, DC, onset and tail for one-shots) on the read-back download and add its names to failed. Rendered sounds are not touched. If DC were then removed in process_download, the bytes of processed downloads (not rendered sounds) would change and their ratings would be marked as changed.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 14,
+    "title": "Downloaded files never go through rules.check; the all-sounds rules and category rules are not applied to them",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "The code fact holds. Two cautions. SOUND_DESIGN.md says downloads are 'processed and checked as well', but the bullets under it list processing steps, not a rule list, so the specification is vague about which rules apply. And a download has default path 'structure', so calling the full rules.check would also bring in band rules. The finder's suggestion to call only the all-sounds part is the sensible reading. My test signal also made tail-not-silent fire (a DC offset in the tail), which is an artefact of my signal. Adding a check changes no bytes. Removing DC in process_download would change the bytes of processed downloads, not of rendered sounds, as the finder says. I did not check the k_door centroid claim.",
+    "ownEvidence": "e8_dl.py with build.process_download from the snapshot. inspect.getsource(build._excerpt_downloads) does not contain 'rules.check', and the module has exactly one rules.check call (in build_sound). A decaying 500 Hz tone with 0.01 DC passes through process_download with DC 0.0064 left; rules.check on the result returns ['dc-offset', 'tail-not-silent', 'structure-low-share']. The failed names the download branch can produce are source-clipped, loop-seam and loop-crossfade-level only (read from the code)."
+   }
+  },
+  {
+   "n": 15,
+   "title": "Other stated rules are not coded: sensor soft attack and level, 16-bit depth, distinct alarm envelopes, energy needs two channels; true-peak limit is really -0.995 dBFS; stereo scope is wider than the spec",
+   "file": "tools/audio/synth/rules.py",
+   "line": 62,
+   "claim": "Not checked at all: (a) sensors: 'soft attack (no click)' and 'level well below the alarms' (only the above-6-kHz share is checked; attackMs and onsetMs are never read); (b) all sounds: '16-bit PCM' (the analysis works on floats; no bit-depth field exists; an 8-bit-quantised blip passes); (c) alarms: 'each alarm's envelope pattern different' (no cross-sound comparison anywhere); (d) energy path: 'Two channels' (an energy sound listed with channels=1 gets no complaint; none exists today). Small differences: the true-peak rule reads truePeakDb after it was rounded to 0.01 dB, so the real limit is -0.995 dBFS, with the table ceiling exactly -1.0 and no reserve; is_two_channel_rule also applies the stereo rules to structure one-shots, while the spec says structure loops (no structure one-shot has two channels today); the clipped rule cannot fail without true-peak failing as well; radio 'nothing below 250 Hz or above 3.8 kHz' is checked as at most 1 % of the energy; alarm 'no energy peak above 5 kHz' is checked as at most 0.1 % of the energy. Other edge rules missing besides the known start-at-zero gap: nothing checks a one-shot for a step in the middle of the file, a hard (non-ramped) start of a loop file beyond the seam check, or the first/last sample level of a loop against the 50 ms edge figure alone; the tail rule allows a step of up to -60 dBFS.",
+   "evidence": "f8: sensor blip with a 0.5 ms click step: attackMs=0.0 onsetMs=0.0 rules.check -> []; 8-bit quantised blip -> [] and no analysis field with 'bit' in its name; attackMs/onsetMs/envelope read in rules.py: False. f7: energy hit with channels=1 -> only ['energy-weight'], no channel complaint; is_two_channel_rule(structure one-shot, 2 ch)=True; sounds.json: 0 structure one-shots with 2 channels, 0 energy sounds with 1 channel. f10: true peak -1.000 and -0.996 dBFS -> truePeakDb printed -1.00, no failure; -0.992 -> fails.",
+   "reproduce": "cd C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels ; .venv-audio/Scripts/python.exe f8_stated_rules_not_in_code.py ; f7_stereo_scope.py ; f10_true_peak_rounding.py (all in that folder)",
+   "severity": "rule-missing",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add the sensor attack rule (attackMs at least 5 ms, from an['envelope']), read the bit depth from the file header in build_sound, compare envelope strings between alarms in a build-level check, require channels=2 for path energy, and compare an['truePeakDb'] unrounded (or use a limit of -1.0 minus 0.01). None of these changes a WAV; the sensor attack rule might fail current sensor sounds, which I did not measure.",
+   "lens": "rules-levels",
+   "verification": {
+    "n": 15,
+    "title": "Other stated rules are not coded: sensor soft attack and level, 16-bit depth, distinct alarm envelopes, energy needs two channels; true-peak limit is really -0.995 dBFS; stereo scope is wider than the spec",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Parts confirmed by experiment: the sensor attack rule, the energy path with one channel, the true-peak rounding and the stereo scope. The missing 16-bit and alarm-envelope-comparison rules I only confirmed by reading rules.py (no bit-depth field, no cross-sound comparison). write_wav makes int16 by construction, so a bit-depth rule would be a guard, not a fix. I did not check the other 'smaller differences'. Rule changes alone change no wav bytes. The finder did not measure whether current sensor sounds would fail a sensor attack rule. I read the real render JSONs, and the attackMs values are 5, 9, 1, 8 and 2 ms (onset 0.1 to 0.85 ms), so a minimum of 5 ms would fail sensor_fire_outside and sensor_proximity_tick, and fixing those would mean re-rendering them. The limit needs a decision.",
+    "ownEvidence": "Script v_rules.py. A sensor blip with a hard start at full level: verdict [], attackMs 0.0, onsetMs 0.02. The same blip quantised to 8 bits: verdict [], no analysis key containing 'bit'. An energy-path sound listed with channels=1: ['tail-not-silent','energy-weight'], no channel complaint (the tail failure comes from my test signal). is_two_channel_rule is True for a structure one-shot with 2 channels, and also for a structure loop. A sine scaled to true peak -1.000 and -0.996: truePeakDb printed -1.0, true-peak rule does not fire. At -0.994, -0.992 and -0.985 it fires, so the real limit is -0.995 dBFS."
+   }
+  },
+  {
+   "n": 16,
+   "title": "Loop level swing reads 4 dB for a hard on/off loop, so the rhythm rule passes it",
+   "file": "tools/audio/listen/measure.py",
+   "line": 245,
+   "claim": "loop_check measures swing with 100 ms windows on a 50 ms hop and drops every window at or below -90 dB. A loop that pulses on and off with digital silence therefore reads a few dB when its pulse edges sit on the 50 ms grid, and a large number when they do not. The right value is unbounded (the level goes to silence). rules.py gives a pass when the number is under 6 dB, so a loop that is a clear rhythm passes by chance of alignment. Mutants M15 (keep silent windows) and M22 (400 ms windows) survive every existing test AND my guard tests, because no test feeds a pulse loop. I tested digital silence and silence with +-1 LSB TPDF dither; both behave the same.",
+   "evidence": "Same 1 kHz pulse loop (20 ms raised-cosine edges, clean seam), shifted by 13 ms: on 1.0 s offset 0.5 s -> swing 4.3 dB, no loop rule fires. Offset 0.513 s -> 17.7 dB, loop-level-swing fires. on 0.5 s: 4.3 vs 17.7. on 0.2 s: 4.3 vs 17.7. on 0.1 s: 3.0 vs 16.3. on 0.05 s: 0.0 vs 11.7. With dither in the silence: 4.3 / 17.7 / 4.3 / 3.0 (same pattern).",
+   "reproduce": "CUDA_VISIBLE_DEVICES=-1 C:/Claude Code/LOCAL/primacy2/.claude/worktrees/primacy2-space-simulator-b9a0b8/.venv-audio/Scripts/python.exe C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/demo_swing_rhythm.py",
+   "severity": "wrong-number",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Do not drop silent windows (floor them at FLOOR_DB or count them), and take the swing over windows that start at several offsets or with a shorter window (e.g. 20 ms), so alignment cannot hide a pulse. Add a test with a pulse loop at 3 offsets that must read at least 20 dB. Repair changes only pass/fail of loops, never the bytes; a currently passing loop that pulses could start to fail, and then the sound would have to change.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 16,
+    "title": "Loop level swing reads 4 dB for a hard on/off loop, so the rhythm rule passes it",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed with my own pulse signal; my numbers match the finder's 4.3 and 17.7 exactly. The mutants M15 (keep silent windows) and M22 (400 ms windows) survive both the listen MeasureTests and the synth test files. Repair changes only pass/fail, never bytes.",
+    "ownEvidence": "e2_swing.py and mutate.py, mutate2.py. 1 kHz pulse of 0.3 amp with 20 ms raised-cosine edges inside the pulse, pulse lengths 1.0, 0.5, 0.2 s in loops of 2.0, 1.5, 1.0 s: shift 0 ms reads 4.3 dB (rules.check []), shift 13 ms reads 17.7 (fails loop-level-swing), shift 25 ms reads 9.0 (fails). 0.1 s pulse: 3.0, 16.3, 7.0. Window swing without the -90 cut: 106.5 dB in every case. Mutants: M15_keep_silent_windows and M22_swing_400ms both SURVIVE listen.tests MeasureTests (16 tests) and synth tests (54 tests, 14 s baseline). A control mutant (CLIP_LEVEL = 0.5) is killed by test_clipped_sine_is_counted, and a DC mutant by test_dc_offset_is_found, so the harness can kill."
+   }
+  },
+  {
+   "n": 17,
+   "title": "Every all-sounds rule and every category rule can be switched off without any test failing",
+   "file": "tools/audio/synth/rules.py",
+   "line": 62,
+   "claim": "24 of 27 mutants of rules.py survive both suites. No test feeds rules.check a failing true peak, clipping, DC, late onset, loud tail, loop seam, loop swing, wrong sample rate or wrong channel count. No test touches the switch, alarm, sensor or radio rules at all. The numeric thresholds of the structure and stereo rules are not pinned either: the tests use extreme signals (a 40 Hz tone, identical channels), so moving 0.35 to 0.05, 0.25 to 0.9, 0.02 to 0.5, 0.15 to 0.9, 0.9 to 0.99 or 0.98 to 0.5 goes unseen. The energy sounds are exempt from the two-channel rules without a test noticing. Since the rules are about to get new numbers, the new numbers would be equally unguarded. Survivors: R01-R11, R14-R16, R18-R27. Killed only: R12 (pressure sounds), R13 (air share), R17 (level difference).",
+   "evidence": "Mutation run on the snapshot: rules.py 27 mutants, 24 survived. My 31 proposed tests (all pass on the pristine snapshot) kill all 24; each is a short signal with a known right answer, e.g. a sine at -0.5 dBFS must give true-peak, a 20 ms late burst must give onset-late, a 100 Hz tone must give radio-band, a 200 Hz tone must give alarm-fundamental.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/mutate.py (run with the .venv-audio python; results in results.json) and guards/test_guards.py classes GeneralRules and PathRules (run: AUDIO_ROOT=<snapshot>/tools/audio python -m unittest discover -s guards)",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add a boundary test for each rule: one signal just inside and one just outside the number, built so the right answer is known by construction, calling rules.check. Copy guards/test_guards.py (GeneralRules, PathRules) into synth/tests and read the thresholds from rules.* constants or the design document, so new numbers move the test with them.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 17,
+    "title": "Every all-sounds rule and every category rule can be switched off without any test failing",
+    "verdict": "unclear",
+    "affectsRenderedFiles": false,
+    "note": "Mostly reproduced, but the claim 'every' is too broad and one of the finder's named survivors is wrong. In my run, switching energy-peak off IS caught by test_a_standing_pitch_fails, and structure-high-share and the stereo correlation range are also caught. The finder's survivor list (R18 to R27 survives) cannot be matched to my mutants one by one, so some of its 24 are the ones I could not map. I did not run its 31 proposed guard tests. Adding tests changes no wav bytes.",
+    "ownEvidence": "Script mut.py, mut_out.txt. The all-sounds rules (sample-rate, channels, true-peak, clipped, dc-offset, onset-late, tail-not-silent, loop-seam, loop-level-swing) and the switch, alarm, sensor and radio rules all survive when switched off, as the finder says. Killed: energy-peak off (test_a_standing_pitch_fails), structure-high-share off, and stereo correlation range opened to -2..2 (two tests). Not tested by me: the finder's threshold moves (0.35 to 0.05 and similar)."
+   }
+  },
+  {
+   "n": 18,
+   "title": "Loudness gating, K-weighting and the short-clip repeat in measure.py are unguarded; the twins in levels.py die only by accident",
+   "file": "tools/audio/listen/measure.py",
+   "line": 41,
+   "claim": "Mutants M03 (no gating), M04 (no K-weighting, calibrated at 1 kHz so the one reference test still passes) and M20 (short clip zero-padded) survive all tests. The only LUFS reference test is a full-scale 1 kHz sine, where K-weighting and gating make no difference. The levels.py copies are killed (L04, L05, L11) only by test_family_loudness in test_pilot_energy, which has a 2 dB tolerance and tests something else. The synth LevelTest cases (test_loudness_target, test_level_is_set_on_the_mono_sum) measure with synth.lufs, the same function that set the level, so they cannot see a wrong loudness measure.",
+   "evidence": "Right value from the published BS.1770 filter vs measure.lufs vs the M04 mutant for a full-scale sine: 40 Hz -9.27 / -9.29 / -3.01; 50 Hz -7.64 / -7.66 / -3.01; 100 Hz -4.83 / -4.87 / -3.01; 1 kHz -3.00 / -3.05 / -3.01. One second of tone plus 4 s silence: -9.77 (by the standard: tone alone -9.07 plus 10*log10(0.85) = -0.71); without the gate about -16.06. My tests test_k_weighting_at_50_hz_matches_the_published_filter and test_gating_ignores_silence kill M03, M04 and L05.",
+   "reproduce": "CUDA_VISIBLE_DEVICES=-1 C:/Claude Code/LOCAL/primacy2/.claude/worktrees/primacy2-space-simulator-b9a0b8/.venv-audio/Scripts/python.exe C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/demo_known_values.py ; mutants in mutate.py (M03, M04, M20, L04, L05, L11)",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add the 50 Hz K-weighting test (expected value from freqz of the published coefficients, delta 0.1) and the tone-plus-silence gating test (expected tone-alone plus 10*log10(0.85), delta 0.15) for both measure.loudness_lufs and levels.lufs. For M20 add: a 100 ms clip must read within 0.1 dB of the same signal repeated to 1 s. The current code is correct on these inputs (within 0.05 dB), so no byte changes.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 18,
+    "title": "Loudness gating, K-weighting and the short-clip repeat in measure.py are unguarded; the twins in levels.py die only by accident",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed with one correction. In my version of the levels.py no-K-weighting mutant (calibrated at 1 kHz so a 1 kHz sine still reads right) the synth tests did NOT kill it (L04 survives). The finder says L04 is killed; their variant may not be calibrated at 1 kHz. L05 (no gating) and L11 (zero-pad instead of tile) are killed, and only by test_family_loudness_is_matched (2 dB tolerance). The measure.py twins M03, M04 and M20 survive everything I ran: listen MeasureTests and the three synth test files. I did not run tests/test_downloads_build.py or tests/test_fetch.py against the mutants. No byte change: current code is right on these inputs.",
+    "ownEvidence": "mutate.py, mutate2.py, mutlufs.py, sanity.py. Mutants built in copies of the snapshot with my own BS.1770 implementation (flags for gate and K-weighting). Sanity: 1 s of 0.5-amp 50 Hz plus 4 s silence reads -14.39 in the original, -21.11 in M03 and -9.77 in M04, so the mutants change numbers. M03, M04, M20: SURVIVES listen MeasureTests and SURVIVES synth tests. L05: killed by test_family_loudness_is_matched. L11: killed by test_family_loudness_is_matched. L04 (calibrated): survives synth tests. Original measure on the 50 Hz tone: -13.68 for the tone alone by my arithmetic (-14.39 minus 10*log10(0.85) = -0.71 gives -13.68), consistent with gating working as the standard says."
+   }
+  },
+  {
+   "n": 19,
+   "title": "levels.py: ceiling and true-peak function are tested with themselves; the level table is pinned by nothing; the ceiling test covers 32 of 75 sounds",
+   "file": "tools/audio/synth/levels.py",
+   "line": 13,
+   "claim": "L01 (CEILING_DB -1 -> 0) and L03 (true_peak_db returns the sample peak) survive. test_ceiling_is_kept compares against synth.CEILING_DB itself, test_peak_target uses a very slow sine (steps of 0.004 rad) whose sample peak equals its true peak, and test_every_rendered_sound_is_under_the_ceiling measures with the same synth.true_peak_db that set the level. The rules layer holds a second, separate -1.0 and its own true-peak function, so the build would catch a wrong ceiling, but the unit tests would not. The table: L08 (alarm_missile -18 -> -8) and L09 (engine t050 and t075 swapped) survive. In a full discover run the ceiling test iterates synth.REGISTRY, which holds only what the test files happened to import: 32 of 75 sounds (cabin, engines, impacts, pilot, thrusters); alarms, drive, landing, radio, sensors, switches and weapons are never checked. Run alone, the test covers 9 sounds. L12 (silent sound returns -70 instead of raising) also survives. No sound is limited at present: all 27 LUFS and all peak sounds reach their targets.",
+   "evidence": "Mutation: L01, L03, L08, L09, L12 survive; my tests test_ceiling_is_minus_one, test_peak_target_is_a_true_peak (fs/4 sine at 45 degrees, true peak set to -3 dB must measure -3 dB with the measure module), test_table_keeps_its_order and test_silence_has_no_loudness kill L01, L03, L09, L12; L08 stays alive because only the design document can say -18 is right. Registry count printed: 'full suite: 32 of 75 sounds'.",
+   "reproduce": "CUDA_VISIBLE_DEVICES=-1 C:/Claude Code/LOCAL/primacy2/.claude/worktrees/primacy2-space-simulator-b9a0b8/.venv-audio/Scripts/python.exe C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/demo_registry_size.py ; mutants in mutate.py (L01 to L12)",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Measure the result of set_level with measure.true_peak and measure.loudness_lufs (independent code), pin CEILING_DB to -1.0 literally, import all cat_* modules in the test so all 75 sounds are checked, and keep a copy of the design-document level values in the test (that is the only guard for L08). No repair is needed in the code, so no bytes change.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 19,
+    "title": "levels.py: ceiling and true-peak function are tested with themselves; the level table is pinned by nothing; the ceiling test covers 32 of 75 sounds",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "All five mutants survive. The ceiling-test coverage number differs from the finder's: loading the three synth test modules and the tests/ directory registers 28 of the 75 sounds (categories cabin, engines, impacts, pilot), not 32. A different load order could add thrusters. The substance holds, because alarms, drive, landing, radio, sensors, switches and weapons are never checked. Adding tests changes no wav bytes.",
+    "ownEvidence": "Script mut.py, mut_out.txt, and v19b.py in snap. Survived both suites: CEILING_DB -1.0 to 0.0, true_peak_db returning np.max(abs(x)), alarm_missile -18 to -8, engine t050 and t075 swapped, lufs() no longer raising on silence. Registry count after importing the synth and tests test modules: 28 of 75. The finder's reason checks out in the code: test_ceiling_is_kept compares against synth.CEILING_DB + 0.01, and test_peak_target uses np.sin(np.linspace(0, 200, 48000)), a very slow sine, so its sample peak equals its true peak."
+   }
+  },
+  {
+   "n": 20,
+   "title": "Measure constants and band edges that no test pins (band edges, oversampling factor, int16 clipping, DC sign, edge level, level difference, peak share, seam yardstick)",
+   "file": "tools/audio/listen/measure.py",
+   "line": 19,
+   "claim": "Survivors: M06 (500 -> 700 Hz edge, moves lowShare), M07 (4000 -> 3000 Hz, moves highShare), M08 (125 and 250 swapped: the 125-250 band is counted twice in lowShare), M02 (2x instead of 4x oversampling), M10 (CLIP_LEVEL 0.99999: misses every positive clipped sample of a 16-bit file, whose full scale reads 0.999969; the test clips symmetrically so the -1.0 side still counts), M11 (DC kept signed: a negative DC offset passes), M13 (edge level limit 3 -> 30 dB), M18 (stereo level difference halved), M19 (peak share over one bin instead of five), M21 (seam yardstick = maximum step instead of the 99th percentile). The band test uses only a 100 Hz and a 6 kHz sine, so the structure rules' lowShare and highShare windows are unguarded. rules.py reads lowShare and highShare from these edges.",
+   "evidence": "4x versus 2x over 549 steady sines of real peak 0 dB: 4x reads -0.28 to +0.02 dB, 2x reads down to -1.23 dB (largest gap 1.24 dB at 16 kHz). A positive-only clipped 16-bit sine: loaded maximum 0.999969, clippedSamples 12840 with CLIP_LEVEL 0.9999, 0 with 0.99999. My tests test_band_edges (nine tones, one per band, sum of shares must be 1), test_true_peak_of_a_sine_whose_samples_miss_the_crest, test_clipping_is_found_in_a_16_bit_file, test_negative_dc_is_found, test_loop_edge_level_limit, test_stereo_level_difference_is_in_decibels and test_peak_share_of_a_tone_between_bins kill all of them except M21; M21 needs a noisy loop with an inserted click of three times the 99th-percentile step that must fail the seam.",
+   "reproduce": "CUDA_VISIBLE_DEVICES=-1 C:/Claude Code/LOCAL/primacy2/.claude/worktrees/primacy2-space-simulator-b9a0b8/.venv-audio/Scripts/python.exe C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/demo_true_peak_2x.py and demo_known_values.py (same folder); mutants in mutate.py",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Add the tests named above (guards/test_guards.py class Measures). The code is correct on these inputs, so no byte changes.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 20,
+    "title": "Measure constants and band edges that no test pins (band edges, oversampling factor, int16 clipping, DC sign, edge level, level difference, peak share, seam yardstick)",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed. Scope of my evidence: M06, M07, M08, M10, M13, M21 were run against listen MeasureTests and the three synth test files, all survive. M02, M11, M18 and M19 were run only against listen MeasureTests (they survive); I did not run synth tests on them, and I did not run tests/test_downloads_build.py or tests/test_fetch.py for any mutant. The existing band test uses only a 100 Hz and a 6 kHz sine (read in test_listen.py), the clipping test clips symmetrically. The repository tests are not touched, no bytes change.",
+    "ownEvidence": "mutate.py, mutate2.py, e10_tp.py. Survivors in listen MeasureTests: M02 (2x oversampling), M06 (500 -> 700 Hz), M07 (4000 -> 3000), M08 (125/250 swapped), M10 (CLIP_LEVEL 0.99999), M11 (signed DC), M13 (edge limit 30 dB), M18 (half level difference), M19 (peak share over one bin), M21 (seam yardstick = max step). Sanity: M10 on a 16-bit full-scale positive sample (0.999969) counts 0 clipped, the original counts 500; M06 on a 600 Hz tone gives lowShare 1.0 against 0.0. True peak of unit sines 15-17 kHz over 9 phases each: worst reading -0.03 dB with 4x, -0.50 dB with 2x (right value 0.00). Control mutants (CLIP_LEVEL 0.5, DC forced to 0) are killed, so the test run can detect a change."
+   }
+  },
+  {
+   "n": 21,
+   "title": "Smaller wrong numbers: LUFS low by up to 0.22 dB at lengths that are not a multiple of 100 ms; true-peak rule compares a rounded number; two rules pass when their input is missing",
+   "file": "tools/audio/listen/measure.py",
+   "line": 54,
+   "claim": "(a) pyloudnorm counts a half-filled last 400 ms block, so a steady sine reads -3.27 at 0.46 s and -3.23 at 0.55 s against the right -3.05 at 0.40, 0.45, 0.50, 0.60 s and longer. Both measure.loudness_lufs and levels.lufs show it. I scanned all 27 sounds set by LUFS (levels.lufs against a reference that uses only full 400 ms blocks): the largest difference is 0.000 dB, because every rendered length is a multiple of 100 ms, so no file is affected today. A sound of another length would be. (b) The true-peak rule tests the value rounded to 2 decimals, so a true peak of -0.996 dBFS reads -1.0 and passes against the -1 dB limit (0.005 dB). (c) rules.check uses an.get('peakShare', 0.0) and lp.get('levelSwingDb', 0.0): a missing number passes instead of failing (loops shorter than 0.2 s have no swing number; the shortest loop is 1 s, so this is not live). (d) The 4x oversampling reads up to 0.28 dB low for a sine close to Nyquist, within what BS.1770 allows.",
+   "evidence": "Lengths 0.30/0.40/0.41/0.45/0.50/0.60/0.70/1.0/2.0 s read -3.05; 0.46 s reads -3.27; 0.55 s reads -3.23 (both functions). Scan of 27 LUFS sounds: max diff 0.000 dB. Scaled to true peak -0.996 dB: truePeakDb -1.0, true-peak rule does not fire. energy-peak does not fire when peakShare is removed from a sound whose peakShare is 0.9909.",
+   "reproduce": "CUDA_VISIBLE_DEVICES=-1 C:/Claude Code/LOCAL/primacy2/.claude/worktrees/primacy2-space-simulator-b9a0b8/.venv-audio/Scripts/python.exe C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/demo_lufs_length.py ; demo_lufs_all_sounds.py ; demo_rules_gaps.py (same folder)",
+   "severity": "minor",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "(a) Measure with only complete 400 ms blocks (trim or tile the clip to a multiple of 100 ms plus 300 ms); this changes the level of a rendered file only if its length is not a multiple of 100 ms (none now). (b) compare the unrounded true peak. (c) make a missing key fail the rule. Only (a) could ever change bytes.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 21,
+    "title": "Smaller wrong numbers: LUFS low by up to 0.22 dB at lengths that are not a multiple of 100 ms; true-peak rule compares a rounded number; two rules pass when their input is missing",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Part (a): no rendered file changes today, but for a slightly different reason than the finder gave. 27 sounds are LUFS-set. Two of them (sensor_proximity_tick 0.08 s and sensor_fire_outside 0.25 s) do not have a duration that is a multiple of 100 ms, but both are shorter than 400 ms and are tiled to one block, so no half-filled block arises. The other 25 are multiples of 0.1 s. 11 pilot sounds have no entry in levels.py and were not scanned. A repair of (a) that changed the tiling rule could change the two sensor sounds. (b) and (c) change only verdicts, not wav bytes. Part (d): my worst-case scan found a bigger error than the finder's 0.28 dB at 0.40 fs, so (d) stands, but it is within the BS.1770 tolerance.",
+    "ownEvidence": "Scripts v_rules.py and v21.py. A 997 Hz sine at 0.5 amplitude: lengths 0.30, 0.40, 0.41, 0.45, 0.50, 0.60, 0.70, 1.0, 2.0 s all read -9.07 (measure and levels.lufs the same). At 0.46 s it reads -9.295 and at 0.55 s -9.257, which is about 0.22 and 0.19 dB low. (b) Covered under finding 15: -0.996 passes and -0.994 fails. (c) energy-peak fires with peakShare 0.99 and does not fire when the key is removed. loop-level-swing fires at 30 dB and does not fire when the key is removed. The shortest loop is alarm_missile at 1 s, so the missing swing number is not live. (d) A sine at 0.40 times the sample rate at its worst phase reads -0.274 dB."
+   }
+  },
+  {
+   "n": 22,
+   "title": "Tests that assert almost nothing, test themselves, or keep their own copy of a threshold",
+   "file": "tools/audio/synth/tests/test_synth.py",
+   "line": 134,
+   "claim": "(1) listen test_stereo_keeps_channels_and_short_clip_works (line 128) only checks channels == 2 and lufs is not None, not a value. (2) listen test_envelope_tells_two_rhythms_apart (93) only checks two strings differ. (3) test_png_and_text_output (134) pins a file size above 5000 bytes, no source. (4) synth test_clap_margin_is_a_hint_in_the_build (160) greps the text of build.py, so it passes if the logic moves. (5) StructureRulesTest.AN (134-136) is a hand-made dict with lowShare 0.95 and highShare 0.0, so structure-low-share and structure-high-share are fed constants, not measurements. (6) test_ceiling_is_kept (58) and test_every_rendered_sound_is_under_the_ceiling (64) use the function under test (see the levels finding). (7) test_shared_dither (235) pins 1.6 LSB 'rounding only' with no derivation. (8) test_pilot_energy test_levelled_render_meets_the_general_rules (64-71) and test_pilot_mech (56-61) re-write the general rules inline with their own -1.0, 0.001, 5 ms and -60 dB, and test_pilot_energy StereoTest (147-154) hard-codes 0.3, 0.9 and 1.5, so when rules.py gets new numbers these tests keep the old ones or fail for the wrong reason. (9) test_family_loudness uses 2.0 dB and synth.lufs; test_valve_and_thump pins 0.35 where the brief asks 0.5 (the comment says why) and the briefs are 'in the report', not in the repository; the shares in the pilot tests use a mean-removed FFT while rules.energy_share does not remove the mean.",
+   "evidence": "Read of the three test files. Effect shown by mutation: R12/R13/R17 are the only rules mutants killed, and the pilot tests kill L04, L05, L07, L10, L11 only through their loose loudness test.",
+   "reproduce": "C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-tests-mutation/snap/tools/audio/synth/tests/test_synth.py (lines above) and listen/tests/test_listen.py",
+   "severity": "untested",
+   "affectsRenderedFiles": false,
+   "suggestedFix": "Replace the inline copies by calls to rules.check and the rules.* constants, build AN from measure.analyse, assert a value in (1), and give a source for every pinned number in a comment.",
+   "lens": "tests-mutation",
+   "verification": {
+    "n": 22,
+    "title": "Tests that assert almost nothing, test themselves, or keep their own copy of a threshold",
+    "verdict": "confirmed",
+    "affectsRenderedFiles": false,
+    "note": "Confirmed for items 1 to 6 and for the inline copies in item 8 and the 2.0 dB tolerance in item 9, by reading the files. Not verified by me: item 7 (whether 1.6 LSB has a derivation), the claim that the brief asks 0.5 where the pilot test pins 0.35, the mean-removed-FFT difference, and the statement that R12/R13/R17 are the only rules mutants killed (I did not run rules mutants). The mutation part is supported: levels.py L05 and L11 are killed only by test_family_loudness_is_matched. No bytes change from rewriting tests.",
+    "ownEvidence": "Read of snapshot tests. test_listen.py: test_stereo_keeps_channels_and_short_clip_works asserts channels == 2 and lufs is not None; test_envelope_tells_two_rhythms_apart asserts two strings differ; test_png_and_text_output asserts file size above 5000. test_synth.py: test_clap_margin_is_a_hint_in_the_build reads build.py as text and greps; StructureRulesTest.AN is a hand-written dict with lowShare 0.95 and highShare 0.0; test_ceiling_is_kept and test_every_rendered_sound_is_under_the_ceiling use synth.true_peak_db, the function set_level itself uses. test_pilot_energy.py: test_levelled_render_meets_the_general_rules repeats -1.0, 0.001, 5 ms and -60 dB inline; StereoTest hard-codes 0.3, 0.9 and 1.5; test_family_loudness_is_matched uses synth.lufs and 2.0 dB. Mutation run: L05 and L11 killed only by test_family_loudness_is_matched."
+   }
+  }
+ ],
+ "suites": [
+  {
+   "lens": "measure-dsp",
+   "suites": "I ran no project suite as a gate. I ran my own scripts t1 to t17 (in C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-measure-dsp, files t1_anchors.py to t17_swing_and_rules.py plus ref1770.py, an independent BS.1770 implementation of my own) against measure.py from a git-archive snapshot of commit 5f4f1d2. Baselines before mutation: the listen MeasureTests 16 of 16 pass, test_synth 38 of 38 pass (all on the snapshot copy). Mutation: 41 mutants against the listen MeasureTests (21 killed, 20 survived), then the 20 survivors plus 7 more against test_synth (the stereo cutoff, levelDiff and channel-1 mutants were killed there). Checked in order: white-noise band shares at 48 and 44.1 kHz, tone fundamentals, centroid, sample peak (0 dBFS at full scale), peak and clipping, dcOffset on a DC-carrying tone, the seam and kink checks, onset and 60 dB fall on known envelopes, gating (absolute -70, relative -10, 400 ms block, 75 % overlap; agrees with my reference). Not in order: the findings above. The scratch folder is under the session scratchpad. I touched no file of the real tree and ran nothing on the GPU. No process of mine is left running."
+  },
+  {
+   "lens": "rules-levels",
+   "suites": "I ran four unittest modules on the snapshot: synth.tests.test_synth 38 tests OK, synth.tests.test_pilot_energy and test_pilot_mech 16 tests OK, tests.test_downloads_build 48 tests with 1 baseline error (Level.test_target_table needs assets/audio/selection.json, absent from the git-archive snapshot; it covers DOWNLOAD_TARGETS only, not levels.py, and errors the same way for every mutant). Mutation run over rules.py and levels.py: 51 mutants, 22 killed, 26 survived, 0 patterns that failed to apply (mutate.py). Eleven scripts f1 to f12 plus summ.py, manifest_levels.py and manifest_peakshare.py are in C:/Users/Thomas/AppData/Local/Temp/claude/ddc8f35ddf5feee1/47ae9491-f9c5-4181-a8a5-ba7fbc8fd8b8/scratchpad/review-rules-levels (f11 and f12 only showed that pilot ids and all 75 sounds have exact level rows once the category modules are imported, so they are not findings). No process of mine is left running; nothing under the real tree was written (git status clean at the end), scratch copies of the mutants were deleted."
+  },
+  {
+   "lens": "tests-mutation",
+   "suites": "Snapshot of commit 5f4f1d2 (git archive of tools/audio). Baseline: listen suite 22 tests OK once in full and synth suite 54 tests OK (about 14 s). DISCLOSURE: that first full listen run (about 37 s) was started WITHOUT CUDA_VISIBLE_DEVICES=-1, so its CLAP and Whisper tests may have loaded their models on the graphics card (pick_device picks cuda when available) and taken the GPU lock; every later run, including all mutant runs and all demos, set CUDA_VISIBLE_DEVICES=-1 and ran on the CPU only. Mutation: 61 mutants (measure.py M01-M22: 22, rules.py R01-R27: 27, levels.py L01-L12: 12), one change at a time on copies of the snapshot, files restored after each (verified identical to the pristine copies), 5 parallel copies. Each mutant ran the listen subset MeasureTests plus CommonTests (18 tests; CLAP and Whisper classes left out because they do not use the three files) and the full synth suite (54 tests). Result: 17 killed, 44 survived (measure 15 of 22, rules 24 of 27, levels 5 of 12). Mutation results are in results.json and results_M20_M21_M22.json (the harness mutate.py now holds all 61; a rerun writes one file per run). Proposed guard tests (31, scratch only, not in the repository): all pass on the pristine snapshot and kill 39 of the 44 survivors; still alive: M15 and M22 (a pulse loop must read at least 20 dB at any offset: this test fails on today's code, it documents finding 1), M20 (a 100 ms clip must equal the same signal repeated, within 0.1 dB), M21 (a noisy loop with an inserted click of 3 times the 99th-percentile step must fail the seam), L08 (needs the level values of the design document copied into the test). No process of mine is left running; no file in the real tree was touched, and git status shows only changes by other agents (build.py, test_generated_build.py)."
+  }
+ ],
+ "notLookedAt": [
+  "measure-dsp: The listening download path (build.py download processing, DOWNLOAD_TARGETS), only build_sound's calls to measure and rules were read, from the snapshot of commit 5f4f1d2.",
+  "measure-dsp: Whether any real rendered or downloaded sound has a length, a loud tail, a silent window or a silent channel that triggers these faults. I used synthetic signals only and did not run the library's files.",
+  "measure-dsp: write_png, spectrogram_db, main and the text and JSON output formatting.",
+  "measure-dsp: rules.py and levels.py beyond the lines that call or copy measure (levels.lufs and true_peak_db are copies of the measure code and share the faults, I read them but did not mutate them). The level-setting loop in set_level was not tested.",
+  "measure-dsp: Sample rates other than 44.1 kHz and 48 kHz for the signal measures (96 kHz only for the K filter response). Files with more than two channels beyond one 3-channel loudness case.",
+  "measure-dsp: Radio, CLAP, describe and transcribe tools.",
+  "measure-dsp: True peak: mid-file the 4x filter is flat to 0.01 dB up to 0.35 fs but reads 0.40 dB low at 0.40 fs (19.2 kHz at 48 kHz) and up to 0.35 dB high near abrupt file ends (a steady sine cut at full level). With 5 ms fades it is within 0.03 dB. I judged this minor and gave it no slot. A fs/4 sine with 45 degree phase reads +3.126 dB above sample peak (3.01 expected) because of the abrupt ends.",
+  "measure-dsp: Anything audible. Nothing here was heard. Band shares are fine on white noise (within 0.0005 of the flat-spectrum answer at 48 and 44.1 kHz), the centroid is right for tones and noise, the fundamental estimator is right for harmonic series from 55 to 1500 Hz at both rates, and the seam check finds a 0.004 step or kink on a 50 Hz tone; these were checked and are in order.",
+  "rules-levels: synth/__init__.py, wavio.py, core.py beyond the few lines needed to follow how levels and the 16-bit file are made; no category renderer (cat_*.py) was read except grep of swing_max",
+  "rules-levels: measure.py was only read for what rules.py consumes (field names, loop_check, peak_share, stereo_stats); its own correctness (seam ratio design, BS.1770 against a reference, onset and attack numbers) is for the other lenses",
+  "rules-levels: CLAP, the describing model and the Whisper check of radio lines: not checked in rules.py by design, and I did not review where else they run",
+  "rules-levels: Rules in section 2 that need listening or a model and cannot be coded in rules.py: rattles that are never pitched pings and not alike, 'audibly in a small room', radio word error rate",
+  "rules-levels: build.py download processing (fades, ramps, loop crossfade, DOWNLOAD_TARGETS) beyond how it avoids rules.check; the DOWNLOAD_TARGETS table and its test were not mutated",
+  "rules-levels: Whether the manifest read (assets/audio/render/manifest.json, written 08:13 today) matches the snapshot commit 5f4f1d2 exactly; all manifest numbers are from that file, read only",
+  "rules-levels: I did not render any sound from the snapshot (no GPU, no full build); all signals are synthetic, passed through the real to_int16 dither and the real measure.analyse",
+  "rules-levels: Mutation harness: mutants are single-line edits; the tests that error at baseline (test_target_table, needs assets/audio/selection.json) were counted by changed summary line only; mutants that made no difference to the summary line count as survivors, which could hide a mutant that fails a test and errors it identically (unlikely: a failure adds 'failures=' to the line)",
+  "rules-levels: Stereo rule thresholds (0.3 to 0.9, 0.98, 1.5 dB) and the energy thresholds were compared with the spec text only, not with real files",
+  "tests-mutation: measure.envelope() (onset, attack, fall60, printed envelope): no rule reads it; only one weak test (test_envelope_tells_two_rhythms_apart) touches it",
+  "tests-mutation: measure.spectral_peaks and the fundamental estimate (the alarm-fundamental rule depends on it; I only mutated the rule side, and tested one alarm tone at 200 Hz)",
+  "tests-mutation: measure.loop_check edge band check (edgeBandDiffDb is computed but nothing gates on it) and the centroid numbers",
+  "tests-mutation: measure.write_png, format_text, main, spectrogram_db (output only)",
+  "tests-mutation: The dither and int16 conversion in synth core and wavio, and the shared-dither code",
+  "tests-mutation: The download path of build.py (DOWNLOAD_TARGETS, processing) and build.build_sound beyond how it calls measure and rules",
+  "tests-mutation: pyloudnorm internals (filter coefficients differ from the published ones by about 0.04 dB at 1 kHz; I only checked the result)",
+  "tests-mutation: The CLAP and Whisper tests and compare.py/transcribe.py: those tests were left out of the 61 mutant runs because they do not call the three files; the radio Whisper check is not in rules.py",
+  "tests-mutation: The synth render scripts (cat_*.py) beyond rendering all 75 sounds once on the CPU to count registry coverage and to scan LUFS levels",
+  "tests-mutation: Whether the new numbers in section 2 are sensible; I checked code against the current text only",
+  "tests-mutation: The known mismatch (band table under-reports a hit at the very start of a file against the whole-file figure) was not re-found, as asked",
+  "tests-mutation: I did not mutate sound-level semantics such as the order of mono_sum for non-mid-side two-channel cabin sounds (they are set on both channels together; cabin_ambience_loop reads -45.0 LUFS on the file, -51.0 on its mono sum)"
+ ]
+}

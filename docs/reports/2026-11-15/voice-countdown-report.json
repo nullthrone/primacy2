@@ -1,0 +1,245 @@
+{
+ "task": "countdown on a one-second grid, composed from single numbers or from cuts of one utterance (listening sample)",
+ "date": "2026-11-15",
+ "owner_complaint": "countdown not counted in seconds, gaps irregular and shorter; idea: record the numbers one by one and play them deterministically",
+ "files": {
+  "script": "tools/voice/countdown.py",
+  "tests": "tools/voice/tests/test_countdown.py",
+  "speakers": [
+   "tools/voice/say_qwen3.py",
+   "tools/voice/say_chatterbox-nano.py"
+  ],
+  "published_by": "tools/voice/publish.py with the new block 'composed' in tools/voice/listening.json",
+  "audio": "assets/audio/voice/_countdown/<model>__<variant>.wav (+ .json each, measure.json)"
+ },
+ "originals_the_owner_heard_intervals_ms_between_vowel_onsets": {
+  "qwen3": [
+   630.4,
+   462.6,
+   466.0,
+   181.2
+  ],
+  "chatterbox-nano": [
+   745.7,
+   642.9,
+   657.2,
+   598.4
+  ]
+ },
+ "new_files_intervals_ms_by_construction": {
+  "qwen3__single": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "qwen3__list": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "chatterbox-nano__single": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "chatterbox-nano__list": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ]
+ },
+ "new_files_intervals_ms_measured_blind_on_the_finished_file": {
+  "qwen3__single": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "qwen3__list": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "chatterbox-nano__single": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ],
+  "chatterbox-nano__list": [
+   1000.0,
+   1000.0,
+   1000.0,
+   1000.0
+  ]
+ },
+ "published_16bit_copies_blind_intervals_ms": "1000.0 x4 for all four (measured on assets/audio/render/voice/*.wav, 478944 and 497136 samples)",
+ "sensitivity_to_the_onset_definition": {
+  "qwen3__single": {
+   "within_10db": {
+    "intervals_ms": [
+     1002.5,
+     1021.25,
+     978.85,
+     1010.83
+    ],
+    "onset_minus_anchor_ms": [
+     0.77,
+     3.27,
+     24.52,
+     3.38,
+     14.21
+    ]
+   },
+   "within_20db": {
+    "intervals_ms": [
+     1000.69,
+     995.4,
+     1002.35,
+     983.17
+    ],
+    "onset_minus_anchor_ms": [
+     -1.48,
+     -0.79,
+     -5.4,
+     -3.04,
+     -19.88
+    ]
+   }
+  },
+  "qwen3__list": {
+   "within_10db": {
+    "intervals_ms": [
+     1000.4,
+     1010.08,
+     993.73,
+     1004.06
+    ],
+    "onset_minus_anchor_ms": [
+     0.62,
+     1.02,
+     11.1,
+     4.83,
+     8.9
+    ]
+   },
+   "within_20db": {
+    "intervals_ms": [
+     1000.75,
+     995.21,
+     1004.17,
+     992.6
+    ],
+    "onset_minus_anchor_ms": [
+     -1.38,
+     -0.62,
+     -5.42,
+     -1.25,
+     -8.65
+    ]
+   }
+  },
+  "chatterbox-nano__single": {
+   "within_10db": {
+    "intervals_ms": [
+     997.75,
+     1001.46,
+     1076.56,
+     928.21
+    ],
+    "onset_minus_anchor_ms": [
+     3.4,
+     1.15,
+     2.6,
+     79.17,
+     7.38
+    ]
+   },
+   "within_20db": {
+    "intervals_ms": [
+     999.29,
+     998.21,
+     1001.02,
+     1000.54
+    ],
+    "onset_minus_anchor_ms": [
+     -0.4,
+     -1.1,
+     -2.9,
+     -1.88,
+     -1.33
+    ]
+   }
+  },
+  "chatterbox-nano__list": {
+   "within_10db": {
+    "intervals_ms": [
+     1002.71,
+     1000.44,
+     998.92,
+     1010.48
+    ],
+    "onset_minus_anchor_ms": [
+     0.46,
+     3.17,
+     3.6,
+     2.52,
+     13.0
+    ]
+   },
+   "within_20db": {
+    "intervals_ms": [
+     999.4,
+     1000.29,
+     999.19,
+     988.44
+    ],
+    "onset_minus_anchor_ms": [
+     -0.29,
+     -0.9,
+     -0.6,
+     -1.42,
+     -12.98
+    ]
+   }
+  }
+ },
+ "audition_page_defaults_peak_sounding_dbfs": {
+  "voice_5_countdown_1_qwen3_single": [
+   -12.2,
+   -26.7
+  ],
+  "voice_5_countdown_2_qwen3_list": [
+   -12.1,
+   -26.5
+  ],
+  "voice_5_countdown_3_chatterbox_single": [
+   -11.6,
+   -27.2
+  ],
+  "voice_5_countdown_4_chatterbox_list": [
+   -11.5,
+   -27.1
+  ],
+  "voice_2_computer_1_qwen3": [
+   -12.4,
+   -26.7
+  ],
+  "voice_2_computer_2_chatterbox": [
+   -13.6,
+   -28.1
+  ],
+  "overload_lamp": "unchanged for all six",
+  "note": "sounding level of the new ones is within 1.6 dB of both old ones; the peak of the two Chatterbox composites is 2.1 and 2.0 dB above the old Chatterbox line (-13.6), 0.9 to 0.8 dB above the old Qwen3 line"
+ },
+ "limits": [
+  "the onset definition decides how exact the grid is: with the level criterion 10 dB or 20 dB instead of 15 dB below the maximum, the same files give intervals between 928 and 1077 ms (see sensitivity)",
+  "nobody listened: that the vowel onset is the perceived beat (p-center) of each number is not verified",
+  "the level spread of 0.0 dB is by construction of the sounding-level measure; whole-word RMS spread is 1.1 to 1.9 dB and peak spread 3.4 to 6.2 dB"
+ ]
+}

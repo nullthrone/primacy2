@@ -1,0 +1,30 @@
+{
+  "role": "score-writer",
+  "status": "done",
+  "summary": "tools/voice/score.py and tools/voice/tests/test_score.py written. 17 plain assert tests pass (pytest is not in .venv-audio, so the file runs as a script and is pytest-compatible). Real end-to-end run on kitten/cpu (15/15 lines, Whisper small on cuda via the lock): median WER 0.050, worst 0.167, names 13/24; listening copies for 4 listen lines made.",
+  "usage": ".venv-audio/Scripts/python.exe tools/voice/score.py [--models a,b] [--no-whisper] [--listen]; tests: .venv-audio/Scripts/python.exe tools/voice/tests/test_score.py",
+  "digit_handling": "The Whisper normaliser alone fails the required cases: it turns 'seven four niner' into '74 niner', drops the zero of 'pad 04' (-> 4) and the percent sign of '20 %', and 'seven four nine' into 749. score.py therefore adds an explicit step: before the normaliser niner->nine, decimal->point, m/s->metres per second, % -> percent, every digit string spelled out as spoken digits, possessive names kept whole (normaliser turns Drover's into 'drover is'); after it every digit run is cut into single digit tokens. Tested equal: seven four niner / 749 / 7 4 9 / seven four nine; five zero / 50; one one eight decimal three / 118.3; pad zero four / pad 04; 20 % / 20 percent; 62%; 95,000. A dropped zero or a wrong digit still counts as an error. Also NATO spelling 'Alpha Kilo' equals 'AK' / 'AK-447' (only where the reference spells it with NATO words).",
+  "error_split": "Edit-distance alignment (diagonal preferred). Consecutive error ops form a run; a run touching a name position in the reference counts for the name (so a name heard as two words adds no ordinary error), other runs count as ordinary substitutions/deletions/insertions. name hit = name tokens all equal. Names that never appear in the normalised reference are not counted (names_in_reference).",
+  "level_notes": "Loudness uses pyloudnorm at the file's own rate (synth/levels.py lufs() meters at fixed 48 kHz and tiles short clips, so it was not reused); true peak uses the same 4x resample_poly method as levels.py. transcribe.Whisper from tools/audio/listen reused by import; radio_filter from tools/audio/synth/radio.py reused by import. Silence = 10 ms windows below -50 dBFS RMS.",
+  "listen_copies": "48 kHz mono PCM_24, -23 LUFS target with true peak cut to <= -3 dBFS (gain reduced if needed, flagged 'limited'), 8 ms raised-cosine fades. Radio lines: filter applied after the loudness match, dry kept as __dry.wav. The radio filter changes loudness slightly (kitten radio_clearance -22.6 LUFS after the filter); only the gain-only peak guard is applied after it, no second loudness match, as the task order says. Best device = cuda timing.json if present else cpu.",
+  "scores_json": "assets/audio/voice/scores.json is merged per model, so --models a run does not delete other models. Model directories starting with . or _ are skipped, therefore a fake model under _fake/ would be skipped; the end-to-end test used a temporary root (--root, hidden option) and a temp dir, then removed it (assets/audio/voice/_fake_score_tmp deleted).",
+  "whisper_tested": "Yes, once on kitten/cpu through with_lock.py (waited 572 s for the lock); Whisper ran on cuda, load 0.8 s.",
+  "problems": [
+    "pytest is not installed in .venv-audio; tests are plain functions runnable as a script.",
+    "Whisper small mishears invented names and some ordinary words, so WER mixes model errors and recogniser errors; numbers sort the field only.",
+    "scores.json 'file' fields hold absolute paths."
+  ],
+  "notVerified": [
+    "pytest collection itself (pytest absent).",
+    "Timing key names for peak GPU memory in other adapters' timing.json: summary copies all scalar top-level keys under timing.all_scalars rather than naming one.",
+    "Behaviour on a model that writes stereo or int16 WAV beyond the synthetic tests (stereo is averaged to mono; tested only with mono floats).",
+    "The kitten run's scores.json and _listen copies are real outputs of one model; other models were mid-run and not scored."
+  ],
+  "filesWritten": [
+    "tools/voice/score.py",
+    "tools/voice/tests/test_score.py",
+    "docs/reports/2026-11-15/voice-score-write-report.json",
+    "assets/audio/voice/scores.json (output)",
+    "assets/audio/voice/_listen/kitten__*.wav (output)"
+  ]
+}

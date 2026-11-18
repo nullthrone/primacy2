@@ -1,0 +1,141 @@
+{
+  "note": "Test lines for the comparison of speech models. 'text' is what the game would show, 'spoken' is the same line written out the way it is to be said (radio discipline for digits, units in words): every model gets 'spoken', so that the models are compared and not their text normalisers. 'names' lists the invented words of a line: a speech recogniser cannot judge those, so they are scored apart from the ordinary words. 'listen' marks the few lines the owner hears on the audition page; all lines are rendered for the measurements. 'raw' lines are given as 'text' to see what a model's own normaliser does; they are never part of the listening set.",
+  "lines": [
+    {
+      "id": "radio_clearance",
+      "role": "radio",
+      "voice": "control_f",
+      "listen": true,
+      "text": "Drover 749, Halvard Control. Cleared to pad 04, approach from the north marker. Hold speed below 50 m/s.",
+      "spoken": "Drover seven four niner, Halvard Control. Cleared to pad zero four, approach from the north marker. Hold speed below five zero metres per second.",
+      "names": ["Drover", "Halvard"]
+    },
+    {
+      "id": "radio_readback",
+      "role": "radio",
+      "voice": "pilot_m",
+      "listen": false,
+      "text": "Halvard Control, Drover 749, cleared pad 04, wilco.",
+      "spoken": "Halvard Control, Drover seven four niner, cleared pad zero four, wilco.",
+      "names": ["Drover", "Halvard", "wilco"]
+    },
+    {
+      "id": "radio_patrol",
+      "role": "radio",
+      "voice": "pilot_m",
+      "listen": false,
+      "text": "Unidentified Lancet, this is patrol Kestrel 2. Cut your engines and stand by for customs scan. Do not power weapons.",
+      "spoken": "Unidentified Lancet, this is patrol Kestrel two. Cut your engines and stand by for customs scan. Do not power weapons.",
+      "names": ["Lancet", "Kestrel"]
+    },
+    {
+      "id": "radio_mayday",
+      "role": "radio",
+      "voice": "pilot_m",
+      "listen": false,
+      "text": "Mayday, mayday, mayday. Wayfarer 316, reactor breach, hull at 20 %, position Qorvane IV, bearing 175. Requesting immediate assistance.",
+      "spoken": "Mayday, mayday, mayday. Wayfarer three one six, reactor breach, hull at two zero percent, position Qorvane four, bearing one seven five. Requesting immediate assistance.",
+      "names": ["Wayfarer", "Qorvane"]
+    },
+    {
+      "id": "radio_pirate",
+      "role": "radio",
+      "voice": "pilot_m",
+      "listen": false,
+      "text": "Nice cargo you're hauling, Drover. Drop twenty tons of it and you fly home in one piece.",
+      "spoken": "Nice cargo you're hauling, Drover. Drop twenty tons of it and you fly home in one piece.",
+      "names": ["Drover"]
+    },
+    {
+      "id": "computer_fold",
+      "role": "computer",
+      "voice": "computer",
+      "listen": true,
+      "text": "Fold drive charged. Destination: Ysolde Prime. Jump in 5, 4, 3, 2, 1.",
+      "spoken": "Fold drive charged. Destination: Ysolde Prime. Jump in five, four, three, two, one.",
+      "names": ["Ysolde"]
+    },
+    {
+      "id": "computer_warning",
+      "role": "computer",
+      "voice": "computer",
+      "listen": false,
+      "text": "Warning. Shields down. Hull integrity 62 %. Heat at 90 % of limit.",
+      "spoken": "Warning. Shields down. Hull integrity sixty-two percent. Heat at ninety percent of limit.",
+      "names": []
+    },
+    {
+      "id": "computer_contact",
+      "role": "computer",
+      "voice": "computer",
+      "listen": false,
+      "text": "Contact, bearing 270, range 12.5 km. Signature matches a Bulwark-class heavy.",
+      "spoken": "Contact, bearing two seven zero, range twelve point five kilometres. Signature matches a Bulwark-class heavy.",
+      "names": ["Bulwark"]
+    },
+    {
+      "id": "computer_fuel",
+      "role": "computer",
+      "voice": "computer",
+      "listen": false,
+      "text": "Fuel at 18 %. Nearest station: Meridian Anchorage, 4.2 light-seconds.",
+      "spoken": "Fuel at eighteen percent. Nearest station: Meridian Anchorage, four point two light-seconds.",
+      "names": ["Meridian"]
+    },
+    {
+      "id": "computer_cargo_raw",
+      "role": "computer",
+      "voice": "computer",
+      "listen": false,
+      "raw": true,
+      "text": "Cargo: 24 t Helium-3, 8 t Platinum Ore. Market value 95,000 cr.",
+      "spoken": "Cargo: twenty-four tons of helium three, eight tons of platinum ore. Market value ninety-five thousand credits.",
+      "names": []
+    },
+    {
+      "id": "station_dock",
+      "role": "station",
+      "voice": "dock_m",
+      "listen": true,
+      "text": "Welcome to Vashti-Okonkwo Yard. Your Delver's in bay 9. Repairs will take about ten minutes, and it won't be cheap.",
+      "spoken": "Welcome to Vashti-Okonkwo Yard. Your Delver's in bay nine. Repairs will take about ten minutes, and it won't be cheap.",
+      "names": ["Vashti", "Okonkwo", "Delver's"]
+    },
+    {
+      "id": "station_contract",
+      "role": "station",
+      "voice": "dock_m",
+      "listen": false,
+      "text": "Got a contract if you want it. Forty tons of medicine to Draumheim Relay, and the customs boys there aren't friendly. Pays 6,000.",
+      "spoken": "Got a contract if you want it. Forty tons of medicine to Draumheim Relay, and the customs boys there aren't friendly. Pays six thousand.",
+      "names": ["Draumheim"]
+    },
+    {
+      "id": "station_refuel",
+      "role": "station",
+      "voice": "dock_m",
+      "listen": false,
+      "text": "Refuelling's done. Mind the lift, it sticks. Fly safe out there.",
+      "spoken": "Refuelling's done. Mind the lift, it sticks. Fly safe out there.",
+      "names": []
+    },
+    {
+      "id": "procedural_convoy",
+      "role": "radio",
+      "voice": "control_f",
+      "listen": true,
+      "text": "Convoy Tsiolkov Gap to Xanthe Drift: escorts Ngozi, Cael Morrow and Zhenya's Rest report ready. Pilot Brakkenridge, you have the lead.",
+      "spoken": "Convoy Tsiolkov Gap to Xanthe Drift: escorts Ngozi, Cael Morrow and Zhenya's Rest report ready. Pilot Brakkenridge, you have the lead.",
+      "names": ["Tsiolkov", "Xanthe", "Ngozi", "Cael", "Morrow", "Zhenya's", "Brakkenridge"]
+    },
+    {
+      "id": "procedural_codes",
+      "role": "radio",
+      "voice": "control_f",
+      "listen": false,
+      "text": "Squawk AK-447. Docking frequency 118.3.",
+      "spoken": "Squawk Alpha Kilo four four seven. Docking frequency one one eight decimal three.",
+      "names": []
+    }
+  ]
+}

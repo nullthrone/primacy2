@@ -1,0 +1,28 @@
+{
+ "summary": "Reworked cat_impacts.py, cat_thrusters.py, cat_landing.py. Every sound of the three categories (19) passes all hard rules including the new mid-share (125 Hz-1 kHz >= 35%) and sub-60 (<= 25%) rules; mid shares 0.52-0.94, sub-60 shares 0.00-0.06. Levels unchanged.",
+ "changed": [
+  "blow() (shared): thump pitch raised (about 165-190 down to 82-92 Hz), sub-100 Hz hull modes ring short and quiet (0.3 s, gain 0.3), modes above 100 Hz ring 1.3x their table T60; 32 Hz high-pass; contact transient (30 ms band noise 400-1500 Hz, 0.25 of the peak, about -12 dB) added after the low-pass; rattles are now runs of uneven band-noise knocks (rattle_run), none for light, 2 runs medium, 4 heavy.",
+  "impact_hull_light/medium/heavy: mid share 0.61/0.65/0.55, sub-60 0.03; heavy groan moved to 105-150 Hz. Picture of heavy: modes between 100 and 330 Hz as horizontal lines ringing to about 0.95 s, vertical rattle stripes at 0.25/0.5/0.75 s, creak with a wobbling line at 1.5-2.3 s.",
+  "impact_shield_*: new generator model: 100 Hz odd harmonics (3rd and 5th strongest), tanh drive, 20-40 Hz amplitude unevenness, noise sidebands, 100 ms crackle of 300-1200 Hz sparks, soft thump at 130-85 Hz. Pitch sags 6% / 16% / 30% (heavy 100 to 70 Hz in 150 ms, back with 0.45 s constant). Mid share 0.79/0.76/0.70, below-500 share 0.91/0.88/0.87. Picture of heavy: the 3rd and 5th harmonics visibly dip (about 300 to 210 Hz, 500 to 350 Hz) at 0.15 s and climb back over about 1 s.",
+  "touchdown_hard/soft: new landing(): three legs 55-70 ms apart (hard: 0, 55, 125 ms, different pitch and strength), strut give (a slower 150-105 Hz push with 35 ms attack), rattle runs, then creak at 115-165 Hz (hard at 1.35 s). Mid share 0.54 / 0.63. Picture of hard now differs from impact_hull_heavy: staggered onsets, one long push line at 110-120 Hz to 0.95 s, three rattle runs, creak at 1.4-2.1 s.",
+  "thruster_pulse_a/b/c: valve tick (500-1600 Hz, 4 ms) at the start, thump 6-8 ms later; measured tick 0.075 vs thump 0.25 in pulse_a. Mid share 0.79/0.87/0.52.",
+  "thruster_burn_loop: buzz moved to 96 Hz base with weight on harmonics, flutter 1%, slow swell, pink noise 90-420 Hz through low-mode-weakened hull, 50 Hz high-pass: mid 0.61. gear_deploy/retract (pitches raised, whine 190-300 Hz, contact instead of tick): 0.54/0.62. ground_scrape_loop 0.58 (grind 100-520 Hz, stones on modes 4-8). dust_patter_loop 0.85 (2400 grains, denser floor, pebbles 130-210 Hz). settle_creak 0.80. hull_stress_groan 0.92. debris_patter 0.94 (grains 170-430 Hz, rattle runs)."
+ ],
+ "verified": [
+  "Single build of all 19 sounds of the three categories with --describe (build.py has no multi-category flag, so one call with --only and the 19 ids): all pass, manifest validates. Table: hull light/medium/heavy mid .61/.65/.55 sub .03; shield l/m/h mid .79/.76/.70 sub .00; groan .92/.00; debris .94/.00; pulse a/b/c .79/.87/.52; burn .61; gear deploy/retract .54/.62; touchdown soft/hard .63/.54; scrape .58; dust .85 (sub .06); settle .80. True peaks unchanged (-9/-5/-1.5 hits, -12 pulses, -10/-2 touchdowns).",
+  "High share above 4 kHz is 0.000-0.001 everywhere; below-500 share at least 0.87 (shields lowest).",
+  "Looked at the spectrograms of impact_hull_heavy, impact_shield_heavy, impact_shield_light, touchdown_hard, thruster_pulse_a (what each shows is above)."
+ ],
+ "notVerified": [
+  "Nothing was listened to. The pictures of impact_hull_light/medium, touchdown_soft, burn, gear, scrape, dust, debris, settle and groan were not opened.",
+  "CLAP: shields -0.22 to -0.26 (worse than before, margin now only a hint) and thruster pulses, debris, settle, touchdown_soft, scrape, dust are negative hints; not tuned toward it. Describe-model answers were not read.",
+  "Whether the shield now reads as a machine and not a beep to the describing model."
+ ],
+ "openIssues": [
+  "dust_patter_loop level swing is 5.9 dB against a limit of 6: little margin.",
+  "Shield below-500 share is 0.87-0.91 against the limit 0.85: little margin; thin on the 7th/9th harmonics and crackle if a rule tightens.",
+  "Upper hull-mode rings in hit sounds are cut by ring_events length at 0.9 x T60 (about -54 dB), visible as a sharp end at about 0.95 s in the spectrogram; inaudible but not smooth.",
+  "Rattle noise has faint skirts up to 5-8 kHz in the pictures (about -60 dB); passes the 2% rule at 0.000.",
+  "Old hull_blow() in the shared library hull.py was not touched (not my file) and still has the low-heavy design; blow() in cat_impacts replaces it for these categories."
+ ]
+}

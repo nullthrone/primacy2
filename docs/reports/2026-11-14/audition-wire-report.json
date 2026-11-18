@@ -1,0 +1,38 @@
+{
+  "summary": "The audition page now runs against the real manifest (114 rows: 64 rendered, 50 downloaded). Each category splits into 'Von uns erzeugt' and 'Heruntergeladenes Rohmaterial'; hints show amber; scenes use the real ids at gain 1; docking plays three NASA clips through the radio filter; the thrust slider sounds the engine alone. The check is green (23 passed), tsc shows no error.",
+  "changed": [
+    "Downloads (paths, decoding): mp3, ogg and wav from ../downloads/ and render/downloads/ all decode and play (probe of all 50 in Chromium, no error). The manifest has duration 0 for them, so the page measures each length in the background with an offline decode and shows it ('1.65 s'); before that 'Länge unbekannt'. Excerpt files are 10 s wavs. Downloaded one-shots can be stopped by pressing the row button again (some run 10 to 19 s).",
+    "114 rows and categories: downloads already carry a category; each category now has two blocks, 'Von uns erzeugt' (cyan bar) and 'Heruntergeladenes Rohmaterial' (violet dashed bar, tinted rows, DOWNLOAD badge, a note that they play at their own level). Engine group stays in the rendered block. Picture shows both blocks in engines and radio.",
+    "Licence: every download row shows its licence badge (CC0 1.0 or Public domain (NASA)). Downloads show no rules panel (the build measures nothing for them) and no spectrogram (the manifest has none).",
+    "checks.hints: shown in amber in the summary line and in the list ('Hinweis: CLAP unsicher' for clap-margin; unknown hint ids are shown as written); the rule line stays green. 'described' is now a visible italic line under the badges, not hidden in the folded panel. Tested with a doctored manifest (amber colour, summary class ok, text, described).",
+    "Radio downloads: the 'Über Funk' switch starts on for downloaded radio material so the radio filter is applied by default.",
+    "Scenes, gains: removed the gain factors on cabin_ambience_loop (0.6, 0.4, 0.35+), alarms (0.8), proximity tick (0.7); all loops and shots mix at gain 1. Kept only what is a real mapping: cruise_loop fade by height, dust by height and thrust, sensor events by distance.",
+    "Scenes, chain: new shot flags chain and viaRadio, and one scheduler on the audio clock for all shots of an event (no timer jitter). Landing has a new event 'Reiseantrieb laden und einrasten' (cruise_charge, then cruise_engage 20 ms before the end of the charge). Test hook window.__audition.plays logs scheduled start and end; the check measures the gap to the planned overlap: under 1 ms.",
+    "Scenes, docking: radio_tone event replaced by three NASA speech clips through the radio filter (n_sts_how_do_you_read, n_sts_go_for_deploy, n_sts_roger_roll, 1.5 to 2.5 s each, raw level so gain 0.4) used in the written sequence at 3, 11, 21 and 35 s; the tone stays as its own button 'Funkton'.",
+    "Engine group outside a scene: moving a scene's thrust slider while the scene is silent starts the engine group alone and follows the slider and the boost button; a button 'Triebwerk einzeln anhören / Triebwerk stoppen' and a hint line are shown while the scene is not live. Starting the scene live or the sequence takes over cleanly.",
+    "Fixed a race found on the way: a loop pressed twice before its file had loaded started anyway and could not be stopped; the second press now cancels it.",
+    "Check script: 5 new checks (split with licences and measured lengths, mp3/ogg/wav play and stop, chain timing, engine alone, no clipping at real speed with the limiter off); later screenshots are now in German; scene screenshots scroll to the top first."
+  ],
+  "verified": [
+    "node tools/dev/audition-check.mjs against vite on port 5184: 23 passed, 0 failed (several runs; the last one after all edits).",
+    "Real-speed run of each written sequence with the limiter off, peak at the analyser (last run): docking 0.544 (-5.3 dBFS), combat 0.611 (-4.3 dBFS), landing 0.338 (-9.4 dBFS). No scene reached clipping and no master was lowered. Docking's first run with speech gain 0.5 peaked at 0.82 (-1.7 dBFS); I set the clips to 0.4 for headroom, then it read 0.54 to 0.58.",
+    "All 50 downloaded files decoded in Chromium (probe): raw peaks between -13 and +1.8 dBFS (k_switch_ui_18 is above full scale), 2 channels for most NASA files.",
+    "npx tsc -p packages/client from the repository root: no output.",
+    "Screenshots 1280x720 in screenshots/audition, opened and read: library-top-de.png (header, counter '0 / 114 bewertet', Triebwerke with group and the first rendered row, spectrogram, 'Das beschreibende Modell sagt'), library-category-engines.png (end of the rendered block, violet 'Heruntergeladenes Rohmaterial' block with licence badges), library-category-radio.png (NASA rows with 'Über Funk' on and licence), engine-group.png (group at 1.40, boost bar full), scene-docking-running.png, scene-combat-running.png, scene-landing-running.png (German, 'Läuft 14 / 40 s', sliders moved, new buttons readable, nothing cut off), scene-combat-engine-solo.png ('Triebwerk stoppen' lit, thrust 1.00). Fixed after looking: the sticky header hid the new block headings and the scene shots started mid-page, so the check now scrolls to a fixed offset.",
+    "Port 5184: my vite server (PID 36308, this worktree) stopped, no listener left. Port 5183 untouched (still held by another process, 37712)."
+  ],
+  "notVerified": [
+    "Nothing was listened to. The radio filter on real speech, the 0.4 speech gain and whether the 20 ms chain overlap sounds seamless are untested by ear; the chain is checked on the audio clock only.",
+    "Loop seams of the downloaded loops (n_cassini_saturn_1, n_plasma_hiss, n_rover_driving, n_ingenuity) were not checked; they are raw files and may click when looped.",
+    "Scenes do not yet use the fold chain (fold_charge, fold_jump, fold_tunnel_loop, fold_exit): no scene has a place for it. The mechanism (shot flag chain) is ready; only the cruise pair is wired and tested.",
+    "No hint appears in the real manifest yet (0 sounds carry checks.hints, none carry a described answer that I saw in the first rows besides the ones shown); amber hints were tested with a doctored manifest only.",
+    "Only Chromium was tried. A real run of the two sounds being reworked by other agents was not repeated: ids and files are unchanged, but the spectrogram pictures are cached per load."
+  ],
+  "openIssues": [
+    "Downloaded rows have no spectrogram picture (the manifest field is empty). Either the build writes one or the page draws one; not done here.",
+    "Intent texts under each row are English only (they come from sounds.json); names and all page texts are German in German mode.",
+    "While the engine plays alone in a scene tab, the status text still says 'Still' (the scene is not live); only the lit solo button tells otherwise.",
+    "Moving to another tab does not stop a running engine-alone or live scene; 'Alles stoppen' does.",
+    "The check's 40 s real-speed runs make the whole check take about 2.5 minutes."
+  ]
+}

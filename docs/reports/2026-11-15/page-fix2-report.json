@@ -1,0 +1,72 @@
+{
+  "role": "page-fix2",
+  "status": "done",
+  "summary": "The full audition check now passes: 52 passed, 0 failed, 0 clicks caused by the page, 723 in sound files, no clipped sample. Three causes in engine.ts were found by measurement and repaired (group start timing, voice gain left at the node default of 1, chain planning lead); the ground_scrape/dust_patter 'page' clicks were a wrong attribution in capture.ts (a stopped loop was not wrapped), not clicks of the page. Landing click (hint of the task) was NOT a missing fade: see finding 2. No sound file changed.",
+  "perFinding": [
+    {
+      "finding": "1 Engine group start (9 clicks, about -39 dBFS)",
+      "cause": "playGroup started the sources at currentTime + 0.05 but apply() called setTargetAtTime(target, ctx.currentTime, 0.03), so the rise began before the sound. Confirmed by capture: sizes 0.0109 (ch0) and 0.0140 (ch1) at 0.136 to 0.157 s in every scene run, reproducible every time.",
+      "changed": "engine.ts apply(): the target is set at Math.max(ctx.currentTime, when), gain stays 0 until the sources start; later thrust or gain changes cannot begin earlier either.",
+      "before": "12 of 12 scene starts (landing, docking, combat, 4 each, no load) had the 2 clicks (24 page faults).",
+      "after": "0 of 12 unloaded starts; 0 of 40 starts (landing, docking, combat, fold, 10 each) while the main thread was stalled at random for 10 to 80 ms."
+    },
+    {
+      "finding": "2 Landing scene start, 0.145 s, sizes 0.172 and 0.073",
+      "cause": "The hint was not the cause: the fade-in ramp is not replaced (probe of every gain event on the voice: the setTarget of setGain sits at or after the ramp end). Real cause: a new voice's GainNode keeps the default gain of 1 until its first gain event takes effect, and whether the source's first frame or the gain event comes first depends on the last bit of the start time in floating point. In an OfflineAudioContext, start times currentTime(k*128 frames)+0.03: 59 of 400 had the first frame at gain 1.0 (at a 0.15 s lead: 21 of 400); with intrinsic gain 0: 0 of 400 in both cases. The click is a single sample (first sample of cruise_loop 0.2473 x 0.7 = 0.172, the other channel 0.073), found in the real output as an isolated one-millisecond peak between steady material of 0.02. It occurs only for loops whose first sample is far from zero (cruise_loop) and only at some start times, which is why it came and went (a stalled main thread changes the start times: 2 of 6 and 4 of 8 landing starts clicked under stalls, none without).",
+      "changed": "engine.ts: the gain of every new voice (play), of the radio hiss and of fire() is set to 0 at creation (g.gain.value = 0) before its events. This covers every loop and one-shot a scene or the library starts, not only the landing's. A lead of 0.15 s was tried and does NOT remove it by principle (it only changed the odds).",
+      "before": "landing under main-thread stalls: 4 of 8 and 2 of 6 starts with 2 page clicks of size 0.172 / 0.073 (ratio 31 to 93). 12 of 40 library start/stop cycles of cruise_loop clicked (6 starts x 2 channels).",
+      "after": "0 of 40 cycles; 0 of 40 stalled scene starts; new check step 'capture, starts' (24 starts of test_edges, starts at 0.5 of full scale): 0 page faults in the full check."
+    },
+    {
+      "finding": "3 ground_scrape_loop (7 clicks) and dust_patter_loop (2 clicks) attributed to the page",
+      "cause": "Wrong attribution, not a click of the page. The faults are at 1.37/1.62/1.73/1.80/2.03 s of the file and again 4.000 s later (the second pass); the sizes and ratios of the second pass equal those of the first to four digits (0.0254, 0.0256, 0.0231, 0.0316, 0.0322, 0.0193, 0.0144; dust 0.0092, 0.0081). attribute() wrapped the time into the loop only while play.end was Infinity, but the check stops the loop before the recording is analysed (stop() shortens end), so a second pass was compared with the file at 5.37 s and found nothing. The file's own steps (crackle and patter) are in the file (ground_scrape_loop 29 steps at ratio >= 2, dust_patter_loop 11).",
+      "changed": "engine.ts logPlay stores loop (end === Infinity at creation) and the page's gain per play; capture.ts attribute() wraps by that flag.",
+      "before": "9 page faults (7 + 2) in the library plays.",
+      "after": "0 page faults; the 14 + 4 faults are file faults with xfile 0.76 to 0.87 (the output step is 0.76 to 0.87 of the file step times level times volume)."
+    },
+    {
+      "finding": "4 Fold scene: 'chain honours the cue' failed once by 10.7 ms",
+      "cause": "As read from the code: sceneRunner planned on engine.now() + 0.03, which equals the engine's START_LEAD, so any time that passes between planning and play() pushes the first start later while the others keep the plan. Reproduced: 1 of 30 chain presses under main-thread stalls had the jump 2.67 ms nearer to the charge than the cue.",
+      "changed": "engine.ts exports PLAN_LEAD = START_LEAD + 0.07; sceneRunner.playShots plans on engine.now() + PLAN_LEAD. A unit test keeps PLAN_LEAD at least 50 ms above START_LEAD. START_LEAD also exported.",
+      "before": "1 of 30 stalled presses off by more than 1 ms (2.67 ms), 0 of 10 unstalled.",
+      "after": "10 of 10 unstalled presses and 30 of 30 under stalls: charge to jump cue, tunnel passes to the sample, tunnel to jump cue and exit all within the check's limits (worst error 0.00 ms). The check's own fold step passed in the full run. Limit: a stall longer than about 70 ms between planning and playing would still push the first start; this was not provoked."
+    },
+    {
+      "finding": "5 Click detector limit and attribution",
+      "cause": "Detector unchanged (not weakened). Measured limit, printed by the check in a new table: Gaussian noise of -34 dBFS RMS shows a click down to -9.3 dBFS, -28: -5.9, -24.4: -0.7, -23.1: -1.7 dBFS; from -21.9 dBFS RMS no click under full scale is found, from -20 dBFS RMS not even a full-scale step. A click that does not beat 3 times the 99.9th percentile of the surrounding steps is masked by loud dense material: a clean capture does not exclude a page click in such material. This is stated in the check output and in the comments of capture.ts and the check.",
+      "changed": "capture.ts: a step is the file's only if it is at most SIZE_SLACK (2) times (file step x the page's gain recorded with each play, summed over plays holding the fault) plus an ordinary step of its surroundings (new fileExplains(), exported and unit tested); before, a page click up to 4 times stronger than a file step passed (FILE_RATIO_SLACK 4, which stays as a first test). Fault gets an 'explained' value, printed as column xfile; the check prints faults per sound id and the xfile distribution.",
+      "before": "attribution by ratio only: up to 4x stronger page click hidden.",
+      "after": "720 file clicks tested by size: xfile median 0.82, 90th percentile 0.97, largest 1.03, so none comes near the limit of 2 and no designed crackle (shield, fold) was turned into a page fault. A slack of 1.5 would have given the same result in this run; 2 was kept for the room and the headphone filters, which were only sampled (10 sounds in Mono and Headphones). Not measured: the effect on the counts of the old rule on this run (the old rule was not run again)."
+    }
+  ],
+  "fullCheck": {
+    "command": "with_lock.py --wait 5400 -- node tools/dev/audition-check.mjs, own vite on port 5472, AUDITION_RATINGS_FILE a scratch file in the session scratchpad",
+    "result": "52 passed, 0 failed (exit 0)",
+    "pageFaults": "0",
+    "fileFaults": "723 clicks in sound files (no clipped samples). By sound id, every sound playing at the time counted: cabin_ambience_loop 327, fold_exit 189, fold_jump 120, engine_main levels 82 each, impact_shield_heavy 76, pilot_gear_a 68, n_laser_shots 60, pilot_gear_c 48, impact_shield_light 25, impact_shield_medium 24, ground_scrape_loop 24, pilot_shield_a 16, dust_patter_loop 15, pilot_shield_b 11, pilot_hull_b 9, k_engine_circular_0 8, alarm_shields_down 7, touchdown_hard 4, pilot_hull_a 4, debris_patter 4, voice_3_dock_2_chatterbox 4, voice_3_dock_4_kitten 4, k_computer_noise_1 4, test_step 4 (control); the list is cut at the end in the check's output (full list in the log). Sounds playing together in a scene share the count, so cabin_ambience_loop and the engine levels are listed for steps that may be in another sound of the scene."
+  },
+  "filesChanged": [
+    "packages/client/src/dev/audition/engine.ts",
+    "packages/client/src/dev/audition/sceneRunner.ts",
+    "packages/client/src/dev/audition/capture.ts",
+    "packages/client/src/dev/audition/audition.test.ts",
+    "tools/dev/audition-check.mjs",
+    "docs/reports/2026-11-15/page-fix2-report.json"
+  ],
+  "soundIdsChanged": [],
+  "checks": [
+    {"command": "npx tsc -p packages/client --noEmit", "result": "clean"},
+    {"command": "npx vitest run packages/client/src/dev", "result": "26 passed (new: masked-noise limit, fileExplains, planning lead)"},
+    {"command": "full audition check with capture, through the lock", "result": "52 passed, 0 failed, 0 page faults"},
+    {"command": "scratch playwright scripts (outside the repository): scene starts under stalls, library plays, start/stop of cruise_loop, 40 chain presses, offline rounding experiment", "result": "numbers in perFinding"},
+    {"command": "sha256sum assets/audio/ratings.json before and after", "result": "b3e2ae5cf8f41f7ff93738b999edf7745d115032d5e42d30ae884ba557914cf3, identical; the owner's file was never written"}
+  ],
+  "notVerified": [
+    "Nothing about how any sound sounds.",
+    "Clicks hidden in loud dense noise are not excluded (limit above).",
+    "The size test (SIZE_SLACK 2) was checked only against the faults of this one full run; the room, Mono and Headphones were sampled with 10 sounds.",
+    "Stalls were provoked with an artificial busy loop on the page; a real stall of the machine may differ. A stall over about 70 ms between planning and playing a chain was not provoked.",
+    "The old attribution rule was not re-run on the full capture, so its effect on the counts is not given.",
+    "Another agent's loop may have committed my edits; I did not commit, push or stash."
+  ]
+}

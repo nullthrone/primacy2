@@ -1,0 +1,133 @@
+{
+  "role": "review-pad-ui",
+  "note": "Read-only review by reading code; nothing was run, so every finding is reasoned from the source and none is 'verified' in the run-it sense.",
+  "findings": [
+    {
+      "id": "focus-mark-wiped-by-rerender",
+      "file": "packages/client/src/ui/padnav.ts",
+      "line": 272,
+      "severity": "medium",
+      "claim": "The focus mark is a class added by hand (classList.add), and nothing puts it back when Preact rewrites the class attribute of the same element, so the mark disappears while the control is still the one A acts on.",
+      "scenario": "Station panel: focus is on the first tab (class 'on padfocus'). RB makes the second tab current; Preact sets class '' on the first tab, which drops 'padfocus'. The pilot sees no mark, yet this.current still points at that tab, so the next A or D-pad press acts on an invisible focus. The same happens on A for a start-screen tab (Menu.tsx class={tab === x ? 'on' : ''}), for the Assign button (Bindings.tsx class={on ? 'on' : ''}, which also flips back after assignment), and for a system picked with A in the galaxy list (Maps.tsx class={a.sys.id === selected ? 'on' : ''}).",
+      "evidence": "set() adds the class once. poll() only calls set() when the element is no longer in focusables() or the container changed. The Preact diff replaces the class attribute whenever the vnode class value changes. pad-check does not notice because it reads .padfocus only right after D-pad moves, never after RB, an A on a tab or an assignment."
+    },
+    {
+      "id": "pad-only-cannot-cancel-listening",
+      "file": "packages/client/src/ui/Bindings.tsx",
+      "line": 44,
+      "severity": "medium",
+      "claim": "While the binding screen listens, the only cancel is the Escape key or a mouse click on Cancel; the pad cannot cancel, and the on-screen text tells a pad user to press Esc.",
+      "scenario": "Phone or tablet with a pad and no keyboard presses A on Assign for an axis (listenAxis). Button presses are ignored in axis mode (only c.kind === 'axis' ends it), padnav is muted by padCapturing, so B does nothing; the only exit is moving some stick axis, which then becomes the binding. In button mode, pressing B or Menu to 'cancel' assigns that button to the action instead, and assignPad strips it from its previous action (thrustDown loses B).",
+      "evidence": "Bindings.tsx lines 54-59 (Escape only) and 81-87 (axis mode ignores buttons); padnav.ts line 249 returns early while store.padCapturing is true; en.ts 383-384 and de.ts 385-386 say 'Esc cancels.'; binds.ts 25-36 moves the code between actions without any notice."
+    },
+    {
+      "id": "menu-button-can-be-given-away",
+      "file": "packages/client/src/input/binds.ts",
+      "line": 25,
+      "severity": "medium",
+      "claim": "Any button, including the one that opens the pause menu, can be assigned to another action; assignPad removes it from 'menu' and marks 'menu' as cleared, with no guard and no warning.",
+      "scenario": "On a pad-only device the pilot assigns the Menu button (b9) to 'cruise'. 'menu' now has no pad code (only Escape, which a pad-only phone lacks). In flight the pilot can no longer open the pause menu, so cannot reach the binding screen, Reset to defaults or Disconnect. Menu on the start screen still reaches it, but only by leaving the game.",
+      "evidence": "binds.ts assignPad has no reserved-action check; Input.ts PANEL_ACTIONS and Game.ts onAction('menu') are the only pad route to the pause menu; defaults give menu only std('b9') (gamepad.ts line 206). The silently emptied action shows only as an en dash in its row."
+    },
+    {
+      "id": "b-closes-station-while-docked",
+      "file": "packages/client/src/ui/padnav.ts",
+      "line": 356,
+      "severity": "medium",
+      "claim": "B in the station panel sets store.panel to null while the ship is docked, and nothing reopens the station screen; the pilot is left docked with only the undock chord.",
+      "scenario": "Pilot docks, the market opens, presses B as 'back'. The panel closes. ui/index.tsx reopens 'station' only on the docked-false to docked-true transition, so the market and services are unreachable until undock and re-dock. The Menu button opens the pause menu, not the station.",
+      "evidence": "padnav.ts back() ends with store.panel.value = null for any panel in phase 'playing'; index.tsx lines 25-26. Keyboard Escape behaves the same (parity), but pad-check only exercises B on the pause menu, not on the station panel. Report and docs say 'B closes or goes back' without this caveat."
+    },
+    {
+      "id": "held-button-leaks-into-flight-after-close",
+      "file": "packages/client/src/ui/padnav.ts",
+      "line": 340,
+      "severity": "low",
+      "claim": "A and B are held flight actions (thrust up and down) that the game keeps tracking while a panel is open; when A or B closes or leaves a panel, the still-held button flies the ship until it is released. The report names only the A-after-undock case.",
+      "scenario": "Landed on a moon with the lift-off prompt showing: open the pause menu, press A on Resume. The panel closes, Input.active() turns true, padHeld still holds thrustUp, and the ship lifts off for the duration of the press. B on any panel closes it and applies thrust down the same way.",
+      "evidence": "Input.ts line 232-233 skips only edge actions while a panel is open (HELD actions are never fired), but padHeld/padAxes are filled every frame (lines 216-219) and read once active() is true (line 140)."
+    },
+    {
+      "id": "bindings-in-pause-menu-opens-unfocused",
+      "file": "packages/client/src/ui/Menu.tsx",
+      "line": 168,
+      "severity": "low",
+      "claim": "Opening the binding screen from the pause menu reuses the same root div, so padnav sees no container change: no focus is set, the old focus (the removed 'Controller assignments' button) is dead, and the first press only marks a control.",
+      "scenario": "Pause menu, A on 'Controller assignments...': PauseMenu returns <div class=\"panel wide\"> in place of <div class=\"panel narrow\">; the DOM node is patched, not replaced. The start screen path differs (form to div, new node) and does get an initial focus, so the two paths behave differently.",
+      "evidence": "padnav.ts poll(): the container comparison is by element identity (lines 241-247); fresh logic at lines 260-262 swallows the first press. pad-check hides this because navTo presses Down on 'nofocus' anyway."
+    },
+    {
+      "id": "axis-assigned-to-two-actions",
+      "file": "packages/client/src/input/binds.ts",
+      "line": 45,
+      "severity": "low",
+      "claim": "assignAxis only replaces the binding of the same action; the same physical axis can drive several actions at once, unlike buttons where assignPad removes the code from other actions.",
+      "scenario": "Left stick Y is the default thrustZ; the pilot assigns the same axis to pitch. Both stay bound, so pushing the stick forward pitches and thrusts at once, with no notice on the binding screen.",
+      "evidence": "binds.ts lines 45-52 filter only list entries of the given action."
+    },
+    {
+      "id": "keys-named-directly-in-pad-texts",
+      "file": "packages/client/src/i18n/en.ts",
+      "line": 383,
+      "severity": "low",
+      "claim": "Some texts shown to a pad user still name keyboard keys, and the pad help block names fixed default buttons instead of the current bindings.",
+      "scenario": "(a) pad.listenButton and pad.listenAxis end with 'Esc cancels.' (same in de.ts 385-386) and chat.placeholder says 'Enter to send, Esc to close', shown to someone with no keyboard. (b) Controls() in Menu.tsx builds ctlp.* from padHelpParams(), which are the default button positions: after the pad-check's own step (Guide bound to cruise) the Controls tab still says '{VIEW}: cruise', while HUD hints use bindKey and show Guide. ctlp.custom only says assignments exist.",
+      "evidence": "format.ts padHelpParams() returns padButtonName(0..11) with no lookup of store.settings.bindings; en.ts 407-413; Menu.tsx 56-69."
+    },
+    {
+      "id": "german-ui-shows-english-pad-labels",
+      "file": "packages/client/src/input/gamepad.ts",
+      "line": 140,
+      "severity": "low",
+      "claim": "Button and axis labels are hard-coded English and not routed through i18n, so the German UI mixes languages and is inconsistent with its own help text.",
+      "scenario": "German language: de.ts ctlp.fire says 'Steuerkreuz', but the binding table, the HUD key caps and the chord labels show 'Y + D-pad left', 'View', 'Menu', 'Button 13' and 'Axis 3+'. The Joystick preset's reason ('Schließe zuerst einen Joystick an') is only a title tooltip on a disabled button, which a pad user can neither focus nor hover.",
+      "evidence": "gamepad.ts XBOX_NAMES, PS_NAMES, padButtonName, padAxisName; Bindings.tsx line 130 (title only). All 402 keys exist in both en.ts and de.ts with the same placeholders (checked by script), so this is about the non-i18n labels, not missing keys."
+    },
+    {
+      "id": "number-field-needs-keyboard",
+      "file": "packages/client/src/ui/padnav.ts",
+      "line": 201,
+      "severity": "low",
+      "claim": "A number field can be activated but only stepped by 1 per press (the held-repeat count is ignored for numbers, unlike sliders), and a text field cannot be typed into without a keyboard.",
+      "scenario": "Market quantity (min 1, max 9999, Station.tsx line 281): buying 500 units needs 500 repeats at 120 ms, about a minute. On the start screen a pad-only first-time player with an empty or one-letter name cannot launch because the Launch button is disabled and the name field cannot be typed into.",
+      "evidence": "padnav.ts adjust(): range branch uses count for a 4x step, number branch does not. The licence link (a[href] target=_blank) is also focusable, and A on it opens a new tab out of the game."
+    },
+    {
+      "id": "docs-and-report-claim-more-than-checked",
+      "file": "docs/CLIENT.md",
+      "line": 70,
+      "severity": "low",
+      "claim": "Several statements about controller menus are not exercised by scripts/pad-check.mjs, and one contradicts the report.",
+      "scenario": "(a) CLIENT.md says 'left and right change a slider or select', 'it repeats while held', and 'the galaxy map lists the systems so one can be chosen without the mouse'. The browser check has no step for sliders, selects, the galaxy map or repeat; padnav.test.ts covers only the pure helpers, not PadNav. (b) CLIENT.md says 'At 844 x 390 the panels fit and scroll inside themselves', while pad-ui-report.json openIssues says the station panel is taller than the viewport and clipped and the pause menu is cut off; the phone pass takes screenshots with no assertion. (c) pad-check's 'D-pad down moves to the server field' asserts f.text === '' which is true for every input (textContent of an input is empty), so that step does not tell the name field from the server field; only the later Launch check implies it.",
+      "evidence": "pad-check.mjs lines 144-160 and 342-365; CLIENT.md lines 70-73 and the 844 x 390 sentence; report.openIssues and notVerified (German texts never seen rendered)."
+    },
+    {
+      "id": "phantom-held-button-blocks-assignment",
+      "file": "packages/client/src/input/gamepad.ts",
+      "line": 493,
+      "severity": "low",
+      "claim": "A button that is held (or reads as held) on one device when listening starts, for longer than the 1.5 s wait, becomes a pending modifier on that device, and presses on another device are then never looked at.",
+      "scenario": "A HOTAS or throttle with a button that reads pressed permanently plus a standard pad: after 1.5 s that button is 'pending'; the user presses A on the standard pad; captureProgress only scans the pending device's buttons and returns pending forever, so the assignment never ends and padnav stays muted. Not run, derived from reading; needs real hardware to confirm.",
+      "evidence": "Bindings.tsx lines 61-71; gamepad.ts captureProgress lines 478-501."
+    }
+  ],
+  "covered": [
+    "padnav.ts pure helpers (pickDirection, pickFirst, pickNearest, stickDir, stepTab, stepRepeat) read through; logic and the 12 unit tests look consistent, edges (-1, empty rects, no wrap) handled",
+    "Press edges in PadNav.poll: prev state is updated before the early returns, so a button held through a container change or through listening does not fire A or B afterwards; A and B are mutually exclusive per frame and LB/RB/B return before the focus lookup",
+    "A on a submit button is safe: all Menu.tsx buttons inside the start form are type=button except Launch",
+    "setValue sends input then change with bubbles; the range inputs listen to onInput and the selects and checkboxes to onChange (Preact maps to the native change event), so both kinds of control see the events; slider stepping snaps to the step grid and the min/max/step values in Menu.tsx and Bindings.tsx are on-grid",
+    "Disabled buttons (Launch while connecting or name too short, contacts that are not ships, Clear with no pad code, joystick preset) are filtered by usable() and cannot take the mark; hidden, inert and display:none elements are filtered as well",
+    "Binding capture: the opening A press is awaited via the all-buttons-up wait; Escape is stopped in the window capture phase so it does not also close the pause menu; padCapturing is reset on unmount; assignPad keeps a button unique across actions",
+    "Input.ts: while a panel is open only menu, galaxyMap, systemMap, contacts and chat edge actions run, so D-pad presses for places and targets do not fire in a menu; the edge actions are also skipped while padCapturing",
+    "i18n: en.ts and de.ts have the same 402 keys; no key is missing either way; placeholders match except the older map.fcDepends (not controller related); the four thrust direction actions are the only BindAction values without an act.* label and they are filtered out of the table; German strings for pad.*, ctlp.*, act.*, map.systems, map.helpPad, map.ly, map.navHelp read correctly (Lj, Steuerkreuz, Schubregler, Belegung)",
+    "Dynamic hints (hud.dockPrompt, hud.dropPrompt, hud.liftoffPrompt, hud.salvageHint, hud.warnHeatSilent, map.navHelp, ctl.land) use bindKey/bindKeyShort and so follow the device and the rebinding"
+  ],
+  "notCovered": [
+    "Nothing was executed: no run of pad-check, vitest or the browser; the Preact class-attribute behaviour in finding 1 is reasoned, not observed",
+    "input/gamepad.ts readPads and chord handling (what happens when Y or another modifier is assigned alone), AXIS_CAPTURE threshold and axis shaping",
+    "CSS layout, text fit of the German strings in their places, the 844 x 390 layout, and the .padfocus appearance",
+    "Hud.tsx pad-specific parts other than the grep hits (key caps, place list, capture button), the chat panel under a pad, Station.tsx market and outfit internals, and the Maps.tsx canvas",
+    "Real hardware: non-standard devices (ignored by padnav, so a HOTAS-only user cannot use the menus at all, which the report lists as a deviation), several pads at once, browser differences in Gamepad.mapping",
+    "dev/hud.ts and the e2e script"
+  ]
+}

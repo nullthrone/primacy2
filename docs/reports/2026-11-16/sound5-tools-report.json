@@ -1,0 +1,49 @@
+{
+  "role": "tools",
+  "date": "2026-11-16",
+  "status": "done",
+  "changed": {
+    "tools/sound/common.py": "configure(prompts_file, out_root); --prompts-file, --out-root, --list-jobs; a family may carry its own seeds (precedence: --seeds, family seeds, file seeds); Record writes promptsFile into gen.json only for a non-default prompts file; paths outside the repository are written absolute. Defaults unchanged.",
+    "tools/sound/adapters/moss.py, sa3.py": "the new options through common.parse_args; --list-jobs prints the jobs and stops before any model or card use.",
+    "tools/sound/from_round4.py (new)": "adds one item per kept, unheard candidate of the named round-4 prompt(s) to <out-root>/<source>/gen.json; --dry-run; idempotent; never overwrites an item that is not from round 4; removes stale fromRound4 items.",
+    "tools/sound/screen.py": "--prompts-file; family_settings() reads maxS, oneEvent, lufs, picks, minAbove60Hz with round-4 fallbacks; choose(cands, picks) with choose_by_picks(); cut_event/raw_faults take max_s and one_event/multi; ids <idPrefix>_<n>_<family>_<slot>_<source>_<tag>; _listen cleanup by prefix; screen.json gets category/promptsFile/sourceRank/notPickedLowShare only for a non-default prompts file or a family with picks; default skips file for prompts5.json is skips5.json; tag of a carried file starts with r4.",
+    "tools/sound/publish.py": "--prompts-file; category id, id prefix from its category; output dir render/<category id>, pruning only there; refuses a screen.json made for another category; second/third/... pick naming from the order of slots of a source; intent says proven or first try and, for carried files, made in round 4 and not heard then; shield path detection by family-id prefix.",
+    "tools/sound/skips5.json (new)": "empty list with a note.",
+    "tools/audio/sounds.json": "category events5 added first (de Ereignisklänge (Runde 5), en Event sounds (round 5)).",
+    "tools/sound/tests/test_screen.py": "9 new tests (43 in all).",
+    "tools/sound/README.md": "new section Round 5 appended; nothing else changed."
+  },
+  "realRunOnce": {
+    "command": ".venv-audio/Scripts/python.exe tools/sound/from_round4.py",
+    "when": "before the generation (the adapters keep these items when they add theirs)",
+    "result": "assets/audio/gen/r5/moss/gen.json with 9 items (thruster_valve: moss thruster_1 s12, s15, s16; shield_bright: moss shield_1 s11, s14, s15, s16 and shield_3 s15, s16) and assets/audio/gen/r5/sa3/gen.json with 6 items (thruster_valve: sa3 thruster_1 s11 to s16 except those thrown out in round 4; the family has no sources restriction). Second run: 0 added, 15 already there, files byte-identical (md5 checked on the second run only).",
+    "carriedRound4Skips": ["moss/thruster_1__s16 (valve)", "sa3/thruster_1__s14 (valve)", "moss/shield_3__s16 (shield_bright, also under minAbove60Hz 0.4 by its recorded 9.5 percent)"]
+  },
+  "jobs": "78 jobs per adapter with prompts5.json (hull_light 12, hull_heavy 12, thruster_valve 6 with seeds 21 to 26, thruster_bang 12, shield_bright 12, fold_jump 12, fold_exit 12); listed with --list-jobs in both environments.",
+  "proofRound4Untouched": {
+    "command": ".venv-audio/Scripts/python.exe tools/sound/screen.py --root <scratch>/proof --device cpu (scratch holds copies of the three round-4 gen.json only; Whisper and CLAP on the processor; default prompts file)",
+    "chosenIds": "16 of 16 identical to assets/audio/gen/screen.json, same order",
+    "fileRows": "165 of 165 identical except one: the text of the hand-skip reason of sa3/thruster_1__s14 has been edited in skips.json since the real screen.json was written (0.84 s versus 0.75 s)",
+    "wholeFile": "identical after setting aside the folder of the listening copies (listen.file of the 16 chosen) and that one reason text; no new key appears in a round-4 run",
+    "realTree": "assets/audio/gen/screen.json md5 7eb2ff5eb77b5a1e6a99908359210bca before and after"
+  },
+  "manifestDemo": "on a scratch copy of assets/audio/render with 6 synthetic events5 sounds published: categories became events5, source, pilot ...; 148 existing entries identical (whole entry, hash equal 148 of 148, same order); 154 in all; validates. build.py was not run on the real tree.",
+  "suites": {
+    "tools/sound/tests/test_screen.py": "43 tests, 0 failed",
+    "tools/audio/tests (unittest, -I)": "77 tests OK",
+    "vitest": "47 files passed, 807 passed and 2 expected fail",
+    "tsc -p packages/client --noEmit": "no output"
+  },
+  "decisionsToKnow": [
+    "oneEvent false also selects the first-to-last cut (as the gear has), because in round 4 the cut mode was the complement of ONE_EVENT; hull_heavy, fold_jump and fold_exit therefore cut like the gear, capped at maxS.",
+    "Hand skips of a carried file are honoured (round4Skip); skips5.json stays empty as asked.",
+    "A further pick of a source in a family with picks has role farthest and a sourceRank; with a source that has nothing left the slot is left out and screen.json says so in the family notes (no filling by another source as in round 4).",
+    "Carried files have the tag r4p<prompt>s<seed>, not p<prompt>s<seed>, so that shield_1 s11 of round 4 and shield_bright_1 s11 of round 5 never read as one sound; this differs slightly from 'same tag rule'."
+  ],
+  "notVerified": [
+    "the adapters were not run on the card; only --list-jobs",
+    "tools/dev/audition-check.mjs and the audition page were not run with the new category (no real events5 sounds exist yet); the file was not changed",
+    "screen.py with Whisper and CLAP was not run on prompts5.json (no round-5 raw files exist yet)",
+    "publish.py was not run on the real tree"
+  ]
+}

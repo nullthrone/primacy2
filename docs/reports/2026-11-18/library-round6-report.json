@@ -1,0 +1,41 @@
+{
+ "role": "library",
+ "date": "2026-11-18",
+ "status": "done",
+ "changed": {
+  "assets/audio/generated.json": "four sounds added (g_impact_hull_light_b, g_fold_jump, g_fold_exit_a, g_fold_exit_b), g_thruster_pulse_a and g_thruster_pulse_b moved to a new top-level list withdrawn with withdrawn {date, verdict, ratedAt, reason}, note rewritten with counts computed from the data (sounds: 10 = round 4: 2, round 5: 4, round 6: 4; withdrawn: 2)",
+  "assets/audio/generated/": "four new raw files, copied byte for byte from assets/audio/gen/_kept/round6/raw and checked against rawSha256 of kept.json; the raw files of the two withdrawn pulses stay",
+  "tools/audio/build.py": "an entry of withdrawn is not built (it is simply not in sounds), its processed copy is removed by the existing housekeeping, nothing reports its raw file (build.py never reported stray raw files); new guard: an id in both lists is refused with a message",
+  "tools/audio/tests/test_generated_build.py": "class Withdrawn, four tests",
+  "tools/audio/README.md": "section Generated sounds in the build: counts, withdrawn list, level method",
+  "assets/audio/render": "only by build.py --manifest-only: generated/ gained 8 files (wav+png of the four new), lost 4 (wav+png of the two withdrawn), manifest.json rewritten; no other file changed (sha256 of all 488 files before/after, diff shows only these)"
+ },
+ "levelMethod": {
+  "rule": "lufs of a library sound = checks.lufs of the rendered event it stands for (entry with id standsFor in assets/audio/render/manifest.json)",
+  "reproduced": "all eight existing values reproduced exactly (script output): hull_light -29.63, hull_medium -23.99, hull_heavy_a and _b -25.37, thruster_pulse_a -25.75, _b -27.23, _c -28.26, gear_deploy -27.31; all 8 'OK'",
+  "newValues": {"g_impact_hull_light_b": -29.63, "g_fold_jump": -20.23, "g_fold_exit_a": -23.79, "g_fold_exit_b": -23.79},
+  "caveat": "the real manifest's checks.lufs of fold_jump/fold_exit/impact_hull_light were read on 2026-11-18 (not unchanged since 2026-11-16 as far as proven; the three events were not re-rendered by this run). Built sounds hit the target exactly (reached equals target, no ceiling limit, no hints)."
+ },
+ "builtNewSounds": {
+  "g_impact_hull_light_b": {"lufs": -29.63, "peakDb": -15.76, "duration": 0.4685, "hash": "a2736154747e"},
+  "g_fold_jump": {"lufs": -20.23, "peakDb": -7.29, "duration": 3.8015, "hash": "363f09f3f018"},
+  "g_fold_exit_a": {"lufs": -23.79, "peakDb": -14.09, "duration": 3.121, "hash": "52318b1ed58b"},
+  "g_fold_exit_b": {"lufs": -23.79, "peakDb": -10.11, "duration": 3.7396, "hash": "6b2ce982a6ea"}
+ },
+ "gate": {
+  "script": "scratchpad r7-library/gate.py (manifest snapshot of the real tree before the build vs the tree under test)",
+  "copy": {"command": "build.py --manifest-only --out <copy of assets/audio/render> (manifest-only runs no CLAP, so no CLAP option applies)", "exit": 0, "manifestEntries": 178, "realEntriesBefore": 176, "expectedRest": 174, "entriesUnequalInAnyField": 0, "sameRelativeOrder": true, "added": 4, "pulsesInManifest": 0, "categoriesEqual": true, "round6HashesChecked": 174, "round6HashesChanged": 0, "gate": "holds"},
+  "realTree": {"command": "build.py --manifest-only (default out)", "exit": 0, "manifestEntries": 178, "entriesUnequalInAnyField": 0, "sameRelativeOrder": true, "added": 4, "round6HashesChecked": 174, "round6HashesChanged": 0, "generatedFolder": "20 files = wav+png of exactly the ten sounds of sounds, nothing of the two withdrawn", "gate": "holds"}
+ },
+ "suites": {
+  "unittest tools/audio/tests": "111 tests OK (107 before + 4 new)",
+  "tools/sound/tests/test_screen.py": "47 tests, 0 failed"
+ },
+ "notVerified": [
+  "nothing was listened to; no statement about how any sound sounds",
+  "the audition page was not opened or checked in a browser; the owner's ratings.json was not touched",
+  "tools/sound/tests/test_screen.py line 646 has a comment saying 8 g_ ids; it is another agent's file, not changed (test passes)",
+  "docs (ROADMAP, NEXT) still say eight generated sounds / 176 manifest entries; not in my files, to be updated by whoever owns them",
+  "git status also shows an untracked tools/sound/compare.py, not mine"
+ ]
+}

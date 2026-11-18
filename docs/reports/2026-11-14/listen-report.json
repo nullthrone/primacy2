@@ -1,0 +1,44 @@
+{
+  "summary": "The listening tools are in tools/audio/listen: common.py (loading, resampling, output, device, GPU lock), measure.py (levels, BS.1770 loudness, spectrum, envelope, loop seam, spectrogram PNG), compare.py (CLAP, single and batch mode), transcribe.py (Whisper plus WER), describe.py (Qwen2-Audio-7B, runs here with bitsandbytes 4-bit). 22 unittest tests pass, none skipped. README.md, MODELS.md and requirements.txt are written.",
+  "built": [
+    "tools/audio/listen/common.py",
+    "tools/audio/listen/measure.py",
+    "tools/audio/listen/compare.py",
+    "tools/audio/listen/transcribe.py",
+    "tools/audio/listen/describe.py",
+    "tools/audio/listen/tests/test_listen.py",
+    "tools/audio/README.md",
+    "tools/audio/MODELS.md",
+    "tools/audio/requirements.txt"
+  ],
+  "verified": [
+    "python -m unittest discover -s tools/audio/listen/tests -v: Ran 22 tests, OK, 0 skipped (CLAP and Whisper tests ran: English voice Microsoft Zira found for System.Speech).",
+    "measure.py on 3 real renders (alarm_heat, alarm_missile, cabin_ambience_loop) with --loop --png: output read; the cabin loop passes the seam check, the one-shot alarms report FAIL as expected for non-loops.",
+    "Spectrogram PNG alarm_heat.png opened with Read: waveform strip with a pulsing envelope, 864 Hz fundamental with horizontal harmonic lines at about 1.75 kHz and 2.6 kHz, a hard cutoff near 3 kHz, noise floor around -55 to -65 dB, and brief broadband spikes up to 20 kHz at the pulse onsets (0.25, 0.75, 1.0, 1.5, 1.75 s), which are clicks in the placeholder alarm.",
+    "compare.py single mode on a 1 kHz sine (pos beat 0.41 vs neg 0.12) and batch mode with --spec/--dir/--only on 3 real renders (writes assets/audio/cache/compare.json); all three placeholder sounds scored FAIL (a cheap electronic beep wins).",
+    "transcribe.py on synthesised speech: first run with the German default voice gave WER 0.222; the unit test with the English voice passes at WER <= 0.2.",
+    "describe.py with --mode bnb4 on a synthesised sentence, a sine and two real renders: it answered correctly for speech and sine, and said 'Siamese cat meowing' for alarm_heat and 'telephone dial tone' for cabin_ambience_loop. Load 12.3 to 15.5 s, GPU peak 6.35 to 6.45 GiB, 2.3 s for the first answer and 0.4 s for the next.",
+    "Measured model memory: CLAP 0.79 GiB GPU peak, Whisper fp16 0.56 GiB.",
+    "GPU lock: acquired and released in a direct test; no lock file remained after the tests. No servers or background processes were started."
+  ],
+  "notVerified": [
+    "Licences of laion/larger_clap_general and openai/whisper-small could not be read from the cache (no README or licence file in the snapshots); MODELS.md records them as NOT VERIFIED with the upstream licence only from memory. The Qwen2-Audio licence (Apache-2.0) was read from its cached README.",
+    "describe.py --mode quanto and --mode offload were never run (bnb4 worked first); they are in the code as untested fallbacks.",
+    "Process RSS of describe.py was not measured; time of a cold first load of Qwen from disk was not measured (the cache was warm).",
+    "The GPU lock under real contention (two processes waiting, ten minute timeout, takeover of a dead owner) was not tested, only the uncontended path.",
+    "measure.py was only tried on mono and stereo 48 kHz and one 22.05 kHz file; no 24-bit or very long file was tried.",
+    "Loop swing and spectral edge difference are reported but have no hard threshold; only seamRatio (above 2 fails) and edge level difference (above 3 dB fails) decide loop.pass."
+  ],
+  "deviations": [
+    "Installed from PyPI into .venv-audio: pyloudnorm 0.2.0, accelerate 1.15.0 (brought psutil 7.2.2), bitsandbytes 0.50.2. optimum-quanto, sentencepiece, protobuf were not installed.",
+    "LUFS uses pyloudnorm rather than an own implementation; clips under 400 ms are repeated to one block (noted in the output).",
+    "The model tools (compare, transcribe, describe, and the model tests) all take the GPU lock, not only describe, so a small model cannot run out of memory next to the 4-bit Qwen.",
+    "MODELS.md has two entries with an unverified licence because the cache holds no model card for them; the models were still run, as the brief requires the models for the task."
+  ],
+  "openIssues": [
+    "Whisper-small mis-hears synthetic voices (a German voice reading English gave nonsense; even the English voice is only tested on one sentence). The radio rule (WER at most 15 percent against the unfiltered transcript) will be noisy on synthesised lines.",
+    "CLAP margins on the current placeholder sounds are all negative; that is a statement about the placeholders, not a tool defect, but the neg list may be strict for the cabin loop.",
+    "The placeholder alarms have broadband clicks at the pulse onsets (seen in the spectrogram), which break the sensor and alarm rules."
+  ],
+  "forNextAgent": "Run from the repo root with .venv-audio/Scripts/python.exe. measure.analyse(data, sr, loop) in tools/audio/listen/measure.py returns a plain dict (keys samplePeakDb, truePeakDb, clippedSamples, dcOffset, lufs, bands, lowShare, highShare, fundamentalHz, envelope{onsetMs, attackMs, fall60Ms, lastTenMsDb, printed}, loop{seamRatio, pass}); import it by adding tools/audio/listen to sys.path. compare.Clap().score(mono, sr, texts) and compare.judge(...) give CLAP numbers; transcribe.wer(ref, hyp) and transcribe.Whisper().transcribe(...) for speech; describe.Describer().ask(mono, sr, question) for Qwen (exit code 3 from the CLI if it cannot load). All model use must sit inside common.gpu_lock(label). Pitfalls: this machine's default Windows speech voice is German (select an en-* voice for English tests); the bash tool in this environment failed on long heredocs, so write files with the Write tool; 0 dBFS-clipped threshold is 0.9999; loop checks are only for loops; the batch compare result goes to assets/audio/cache/compare.json unless --out is given."
+}

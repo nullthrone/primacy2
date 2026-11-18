@@ -1,0 +1,77 @@
+{
+  "role": "verify-fix2",
+  "status": "done",
+  "summary": "Independent check of the second repair round. Page: fixed. The full audition check with capture (own server, port 5483, scratch ratings file, through the lock) gave 52 passed, 0 failed, 0 faults caused by the page, 731 faults in sound files, 0 clipped samples. Scene starts (docking, combat, landing, fold, engine alone; 5 each) rise from zero with no step in the first 20 ms larger than the steps after it; the fold chain cue held in 10 of 10 runs to the sample. Library: k_door_close_1 and the one-shot ends are fixed; n_ingenuity is fixed; the literal 1.5 dB statement is still not met for n_cassini_saturn_1 (+3.69 dB), n_rover_driving (+6.86 dB) and n_plasma_hiss, where I find a larger dip than the manifest states (about -31 dB in the middle of the file, see mustFix). Suites all pass. Five sound ids changed bytes, as reported. ratings.json hash unchanged.",
+  "findings": [
+    {
+      "finding": "1 Full audition check with capture",
+      "verdict": "fixed",
+      "evidence": "with_lock node tools/dev/audition-check.mjs on my own vite (port 5483, AUDITION_RATINGS_FILE a scratch file; the check's own ratings-path guard passed): 52 passed, 0 failed. 'faults found in the recordings: 0 caused by the page, 731 in a sound file itself'; no clipped sample reported. Page clicks by scene or sound with time and size: none. Controls: test_edges 0 page faults, test_step 4 file faults; 'capture, starts' (24 starts of test_edges) passed. File faults by sound id (every sound playing at the time counted): cabin_ambience_loop 328, fold_exit 190, fold_jump 119, engine_main levels 83 each, impact_shield_heavy 77, pilot_gear_a 68, n_laser_shots 60, pilot_gear_c 48, impact_shield_light 25, impact_shield_medium 24, ground_scrape_loop 24, k_computer_noise_1 17, pilot_shield_a 16, dust_patter_loop 15, pilot_shield_b 11, pilot_hull_b 9, alarm_shields_down 8, k_engine_circular_0 8, touchdown_hard 4, pilot_hull_a 4, debris_patter 4, voice_3_dock_2_chatterbox 4, test_step 4, sensor_fire_outside 3, fold_tunnel_loop 3, pilot_thruster_a 2, pilot_thruster_c 2, voice_2_computer_3_kokoro 2, voice_3_dock_4_kitten 1. Per place: scenes combat 72 (42 event buttons, 30 written run), fold 245 (183, 62), landing 13 (10, 3), docking 0; the rest are library plays. 730 of the 731 are tested by size: xfile median 0.81, 90th percentile 0.97, largest 1.03 (limit 2). The one not tested by size: scene combat event buttons at 10.843 s, size 0.672, ratio 3.2; it has the same size and ratio as the file fault of impact_shield_heavy at 0.224 s in the library (0.672, 3.2, xfile 0.77), so it is very probably that sound's own click, but I did not prove it. Fold cue step ten times (my own scratch script, same assertions as the check, doctored cue 2, speed 25): jump minus charge, tunnel pass gap, tunnel start against the jump's cue and exit against the last pass all 0.000 ms in 10 of 10 runs, 2 tunnel passes each. Limit of the detector (printed by the check): in white noise louder than about -21.9 dBFS RMS no click under full scale is found, so a clean capture does not exclude a page click inside loud dense material (cabin_ambience_loop plus engines)."
+    },
+    {
+      "finding": "2 Engine group start",
+      "verdict": "fixed",
+      "evidence": "engine.ts playGroup: sources start at ctx.currentTime + 0.05 ('when'), every node gain is 0 at creation, and apply() uses setTargetAtTime(target, Math.max(ctx.currentTime, when), 0.03), so the rise begins at the source start, not before. Measured: capture of channel 0 started before the press, 5 starts each of the docking, combat and landing scenes and 5 of the engine alone (thrust slider 0.6 in the combat tab), speed 1. First non-zero sample at 62 to 115 ms after the capture start (the value there is about 1e-13, i.e. float noise; the audible onset follows). Largest step in the first 20 ms after it: docking 0.00023, combat 0.00068 to 0.00070, landing 0.00026 to 0.00038, engine alone 0.00127, against the largest step in the following 20 to 300 ms of 0.00139 to 0.00151, 0.00435 to 0.00458, 0.00472 to 0.00522, 0.00565, i.e. the first 20 ms steps are 0.17 to 0.5 of the later ones and the largest sits at the end of the window (a smooth rise). No page fault in any of the 25 captures. Channel 0 only was read."
+    },
+    {
+      "finding": "3 Loops started by a scene rise from zero (landing, fold)",
+      "verdict": "fixed",
+      "evidence": "Same 5 starts per scene. Landing: largest step in the first 20 ms 0.00026 to 0.00038, in 20 to 300 ms 0.00472 to 0.00522; peak in the first 300 ms 0.20 to 0.21; 99.9th percentile of steps 0.3 to 1 s after the start 0.0046 to 0.0048. Fold: largest step in the first 20 ms 0.00193 (at 18.2 ms; identical in all 5 runs), in 20 to 300 ms 0.00439, 99.9th percentile later 0.00439, peak 0.187. No step in the first 300 ms exceeds the steps around it; no fault of the page in any of them. Also, 12 + 10 starts of the full check's scenes and the 24 starts of test_edges produced no page fault. The old failure (landing 0.145 s, 0.172) does not appear."
+    },
+    {
+      "finding": "4 k_door_close_1 and the other one-shot ends",
+      "verdict": "fixed",
+      "evidence": "k_door_close_1: gain applied -14.09 dB (manifest), gain the unprocessed prepare_download output needs by set_level -14.09 dB (before the repair -10.65). Envelope maximum (1 ms moving average of the channel maximum of |x|) relative to the source's, gain removed: before (old build) -3.08 dB, after 0.00 dB; the maximum lies at sample 25234 of 25517, inside the recording, which now ends in a 3 ms raised-cosine tail (appendedTailMs 3.0, fadeOutMs 0.0, 144 samples longer); last sample exactly 0, first sample -90.3 dBFS, t90 difference to the source 0.00 ms. All 29 one-shots: first sample at most -73.4 dBFS (k_toggle_1), last sample at most -90.3 dBFS (n_voyager_lightning); worst |t90 processed minus lead-in minus source| 1.02 ms (k_tick_2, whose maximum is 28 samples from the file start, which my 1 ms window cannot centre; its peak equals source peak times gain to 0.003 dB), all others 0.0 to 0.0x ms; limit 1.6. For every one-shot the gain applied equals the gain needed by the unprocessed source within 0.05 dB. fadeOutMs is honest: k_tick_2 (1115 samples) 11.604 ms, fitted by least squares against the source with a 557-sample fade (rms error 1.7e-5, against 1.4e-3 for a 1440-sample fade and 3.9e-4 for none); every other fade file is longer than 2880 samples, where the code applies 30 ms. I could not check the fade length of the other files by differencing because the dither (about 4e-4 rms) hides it; that part is by reading build.py."
+    },
+    {
+      "finding": "5 Loops: level in the crossfade zone, seam check, joins tiled three times",
+      "verdict": "partly fixed",
+      "evidence": "Own script, 50 ms windows every 10 ms inside the 300 ms zone, power mean against the mean power of the 300 ms before and the 300 ms after (circular), read from the processed files. n_ingenuity: worst window -0.64 dB (range -0.64..+0.56): met. n_cassini_saturn_1: +3.69 dB (range -3.15..+3.69): not met (the 300 ms before is +0.68, the 300 ms after -0.80 against the reference, so it is the material). n_rover_driving: +6.86 dB (range -3.73..+6.86): not met. n_plasma_hiss: the manifest says -20.55 dB; measured at the zone's place in the final file (the loop start was rolled by loopStartMs 6730, so the zone lies about 5.27 s into the file; my estimate of that place) I get windows down to -30.8 dB against the surroundings, the 300 ms before the zone being -9.8 dB and the 300 ms after +2.8 dB against the reference: not met, and the manifest's loopZone describes the zone before the roll and understates it (my position of the zone is derived from loopStartMs and was not confirmed against build.py). What the crossfade adds (manifest vsSourcesDb): -0.46, +1.14, +1.35, -0.14 dB, all within 1.5; I read it from the manifest and from the code, did not recompute it. Seam check (manifest, analysis of the processed file): seamRatio 0.09, 0.60, 0.61, 1.00, edge level difference 0.17, 0.0, 1.53, 0.73 dB, all pass. Tiled three times, largest join step against the 99.9th percentile of the internal steps: cassini 0.01, plasma_hiss 0.18, rover_driving 0.37, ingenuity 0.40; join steps 0.00034, 0.00275, 0.00323, 0.00031, each below the largest internal step (0.052, 0.028, 0.017, 0.00082). No step at the joins."
+    },
+    {
+      "finding": "6 Manifest",
+      "verdict": "fixed",
+      "evidence": "128 sounds; 20 entries of category voice present, all 20 audio files and 20 spectrograms exist; no file missing; every manifest hash equals the first 12 hex digits of the SHA-256 of its file. No file has a true peak above -1 dBFS (own 4x oversampled measure over all 128 files; manifest peakDb highest -1.05, n_laser_shots). fadeOutMs honest (finding 4). build.py --manifest-only run twice through the lock: SHA-256 over all 33 processed download wavs plus manifest.json identical before, after run 1 and after run 2 (d75a0baecf4fd6f8...); 'manifest validates against the contract'."
+    },
+    {
+      "finding": "7 Suites",
+      "verdict": "fixed",
+      "evidence": "npx tsc -p packages/shared, packages/server and packages/client --noEmit: exit 0. npx vitest run (through the lock): 47 files passed, 805 tests passed, 2 expected fail. unittest tools/audio/tests 77 OK, tools/audio/listen/tests 22 OK, tools/audio/synth/tests 54 OK. fetch.py --check: 25 entries, 0 problems. npm run build (through the lock): exit 0. git status was clean after all of it."
+    },
+    {
+      "finding": "8 Sound files whose bytes changed",
+      "verdict": "fixed",
+      "evidence": "assets/audio/render is gitignored and every download was rewritten at 17:33 by the rebuild, so neither git nor mtimes give a baseline. I rebuilt all 33 downloads with the build.py of commit 84b0b9a (before any of the second round's changes: it has no appendedTailMs) into a scratch folder outside the repository, from the same selection.json and downloads, and compared SHA-256 of every wav with the current files: CHANGED k_door_close_1, n_cassini_saturn_1, n_ingenuity, n_plasma_hiss, n_rover_driving; the other 28 SAME. This matches the list in lib-fix2-report. Files other than the 33 downloads (synth sounds, voice) are not rebuilt by --manifest-only, and the page agent changed no sound; I had no earlier hashes for them, so that they are unchanged is by the reports and by the code path, not measured by me."
+    }
+  ],
+  "fullCheck": "52 passed, 0 failed, 0 page faults, 731 file faults, 0 clipped samples (own server port 5483, scratch ratings file, through the lock)",
+  "suites": "tsc x3 clean; vitest 805 passed + 2 expected fail; unittest 77 + 22 + 54 OK; fetch.py --check 0 problems; npm run build exit 0",
+  "ratingsFileUntouched": "SHA-256 of assets/audio/ratings.json b3e2ae5cf8f41f7ff93738b999edf7745d115032d5e42d30ae884ba557914cf3 before and after (also after the manifest rebuilds and the build); the scratch ratings file was removed by the check; my vite server (port 5483) is stopped, no other process touched.",
+  "soundIdsChanged": ["k_door_close_1", "n_cassini_saturn_1", "n_ingenuity", "n_plasma_hiss", "n_rover_driving"],
+  "filesChanged": ["docs/reports/2026-11-15/verify-fix2-report.json"],
+  "mustFix": [
+    "assets/audio/render/downloads/n_plasma_hiss.wav (excerpt in assets/audio/selection.json): the loop has a level dip of about 30 dB in 50 ms windows at about 5.3 s (where its quiet end meets its quiet start after the roll to loopStartMs 6730), far outside the 1.5 dB requirement. Seen by computing the windowed RMS of the processed file at the zone place against the 300 ms before and after. The manifest's loopZone.vsOutsideDb (-20.55) understates it. Needs a different excerpt or a different cut, not a crossfade change.",
+    "tools/audio/build.py loopZone: for a loop that is rolled afterwards (n_plasma_hiss) the figure is taken before the roll, so it does not describe the zone where it lies in the shipped file. The loop-crossfade-level check only tests vsSourcesDb (what the crossfade adds), so a file like plasma_hiss passes with a deep dip. Measure the zone in the final file or name the figure honestly.",
+    "n_cassini_saturn_1 (+3.69 dB) and n_rover_driving (+6.86 dB): the literal 1.5 dB against the level just outside is not met; the recordings move that much by themselves near the cut; acknowledged by lib-fix2. Choose other excerpts or drop the statement.",
+    "Page, not a defect of this round but limiting: an output step is called the file's if it is at most 2 times the file step times the page gain plus an ordinary step; and in loud dense material (cabin_ambience_loop with engines, scenes) the detector sees no click under full scale, so 'zero page clicks' there means 'none found', not 'none exist'.",
+    "Sound files with own clicks that the owner will hear as crackle (file faults, not the page): fold_exit (190 listed; library plays show ratio up to 189), fold_jump, pilot_gear_a/c, impact_shield_heavy (steps up to 0.69), n_laser_shots, k_computer_noise_1, ground_scrape_loop, dust_patter_loop, pilot_shield_a/b, pilot_hull_b. n_sls_test_fire is still source-clipped (manifest pass false). Whether any of these is designed crackle was not decided here."
+  ],
+  "notVerified": [
+    "Nothing about how any sound sounds, or whether the dip in n_plasma_hiss or the zone of any loop is audible.",
+    "Captures read channel 0 only in my own start analysis (the check itself analyses both channels).",
+    "The one combat file fault at 10.843 s (size 0.672) is not tested by size; attributed to impact_shield_heavy only by equal size and ratio.",
+    "The zone position of n_plasma_hiss in the shipped file is my estimate from loopStartMs (sign and offset not confirmed in build.py), so -30.8 dB is approximate; the manifest's -20.55 is the build's own figure.",
+    "Whether the files outside the 33 downloads are byte-identical to before the round: no earlier hashes; only reasoned from the reports.",
+    "A stall of the main thread longer than about 70 ms between planning and playing a chain was not provoked; my stall-free repeat of the fold cue ran at speed 25 only.",
+    "The effect of the old attribution rule on the capture was not re-run.",
+    "Scratch scripts are in the session scratchpad, outside the repository."
+  ],
+  "checks": [
+    {"command": "with_lock node tools/dev/audition-check.mjs (vite port 5483, scratch ratings)", "result": "52 passed, 0 failed"},
+    {"command": "with_lock node scratch starts.mjs (25 scene or engine starts, capture)", "result": "numbers in findings 2 and 3, 0 page faults"},
+    {"command": "with_lock node scratch cue.mjs (fold chain, 10 runs)", "result": "10 of 10 exact"},
+    {"command": "scratch python on processed downloads, selection.json sources and a rebuild with the old build.py", "result": "findings 4, 5, 8"},
+    {"command": "with_lock build.py --manifest-only x2 with SHA-256", "result": "identical"},
+    {"command": "tsc x3, with_lock vitest run, 3 unittest suites, fetch.py --check, with_lock npm run build", "result": "all pass"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+ "note": "Hand skips of round 7, read by screen.py when it is run with --prompts-file tools/sound/prompts7.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips6.json (candidate as source/name, reason). Empty when the round was made; one skip was added after the page check of the round (a click found in a sound file, not found by the rules). No skip applies to a fixed candidate (the families thruster_room and shield_brighter): it is always on the page.",
+ "skips": [
+  {
+   "candidate": "moss/shield_snap_1__s22",
+   "reason": "a click in the tail, found by the page check and measured in the file: at 0.533 s of the raw file, 0.25 s after the event has ended, three samples step by up to 0.0265 at the published level (-33.6 dBFS peak) where the median step is 0.0012 and the level is -55 dBFS"
+  }
+ ]
+}
