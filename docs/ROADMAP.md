@@ -1322,10 +1322,13 @@ Other notes:
     committed on `main` directly, and no branch waits until other work is finished.
   - Who merges (asked on 2026-11-18; his choice, "Claude mergt, Squash"): the session that made
     the branch merges its own pull request, as one commit with a message that says what changed
-    (`gh pr merge <n> --squash --delete-branch --subject "..." --body "..."`), so the checkpoint
-    commits do not reach `main` one by one. This holds for every session.
-  - The next piece is cut from the `main` that holds the last one. `git fetch origin main:main`
-    moves the local `main` without checking it out; `main` is not checked out in a worktree.
+    (`gh pr merge <n> --squash --subject "..." --body "..."`), so the checkpoint commits do not
+    reach `main` one by one. This holds for every session.
+  - The next piece is cut from the `main` that holds the last one: `git fetch origin main:main`
+    moves the local `main` without checking it out, `git switch -c feat/<next> main` starts the
+    next branch in the same worktree, and then the merged branch is deleted (`git push origin
+    --delete <branch>`, `git branch -D <branch>`). `gh pr merge --delete-branch` is not used: it
+    checks out `main` in the worktree. `main` is not checked out in a worktree.
 - Worktrees. Each session works in a git worktree of its own under `.claude/worktrees/`, so
   sessions that run side by side no longer share a checkout; what one changes reaches the others
   through `main`. A new worktree holds only what is in git: run `npm ci` in it first. Shared
