@@ -206,10 +206,14 @@ export class Composite {
    * @param depth the depth of the local scene and the cockpit, 1 where neither drew
    * @param lights the sources that dazzle, and `cam` the camera of the celestial pass that places them
    * @param canopy whether the view is through the canopy glass of a cockpit
+   * @param local the camera the local scene was drawn with, for the lights that stand in that scene
    */
-  prepare(depth: Texture | null, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number, canopy: boolean): void {
+  prepare(
+    depth: Texture | null, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number, canopy: boolean,
+    local: PerspectiveCamera,
+  ): void {
     const u = this.material.uniforms;
-    aimLens(u, lights, cam, width, height);
+    aimLens(u, lights, cam, width, height, local);
     u.tDepth!.value = depth;
     (u.uRes!.value as Vector2).set(width, height);
     u.uLensCanopy!.value = canopy ? CANOPY : 0;

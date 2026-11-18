@@ -37,6 +37,12 @@ export interface LensLight {
    * final pass, from the depth buffer.
    */
   vis: [number, number, number];
+  /**
+   * For a source that stands in the local scene (a blast): the distance from the camera, metres,
+   * nearer than which whatever is drawn covers it. Left out for a celestial body, which is behind
+   * everything the local scene and the cockpit draw.
+   */
+  dist?: number;
 }
 
 /**
