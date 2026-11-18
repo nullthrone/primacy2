@@ -30,17 +30,19 @@ which the owner listens and rates. On 2026-11-18 its manifest (`assets/audio/ren
 lists 189 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
 samples of round 3 were taken off the page on the owner's word, see section 2, "The direction
 samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18,
-and 189 with the changes of round 7 after its first check).
+189 with the changes of round 7 after its first check, and 197 since the library step for round 7
+late that evening; the counts of this paragraph are of the 197).
 By category: eleven are the candidates of round 7, the category `events7`; fourteen the candidates of
 round 6, `events6`; seventeen the event sounds of round 5, `events5`; and sixteen the candidates of
-round 4, `source` (see section 2). Ten are the generated sounds of the library itself: MOSS
-candidates he accepted in rounds 4 to 6, built as processed copies with their origin and licence
+round 4, `source` (see section 2). Eighteen are the generated sounds of the library itself: MOSS
+candidates he accepted in rounds 4 to 7 (six of the eight of round 7 are processed copies of two
+MOSS files), built as processed copies with their origin and licence
 (ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 121
 are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty of the speech
 comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
 of rounds 5 to 7 are all `synth` (made by MOSS, or derived from a MOSS file), and the sixteen of
 round 4 carry the same field: twelve `synth` (made by the two models) and four `download` (the
-recordings), so the whole manifest reads 142 `synth`, 37 `download` and 10 `generated`. The game
+recordings), so the whole manifest reads 142 `synth`, 37 `download` and 18 `generated`. The game
 itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
@@ -804,6 +806,81 @@ writes to the real tree, look whether he has rated anything new: `assets/audio/r
 byte-identical to `assets/audio/rounds/round7-ratings.json` as long as he has not. Not to be started without his word: the voice
 pipeline, the game's runtime audio, a re-render of the event sounds, other downloads, music.
 
+The library step for round 7 (2026-11-18, late evening; `tools/audio/README.md`, "Generated sounds in
+the build", has the fields, the level table and the measurements). `assets/audio/generated.json`
+lists 18 sounds (round 4: 2, round 5: 4, round 6: 4, round 7: 8) and 2 withdrawn. New are six
+thrusters (`g_thruster_heavy_room_a`, `_room_b`, `_room_wide`, `_room_three`,
+`g_thruster_heavy_three`, `g_thruster_heavy_hall`) and two shields (`g_impact_shield_a`, shelved,
+and `g_impact_shield_b`, tuned and shelved). Decided by the orchestrator where the hand-over had
+left it open, for the owner to overrule:
+
+- All six thrusters are in, as variants: his ratings choose none of them.
+- What each stands for was chosen by level, not by meaning: `thruster_pulse_c` (-28.26 LUFS) and
+  `impact_shield_light` (-24.47), the two events whose level is nearest to what he heard (-28 and
+  -24). So `thruster_pulse_a`, `thruster_pulse_b`, `impact_shield_medium` and `impact_shield_heavy`
+  still have no sound he accepted.
+- The level is that of the event, as the rule says, which here is 0.26 to 0.27 dB (thrusters) and
+  0.47 and 0.50 dB (shields) under the files he heard. The two-channel thruster gets -25.24, the
+  3 dB above its event that its page copy had.
+
+How a processed sound is recorded. The processed file he heard a cut of is committed byte for byte,
+as a raw file is, and its entry carries an object `derived`: the parent file (committed too, with
+its sha256), the parent candidate of round 6, the operations and the numbers they reported. The
+build checks the parent's sha256 and builds from the committed file; it does not run the operations
+again. A test makes each of the six again from its parent with `tools/sound/derive.py` and finds
+the samples equal, all of them (the file hashes differ: the writer puts a time stamp into the
+header).
+
+What the independent check found, and what was changed for it. The first build was not the page
+copy he rated times one gain (residual -20 to -40 dB at the best offset). Three causes, all in how
+`tools/sound/screen.py` finishes a page copy: it takes the mean out; it fades, ramps and appends
+10 ms of silence by other thresholds than the repair a download gets; and the cut start, recorded
+with four decimals, names a sample only to within 2.4 samples. Since then `build.page_finish` does
+the page's steps for sounds of round 7 and later (`PAGE_FINISH_FROM_ROUND`), and the eight starts
+are recorded to the sample. Measured after that, by two checkers on copies and by the orchestrator
+on the real tree: each built file is its page copy times one gain at offset 0 with the same length;
+the residual is -64.7 to -69.7 dB, which is the noise of two 16 bit files (no sample differs by more
+than 2.8 steps of 16 bit). The ten sounds of rounds 4
+to 6 are built as before, byte for byte. The second finding: the page text of the two-channel sound
+said its level is the loudness of its event; it now says what is true.
+
+Gate, on a copy first and then on the real tree: `build.py --manifest-only` exits 0 with 197
+entries; the 189 old ones are equal in every field and in order; exactly the eight are added (after
+`g_fold_exit_b`, before the downloads); of the 525 files under `assets/audio/render` only
+`manifest.json` changed and 16 were added (wav and png of the eight); two runs give the same bytes;
+the real tree after its build equals the copy file for file. `assets/audio/ratings.json` was
+byte-identical to the record of round 7 before and after, and `assets/audio/gen/_kept` did not
+change. Suites after the change: 149 tests of `tools/audio/tests` (111 before), 80 of the
+listening tools, 112 of the synthesis, 62 in `test_screen.py`. The work was one builder, three
+independent checkers (the samples and where they come from; the manifest gate, the suites and
+whether each new rule is pinned by a test; everything that reads the list, the texts and the
+scope), one repair and two second checks, all on the cheaper model.
+
+At the page (measured with `tools/dev/audition-level.mjs`, one play of each, default settings): the
+five one-channel thrusters play about 1.7 dB under what he heard, because a library sound takes the
+place of its event (20 degrees) and the candidates stood in the middle; the two-channel one plays
+0.26 dB under it. The shields have no place, as their event has none, so the page puts every play
+at a new random direction and makes it duller behind the listener. He is told both when he is asked
+to hear the eight.
+
+A mistake of the orchestrator in that measurement. The dev server was started through
+`.claude/launch.json` with `AUDITION_RATINGS_FILE` set inside a `bash -c` line. The variable did
+not reach the server: `/audio-lib/ratings-path` named the owner's file, and the measuring tool had
+been started in the same command, before that answer was read. The tool presses Play and writes
+nothing, and the ratings file is byte-identical to the record (sha256 before and after), so nothing
+was lost. The rule it broke stands in section 5: ask the server which file it writes, read the
+answer, and only then open the page.
+
+Not verified: how any of the eight sounds as built (nobody listened, and he has not rated them in
+this form: 8 of the 197 sounds on the page are unrated); the page check `audition-check.mjs` was not
+run for them; the level of a shield at the page was measured for one random direction only.
+Left as it is and known: the choice of the page's steps hangs on the round number in the code, not
+on a field of the entry; `screen.py` and `publish.py` still record a cut start with four decimals,
+so the next library step has to find the sample again; no test compares the `lufs` of an entry
+with the event it stands for (the manifest is not in git); `tools/sound/compare.py` rebuilds
+library files without the page's steps, which is right for the pulses of rounds 4 and 5 that it
+reads and would be wrong for a sound of round 7.
+
 ### The owner's first play session (2026-11-14)
 
 He played the game himself for the first time and reported. Good: the controls, the shadows, the
@@ -1012,8 +1089,9 @@ Each step is one work session with its own workflow runs.
    and both fold events; in round 6 he accepted a light hull hit, a fold jump and two fold exits and
    called a thruster and a shield close; round 7 was built around those two, and on 2026-11-18 he accepted its six thrusters and two of
    its shields, see `tools/sound`); the
-   event sounds he accepts built into the library (ten are in, see section 2; he has rated five of
-   them in their built form) and heard once more; new numbers
+   event sounds he accepts built into the library (eighteen are in since the library step for round
+   7, see section 2; he has rated the first ten in their built form and all ten fit, the eight of
+   round 7 he has not heard as built) and heard once more; new numbers
    for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
    rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
@@ -1188,8 +1266,9 @@ Never verified:
   other voice samples of that day and seven of the eight first library sounds in their built form;
   and in the evening of 2026-11-18 the 11 candidates of round 7, `g_gear_deploy` and the four
   newest library sounds as built, and the 34 older sounds that had been unrated). By the page's own
-  definition none of the 189 sounds on the page is unrated (script, ratings saved
-  2026-11-18T19:22:12.338Z). Every other judgement of the sound library and of the
+  definition none of the 189 sounds on the page was unrated then (script, ratings saved
+  2026-11-18T19:22:12.338Z); since the library step for round 7 the page has 197 and the eight new
+  library copies are unrated. Every other judgement of the sound library and of the
   speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
   - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
@@ -1344,7 +1423,11 @@ Other notes:
   off since 2026-11-18 (the owner's choice, asked before the first merge under these rules). Six
   sessions that used that folder are archived and it is still there, but why the app kept it is
   not known: before the session that holds it is archived, or "Clean up inactive sessions" is used,
-  look at what happens to the folder.
+  look at what happens to the folder. Since 2026-11-18 a byte copy of `assets/audio/gen/_kept`
+  (rounds 3 to 7, 341 files, with a list of their sha256) lies outside every worktree, at
+  `C:\Claude Code\LOCAL\primacy2-kept`, on the owner's word; a new round is copied there once it is
+  recorded. The pools of unrated raw candidates (`assets/audio/gen/r5`, `r6`, `r7`, `moss/raw`) are
+  not in that copy.
   `tools/dev/live-landing/live2.mts` imports by that worktree's absolute path and runs only there;
   `tools/dev/journal.py` shortens paths by its name. The checkout at the root of the repository
   (`C:\Claude Code\LOCAL\primacy2`) stood on `feat/primacy2-foundation` on 2026-11-18, a branch of
@@ -1451,7 +1534,11 @@ Other notes:
   browser check, `node tools/dev/audition-check.mjs`, needs a dev server and the variable
   `AUDITION_RATINGS_FILE` pointing at a scratch file on both, so that the owner's ratings are
   never touched (see `docs/reports/2026-11-14/audition-space-report.json`). Since 2026-11-15 the
-  check asks the server which file it writes and refuses to start if that is the owner's. It
+  check asks the server which file it writes and refuses to start if that is the owner's.
+  `tools/dev/audition-level.mjs` does not ask. Before it, or anything else, opens a page of a server
+  of your own: `curl <server>/audio-lib/ratings-path`, read the answer, and go on only if it names
+  your scratch file. On 2026-11-18 a variable set inside a `bash -c` line of `.claude/launch.json`
+  did not reach the server (section 2, "The library step for round 7"). It
   also records what the page really plays, after the limiter, and looks for clicks and clipped
   samples in it (about 20 minutes for everything; `AUDITION_CAPTURE=skip` leaves it out,
   `AUDITION_CAPTURE_ONLY=id,id` and `AUDITION_CAPTURE_SCENES=fold` narrow it).

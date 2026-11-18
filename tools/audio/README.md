@@ -254,6 +254,17 @@ below). Two more were withdrawn on 2026-11-18 (see below).
   | g_impact_shield_a | impact_shield_light | 1 | -24.00 | -24.47 | -0.47 |
   | g_impact_shield_b | impact_shield_light | 1 | -23.97 | -24.47 | -0.50 |
 
+  What the audition page makes of these levels (measured on 2026-11-18 with `tools/dev/audition-level.mjs`, the
+  page's default settings, one play of each; "file>page" is the energy over both channels at the output of the page
+  against the energy of the file). The candidates he rated have the place 0, where a one-channel file left the page
+  at 0.01 to 0.12 dB. The five one-channel library thrusters take the place of their event (20 degrees) and left it
+  at -1.35 to -1.42 dB, so with the 0.27 dB of the file they play about 1.7 dB under what he heard. The two-channel
+  one left it at -2.89 dB, as its candidate did, and plays 0.26 dB under it. The two shields have no place, because
+  their event has none: the page puts every play at a new random direction and makes it duller behind the listener;
+  the one play measured gave -0.71 and -3.03 dB. Their event has two channels and they have one, so at the same file
+  loudness they do not leave the page at the level of the rendered event (a two-channel file leaves it about 2.9 dB
+  lower than a one-channel file in the middle).
+
 - Round 7: the page copy. A library sound of round 7 or later is the page copy he rated times one gain, to the
   sample. Three things made the first build differ from it (measured on the eight, built against
   `assets/audio/gen/_kept/round7/page/<candidate>.wav`: -19.7 to -39.9 dB residual after the best gain at the best
