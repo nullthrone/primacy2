@@ -1,0 +1,79 @@
+{
+ "role": "select",
+ "date": "2026-11-18",
+ "status": "done",
+ "nobodyListened": true,
+ "gate": {
+  "snapshotBefore": "178 entries, id and hash of each checked against the sha256 of its file: 0 mismatches, 0 missing (scratchpad r7-select/snapshot_before.json)",
+  "quietBuild": "build.py --manifest-only on a copy of assets/audio/render with the output there: exit 0, manifest validates, 178 entries equal to the real manifest in every entry, same order, same categories",
+  "after": "188 entries = the 178 before (equal in every field, same relative order, 0 old files with a changed sha256) + 10 new, all events7; categories events7, events6, events5, source, voice, ...; every wav on disk has the hash of its entry (0 mismatches)",
+  "ratingsJson": "not written; sha256 prefix 28ba828550516814 before and after"
+ },
+ "sounds_json": "one exact replacement: category events7 added as the first category, before events6",
+ "screen": {
+  "command": "screen.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7 --device cpu",
+  "files": 45, "kept": 34, "thrownOut": 11, "thrownOutBy": {"cut-off": 7, "speech": 3, "several-events": 1},
+  "notPicked": {"shots": 10, "saturatedNoise": 3},
+  "perFamily": {
+   "thruster_room": "3 files, 3 kept, 3 picked (fixed)",
+   "thruster_three": "8 files, 7 kept, 1 thrown out (speech, 4 shots), 6 not picked for shots, 1 picked of 2 slots (second slot empty: only 1 of 7 kept has exactly 3 shots)",
+   "thruster_hall": "8 files, 6 kept, 2 thrown out (speech, 4 shots each), 4 not picked for shots, 1 picked (s24; s21 also has 3 shots, one slot)",
+   "shield_brighter": "2 files, 2 kept, 2 picked (fixed)",
+   "shield_swallow": "8 files, 7 kept, 1 cut off (s21), 1 not picked as pressed noise (s25), 1 picked (s22)",
+   "shield_absorb": "8 files, 6 cut off, 2 kept and both not picked as pressed noise; slot filled from the excluded s27 as a fallback (pressedNoiseFallback)",
+   "shield_snap": "8 files, 1 several events (s21), 7 kept, 1 picked (s22)"
+  },
+  "shotsOfEveryThrusterFile": {
+   "thruster_three_s21_to_s28": [2, 1, 2, 3, 4, 4, 2, 4],
+   "thruster_hall_s21_to_s28": [3, 4, 2, 3, 4, 4, 2, 4],
+   "fixedRoomFiles": [2, 2, 2]
+  },
+  "firstRunKept": "a screen run with two test skips overwrote screen.json and _listen; a clean run followed and was checked by script: skippedAsPick empty, equals skips7.json, ten chosen ids as in run 1, _listen holds exactly the ten files"
+ },
+ "handSkips": {
+  "skips7.json": "empty, unchanged",
+  "faultsFoundInThePlainFaultCheck": "none: no steady noise (largest time within 6 dB is 47 % of the length, shield_absorb s27; round-6 steady skips were 65 to 74 %), no silence inside any cut, every pick above 10 % of energy above 60 Hz (lowest 29.2 %, thruster_hall s24), no flat top, screen.py faults [] for the five fixed",
+  "heldAgainstRatings": "no generated pick matches two candidates rated wrong in the same event on all four measures (under 250 Hz, above 4 kHz, share above 2 kHz each within 0.10, loudest 50 ms within 3 dB). One match each for thruster_three s24 and thruster_hall s24 (thruster_mighty_1). shield_snap s22 and shield_swallow s22 have the spectral shape of rated-wrong shields (OGA spark, shield_bright_2 s11; shape within 0.07 to 0.09 of snap) but a loudest 50 ms about 10 dB higher (-12.6 and -12.8 against -22.7 and -22.1), so they were kept and flagged in RESULTS7.md. A skip is one entry in skips7.json plus a rerun of screen.py and publish.py; the replacements in the pool are mostly the same kind.",
+  "notSkipped": ["a line at 16 kHz in every MOSS file (also in the accepted ones; absorb 30.8 and snap 30.1 dB are above the accepted maximum 27.6)", "a click of size 0.010 to 0.019 at 0.59 s in shield_snap s22 (page check, listed)"]
+ },
+ "publish": {
+  "command": "publish.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7",
+  "exit": 0,
+  "picks": 10,
+  "plannedPicks": 11,
+  "emptySlot": "thruster_three slot 2, because only one of seven kept files has exactly three shots; not filled"
+ },
+ "overBothNumbers": {
+  "rule": "loudest 50 ms above -9.5 dBFS and share above 2 kHz in the loud frames at or above 0.03",
+  "round5Overdriven": {"shield_bright_1_s15": [-4.40, 0.0373], "shield_bright_2_s14": [-8.25, 0.1006], "fold_jump_1_s13": [-6.95, 0.1601], "fold_jump_2_s14": [-5.44, 0.1506]},
+  "overBoth": {"thruster_room_1": [-6.23, 0.0520], "thruster_room_2": [-6.97, 0.0446], "thruster_room_3": [-7.03, 0.0547], "shield_brighter_2": [-7.65, 0.0714], "shield_absorb_1_s27 (fallback)": [-9.36, 0.5933]},
+  "notOverBoth": {"thruster_three_s24": [-1.58, 0.0189], "thruster_hall_s24": [-2.21, 0.0201], "shield_brighter_1": [-4.36, 0.0165], "shield_swallow_s22": [-12.81, 0.7738], "shield_snap_s22": [-12.60, 0.9508]},
+  "note": "the thruster families have no notSaturatedNoise setting in the plan; the two generated thrusters have the highest loudest 50 ms of any rated thruster file"
+ },
+ "pageChecks": {
+  "server": "own vite server on port 5555, ratings file an empty file in scratchpad r7-select/ratings, process 154128, stopped; the port has no listener afterwards (waiting leftovers of closed connections only)",
+  "auditionCheck": "48 passed, 0 failed, no console errors; 0 faults caused by the page; 10 in a sound file (6 in ev7_7_shield_snap_1_moss_p1s22, click 0.010 to 0.019 at about 0.59 s; 4 in test_step)",
+  "auditionLevel": "dry and default for the ten ids: file>page -0.14 to +0.38 dB for the nine one-channel files, -3.10 (dry) and -2.89 (default) for the two-channel file; largest deviation from -28 / -24 is 0.39 dB (shield_swallow_1, default); overload lamp unchanged for all; highest output peak -10.7 dBFS"
+ },
+ "changed": [
+  "tools/audio/sounds.json (one line added: category events7 first)",
+  "assets/audio/gen/r7/screen.json, _listen (10 files), logs/screen-run1.log, screen-run2-clean.log, publish-run1.log (git-ignored)",
+  "assets/audio/render/events7 (10 sounds with json and png) and assets/audio/render/manifest.json (via publish.py)",
+  "tools/sound/RESULTS7.md (new)",
+  "docs/reports/2026-11-18/sound7-select-report.json (this file)"
+ ],
+ "problems": [
+  "ten picks, not eleven: thruster_three slot 2 is empty by the three-shot rule",
+  "shield_absorb has only two kept files, both pressed noise; its pick is a fallback over both numbers",
+  "shield_snap s22 and shield_swallow s22 have the spectral shape of shields he rated wrong in earlier rounds (level differs); kept, flagged for the orchestrator to decide",
+  "the whole generated shield pool is bright noise (or, for swallow s28 and absorb s28, the low-heavy kind he also rated wrong), so skipping by 'turned down twice' would empty or swap the generated shield slots",
+  "compare.py --event only limits the ranges, not the rows it prints; the table for the other event is printed too",
+  "tools/dev/audition-check.mjs writes screenshots into screenshots/audition of the repository"
+ ],
+ "notVerified": [
+  "nobody listened; nothing says how any sound sounds",
+  "tools/sound/tests were not run again by this step",
+  "the shots count was checked against pictures of the five picks with 2 or 3 shots, not against anyone's ear",
+  "the 16 kHz line comparison uses my own measure (scratchpad r7-select/line16.py), not a tool of the repository"
+ ]
+}
