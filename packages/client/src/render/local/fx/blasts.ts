@@ -40,7 +40,7 @@ type CruiseEvent = Extract<GameEvent, { e: 'cruise' }>;
 interface SizeClass {
   /** Splinters of the cloud, and the seconds they fly, least and most. */
   splinters: number; life0: number; life1: number;
-  /** How slowly the splinters cool (see `Splinter.cool`): they are dull red after about 85 times this many seconds. */
+  /** How slowly the splinters cool (see `Splinter.cool`): they are orange after about 10 times this many seconds and dull red after 85 times. */
   cool: number;
   sparks: number;
   chunks: number;
@@ -56,11 +56,11 @@ interface SizeClass {
 
 const CLASSES: readonly SizeClass[] = [
   // A cargo pod, a missile shot down: a pop, a handful of splinters, dark again in two seconds.
-  { splinters: 50, life0: 2.5, life1: 4.5, cool: 0.035, sparks: 24, chunks: 2, puffs: 2, fire: 0.22, flash: 0.14, shell: 0.25, veils: 1, veil: 3, after0: 0, after1: 0, span: 0 },
+  { splinters: 50, life0: 2.5, life1: 4.5, cool: 0.06, sparks: 24, chunks: 2, puffs: 2, fire: 0.22, flash: 0.14, shell: 0.25, veils: 2, veil: 3, after0: 0, after1: 0, span: 0 },
   // A ship.
-  { splinters: 300, life0: 6, life1: 9.5, cool: 0.1, sparks: 90, chunks: 10, puffs: 5, fire: 0.38, flash: 0.22, shell: 0.4, veils: 4, veil: 6, after0: 2, after1: 3, span: 1.5 },
+  { splinters: 300, life0: 6, life1: 9.5, cool: 0.25, sparks: 90, chunks: 10, puffs: 5, fire: 0.38, flash: 0.22, shell: 0.4, veils: 3, veil: 6, after0: 2, after1: 3, span: 1.5 },
   // A large ship: more of everything, it takes longer to come apart, and its cloud glows longest.
-  { splinters: 520, life0: 8, life1: 12, cool: 0.2, sparks: 140, chunks: 16, puffs: 9, fire: 0.55, flash: 0.3, shell: 0.55, veils: 6, veil: 9, after0: 3, after1: 4, span: 1.9 },
+  { splinters: 520, life0: 8, life1: 12, cool: 0.5, sparks: 140, chunks: 16, puffs: 9, fire: 0.55, flash: 0.3, shell: 0.55, veils: 5, veil: 9, after0: 3, after1: 4, span: 1.9 },
 ];
 /** Radius in metres from which a ship is a ship, and from which a large one. */
 const SHIP = 5;
@@ -171,14 +171,14 @@ export class Blasts {
     effectLights.pulse(x, y, z, 1.0, 0.5, 0.16, 0.12 * power, R * 30, c.fire * 2.4);
     this.dazzle(x, y, z, vx, vy, vz, power, c.flash * 1.4, R * 1.3);
 
-    // The fireball: short and hot. Over ground it starts high enough not to be cut by it.
-    const seat = ground ? Math.max(0, R * 1.3 - ground.h) : 0;
+    // The fireball: short and hot. Over ground it is smaller and starts high enough not to be cut by it.
+    const seat = ground ? Math.max(0, R * 1.5 - ground.h) : 0, swell = ground && ground.h < R * 3 ? 0.6 : 1;
     const sx = ground ? x + ground.ux * seat : x, sy = ground ? y + ground.uy * seat : y, sz = ground ? z + ground.uz * seat : z;
     for (let i = Math.round(c.puffs * share); i > 0; i--) {
       away(ground);
       const v = R * rand(0.8, 2.6);
       const p = fl.spawn(PUFF, sx + D[0] * R * 0.4, sy + D[1] * R * 0.4, sz + D[2] * R * 0.4, c.fire * rand(0.6, 1),
-        R * rand(0.4, 0.9), R * rand(1.5, 2.6), 1.0, 0.7, 0.34, rand(7, 13));
+        R * rand(0.4, 0.9) * swell, R * rand(1.5, 2.6) * swell, 1.0, 0.7, 0.34, rand(7, 13));
       p.vx = vx + D[0] * v; p.vy = vy + D[1] * v; p.vz = vz + D[2] * v;
       p.cool = 1;
       p.rot = rand(0, TAU);
@@ -188,7 +188,7 @@ export class Blasts {
     // The shell of gas. Over ground it would be a dome; the dust the ground throws up stands for it there.
     const reach = R * rand(9, 12);
     if (!ground || ground.h > reach) {
-      carry(gl.spawn(SHELL, x, y, z, c.shell, R * 1.5, reach, 0.72, 0.84, 1.0, 0.4), vx, vy, vz, null);
+      carry(gl.spawn(SHELL, x, y, z, c.shell, R * 1.5, reach, 0.72, 0.84, 1.0, R < SHIP ? 0.18 : 0.3), vx, vy, vz, null);
     }
 
     // The fastest of what flies off, seen as streaks for a moment.
@@ -213,7 +213,7 @@ export class Blasts {
       // The fast ones are the small ones, and those cool first.
       const s = this.splinters.spawn(x + A[0] * o + D[0] * R * 0.3, y + A[1] * o + D[1] * R * 0.3, z + A[2] * o + D[2] * R * 0.3,
         vx + D[0] * v, vy + D[1] * v, vz + D[2] * v, rand(c.life0, c.life1), scale * (0.05 + 0.3 * size * size * size),
-        rand(0.8, 1.25), c.cool * rand(0.5, 1.6) * (1.3 - 0.6 * u));
+        rand(0.6, 1.25), c.cool * rand(0.4, 1.8) * (1.3 - 0.6 * u));
       s.gx = gx; s.gy = gy; s.gz = gz;
     }
     this.debris.burst(x, y, z, R, Math.round(c.chunks * share), vx, vy, vz, c.fire * 3.5, c.life0, c.life1, ground);
@@ -223,8 +223,8 @@ export class Blasts {
       away(ground);
       const v = R * rand(0.3, 1.0), life = c.veil * rand(0.75, 1.1), s0 = R * rand(1.0, 1.6);
       const veil = gl.spawn(VEIL, x + D[0] * R * 0.5, y + D[1] * R * 0.5, z + D[2] * R * 0.5, life, s0, s0 + R * rand(1.1, 2.0) * life,
-        1.0, 0.55, 0.22, 0.8);
-      veil.lit = 0.03 * rand(0.7, 1.3);
+        1.0, 0.55, 0.22, 0.45);
+      veil.lit = 0.016 * rand(0.7, 1.3);
       carry(veil, vx + D[0] * v, vy + D[1] * v, vz + D[2] * v, ground);
     }
 
@@ -318,7 +318,7 @@ export class Blasts {
     effectLights.pulse(x, y, z, 1.0, 0.9, 0.76, WARHEAD_LIGHT, 320, 0.18);
     effectLights.pulse(x, y, z, 1.0, 0.5, 0.16, 0.1 * WARHEAD_LIGHT, 200, 0.5);
     this.dazzle(x, y, z, 0, 0, 0, WARHEAD_LIGHT, 0.22, 4);
-    if (!ground || ground.h > 34) gl.spawn(SHELL, x, y, z, 0.26, 3, 34, 0.72, 0.84, 1.0, 0.35);
+    if (!ground || ground.h > 34) gl.spawn(SHELL, x, y, z, 0.26, 3, 34, 0.72, 0.84, 1.0, 0.2);
     this.flashes.spawn(PUFF, x, y, z, 0.2, 2, 7, 1.0, 0.72, 0.36, 10).cool = 1;
 
     // The fastest splinters of the cone, seen as streaks.
@@ -326,13 +326,13 @@ export class Blasts {
       randCone(A[0], A[1], A[2], 0.3, D);
       const v = rand(140, 420);
       const hot = rand(5, 11);
-      this.sparks.spawn(x, y, z, D[0] * v, D[1] * v, D[2] * v, rand(0.18, 0.45), 0.09, hot, hot * 0.78, hot * 0.42, 0.05);
+      this.sparks.spawn(x, y, z, D[0] * v, D[1] * v, D[2] * v, rand(0.25, 0.7), 0.09, hot, hot * 0.78, hot * 0.42, 0.05);
     }
     // The rest of it: a cloud that keeps the shape of the cone while it cools.
     for (let i = Math.round(90 * share); i > 0; i--) {
       randCone(A[0], A[1], A[2], 0.45, D);
       const v = rand(12, 150);
-      const s = this.splinters.spawn(x, y, z, D[0] * v, D[1] * v, D[2] * v, rand(1.4, 2.8), rand(0.03, 0.1), rand(0.85, 1.2), rand(0.02, 0.06));
+      const s = this.splinters.spawn(x, y, z, D[0] * v, D[1] * v, D[2] * v, rand(1.6, 3.2), rand(0.03, 0.1), rand(0.85, 1.2), rand(0.05, 0.15));
       if (ground) { s.gx = -ground.ux * ground.g; s.gy = -ground.uy * ground.g; s.gz = -ground.uz * ground.g; }
     }
     // The casing, to all sides.

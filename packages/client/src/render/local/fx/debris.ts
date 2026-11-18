@@ -21,11 +21,13 @@ import type { GroundBelow } from './ground.ts';
 const VERTEX = /* glsl */ `
 attribute float iHeat;
 varying vec3 vN;
+varying vec3 vP;
 varying float vHeat;
 
 void main() {
   mat4 m = modelMatrix * instanceMatrix;
   vN = mat3(m) * normal; // chunks are scaled evenly, so this only needs normalising
+  vP = position;
   vHeat = iHeat;
   gl_Position = projectionMatrix * viewMatrix * m * vec4(position, 1.0);
 }`;
@@ -35,14 +37,19 @@ uniform vec3 uSunDir;
 uniform vec3 uSun;
 uniform float uAmbient;
 varying vec3 vN;
+varying vec3 vP;
 varying float vHeat;
 
 void main() {
   vec3 n = normalize(vN);
   vec3 albedo = vec3(0.2, 0.2, 0.21);
   vec3 lit = albedo * (uSun * max(dot(n, uSunDir), 0.0) + uAmbient);
-  // Torn metal comes out of the blast glowing and cools through orange to dull red.
-  vec3 glow = mix(vec3(1.0, 0.12, 0.02), vec3(1.0, 0.55, 0.2), vHeat) * vHeat * vHeat * 5.0;
+  // Torn metal comes out of the blast glowing and cools through orange to dull red, and not
+  // evenly: some of a chunk was in the fire and some was not, so it glows in patches and the rest
+  // of it shows its shape in the sunlight.
+  float patches = 0.5 + 0.5 * sin(dot(vP, vec3(5.1, 3.7, 4.3)) + 2.0 * sin(dot(vP, vec3(-2.3, 4.9, 1.7))));
+  float heat = vHeat * (0.25 + 0.95 * patches * patches);
+  vec3 glow = mix(vec3(1.0, 0.12, 0.02), vec3(1.0, 0.55, 0.2), min(heat, 1.0)) * heat * heat * 3.5;
   gl_FragColor = vec4(lit + glow, 1.0);
 }`;
 

@@ -9,9 +9,11 @@
  *          slows it in vacuum), glows for a moment and after that only scatters the sun
  *
  * A disc that reaches below the ground would be cut by it along a hard line. One that starts near
- * the ground therefore knows its height and which way is up, and is lifted as it grows so that it
- * sits on the ground instead (see `ground.ts`).
+ * the ground therefore knows its height and which way is up (see `ground.ts`): it is lifted as it
+ * grows so that it sits on the ground instead, and what of it still comes near the ground fades
+ * out toward it, so there is no line.
  */
+import { Vector3 } from 'three';
 import type { Lighting } from '../../../contracts.ts';
 import { QuadBatch } from './batch.ts';
 import { Pool, type Frame } from './core.ts';
@@ -23,11 +25,13 @@ export const VEIL = 2;
 const VERTEX = /* glsl */ `
 attribute vec4 iP; // centre (camera-relative), radius in metres
 attribute vec4 iC; // radiance, kind
-attribute vec4 iQ; // param, seed
+attribute vec4 iQ; // param, seed, height of the centre above the ground in radii
 uniform float uPix;
+uniform vec3 uUp;  // straight up, in the axes the positions are in
 varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vK;   // kind, param, seed
+varying float vH;  // height above the ground in radii
 
 void main() {
   vec3 c = (modelViewMatrix * vec4(iP.xyz, 1.0)).xyz;
@@ -36,6 +40,8 @@ void main() {
   vUv = position.xy;
   vCol = iC.rgb * (iP.w / rad);
   vK = vec3(iC.a, iQ.x, iQ.y);
+  // The disc faces the camera, so height changes across it as far as up shows in the picture.
+  vH = iQ.z + dot(position.xy, (mat3(modelViewMatrix) * uUp).xy);
   gl_Position = projectionMatrix * vec4(c + vec3(position.xy * rad, 0.0), 1.0);
 }`;
 
@@ -43,6 +49,7 @@ const FRAGMENT = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vCol;
 varying vec3 vK;
+varying float vH;
 
 float hash(vec2 p) {
   p = fract(p * vec2(0.1031, 0.1030));
@@ -87,12 +94,12 @@ void main() {
     // most of it well away from the middle. That is what tells it from smoke.
     float r = sqrt(r2);
     vec2 around = vUv / max(r, 1e-3);
-    vec2 q = around * 2.6 + vK.z * vec2(37.0, 17.0);
+    vec2 q = around * 4.2 + vK.z * vec2(37.0, 17.0);
     float n = fbm(q + 0.45 * r + 0.9 * (fbm(q * 2.1 + r * 0.8) - 0.5));
-    float fine = noise(around * 9.0 + r * 1.7 + vK.z * 53.0);
+    float fine = noise(around * 13.0 + r * 1.7 + vK.z * 53.0);
     light = smoothstep(0.38, 0.8, n) * (0.6 + 0.8 * fine) * r2 * win * 6.75;
   }
-  gl_FragColor = vec4(vCol * light, 1.0);
+  gl_FragColor = vec4(vCol * light * smoothstep(0.0, 0.3, vH), 1.0);
 }`;
 
 export interface Disc {
@@ -123,16 +130,19 @@ const make = (): Disc => ({
 });
 
 /** How much of its radius a disc keeps above the ground: the outer part of each kind is too faint for a cut to show. */
-const SIT = [0.3, 0.9, 0.75] as const;
+const SIT = [0.32, 0.9, 0.75] as const;
 
 export class BlastLight extends QuadBatch {
   private readonly pool: Pool<Disc>;
   /** Handed out when the pool is full, so callers can set optional fields without checking. */
   private readonly spare = make();
+  /** Straight up where the discs near the ground are; within the few kilometres effects are seen over, one direction serves all. */
+  private readonly up = new Vector3(0, 1, 0);
 
   constructor(max: number) {
     super(max, ['iP', 'iC', 'iQ'], VERTEX, FRAGMENT);
     this.pool = new Pool(max, make);
+    this.mesh.material.uniforms.uUp = { value: this.up };
   }
 
   /** Starts a disc and returns it, so the caller can set the optional fields (velocity, delay, ground, ...). */
@@ -165,7 +175,7 @@ export class BlastLight extends QuadBatch {
       if (p.kind === VEIL) {
         rad = p.s0 + (p.s1 - p.s0) * t;
         // The same gas in a growing volume: it thins as it spreads, and is let go at the end.
-        const thin = Math.pow(p.s0 / rad, 1.2) * Math.min(1, p.age / 0.3) * Math.min(1, (p.life - p.age) / 1.5);
+        const thin = Math.pow(p.s0 / rad, 1.5) * Math.min(1, p.age / 0.3) * Math.min(1, (p.life - p.age) / 1.5);
         const lit = p.lit * sun * thin, hot = Math.exp(-p.age / 0.4) * Math.min(1, p.age / 0.08);
         // Thin gas scatters the blue of the sunlight best.
         r = light.sunColor[0] * lit * 0.78 + p.r * hot;
@@ -182,15 +192,20 @@ export class BlastLight extends QuadBatch {
         r = p.r * k; g = p.g * k * (1 - 0.6 * p.cool * t); b = p.b * k * (1 - 0.9 * p.cool * t);
       }
       let x = p.x + p.vx * p.age, y = p.y + p.vy * p.age, z = p.z + p.vz * p.age;
+      // Far above any ground, unless it has one.
+      let high = 1e6;
       if (p.h < 1e9) {
         // How far it has climbed since its start, and how far it must be lifted to clear the ground.
         const climbed = (p.vx * p.ux + p.vy * p.uy + p.vz * p.uz) * p.age;
-        const lift = rad * SIT[p.kind]! - (p.h + climbed);
-        if (lift > 0) { x += p.ux * lift; y += p.uy * lift; z += p.uz * lift; }
+        let h = p.h + climbed;
+        const lift = rad * SIT[p.kind]! - h;
+        if (lift > 0) { x += p.ux * lift; y += p.uy * lift; z += p.uz * lift; h += lift; }
+        high = h / rad;
+        this.up.set(p.ux, p.uy, p.uz);
       }
       d[o] = x + f.zx; d[o + 1] = y + f.zy; d[o + 2] = z + f.zz; d[o + 3] = rad;
       d[o + 4] = r; d[o + 5] = g; d[o + 6] = b; d[o + 7] = p.kind;
-      d[o + 8] = p.param; d[o + 9] = p.seed; d[o + 10] = 0; d[o + 11] = 0;
+      d[o + 8] = p.param; d[o + 9] = p.seed; d[o + 10] = high; d[o + 11] = 0;
     }
     this.end();
   }
