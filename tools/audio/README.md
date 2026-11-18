@@ -186,7 +186,8 @@ below). Two more were withdrawn on 2026-11-18 (see below).
 - What is checked. The sha256 of the raw file: where it differs the entry is refused with a message
   and nothing is built from another file; a raw file missing on disk is reported and skipped.
   Then the cut as recorded (seconds, to the nearest sample), 48 kHz, and the ends of a one-shot made
-  without a step (the same repair as for a download, `repair_oneshot_ends`). Then the level: the
+  without a step (the same repair as for a download, `repair_oneshot_ends`; for a sound of round 7 or
+  later the steps of the page copy instead, see "Round 7: the page copy" below). Then the level: the
   integrated loudness is set to the entry's `lufs` by measurement, and measured again after the
   gain until it is within 0.01 LU (`set_loudness`), then once more on the 16 bit file that is
   shipped. `checks.level` says `target`, `reached`, `error`, and `limited`: the true-peak ceiling of
@@ -215,7 +216,9 @@ below). Two more were withdrawn on 2026-11-18 (see below).
 - Two channels. A raw file with two channels builds as a two-channel copy: the cut, the conversion
   to 48 kHz, the repair of the ends and the loudness measurement (`set_loudness`) work on both
   channels, and the copy, its spectrogram and `channels: 2` in the manifest follow. `g_thruster_heavy_room_wide`
-  is the one such sound at present. Nothing in `build.py` needed repair for it;
+  is the one such sound at present. Nothing in the processing needed repair for it; the intent text did
+  (`generated_intent(it, event, channels)`: for two channels it says that the level is about 3 dB above the loudness of the rendered
+  event, which has one channel, and why, not that it is that loudness);
   `tests/test_generated_derived.py` (class `TwoChannels`) holds it, with two different channels.
 - `validate_manifest` demands for a generated entry a spectrogram, a licence, a duration above 0, a
   true peak not above -1 dB and the object `generated` (`standsFor`, `model`, `prompt`, `seed`,
@@ -249,3 +252,37 @@ below). Two more were withdrawn on 2026-11-18 (see below).
   | g_thruster_heavy_hall | thruster_pulse_c | 1 | -27.99 | -28.26 | -0.27 |
   | g_impact_shield_a | impact_shield_light | 1 | -24.00 | -24.47 | -0.47 |
   | g_impact_shield_b | impact_shield_light | 1 | -23.97 | -24.47 | -0.50 |
+
+- Round 7: the page copy. A library sound of round 7 or later is the page copy he rated times one gain, to the
+  sample. Three things made the first build differ from it (measured on the eight, built against
+  `assets/audio/gen/_kept/round7/page/<candidate>.wav`: -19.7 to -39.9 dB residual after the best gain, lengths
+  479 to 482 samples short), and each is repaired where it came from:
+  1. The page copy has the mean taken out (`tools/sound/screen.py` `_finish`: where the mean of the copy is 0.0005
+     or more, a window that is 1 in the middle and tapers over 1.5 ms and 5 ms is subtracted, because the page
+     fails a file whose mean is 0.001 or more). The eight have a mean of 0.0006 to 0.0053 at the level of the
+     page copy. With the cut on the right sample (3.) it is the whole residual in the body of the file: the page copy
+     against the same copy without the mean removal is -32.4, -34.2, -33.3, -33.9, -19.7, -33.2, -39.9 and -40.0 dB
+     (the cause is the mean, not a difference of detail at high frequencies), and the built file without the mean
+     removal against the page copy without it is under -120 dB there.
+  2. The page copy fades the last 30 ms where the last 10 ms are above -72 dBFS (`repair_oneshot_ends` looks at the
+     last millisecond and -60 dBFS) and puts 10 ms of digital silence after the fade (the page flags a file whose
+     last 10 ms are not silent), and ramps in over 1.5 ms where the first sample is above -72 dBFS. That is the 480
+     samples the built files were short, and `g_impact_shield_b` fades where the repair of the download does not.
+  3. The page copy was cut at the sample the cut routine found; `cut.startS` was recorded to four decimals, which at
+     48 kHz names a sample only to within 2.4 samples: five of the eight started 1 or 2 samples off
+     (`g_thruster_heavy_room_b` 0.0652 is sample 3129.6, the cut is sample 3128). The list now holds
+     `startS` as sample / 48000 with nine decimals for the eight, so that `round(startS * 48000)` is that sample
+     (`tools/sound/screen.py` `cut_event` on the kept raw files gives 3077, 3128, 3077, 3128, 9990, 0, 65 and 27 for the
+     starts, and the ends already were whole samples).
+  `build.page_finish` is those steps (a test holds it equal to `screen._finish` for every branch, one and two
+  channels). `process_generated(..., page_copy=True)` sets the level on the cut, decides the steps on that level,
+  and sets the loudness again on what they made: the file is `_finish` of the cut times one gain, because every step
+  is linear. `_generated_sounds` uses it where `origin.round` is `PAGE_FINISH_FROM_ROUND` (7) or more
+  (`rated_from_page_copy`); the sounds of rounds 4 to 6 keep the repair of the download and are built as before. The
+  checks of the entry say what was done (`fadeOutMs` 30, `leadInMs` 1.5 where there is a ramp); the 10 ms of
+  silence and the mean removal are in the duration and in this text only. Measured on the eight (the shipped
+  16 bit file against the page copy, offset 0, same length, best gain):
+  residual -64.7, -65.2, -65.0, -65.3, -67.4, -66.2, -68.9 and -69.7 dB; gain heard minus built 0.268, 0.268, 0.259,
+  0.265, 0.265, 0.265, 0.470 and 0.502 dB, which is the table above. The decisions (fade, ramp, mean removal) are
+  the same as the page copy's for all eight; the smallest margin is 1.1 dB (the first sample of `g_impact_shield_a`
+  is 1.1 dB under the ramp threshold at the library level, 0.6 dB under it at the page level).

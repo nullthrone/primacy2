@@ -268,7 +268,7 @@
    "file": "g_thruster_heavy_room_a.wav",
    "sha256": "24dcf7c291c91c73efa6740cbedcb0308f239ca3332853445cc161be4c19d558",
    "cut": {
-    "startS": 0.0641,
+    "startS": 0.064104167,
     "endS": 2.061
    },
    "lufs": -28.26,
@@ -320,7 +320,7 @@
    "file": "g_thruster_heavy_room_b.wav",
    "sha256": "79796b88941ce6be1f8d4c5cda0ea42d7bec69278b120e8b8ace625cacf99d1e",
    "cut": {
-    "startS": 0.0652,
+    "startS": 0.065166667,
     "endS": 2.503
    },
    "lufs": -28.26,
@@ -372,7 +372,7 @@
    "file": "g_thruster_heavy_room_wide.wav",
    "sha256": "58d8718b683149d22c1890b7414d45c7f04df72dccc149285b0846f11a2a96a9",
    "cut": {
-    "startS": 0.0641,
+    "startS": 0.064104167,
     "endS": 2.307
    },
    "lufs": -25.24,
@@ -424,7 +424,7 @@
    "file": "g_thruster_heavy_room_three.wav",
    "sha256": "495fd9e012a1fcf484b419e259f4d4f275efbf90c886cf9d0d04ececbc588e6c",
    "cut": {
-    "startS": 0.0652,
+    "startS": 0.065166667,
     "endS": 3.558
    },
    "lufs": -28.26,
@@ -497,7 +497,7 @@
    "file": "g_thruster_heavy_three.wav",
    "sha256": "68adad6d811ded91cb188ad5f95cf6ce12475e565dbddd065ae698c5c72f0ca2",
    "cut": {
-    "startS": 0.2081,
+    "startS": 0.208125,
     "endS": 4.0
    },
    "lufs": -28.26,
@@ -549,7 +549,7 @@
    "file": "g_impact_shield_a.wav",
    "sha256": "5fd554cfea078062542b952fef1b10fc17884f8e1cf786ed563e5758a7f27c25",
    "cut": {
-    "startS": 0.0014,
+    "startS": 0.001354167,
     "endS": 0.905
    },
    "lufs": -24.47,
@@ -597,7 +597,7 @@
    "file": "g_impact_shield_b.wav",
    "sha256": "f30459e1c060e888e624d62be25bde1b26248b30a41b04fb0945d9ca6320a949",
    "cut": {
-    "startS": 0.0006,
+    "startS": 0.0005625,
     "endS": 0.762
    },
    "lufs": -24.47,

@@ -613,18 +613,84 @@ def set_loudness(x: np.ndarray, target: float, ceiling_db: float = DOWNLOAD_CEIL
                "truePeakDb": round(float(tp), 2), "limited": bool(limited), "iterations": n}
 
 
-def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float) -> tuple[np.ndarray, dict]:
+# From this round of the owner's listening tests on, a generated sound is built the way the page copy he rated was made
+# (tools/sound/screen.py _finish): the library file is that copy times one gain. Earlier rounds keep the repair of the ends
+# that is shared with downloads, so that the files built before do not change.
+PAGE_FINISH_FROM_ROUND = 7
+PAGE_STEP_DB = -72.0         # the page's rule: a sample above this at an end is a step (the page's static rule is -60 dBFS)
+PAGE_FADE_S = 0.030          # fade out (raised cosine) where the last PAGE_TAIL_S are not silent
+PAGE_TAIL_S = 0.010          # the last 10 ms the page checks; after a fade this much digital silence follows it
+PAGE_RAMP_S = 0.0015         # ramp in from zero to the first sample where that sample is a step
+PAGE_DC_LIMIT = 0.001        # the page fails a file whose mean is this or more: from half of it the mean is taken out
+
+
+def rated_from_page_copy(origin: dict) -> bool:
+    """True where the owner rated the candidate from a page copy that was finished like page_finish (round PAGE_FINISH_FROM_ROUND on)."""
+    r = origin.get("round")
+    return isinstance(r, int) and not isinstance(r, bool) and r >= PAGE_FINISH_FROM_ROUND
+
+
+def page_finish(y: np.ndarray) -> tuple[np.ndarray, dict]:
+    """The steps of tools/sound/screen.py _finish after its gain, in its order, on y (n, ch) at 48 kHz that is already at its level
+    (the decisions below are made on the level that ships): where the last PAGE_TAIL_S are above PAGE_STEP_DB the last PAGE_FADE_S
+    are faded out and PAGE_TAIL_S of silence follow; where the first sample is above PAGE_STEP_DB a ramp of PAGE_RAMP_S from zero is put
+    in front; where the mean is PAGE_DC_LIMIT / 2 or more it is taken out with a window that is 1 in the middle and tapers over the
+    first PAGE_RAMP_S and the last 5 ms (the silence at the end is left as it is). Every step is linear in y. y is not changed.
+    Returns (copy, {"fade", "ramp", "dcBefore", "dcAfter", "tailPeak", "firstPeak"}: what decided the first three)."""
+    y = np.array(y, dtype=np.float64)
+    thr = 10.0 ** (PAGE_STEP_DB / 20.0)
+    tail = int(round(PAGE_TAIL_S * DOWNLOAD_SR))
+    tail_peak = float(np.abs(y[-tail:]).max())
+    fade = bool(tail_peak > thr)
+    if fade:
+        m = min(int(round(PAGE_FADE_S * DOWNLOAD_SR)), y.shape[0])
+        y[-m:] *= (0.5 + 0.5 * np.cos(np.pi * (np.arange(m) + 1) / m))[:, None]
+        y = np.concatenate([y, np.zeros((tail, y.shape[1]))], axis=0)
+    first_peak = float(np.abs(y[0]).max())
+    ramp = bool(first_peak > thr)
+    if ramp:
+        n = int(round(PAGE_RAMP_S * DOWNLOAD_SR))
+        r = 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / n)
+        y = np.concatenate([y[0][None, :] * r[:, None], y], axis=0)
+    dc_before = float(np.abs(y.mean(axis=0)).max())
+    if dc_before >= PAGE_DC_LIMIT / 2:
+        n = y.shape[0] - tail
+        a_, b_ = min(int(round(PAGE_RAMP_S * DOWNLOAD_SR)), n // 4), min(int(round(0.005 * DOWNLOAD_SR)), n // 4)
+        w = np.ones(n)
+        w[:a_] = 0.5 - 0.5 * np.cos(np.pi * np.arange(a_) / max(a_, 1))
+        w[n - b_:] = 0.5 + 0.5 * np.cos(np.pi * np.arange(b_) / max(b_, 1))
+        corr = np.zeros_like(y)
+        corr[:n] = (y.mean(axis=0, keepdims=True) * (y.shape[0] / float(w.sum()))) * w[:, None]
+        y = y - corr
+    return y, {"fade": fade, "ramp": ramp, "dcBefore": dc_before, "dcAfter": float(np.abs(y.mean(axis=0)).max()),
+               "tailPeak": tail_peak, "firstPeak": first_peak}
+
+
+def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float,
+                      page_copy: bool = False) -> tuple[np.ndarray, dict]:
     """Turn the raw file of a generated sound into the file that is shipped: arrays in, array out.
     Cut as recorded (seconds, to the nearest sample), 48 kHz (prepare_download), the ends of a one-shot made without a step
     (repair_oneshot_ends, the same as for a download), then the integrated loudness set to
     lufs_target (set_loudness) within the true-peak ceiling of the download step. Nothing here is
-    random, so the same input gives the same output."""
-    # the recorded seconds are sample positions written with four decimals: the nearest sample, not
-    # the one below (int(0.006 * 48000) is 287 because of the binary fraction; the position is 288)
+    random, so the same input gives the same output.
+    page_copy (the sound was rated from a page copy, see rated_from_page_copy): instead of repair_oneshot_ends the
+    steps of page_finish, which the page copy went through, then the loudness. The level is set once on the cut, the
+    steps of page_finish are decided on that level, and the loudness is set again on what they made, so that
+    the result is the page copy times one gain (fade, ramp and mean removal are linear)."""
+    # the recorded seconds are sample positions: the nearest sample, not the one below
+    # (int(0.006 * 48000) is 287 because of the binary fraction; the position is 288). A position written with four decimals
+    # is a sample only to within 2.4 samples at 48 kHz: the cut of a page_copy sound is written with enough decimals for its sample.
     first, last = int(round(cut[0] * sr)), int(round(cut[1] * sr))
     x, info = prepare_download(np.asarray(data)[first:last], sr)
     info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["appendedTailMs"] = 0.0
-    x = repair_oneshot_ends(x, info)
+    if page_copy:
+        leveled, _ = set_loudness(x, lufs_target)
+        x, fin = page_finish(leveled)
+        info["fadeOutMs"] = round(1000.0 * PAGE_FADE_S, 3) if fin["fade"] else 0.0
+        info["leadInMs"] = round(1000.0 * PAGE_RAMP_S, 3) if fin["ramp"] else 0.0
+        info["pageFinish"] = fin
+    else:
+        x = repair_oneshot_ends(x, info)
     y, info["level"] = set_loudness(x, lufs_target)
     return y, info
 
@@ -768,7 +834,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                     continue
             cut = (float(it["cut"]["startS"]), float(it["cut"]["endS"]))
             data, sr = common.load_audio(src)
-            y, info = process_generated(data, sr, cut, float(it["lufs"]))
+            y, info = process_generated(data, sr, cut, float(it["lufs"]), page_copy=rated_from_page_copy(it["origin"]))
             wav = folder / (sid + ".wav")
             write_wav(wav, y, dither_seed="generated/" + sid)
             back, back_sr = common.load_audio(wav)
@@ -798,7 +864,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 "id": sid, "file": "generated/%s.wav" % sid, "spectrogram": "generated/%s.png" % sid,
                 "category": event["category"], "kind": event["kind"], "path": event["path"],
                 **({"place": event["place"]} if "place" in event else {}),
-                "en": it["en"], "de": it["de"], "intent": it.get("intent") or generated_intent(it, event),
+                "en": it["en"], "de": it["de"], "intent": it.get("intent") or generated_intent(it, event, int(back.shape[1])),
                 "source": "generated", "licence": it["licence"],
                 "duration": round(back.shape[0] / back_sr, 4), "channels": int(back.shape[1]), "gain": 1.0,
                 "dry": False, "hash": file_hash(wav), "checks": checks,
@@ -832,11 +898,13 @@ def _say_operation(p: dict, o: dict) -> str:
     return "%s (%s)" % (p["op"], ", ".join(parts))
 
 
-def generated_intent(it: dict, event: dict) -> str:
+def generated_intent(it: dict, event: dict, channels: int = 1) -> str:
     """The intent text of a generated sound: prompt, seed, round, who accepted it and when, which
     event it stands for and the level rule. A derived sound (the entry has "derived") says that it was
     made from the parent candidate and by which operations with the numbers they reported; its prompt and
-    seed are those of the parent."""
+    seed are those of the parent. channels is that of the built file: the level sentence says the lufs is the loudness
+    of the rendered event (one channel) only for one channel; a file with two channels is set higher than that, because
+    the audition page takes about 3 dB off a two-channel file (see README, round 7)."""
     o = it["origin"]
     d = it.get("derived")
     if d is None:
@@ -850,10 +918,16 @@ def generated_intent(it: dict, event: dict) -> str:
                     o["model"], d["parentFile"], d["parentSha256"], d["parentCandidate"], d["parentRound"], d["parentVerdict"],
                     o["prompt"], o["seed"], ops, o["candidate"], o["round"]))
     # rounds 4 to 6 were heard at -34 or -35 LUFS, under the library level; from round 7 on the candidates were heard at about the library level
-    lower = isinstance(o["round"], int) and not isinstance(o["round"], bool) and o["round"] < 7
-    return (head + "The owner heard it and accepted it (verdict %s) on %s. It stands for the event %s (%s). Level: the integrated loudness is set to %.2f LUFS, "
-            "the loudness of that rendered event today; provisional until the mix of the game is designed. %s" % (
-                o["verdict"], o["ratedAt"], it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"]),
+    lower = isinstance(o["round"], int) and not isinstance(o["round"], bool) and o["round"] < PAGE_FINISH_FROM_ROUND
+    if channels == 2:
+        level = ("Level: the integrated loudness is set to %.2f LUFS. The rendered event has one channel, and the audition page plays a "
+                 "file with two channels about 3 dB lower than a one-channel file of the same loudness; this file keeps that relation, so "
+                 "its loudness is about 3 dB above that of the rendered event today; provisional until the mix of the game is designed. " % float(it["lufs"]))
+    else:
+        level = ("Level: the integrated loudness is set to %.2f LUFS, the loudness of that rendered event today; "
+                 "provisional until the mix of the game is designed. " % float(it["lufs"]))
+    return (head + "The owner heard it and accepted it (verdict %s) on %s. It stands for the event %s (%s). %s%s" % (
+                o["verdict"], o["ratedAt"], it["standsFor"], event.get("en", it["standsFor"]), level,
                 "The owner heard the candidate at a lower level." if lower else
                 "The level is close to the one the owner heard the candidate at (tools/audio/README.md gives both)."))
 
