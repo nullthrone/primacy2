@@ -574,6 +574,7 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
 
 GENERATED_LIST_KEYS = ("id", "standsFor", "file", "sha256", "cut", "lufs", "en", "de", "origin", "licence")
 GENERATED_ORIGIN_KEYS = ("model", "prompt", "seed", "round", "candidate", "verdict", "ratedAt")
+GENERATED_DERIVED_KEYS = ("parentFile", "parentSha256", "parentRound", "parentCandidate", "parentVerdict", "process", "operations")
 LEVEL_TOLERANCE_LU = 0.1    # a generated sound must land this close to its target loudness (unless the ceiling stops it)
 LEVEL_SEARCH_LU = 0.01      # the search for the gain goes on until the measured loudness is this close
 
@@ -632,6 +633,35 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _derived_problem(d) -> str | None:
+    """The optional object "derived" of a generated entry (a sound made by tools/sound/derive.py from the committed raw file
+    of a parent): parentFile (a plain .wav file name next to the raw files), parentSha256, parentRound (an integer),
+    parentCandidate and parentVerdict (text), process (the list of operations, each with its "op") and operations (what each
+    one reported, one per operation, in the same order). Returns a message or None."""
+    if not isinstance(d, dict):
+        return "derived is not an object"
+    for k in GENERATED_DERIVED_KEYS:
+        if k not in d:
+            return "no derived.%s" % k
+    f = d["parentFile"]
+    if not isinstance(f, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.wav", f):
+        return "derived.parentFile is not a plain file name"
+    if not isinstance(d["parentSha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", d["parentSha256"]):
+        return "derived.parentSha256 is not a sha256"
+    if not isinstance(d["parentRound"], int) or isinstance(d["parentRound"], bool):
+        return "derived.parentRound is not an integer"
+    for k in ("parentCandidate", "parentVerdict"):
+        if not isinstance(d[k], str) or not d[k]:
+            return "derived.%s is not text" % k
+    for k in ("process", "operations"):
+        v = d[k]
+        if not isinstance(v, list) or not v or not all(isinstance(o, dict) and isinstance(o.get("op"), str) for o in v):
+            return "derived.%s is not a list of operations" % k
+    if [o["op"] for o in d["process"]] != [o["op"] for o in d["operations"]]:
+        return "derived.operations does not follow derived.process"
+    return None
+
+
 def _generated_entry_problem(it: dict) -> str | None:
     for k in GENERATED_LIST_KEYS:
         if k not in it:
@@ -644,6 +674,10 @@ def _generated_entry_problem(it: dict) -> str | None:
             return "no cut.%s" % k
     if not it["cut"]["endS"] > it["cut"]["startS"] >= 0:
         return "the cut is empty"
+    if "derived" in it:
+        why = _derived_problem(it["derived"])
+        if why:
+            return why
     return None
 
 
@@ -719,6 +753,19 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 problem("  generated entry %s refused: the sha256 of %s is %s, the list says %s; "
                         "a sound is never built from another file" % (sid, it["file"], have, it["sha256"]))
                 continue
+            if "derived" in it:
+                # the parent file is committed next to the raw files; the sound is built from its own raw file, never from the parent,
+                # but the record of how it was made must name a parent that is there and unchanged
+                d = it["derived"]
+                parent = raw_dir / d["parentFile"]
+                if not parent.is_file():
+                    problem("  generated entry %s refused: the parent file %s is missing on disk" % (sid, d["parentFile"]))
+                    continue
+                have_parent = _sha256(parent)
+                if have_parent != d["parentSha256"]:
+                    problem("  generated entry %s refused: the sha256 of the parent file %s is %s, the list says %s; "
+                            "a sound is never recorded as made from another file" % (sid, d["parentFile"], have_parent, d["parentSha256"]))
+                    continue
             cut = (float(it["cut"]["startS"]), float(it["cut"]["endS"]))
             data, sr = common.load_audio(src)
             y, info = process_generated(data, sr, cut, float(it["lufs"]))
@@ -760,6 +807,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                     "round": o["round"], "candidate": o["candidate"], "sha256": it["sha256"],
                     "modelRevision": o.get("modelRevision"), "codeCommit": o.get("codeCommit"),
                     "verdict": o["verdict"], "ratedAt": o["ratedAt"], "cut": it["cut"], "rawFile": it["file"],
+                    **({"derived": it["derived"]} if "derived" in it else {}),
                 },
             })
         except Exception as e:
@@ -771,16 +819,47 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     return entries
 
 
+def _plain(v) -> str:
+    return "%g" % v if isinstance(v, float) else str(v)
+
+
+def _say_operation(p: dict, o: dict) -> str:
+    """One operation of a derived sound in words, built from the data of the entry: its name, the settings of the list
+    (derived.process) and what it reported (derived.operations), nothing from a table of the code."""
+    parts = ["%s %s" % (k, _plain(v)) for k, v in p.items() if k != "op"]
+    for k, v in o.items():
+        if k == "op" or k in p:
+            continue
+        if isinstance(v, dict):
+            v = "(" + ", ".join("%s %s" % (kk, _plain(vv)) for kk, vv in v.items()) + ")"
+        parts.append("%s %s" % (k, _plain(v)))
+    return "%s (%s)" % (p["op"], ", ".join(parts))
+
+
 def generated_intent(it: dict, event: dict) -> str:
     """The intent text of a generated sound: prompt, seed, round, who accepted it and when, which
-    event it stands for and the level rule."""
+    event it stands for and the level rule. A derived sound (the entry has "derived") says that it was
+    made from the parent candidate and by which operations with the numbers they reported; its prompt and
+    seed are those of the parent."""
     o = it["origin"]
-    return ("Generated with %s. Prompt: \"%s\" (seed %s, round %s, candidate %s). The owner heard it and accepted it "
-            "(verdict %s) on %s. It stands for the event %s (%s). Level: the integrated loudness is set to %.2f LUFS, "
-            "the loudness of that rendered event today; provisional until the mix of the game is designed. "
-            "The owner heard the candidate at a lower level." % (
-                o["model"], o["prompt"], o["seed"], o["round"], o["candidate"], o["verdict"], o["ratedAt"],
-                it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"])))
+    d = it.get("derived")
+    if d is None:
+        head = "Generated with %s. Prompt: \"%s\" (seed %s, round %s, candidate %s). " % (
+            o["model"], o["prompt"], o["seed"], o["round"], o["candidate"])
+    else:
+        ops = "; ".join(_say_operation(p, q) for p, q in zip(d["process"], d["operations"]))
+        head = ("Made from a file generated with %s: the parent file %s (sha256 %s), the candidate %s of round %s, which the owner called %s. "
+                "Prompt of the parent: \"%s\" (seed %s). Operations on the parent, in this order, with the numbers they reported: %s. "
+                "This sound is the candidate %s of round %s; the build does not run the operations again, it starts from the committed raw file of this sound. " % (
+                    o["model"], d["parentFile"], d["parentSha256"], d["parentCandidate"], d["parentRound"], d["parentVerdict"],
+                    o["prompt"], o["seed"], ops, o["candidate"], o["round"]))
+    # rounds 4 to 6 were heard at -34 or -35 LUFS, under the library level; from round 7 on the candidates were heard at about the library level
+    lower = isinstance(o["round"], int) and not isinstance(o["round"], bool) and o["round"] < 7
+    return (head + "The owner heard it and accepted it (verdict %s) on %s. It stands for the event %s (%s). Level: the integrated loudness is set to %.2f LUFS, "
+            "the loudness of that rendered event today; provisional until the mix of the game is designed. %s" % (
+                o["verdict"], o["ratedAt"], it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"]),
+                "The owner heard the candidate at a lower level." if lower else
+                "The level is close to the one the owner heard the candidate at (tools/audio/README.md gives both)."))
 
 
 def assemble_manifest(out: Path, measure_mod, common, problems: list | None = None) -> dict:
@@ -868,6 +947,10 @@ def validate_manifest(manifest: dict, out: Path) -> list[str]:
                 for k in ("standsFor", "model", "prompt", "seed", "round", "candidate", "sha256"):
                     if g.get(k) in (None, ""):
                         bad.append("%s: generated.%s missing" % (name, k))
+                if "derived" in g:
+                    why = _derived_problem(g["derived"])
+                    if why:
+                        bad.append("%s: generated.%s" % (name, why))
         if s.get("source") in ("download", "generated"):
             if not s.get("duration"):
                 bad.append("%s: duration is 0" % name)
