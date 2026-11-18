@@ -10,8 +10,11 @@ there on his word; this file is its hand-over. Delete or replace this file when 
 
 - Work in this checkout: the git worktree
   `C:\Claude Code\LOCAL\primacy2\.claude\worktrees\primacy2-space-simulator-b9a0b8`, branch
-  `claude/primacy2-space-simulator-b9a0b8`. Push only to this branch, never to `main`, and open no
-  pull request.
+  `claude/primacy2-space-simulator-b9a0b8`. Push only to this branch, never to `main`. On his word of
+  2026-11-18 the branch has one pull request to `main`,
+  https://github.com/nullthrone/primacy2/pull/1 (`main` held only the licence before): every push
+  to the branch updates it, he merges it himself, and no second one is opened. The README was
+  rewritten for it the same evening (early-development notice, badges, status table).
 - Read `docs/ROADMAP.md` in full first, then `tools/audio/SOUND_DESIGN.md` (the direction for the
   sound, the rules, and in section 4 the owner's words from each listening round), then
   `tools/sound/README.md`, `RESULTS.md` (round 4), `RESULTS5.md` (round 5), `RESULTS6.md` (round 6)
