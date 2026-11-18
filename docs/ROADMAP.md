@@ -1244,6 +1244,23 @@ from close by; that stage is the first thing built.
 After he has played with the new effects he wants to be asked what to improve, with proposals of
 what more is possible (his standing wish of 2026-11-14 for work on the picture).
 
+Built since, one pull request per piece (frame times at 3840x2160 on the RTX 5080, old against
+new measured in turn within one run of `scripts/bench.mjs`, because other work shared the card):
+
+- 2026-11-18, the effect stage and the capture tool (pull request 4; see section 5).
+- 2026-11-18, light of effects (`packages/client/src/render/local/fx/lights.ts`,
+  `docs/CLIENT.md`, "Effects"): three point lights in the local scene and one in the cockpit that
+  the strongest effects of a frame share. A blast, a muzzle flash and the ends of a beam use them
+  so far. In the pictures a blast at 60 m lights the ship beside it and, from the cockpit, the
+  dashboard and the canopy frame for as long as its flash lasts. Hulls, the cockpit and stones on
+  the ground respond; flat ground barely does (the source stands 3 m up and its light grazes it);
+  the muzzle flash of a pulse laser shows nothing on the ship that fired, nor does the pilot's own
+  fire inside the cabin. Cost: none that can be measured. Old and new, in ms: a station filling
+  the view 1.9 and 1.9, the cockpit 2.3 and 2.3 (six rounds, card at 16 % and 51 W before the run,
+  control scene 1.3); a fight 2.4 and 2.3 and a landed ship 10.6 and 10.9 (one run, card at 21 %
+  and 85 W, control 1.5). At quality 0 the lights stay dark and the pictures equal the old ones;
+  there new measured 0.4 ms faster than old in both runs (1.4 and 1.0), which is not explained.
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -1537,6 +1554,11 @@ Never verified:
     file, not in every field (no earlier manifest is in git).
   - The held-out thresholds of the analysis of round 6 and its single-measure separations: the
     check could verify only counts from the analysis's own table.
+- The effects work of 2026-11-18 in motion. Every judgement of it rests on still sequences of the
+  dev pages taken with the clock stopped (`tools/dev/fx-shots.mjs`); nobody has seen any of it
+  move, and nothing of it was looked at in the real game. For the light of effects in particular:
+  how a light fades when its source goes, whether lights hop between sources when more than three
+  glow at once (covered by a throwaway test only), and the cost with a landed ship (measured once).
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
