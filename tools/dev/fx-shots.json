@@ -38,6 +38,8 @@
   { "name": "chase-fold", "page": "local.html?scene=chase&thrust=none&fold=0.5", "at": [10.5, 10.7], "cols": 2, "cell": 800 },
   { "name": "chase-charge-fold", "page": "local.html?scene=chase&thrust=none&charge=0.9&kind=2", "at": [10.5], "cols": 1, "cell": 800 },
   { "name": "chase-heat", "page": "local.html?scene=chase&thrust=fwd&heat=1.15", "at": [10.5], "cols": 1, "cell": 800 },
+  { "name": "chase-hit", "page": "local.html?scene=chase&thrust=fwd&hit=0.9", "at": [10.5], "cols": 1, "cell": 800 },
+  { "name": "chase-charge-cruise", "page": "local.html?scene=chase&thrust=fwd&charge=0.9&kind=1", "at": [10.5], "cols": 1, "cell": 800 },
   { "name": "chase-cruise", "page": "local.html?scene=chase&thrust=fwd&cruise=0.8", "at": [10.5, 10.6], "cols": 2, "cell": 800 },
   { "name": "neutron", "page": "space.html?scene=neutron", "size": [1600, 900], "at": [0.5, 1.0, 1.5], "cols": 3, "cell": 640 },
   { "name": "blackhole", "page": "space.html?scene=blackhole-disk", "at": [0.5], "cols": 1, "cell": 800 },
