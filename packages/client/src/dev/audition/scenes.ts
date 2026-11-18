@@ -123,14 +123,13 @@ const full = (): number => 1;
 /** Overlap of chained one-shots: the fade and silence at the end of a file are about 18 ms long. */
 export const CHAIN_OVERLAP = 0.02;
 const enginesUnlessOff = (s: SceneState): number => (s.on.engines_off ? 0 : 1);
-const relayClicks = ['relay_click_a', 'relay_click_b'];
 
 export const DOCKING: SceneDef = {
   id: 'docking',
   title: { en: 'Docking approach', de: 'Andockanflug' },
   blurb: {
-    en: 'Slow approach to a pad: engine by thrust, thruster pulses, the proximity tick that quickens as the pad comes closer, radio traffic, gear, touchdown, power down.',
-    de: 'Langsamer Anflug auf eine Landeplattform: Triebwerk nach Schub, Steuerdüsen, der Näherungston, der mit sinkendem Abstand schneller tickt, Funkverkehr, Fahrwerk, Aufsetzen, Abschalten.',
+    en: 'Slow approach to a pad: engine by thrust, thruster pulses, the proximity tick that quickens as the pad comes closer, radio traffic, gear, touchdown.',
+    de: 'Langsamer Anflug auf eine Landeplattform: Triebwerk nach Schub, Steuerdüsen, der Näherungston, der mit sinkendem Abstand schneller tickt, Funkverkehr, Fahrwerk, Aufsetzen.',
   },
   distance: { label: { en: 'Distance to the pad', de: 'Abstand zur Plattform' }, unit: 'm', min: 0, max: 5000, step: 10, initial: 5000 },
   thrustFamily: 'engine_main',
@@ -141,14 +140,11 @@ export const DOCKING: SceneDef = {
     { id: 'sensor_proximity_tick', every: (s) => (s.distance < 600 ? 0.12 + 1.48 * (s.distance / 600) : null) },
   ],
   events: [
-    { key: 'power_up', label: { en: 'Power up', de: 'Hochfahren' }, shots: [{ id: 'systems_power_up' }] },
     { key: 'pulse', label: { en: 'Thruster pulse', de: 'Düsenstoß' }, shots: [{ id: PULSES }] },
     { key: 'tone', label: { en: 'Radio tone', de: 'Funkton' }, shots: [{ id: 'radio_tone' }] },
     { key: 'ping', label: { en: 'Contact ping', de: 'Kontaktton' }, shots: [{ id: 'sensor_contact_ping' }] },
-    { key: 'relay', label: { en: 'Relay', de: 'Relais' }, shots: [{ id: relayClicks }] },
     { key: 'gear', label: { en: 'Gear out', de: 'Fahrwerk aus' }, shots: [{ id: 'gear_deploy' }] },
     { key: 'touchdown', label: { en: 'Touchdown', de: 'Aufsetzen' }, shots: [{ id: 'touchdown_soft' }, { id: 'settle_creak', at: 1.2 }] },
-    { key: 'power_down', label: { en: 'Power down', de: 'Herunterfahren' }, shots: [{ id: 'systems_power_down' }] },
   ],
   tracks: {
     thrust: [[0, 0], [2, 0.25], [12, 0.5], [24, 0.3], [30, 0.12], [33, 0.1], [35, 0]],
@@ -156,7 +152,6 @@ export const DOCKING: SceneDef = {
     distance: [[0, 5000], [8, 4000], [16, 1500], [24, 400], [30, 60], [33, 0], [40, 0]],
   },
   script: [
-    { t: 0.5, event: 'power_up' },
     { t: 3, event: 'tone' },
     { t: 7, event: 'pulse' },
     { t: 14, event: 'pulse' },
@@ -166,7 +161,6 @@ export const DOCKING: SceneDef = {
     { t: 27, event: 'gear' },
     { t: 31, event: 'pulse' },
     { t: 33, event: 'touchdown' },
-    { t: 36.5, event: 'power_down' },
   ],
   duration: 40,
 };
