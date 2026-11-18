@@ -22,7 +22,7 @@
  *   orient   the pilot near a place to dock with the nose turned away from it and ships around,
  *            for the direction indicators of the HUD (use with `hud=1&cam=cockpit`)
  *   fx       the effect stage: one effect at a time, close to the camera and repeating. Its acts
- *            and options (`show`, `dist`, `hull`, `every`, `own`) are listed in `dev/stage/index.ts`
+ *            and options (`show`, `range`, `hull`, `every`, `own`) are listed in `dev/stage/index.ts`
  *
  * Options
  *   parts=objects,fx   parts of the layer to load (default both); a broken part is left out
@@ -449,9 +449,13 @@ function orient(): SceneFn {
  * the events its effect is started by. The station far behind gives the place its sun.
  */
 function fxStage(): SceneFn {
-  const r = rig(structure('station_ring'), 6000);
+  // Turned away from the station until it has left the picture, so that nothing stands behind the
+  // action but the sky.
+  const toward = rig(structure('station_ring'), 6000);
+  const r: Rig = { ...toward, rot: quat.mul(toward.rot, quat.fromAxisAngle([0, 1, 0], rad(-66))) };
   const cue = programme(str('show', ''), num('every', 0));
-  const dist = Math.max(10, num('dist', 90));
+  // Not `dist`: that is the camera's distance from the station, read by `rig`.
+  const dist = Math.max(10, num('range', 60));
   const hull = HULLS[str('hull', 'wisp')] ? str('hull', 'wisp') : 'wisp';
   const own = params.get('own') === '1' || str('cam', 'chase') === 'cockpit';
   let label: HTMLElement | null = null;

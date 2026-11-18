@@ -17,7 +17,7 @@ export interface StageFrame {
   dt: number;
   /** How often the act has repeated. */
   round: number;
-  /** Distance of the action from the camera, metres (`dist`, default 90). */
+  /** Distance of the action from the camera, metres (`range`, default 60). */
   dist: number;
   /** The hull the act is about (`hull`, default wisp): the ship that is hit, blows up, arrives. */
   hull: string;

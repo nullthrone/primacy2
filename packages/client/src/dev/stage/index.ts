@@ -3,7 +3,7 @@
  * to the camera and repeating, so it can be looked at, compared and measured.
  *
  *   show=<act>[,<act>]  which acts play, one after the other (default: all of them in turn)
- *   dist=<m>            distance of the action from the camera (default 90)
+ *   range=<m>           distance of the action from the camera (default 60)
  *   hull=<id>           the ship the act is about (default wisp); the shooter is a Lancet
  *   every=<s>           the act starts over after that many seconds instead of its own period;
  *                       a short value gives a steady load to measure a frame time under
