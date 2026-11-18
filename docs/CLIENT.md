@@ -229,3 +229,25 @@ its panel show. Choosing one never drops the other.
 Nose toward -Z, top toward +Y, metres, origin at the centre of mass. Empties named `engine_*`,
 `hardpoint_*`, `dock_*` and `light_*` mark where effects attach. Until a model exists the local layer
 shows a procedural stand-in, so the game runs without any binary assets.
+
+## Effects
+
+What lights up near the camera is drawn by the effects part of the local layer
+(`src/render/local/fx`: weapon fire, hits, blasts, missile trails, dust), the engine plumes by
+`src/render/local/objects/exhaust.ts`, and what lies over the whole picture (fold, charge, heat,
+hit flash) by the final pass `src/render/post/Composite.ts`; the look of cruise flight is
+`src/render/post/Cruise.ts`.
+
+- The effect stage, `/dev/local.html?scene=fx`, shows one effect at a time close to the camera and
+  repeating: `show=<act>` picks it, `range=<m>` its distance, `hull=<id>` the ship it is about,
+  `every=<s>` a shorter period (a steady load for a frame time), `own=1` or `cam=cockpit` puts the
+  pilot's own ship there too, and `slow=<factor>` runs any scene of the page in slow motion. The
+  acts are small scripts in `src/dev/stage`, one file per effect family (`weapons.ts`, `hits.ts`,
+  `blasts.ts`, `transits.ts`, `engines.ts`); `stage/index.ts` lists the options and where the
+  effects are that the stage does not show (mining in `scene=belt`, the pilot's own engines in
+  `scene=chase`, the ground in `scene=surface`, the overlays as options of any scene).
+- `node tools/dev/fx-shots.mjs --port=<dev server>` takes picture sequences of the dev pages at
+  exact moments and lays each out as one sheet under `screenshots/fx/` (ignored by git). It stops
+  the page's clock at every moment asked for and seeds `Math.random`, so two runs of the same code
+  give the same pictures. With `--old=<port of a second dev server>` each sheet shows old above
+  new. The jobs are in `tools/dev/fx-shots.json`, one or more per effect; `--only=<names>` picks.
