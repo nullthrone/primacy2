@@ -116,9 +116,11 @@ float openOf(vec2 uv, float depth) {
   float above = 1.0 - smoothstep(${OWN_BELLY.toFixed(2)}, 1.0, -dot(p, uOwnUp.xyz) / uOwnUp.w);
   return 1.0 - inside * above;
 }
+// The depth is read with textureLod: such a read needs no derivatives, so the branches around it
+// stay branches and a frame without these effects does not pay for them.
 float openAt(vec2 uv) {
   uv = clamp(uv, 0.0005, 0.9995);
-  return openOf(uv, texture2D(tDepth, uv).r);
+  return openOf(uv, textureLod(tDepth, uv, 0.0).r);
 }
 // Whether a place may be shown at another pixel: only if it and all around it is open. The picture
 // is antialiased and read between pixels, so the last pixels before the cockpit or the ship hold
@@ -178,7 +180,7 @@ void main() {
   float foldCharge = uChargeKind > 1.5 ? uCharge : 0.0;
   // The depth is read only while something needs it.
   bool outside = haze > 0.0 || uHit > 0.0 || uCharge > 0.002;
-  float depth = outside || uLensCanopy > 0.0 ? texture2D(tDepth, vUv).r : 1.0;
+  float depth = outside || uLensCanopy > 0.0 ? textureLod(tDepth, vUv, 0.0).r : 1.0;
   float open = outside ? openOf(vUv, depth) : 0.0;
   // For what is laid over the picture; what moves it (the warp, the split) asks at each place it reads.
   float tinted = openSoft(open);
