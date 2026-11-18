@@ -2,7 +2,9 @@
  * The big, brief events: a ship blowing up, a ship arriving or leaving by fold, a ship entering or
  * dropping out of cruise. Each is a recipe of flashes, sparks, debris and streaks.
  */
+import { Group } from 'three';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
+import type { Lighting } from '../../../contracts.ts';
 import { TAU, clamp, hash01 } from '../util.ts';
 import { rand, randDir, rotate, type Frame } from './core.ts';
 import type { Debris } from './debris.ts';
@@ -24,6 +26,8 @@ const FOLD_SPARKS = [10, 18, 28] as const;
 const BLAST_LIGHT = 600;
 
 export class Blasts {
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
   constructor(private readonly f: Frame, private readonly sparks: Sparks, private readonly flashes: Flashes,
               private readonly debris: Debris, private readonly weapons: Weapons) {}
 
@@ -125,4 +129,15 @@ export class Blasts {
       this.flashes.spawn(GLOW, x, y, z, 0.18, 5, 14, 0.65, 0.8, 1.0, 9).age = -0.2;
     }
   }
+
+  /**
+   * Steps and draws what a blast leaves beyond the shared sparks and flashes. `light` is the
+   * light that reaches the camera: the sun, gone on the night side of the body the zone is near.
+   */
+  update(_light: Lighting): void {}
+
+  clear(): void {}
+
+  /** Frees what `group` holds. */
+  dispose(): void {}
 }

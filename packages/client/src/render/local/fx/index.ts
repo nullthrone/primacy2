@@ -44,7 +44,9 @@ export function createFx(): Part {
   const missiles = new Missiles(frame, ribbons, sprites);
   const dust = new Dust();
   const regolith = new Regolith(frame);
-  drawn.add(debris.group, dust.mesh, regolith.mesh, impacts.mesh, ribbons.mesh, sprites.mesh);
+  // Each family hangs what it draws itself into its own group, so a new primitive of a family
+  // needs no change here.
+  drawn.add(debris.group, dust.mesh, regolith.mesh, impacts.group, weapons.group, missiles.group, blasts.group, ribbons.mesh, sprites.mesh);
   root.add(drawn, lights.group);
   /** The light that reaches the camera: the sun is gone on the night side of the body it is near. Refilled every frame. */
   const lit: Lighting = { sunDir: [0, 1, 0], sunColor: [1, 1, 1], sunIntensity: 0, ambient: 0, envMap: null };
@@ -55,6 +57,7 @@ export function createFx(): Part {
     flashes.clear();
     weapons.clear();
     impacts.clear();
+    blasts.clear();
     debris.clear();
     missiles.clear();
     regolith.clear();
@@ -127,6 +130,7 @@ export function createFx(): Part {
       lit.sunIntensity = light.sunIntensity * sunlight;
       lit.ambient = light.ambient;
       lit.envMap = light.envMap;
+      blasts.update(lit);
       debris.update(frame, lit);
       dust.update(frame, lit);
       regolith.update(frame, lit, sunlight);
@@ -140,7 +144,10 @@ export function createFx(): Part {
     dispose(): void {
       ribbons.dispose();
       sprites.dispose();
+      weapons.dispose();
       impacts.dispose();
+      blasts.dispose();
+      missiles.dispose();
       debris.dispose();
       dust.dispose();
       regolith.dispose();

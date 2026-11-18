@@ -3,6 +3,7 @@
  * the muzzle to their end point; beam lasers, mining lasers and salvage torches are held beams that
  * the server reports several times per second and that are kept alive in between.
  */
+import { Group } from 'three';
 import { MODULES } from '@primacy2/shared';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
 import { clamp, smooth } from '../util.ts';
@@ -70,6 +71,8 @@ const D: Vec3 = [0, 0, 0];
 const SPARK_RATE = [0.4, 0.7, 1] as const;
 
 export class Weapons {
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
   private readonly rounds = new Pool<Round>(192, () => ({
     ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, age: 0, flight: 0, len: 0, after: 0, afterGain: 0, w: 0.3, r: 0, g: 0, b: 0, glare: 0,
   }));
@@ -326,4 +329,7 @@ export class Weapons {
     this.rounds.count = 0;
     this.beams.count = 0;
   }
+
+  /** Frees what `group` holds. */
+  dispose(): void {}
 }

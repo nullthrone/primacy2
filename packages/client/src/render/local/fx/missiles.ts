@@ -2,6 +2,7 @@
  * Missiles are entities drawn by the objects part; here they get what makes them visible from afar:
  * a flare at the nozzle and a short trail of hot exhaust that fades behind them.
  */
+import { Group } from 'three';
 import { EntityKind } from '@primacy2/shared';
 import type { Vec3 } from '@primacy2/shared';
 import { rotate, type Frame } from './core.ts';
@@ -31,6 +32,8 @@ const fade = (age: number): number => {
 };
 
 export class Missiles {
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
   private readonly trails: Trail[] = Array.from({ length: MAX_TRAILS }, () => ({
     id: 0, live: false, seen: 0,
     px: new Float64Array(SAMPLES), py: new Float64Array(SAMPLES), pz: new Float64Array(SAMPLES), pt: new Float64Array(SAMPLES),
@@ -107,4 +110,7 @@ export class Missiles {
   clear(): void {
     for (let i = 0; i < MAX_TRAILS; i++) this.trails[i]!.live = false;
   }
+
+  /** Frees what `group` holds. */
+  dispose(): void {}
 }
