@@ -26,25 +26,27 @@ Built on 2026-11-14 and played in the browser with a simulated controller by
 and a binding screen. No real controller has been used yet.
 
 Built on 2026-11-14 beside the game and not yet in it: the sound library and the audition page on
-which the owner listens and rates. On 2026-11-17 its manifest (`assets/audio/render/manifest.json`)
-lists 176 sounds (187 until that day, when the eleven direction samples of round 3 were taken off
-the page on the owner's word; see section 2, "The direction samples taken off the page"). Fourteen
-of them are the candidates of round 6, the category `events6`, seventeen
-the event sounds of round 5, the category `events5`, and sixteen the candidates of round 4, the
-category `source` (see section 2). Eight are the first generated sounds of the library itself: MOSS
-candidates he accepted in rounds 4 and 5, built as processed copies with their origin and licence
+which the owner listens and rates. On 2026-11-18 its manifest (`assets/audio/render/manifest.json`)
+lists 188 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
+samples of round 3 were taken off the page on the owner's word, see section 2, "The direction
+samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18).
+By category: ten are the candidates of round 7, the category `events7`; fourteen the candidates of
+round 6, `events6`; seventeen the event sounds of round 5, `events5`; and sixteen the candidates of
+round 4, `source` (see section 2). Ten are the generated sounds of the library itself: MOSS
+candidates he accepted in rounds 4 to 6, built as processed copies with their origin and licence
 (ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 121
 are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty of the speech
 comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
-of rounds 5 and 6 are all
-`synth` (made by MOSS), and the sixteen of round 4 carry the same field: twelve `synth` (made by the
-two models) and four `download` (the recordings), so the whole manifest reads 131 `synth`, 37
-`download` and 8 `generated`. The game itself still plays the old procedural sound. Since 2026-11-15
+of rounds 5 to 7 are all `synth` (made by MOSS, or derived from a MOSS file), and the sixteen of
+round 4 carry the same field: twelve `synth` (made by the two models) and four `download` (the
+recordings), so the whole manifest reads 141 `synth`, 37 `download` and 10 `generated`. The game
+itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
 (`tools/sound`), whose sixteen candidates he rated the same day; round 5, whose seventeen event
-sounds he rated on 2026-11-16 (5 fit, 2 close, 10 wrong); and round 6, another try for the families
-he rejected, which is the first category of the page and waits for his ratings.
+sounds he rated on 2026-11-16 (5 fit, 2 close, 10 wrong); round 6, another try for the families he
+rejected, which he rated on 2026-11-18 (4 fit, 2 close, 8 wrong); and round 7, built around the two
+candidates he called close, which is the first category of the page and waits for his ratings.
 
 Tests. `npx vitest run` passed 807 tests in 47 files on 2026-11-16, with 2 more marked as expected
 failures on purpose (see section 4); it was not run again on 2026-11-17, when nothing under
