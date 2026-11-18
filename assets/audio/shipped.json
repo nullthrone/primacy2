@@ -1,0 +1,1172 @@
+{
+ "note": "Written by tools/audio/ship.py: the decision for every library sound and every event the game asks for. code: fits, stars (approved on the file the manifest lists), fits-older, stars-older (approved on an earlier version of the file), candidate (generated; the candidate it was built from was accepted, the built sound is not rated yet); and for what stays out: wrong, close, unrated, never, withdrawn, licence, no-use.",
+ "ratings": {
+  "savedAt": "2026-11-18T19:22:12.338Z",
+  "sha256": "4509dbcdfc368b04b08ad54d6b8e5b88e9c7ee191a4b73e75367962ac7fa71f8"
+ },
+ "counts": {
+  "manifestEntries": 189,
+  "roundCandidatesAndVoices": 82,
+  "librarySounds": 107,
+  "shipped": 57,
+  "byCode": {
+   "in:fits-older": 7,
+   "in:fits": 40,
+   "out:wrong": 25,
+   "out:close": 7,
+   "in:stars-older": 2,
+   "in:candidate": 8,
+   "out:no-use": 8,
+   "out:licence": 10
+  },
+  "eventsAsked": 56,
+  "eventsWithOwnSound": 44,
+  "eventsWithStandIn": 5,
+  "eventsSilent": 7,
+  "seconds": 185.1,
+  "wavBytes": 27416408,
+  "flacBytes": 5701557
+ },
+ "events": {
+  "engine_main_t000": [
+   "engine_main_t000"
+  ],
+  "engine_main_t025": [
+   "engine_main_t025"
+  ],
+  "engine_main_t050": [
+   "engine_main_t050"
+  ],
+  "engine_main_t075": [
+   "engine_main_t075"
+  ],
+  "engine_main_t100": [
+   "engine_main_t100"
+  ],
+  "engine_main_boost": [
+   "engine_main_boost"
+  ],
+  "thruster_pulse_c": [
+   "g_thruster_pulse_c",
+   "g_thruster_heavy_room_a",
+   "g_thruster_heavy_room_b",
+   "g_thruster_heavy_room_wide",
+   "g_thruster_heavy_room_three",
+   "g_thruster_heavy_three",
+   "g_thruster_heavy_hall"
+  ],
+  "thruster_burn_loop": [
+   "thruster_burn_loop"
+  ],
+  "impact_hull_light": [
+   "g_impact_hull_light",
+   "g_impact_hull_light_b"
+  ],
+  "impact_hull_medium": [
+   "g_impact_hull_medium"
+  ],
+  "impact_hull_heavy": [
+   "g_impact_hull_heavy_a",
+   "g_impact_hull_heavy_b"
+  ],
+  "impact_shield_light": [
+   "g_impact_shield_a",
+   "g_impact_shield_b"
+  ],
+  "hull_stress_groan": [
+   "hull_stress_groan"
+  ],
+  "gear_deploy": [
+   "g_gear_deploy"
+  ],
+  "touchdown_soft": [
+   "touchdown_soft"
+  ],
+  "settle_creak": [
+   "settle_creak"
+  ],
+  "alarm_heat": [
+   "alarm_heat"
+  ],
+  "alarm_missile": [
+   "alarm_missile"
+  ],
+  "alarm_fuel_low": [
+   "alarm_fuel_low"
+  ],
+  "alarm_hull_critical": [
+   "alarm_hull_critical"
+  ],
+  "alarm_master_caution": [
+   "alarm_master_caution"
+  ],
+  "cruise_charge": [
+   "cruise_charge"
+  ],
+  "cruise_engage": [
+   "cruise_engage"
+  ],
+  "cruise_loop": [
+   "cruise_loop"
+  ],
+  "cruise_disengage": [
+   "cruise_disengage"
+  ],
+  "fold_charge": [
+   "fold_charge"
+  ],
+  "fold_jump": [
+   "g_fold_jump"
+  ],
+  "fold_tunnel_loop": [
+   "fold_tunnel_loop"
+  ],
+  "fold_exit": [
+   "g_fold_exit_a",
+   "g_fold_exit_b"
+  ],
+  "cabin_ambience_loop": [
+   "cabin_ambience_loop"
+  ],
+  "silent_running_loop": [
+   "silent_running_loop"
+  ],
+  "cabin_ir": [
+   "cabin_ir"
+  ],
+  "weapon_beam_loop": [
+   "weapon_beam_loop"
+  ],
+  "mining_laser_loop": [
+   "mining_laser_loop"
+  ],
+  "missile_launch": [
+   "missile_launch"
+  ],
+  "sensor_contact_ping": [
+   "sensor_contact_ping"
+  ],
+  "sensor_lock_tone": [
+   "sensor_lock_tone"
+  ],
+  "sensor_proximity_tick": [
+   "sensor_proximity_tick"
+  ],
+  "sensor_fire_outside": [
+   "sensor_fire_outside"
+  ],
+  "sensor_explosion_outside": [
+   "sensor_explosion_outside"
+  ],
+  "radio_squelch_open": [
+   "radio_squelch_open"
+  ],
+  "radio_squelch_close": [
+   "radio_squelch_close"
+  ],
+  "radio_static_loop": [
+   "radio_static_loop"
+  ],
+  "radio_tone": [
+   "radio_tone"
+  ]
+ },
+ "standIn": {
+  "thruster_pulse_a": "thruster_pulse_c",
+  "thruster_pulse_b": "thruster_pulse_c",
+  "impact_shield_medium": "impact_shield_light",
+  "impact_shield_heavy": "impact_shield_light",
+  "touchdown_hard": "touchdown_soft"
+ },
+ "roles": {
+  "ui_click": [
+   "k_switch_ui_5"
+  ],
+  "ui_confirm": [
+   "k_switch_ui_18"
+  ],
+  "ui_notice": [
+   "k_bong_1"
+  ]
+ },
+ "silent": {
+  "debris_patter": "debris_patter rated close: \"Klingt wie unterwasser und nicht wie im Raum\"",
+  "gear_retract": "gear_retract rated wrong: \"Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..\"",
+  "ground_scrape_loop": "ground_scrape_loop rated close: \"der tiefe Basston passt, aber das \"Kratzen\" in den höhen stört\"",
+  "dust_patter_loop": "dust_patter_loop rated close: \"Klingt übersteuert\"",
+  "alarm_shields_down": "alarm_shields_down rated wrong: \"Klingt wie eine Bahnhofsansage statt wie ein kritischer Zustand...\"",
+  "weapon_pulse_fire": "weapon_pulse_fire rated wrong: \"Klingt überhaupt nicht nach Laser, sondern als ob jemand auf einem Plastikeimer tippt...\"",
+  "weapon_cannon_fire": "weapon_cannon_fire rated wrong: \"klingt nach einfach nur ein dumpes klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in anderen Runden ja schon etwas gesammelt\""
+ },
+ "sounds": [
+  {
+   "id": "engine_main_t000",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "engine_main_t000",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "engine_main_t025",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "engine_main_t025",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "engine_main_t050",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "engine_main_t050",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "engine_main_t075",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "engine_main_t075",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "engine_main_t100",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "engine_main_t100",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "engine_main_boost",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "engine_main_boost",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "thruster_pulse_a",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "thruster_pulse_a",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "thruster_pulse_b",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "thruster_pulse_b",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "thruster_pulse_c",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "thruster_burn_loop",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "thruster_burn_loop",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "impact_hull_light",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "impact_hull_light",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "impact_hull_medium",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "impact_hull_medium",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "impact_hull_heavy",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt als ob jemand auf einen dumpen plastikbehälter klopft\"",
+   "event": "impact_hull_heavy",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "impact_shield_light",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben\"",
+   "event": "impact_shield_light",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "impact_shield_medium",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben\"",
+   "event": "impact_shield_medium",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "impact_shield_heavy",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt energetischer als vorher, aber erinnert eher, als wenn jemand auf eine gespannte Folie klopft. \"Energetisch\" muss auch immer ein Bass-Wummern haben\"",
+   "event": "impact_shield_heavy",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "hull_stress_groan",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "hull_stress_groan",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "debris_patter",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt wie unterwasser und nicht wie im Raum\"",
+   "event": "debris_patter",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "gear_deploy",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..\"",
+   "event": "gear_deploy",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "gear_retract",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Klingt insgesamt zu Dumpf, vor allem der Clunk am Ende klingt wieder wie ein Klopfen auf einen Plastikbehälter..\"",
+   "event": "gear_retract",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "touchdown_soft",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "touchdown_soft",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "touchdown_hard",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt übersteuert\"",
+   "event": "touchdown_hard",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "ground_scrape_loop",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"der tiefe Basston passt, aber das \"Kratzen\" in den höhen stört\"",
+   "event": "ground_scrape_loop",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "dust_patter_loop",
+   "ship": false,
+   "code": "close",
+   "why": "rated close: \"Klingt übersteuert\"",
+   "event": "dust_patter_loop",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "settle_creak",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "settle_creak",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "alarm_heat",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "alarm_heat",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "alarm_missile",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "alarm_missile",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "alarm_shields_down",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Klingt wie eine Bahnhofsansage statt wie ein kritischer Zustand...\"",
+   "event": "alarm_shields_down",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "alarm_fuel_low",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "alarm_fuel_low",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "alarm_hull_critical",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "alarm_hull_critical",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "alarm_master_caution",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "alarm_master_caution",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "cruise_charge",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "cruise_charge",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "cruise_engage",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "cruise_engage",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "cruise_loop",
+   "ship": true,
+   "code": "stars-older",
+   "why": "5 stars, no verdict; rated on 2026-11-14, before file hashes were recorded",
+   "event": "cruise_loop",
+   "roles": [],
+   "approval": "stars-older"
+  },
+  {
+   "id": "cruise_disengage",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "cruise_disengage",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "fold_charge",
+   "ship": true,
+   "code": "stars-older",
+   "why": "5 stars, no verdict; rated on 2026-11-14, before file hashes were recorded",
+   "event": "fold_charge",
+   "roles": [],
+   "approval": "stars-older"
+  },
+  {
+   "id": "fold_jump",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag\"",
+   "event": "fold_jump",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "fold_tunnel_loop",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "fold_tunnel_loop",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "fold_exit",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Sollte energetisch, fauchend, rauschend klingen, nicht wie ein dumpfer schlag\"",
+   "event": "fold_exit",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "cabin_ambience_loop",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "cabin_ambience_loop",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "silent_running_loop",
+   "ship": true,
+   "code": "fits-older",
+   "why": "rated on 2026-11-14, before file hashes were recorded",
+   "event": "silent_running_loop",
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "cabin_ir",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "cabin_ir",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "weapon_pulse_fire",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"Klingt überhaupt nicht nach Laser, sondern als ob jemand auf einem Plastikeimer tippt...\"",
+   "event": "weapon_pulse_fire",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "weapon_cannon_fire",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt nach einfach nur ein dumpes klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in anderen Runden ja schon etwas gesammelt\"",
+   "event": "weapon_cannon_fire",
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "weapon_beam_loop",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "weapon_beam_loop",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "mining_laser_loop",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "mining_laser_loop",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "missile_launch",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "missile_launch",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "sensor_contact_ping",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "sensor_contact_ping",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "sensor_lock_tone",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "sensor_lock_tone",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "sensor_proximity_tick",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "sensor_proximity_tick",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "sensor_fire_outside",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "sensor_fire_outside",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "sensor_explosion_outside",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "sensor_explosion_outside",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "radio_squelch_open",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "radio_squelch_open",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "radio_squelch_close",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "radio_squelch_close",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "radio_static_loop",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "radio_static_loop",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "radio_tone",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "radio_tone",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_impact_hull_light",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "impact_hull_light",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_impact_hull_medium",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "impact_hull_medium",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_impact_hull_heavy_a",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "impact_hull_heavy",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_impact_hull_heavy_b",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "impact_hull_heavy",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_thruster_pulse_c",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_gear_deploy",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "gear_deploy",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_impact_hull_light_b",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "impact_hull_light",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_fold_jump",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "fold_jump",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_fold_exit_a",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "fold_exit",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_fold_exit_b",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": "fold_exit",
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "g_thruster_heavy_room_a",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_1_thruster_room_1_derived_r6p3s11a of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_thruster_heavy_room_b",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_1_thruster_room_2_derived_r6p3s11b of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_thruster_heavy_room_wide",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_1_thruster_room_3_derived_r6p3s11c of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_thruster_heavy_room_three",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_1_thruster_room_4_derived_r6p3s11d of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_thruster_heavy_three",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_2_thruster_three_1_moss_p1s24 of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_thruster_heavy_hall",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_3_thruster_hall_1_moss_p1s21 of round 7; not yet rated as built",
+   "event": "thruster_pulse_c",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_impact_shield_a",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_4_shield_brighter_2_derived_r6p2s11b of round 7; not yet rated as built",
+   "event": "impact_shield_light",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "g_impact_shield_b",
+   "ship": true,
+   "code": "candidate",
+   "why": "accepted as candidate ev7_4_shield_brighter_3_derived_r6p2s11c of round 7; not yet rated as built",
+   "event": "impact_shield_light",
+   "roles": [],
+   "approval": "candidate"
+  },
+  {
+   "id": "k_engine_large_0",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "k_engine_low_0",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated on 2026-11-15 on an earlier version of the file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "k_engine_circular_0",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_thruster_0",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated on 2026-11-15 on an earlier version of the file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "k_thruster_3",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated on 2026-11-15 on an earlier version of the file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "k_engine_small_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong: \"klingt wie ein flugzeugpropeller\"",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_hit_metal_heavy_0",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_hit_plate_heavy_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_hit_metal_medium_2",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_hit_lowboom_0",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated on 2026-11-14, before file hashes were recorded), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "k_land_plate_medium_0",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_land_metal_light_3",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_door_close_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_door_open_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_switch_ui_5",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": null,
+   "roles": [
+    "ui_click"
+   ],
+   "approval": "fits"
+  },
+  {
+   "id": "k_switch_ui_18",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": null,
+   "roles": [
+    "ui_confirm"
+   ],
+   "approval": "fits"
+  },
+  {
+   "id": "k_toggle_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_tick_2",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "k_computer_noise_1",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "k_bong_1",
+   "ship": true,
+   "code": "fits",
+   "why": "rated fits on this file",
+   "event": null,
+   "roles": [
+    "ui_notice"
+   ],
+   "approval": "fits"
+  },
+  {
+   "id": "k_tone_1",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "k_two_tone_1",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_voyager_lightning",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_cassini_saturn_1",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_emfisis_chorus",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_plasma_hiss",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_juno_ganymede",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_rover_driving",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "n_dinks_donks",
+   "ship": false,
+   "code": "wrong",
+   "why": "rated wrong, no note",
+   "event": null,
+   "roles": [],
+   "approval": null
+  },
+  {
+   "id": "n_insight_arm",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_laser_shots",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits"
+  },
+  {
+   "id": "n_ingenuity",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  },
+  {
+   "id": "n_sls_test_fire",
+   "ship": false,
+   "code": "licence",
+   "why": "NASA recording: whether it may ship with the game is the owner's decision (assets/audio/CREDITS.md)",
+   "event": null,
+   "roles": [],
+   "approval": "fits-older"
+  }
+ ]
+}
