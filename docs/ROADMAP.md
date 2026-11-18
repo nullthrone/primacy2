@@ -1338,7 +1338,13 @@ Other notes:
   of the sound work, and part of that cannot be made again (the files of every round as he heard
   them under `assets/audio/gen/_kept`; also the rendered tree, the downloads, the MOSS model and
   the environments `.venv-audio`, `.venv-voice` and `.venv-sound`). A branch for the sound is
-  switched to in that worktree, and the worktree is never removed.
+  switched to in that worktree, and the worktree is never removed. The app can remove it: archiving
+  a session cleans up the session's worktree by default, and the app's setting "Auto-archive
+  sessions when their pull request closes" archived a session at its first merge. That setting is
+  off since 2026-11-18 (the owner's choice, asked before the first merge under these rules). Six
+  sessions that used that folder are archived and it is still there, but why the app kept it is
+  not known: before the session that holds it is archived, or "Clean up inactive sessions" is used,
+  look at what happens to the folder.
   `tools/dev/live-landing/live2.mts` imports by that worktree's absolute path and runs only there;
   `tools/dev/journal.py` shortens paths by its name. The checkout at the root of the repository
   (`C:\Claude Code\LOCAL\primacy2`) stood on `feat/primacy2-foundation` on 2026-11-18, a branch of
