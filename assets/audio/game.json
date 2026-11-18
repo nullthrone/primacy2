@@ -55,7 +55,6 @@
   "sensor_explosion_outside": "a ship is destroyed nearby",
   "radio_squelch_open": "a transmission begins",
   "radio_squelch_close": "a transmission ends",
-  "radio_static_loop": "an open channel with nobody on it",
   "radio_tone": "a message arrives on the radio"
  },
  "standIn": {

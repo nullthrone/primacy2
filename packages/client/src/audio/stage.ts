@@ -27,6 +27,14 @@ import type { ShippedSound } from './library.ts';
 
 /** How far ahead of the audio clock a sound is scheduled, in seconds: the clock moves in steps of about 10 ms. */
 export const START_LEAD = 0.03;
+/**
+ * How far ahead a group of sounds that must keep their spacing (a transmission, a chain) is planned,
+ * in seconds: more than the lead, because a start nearer than the lead is pushed later while the
+ * sounds after it keep their planned times, and the spacing between them would shrink.
+ */
+export const PLAN_LEAD = START_LEAD + 0.07;
+/** Level of the hiss under a radio signal, linear, ahead of the radio's filter. */
+const RADIO_HISS = 0.012;
 /** Fade of a loop that starts or of any voice that is stopped, in seconds. */
 export const FADE = 0.03;
 /** Fade-in of a one-shot whose buffer does not start on silence, in seconds. */
@@ -222,6 +230,7 @@ export class Stage {
   private volume = 0.7;
   private makeup = 1;
   private ir: AudioBuffer | null = null;
+  private noise: AudioBuffer | null = null;
   private edges = new WeakMap<AudioBuffer, { startSilent: boolean; endSilent: boolean }>();
   private meter = new Float32Array(2048);
 
@@ -347,6 +356,39 @@ export class Stage {
     set(this.dryDirect.gain, on ? DRY_DIRECT : 1);
     set(this.dryWet.gain, on ? 1 : 0);
     set(this.bakedSend.gain, on ? BAKED_SEND : 0);
+  }
+
+  /** The hiss of the radio loudspeaker under a signal, from `start` to `end` on the audio clock, ramped so that it never steps. */
+  hiss(start: number, end: number): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || !(end > start)) return;
+    if (!this.noise) {
+      // Fixed noise, so that the hiss is the same on every start.
+      this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      const d = this.noise.getChannelData(0);
+      let s = 7919;
+      for (let i = 0; i < d.length; i++) {
+        s = (s * 1664525 + 1013904223) >>> 0;
+        d[i] = (s / 4294967296) * 2 - 1;
+      }
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const g = ctx.createGain();
+    g.gain.value = 0;
+    const from = Math.max(start, ctx.currentTime + START_LEAD);
+    g.gain.setValueAtTime(0, from);
+    g.gain.linearRampToValueAtTime(RADIO_HISS, from + 0.005);
+    g.gain.setValueAtTime(RADIO_HISS, Math.max(from + 0.005, end - 0.01));
+    g.gain.linearRampToValueAtTime(0, Math.max(from + 0.015, end));
+    src.connect(g).connect(this.radioIn);
+    src.start(from);
+    src.stop(Math.max(from + 0.02, end + 0.01));
+    src.onended = () => {
+      src.disconnect();
+      g.disconnect();
+    };
   }
 
   /** Peak of the last 43 ms at the output, linear. */
