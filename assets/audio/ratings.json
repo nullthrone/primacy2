@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "savedAt": "2026-11-18T14:40:34.900Z",
+  "savedAt": "2026-11-18T19:18:54.325Z",
   "manifest": {
     "placeholder": false,
-    "count": 176
+    "count": 189
   },
   "ratings": {
     "engine_main_t000": {
@@ -1018,6 +1018,188 @@
       "note": "",
       "at": "2026-11-18T14:40:34.391Z",
       "hash": "646bb21fb391"
+    },
+    "ev7_1_thruster_room_1_derived_r6p3s11a": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:14:54.412Z",
+      "hash": "237a9d62a54f"
+    },
+    "ev7_1_thruster_room_2_derived_r6p3s11b": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:14:54.988Z",
+      "hash": "4fc5476226dd"
+    },
+    "ev7_1_thruster_room_3_derived_r6p3s11c": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:14:57.801Z",
+      "hash": "d5bef1d1dc87"
+    },
+    "ev7_1_thruster_room_4_derived_r6p3s11d": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:15:01.100Z",
+      "hash": "6ece845a22ff"
+    },
+    "ev7_2_thruster_three_1_moss_p1s24": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:15:11.542Z",
+      "hash": "44d7897d7e8a"
+    },
+    "ev7_3_thruster_hall_1_moss_p1s21": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:15:25.830Z",
+      "hash": "51b3903141e1"
+    },
+    "ev7_4_shield_brighter_1_derived_r6p2s11a": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "",
+      "at": "2026-11-18T19:15:35.438Z",
+      "hash": "3aa3551f4eb4"
+    },
+    "ev7_4_shield_brighter_2_derived_r6p2s11b": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:15:36.127Z",
+      "hash": "b66bd0e4706f"
+    },
+    "ev7_4_shield_brighter_3_derived_r6p2s11c": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:15:41.496Z",
+      "hash": "64aacac7ee5f"
+    },
+    "ev7_5_shield_swallow_1_moss_p1s22": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:15:45.487Z",
+      "hash": "ecd0f1239bdc"
+    },
+    "ev7_7_shield_snap_1_moss_p1s24": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:15:48.389Z",
+      "hash": "d808d437a4c8"
+    },
+    "g_impact_hull_light_b": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:16:04.597Z",
+      "hash": "a2736154747e"
+    },
+    "ground_scrape_loop": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "der tiefe Basston passt, aber das \"Kratzen\" in den höhen stört",
+      "at": "2026-11-18T19:16:59.559Z",
+      "hash": "7a295e1cad60"
+    },
+    "touchdown_hard": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt übersteuert",
+      "at": "2026-11-18T19:17:15.112Z",
+      "hash": "d1f9df97bd98"
+    },
+    "touchdown_soft": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:17:04.830Z",
+      "hash": "0600821a995b"
+    },
+    "dust_patter_loop": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt übersteuert",
+      "at": "2026-11-18T19:17:26.640Z",
+      "hash": "7fa6ec98c5d9"
+    },
+    "settle_creak": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:17:35.498Z",
+      "hash": "b0c2210ed134"
+    },
+    "g_gear_deploy": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:17:38.498Z",
+      "hash": "dde128a7baf7"
+    },
+    "relay_click_a": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:17:49.914Z",
+      "hash": "2a64495b35cb"
+    },
+    "relay_click_b": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:53.824Z",
+      "hash": "4a0703006c0f"
+    },
+    "switch_toggle": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:52.406Z",
+      "hash": "42d259bb658d"
+    },
+    "switch_rotary": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:51.086Z",
+      "hash": "5c186dc390be"
+    },
+    "breaker_thunk": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:51.791Z",
+      "hash": "eb2f8ca85149"
+    },
+    "button_press": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:38.770Z",
+      "hash": "bb4b79f4353e"
+    },
+    "systems_power_up": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:38.207Z",
+      "hash": "264a59f10f51"
+    },
+    "systems_power_down": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:18:37.802Z",
+      "hash": "22eaa85fe059"
     }
   },
   "scenes": {},
