@@ -42,13 +42,6 @@ LEVELS: dict[str, tuple[str, float]] = {
     "impact_shield_heavy": ("peak", -1.5),
     "touchdown_soft": ("peak", -10.0),
     "touchdown_hard": ("peak", -2.0),
-    # switches
-    "relay_click_a": ("peak", -14.0),
-    "relay_click_b": ("peak", -14.0),
-    "switch_toggle": ("peak", -16.0),
-    "switch_rotary": ("peak", -16.0),
-    "breaker_thunk": ("peak", -14.0),
-    "button_press": ("peak", -16.0),
     # alarms: loudspeaker, by loudness; the missile warning is the loudest sound in the ship
     "alarm_heat": ("lufs", -20.0),
     "alarm_missile": ("lufs", -18.0),

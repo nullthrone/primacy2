@@ -1,5 +1,5 @@
 {
- "note": "Sounds made by the model MOSS-SoundEffect v2.0 that the owner heard and accepted (verdict fits). Each one is a library sound that stands for one event of tools/audio/sounds.json. The list \"sounds\" has ten of them (from round 4: 2, round 5: 4, round 6: 4); the list \"withdrawn\" has two that were built once and are not any more. The raw files in assets/audio/generated are committed byte for byte, because a run of the model is not reproducible bit for bit and assets/audio/gen is ignored by git; the raw file of a withdrawn sound stays there. tools/audio/build.py checks the sha256 of every raw file, cuts it as recorded, converts it to 48 kHz, repairs the ends and sets the integrated loudness to lufs. These lufs levels are the loudness of the rendered event the sound stands for (checks.lufs of that event in assets/audio/render/manifest.json: as it was on 2026-11-16 for the first eight, as it is on 2026-11-18 for the four of round 6), and they are provisional until the mix of the game is designed. The owner heard the candidates at another level: they were levelled to -34 or -35 LUFS for the comparison. More than one sound stands for the events fold_exit, impact_hull_heavy, impact_hull_light. The thruster valve picks of round 5 were cut from raw files generated in round 4. The two thruster pulses a and b were rated wrong as library copies on 2026-11-18 and moved to \"withdrawn\" (a withdrawn entry is not built and is not in the manifest).",
+ "note": "Sounds made by the model MOSS-SoundEffect v2.0 that the owner heard and accepted (verdict fits). Each one is a library sound that stands for one event of tools/audio/sounds.json. The list \"sounds\" has eighteen of them (from round 4: 2, round 5: 4, round 6: 4, round 7: 8); the list \"withdrawn\" has two that were built once and are not any more. The raw files in assets/audio/generated are committed byte for byte, because a run of the model is not reproducible bit for bit and assets/audio/gen is ignored by git; the raw file of a withdrawn sound stays there. tools/audio/build.py checks the sha256 of every raw file, cuts it as recorded, converts it to 48 kHz, finishes the ends (for rounds 4 to 6 the repair that a download gets, from round 7 on the steps the page copy he rated went through) and sets the integrated loudness to lufs. These lufs levels are the loudness of the rendered event the sound stands for (checks.lufs of that event in assets/audio/render/manifest.json: as it was on 2026-11-16 for the first eight, as it is on 2026-11-18 for the four of round 6), and they are provisional until the mix of the game is designed. The owner heard the candidates of rounds 4 to 6 at another level: they were levelled to -34 or -35 LUFS for the comparison. More than one sound stands for the events fold_exit, impact_hull_heavy, impact_hull_light, impact_shield_light, thruster_pulse_c. The thruster valve picks of round 5 were cut from raw files generated in round 4. Six of the eight of round 7 are processed copies (\"derived\") of two raw files of round 6, which are committed too (assets/audio/generated/parent_*.wav): the object \"derived\" of such an entry names the parent file with its sha256, the parent candidate, the operations and their reported numbers; the build checks the parent file and builds the sound from the committed raw file of the entry, it does not run the operations again. The levels of round 7 are those of the rendered events thruster_pulse_c and impact_shield_light (checks.lufs of render/manifest.json on 2026-11-18), chosen by level, not by meaning; the two-channel one keeps the 3 dB the audition page takes off a two-channel file. The two thruster pulses a and b were rated wrong as library copies on 2026-11-18 and moved to \"withdrawn\" (a withdrawn entry is not built and is not in the manifest).",
  "sounds": [
   {
    "id": "g_impact_hull_light",
@@ -261,6 +261,394 @@
     "ratedAt": "2026-11-18T14:28:21.255Z"
    },
    "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_thruster_heavy_room_a",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_room_a.wav",
+   "sha256": "24dcf7c291c91c73efa6740cbedcb0308f239ca3332853445cc161be4c19d558",
+   "cut": {
+    "startS": 0.064104167,
+    "endS": 2.061
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse, heavy: two shots, room added (decay 0.9 s, wet level -9 dB, one channel) · MOSS, processed",
+   "de": "Düsenstoß, schwer: zwei Schüsse, Raum hinzugefügt (Nachhall 0,9 s, Hallanteil -9 dB, ein Kanal) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_1_thruster_room_1_derived_r6p3s11a",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:14:54.412Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_thruster_mighty_3__s11.wav",
+    "parentSha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab",
+    "parentRound": 6,
+    "parentCandidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "room",
+      "rt60S": 0.9,
+      "wetDb": -9.0,
+      "channels": 1,
+      "seed": 7
+     }
+    ],
+    "operations": [
+     {
+      "op": "room",
+      "wetDryDbAsked": -9.0,
+      "wetDryDbReached": -9.0,
+      "irLengthS": 1.35,
+      "channels": 1,
+      "outputGainDb": -2.1105
+     }
+    ]
+   }
+  },
+  {
+   "id": "g_thruster_heavy_room_b",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_room_b.wav",
+   "sha256": "79796b88941ce6be1f8d4c5cda0ea42d7bec69278b120e8b8ace625cacf99d1e",
+   "cut": {
+    "startS": 0.065166667,
+    "endS": 2.503
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse, heavy: two shots, room added (decay 1.4 s, wet level -4 dB, one channel) · MOSS, processed",
+   "de": "Düsenstoß, schwer: zwei Schüsse, Raum hinzugefügt (Nachhall 1,4 s, Hallanteil -4 dB, ein Kanal) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_1_thruster_room_2_derived_r6p3s11b",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:14:54.988Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_thruster_mighty_3__s11.wav",
+    "parentSha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab",
+    "parentRound": 6,
+    "parentCandidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "room",
+      "rt60S": 1.4,
+      "wetDb": -4.0,
+      "channels": 1,
+      "seed": 7
+     }
+    ],
+    "operations": [
+     {
+      "op": "room",
+      "wetDryDbAsked": -4.0,
+      "wetDryDbReached": -4.0,
+      "irLengthS": 2.1,
+      "channels": 1,
+      "outputGainDb": -3.5484
+     }
+    ]
+   }
+  },
+  {
+   "id": "g_thruster_heavy_room_wide",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_room_wide.wav",
+   "sha256": "58d8718b683149d22c1890b7414d45c7f04df72dccc149285b0846f11a2a96a9",
+   "cut": {
+    "startS": 0.064104167,
+    "endS": 2.307
+   },
+   "lufs": -25.24,
+   "en": "Thruster pulse, heavy: two shots, room added (decay 1.2 s, wet level -6 dB, two channels, direct sound in the middle) · MOSS, processed",
+   "de": "Düsenstoß, schwer: zwei Schüsse, Raum hinzugefügt (Nachhall 1,2 s, Hallanteil -6 dB, zwei Kanäle, Direktschall in der Mitte) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_1_thruster_room_3_derived_r6p3s11c",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:14:57.801Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_thruster_mighty_3__s11.wav",
+    "parentSha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab",
+    "parentRound": 6,
+    "parentCandidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "room",
+      "rt60S": 1.2,
+      "wetDb": -6.0,
+      "channels": 2,
+      "seed": 7
+     }
+    ],
+    "operations": [
+     {
+      "op": "room",
+      "wetDryDbAsked": -6.0,
+      "wetDryDbReached": -6.0,
+      "irLengthS": 1.8,
+      "channels": 2,
+      "outputGainDb": -2.8252
+     }
+    ]
+   }
+  },
+  {
+   "id": "g_thruster_heavy_room_three",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_room_three.wav",
+   "sha256": "495fd9e012a1fcf484b419e259f4d4f275efbf90c886cf9d0d04ececbc588e6c",
+   "cut": {
+    "startS": 0.065166667,
+    "endS": 3.558
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse, heavy: three shots, the third a copy of the first second of the parent file, room added (decay 1.4 s, wet level -4 dB, one channel) · MOSS, processed",
+   "de": "Düsenstoß, schwer: drei Schüsse, der dritte eine Kopie der ersten Sekunde der Ausgangsdatei, Raum hinzugefügt (Nachhall 1,4 s, Hallanteil -4 dB, ein Kanal) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_1_thruster_room_4_derived_r6p3s11d",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:15:01.100Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_thruster_mighty_3__s11.wav",
+    "parentSha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab",
+    "parentRound": 6,
+    "parentCandidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "append",
+      "fromS": 0.0,
+      "toS": 1.0
+     },
+     {
+      "op": "room",
+      "rt60S": 1.4,
+      "wetDb": -4.0,
+      "channels": 1,
+      "seed": 7
+     }
+    ],
+    "operations": [
+     {
+      "op": "append",
+      "fromS": 0.0,
+      "toS": 1.0,
+      "spliceS": 2.0,
+      "lengthBeforeS": 2.0,
+      "copiedS": 1.0,
+      "lengthAfterS": 3.0,
+      "peakBefore": 0.99955,
+      "levelsDbUnderPeak": {
+       "beforeSpliceDb": 69.36,
+       "copyFirstDb": 56.78,
+       "copyLastDb": 62.67
+      },
+      "maxStepWithin1ms": 0.000186
+     },
+     {
+      "op": "room",
+      "wetDryDbAsked": -4.0,
+      "wetDryDbReached": -4.0,
+      "irLengthS": 2.1,
+      "channels": 1,
+      "outputGainDb": -3.5919
+     }
+    ]
+   }
+  },
+  {
+   "id": "g_thruster_heavy_three",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_three.wav",
+   "sha256": "68adad6d811ded91cb188ad5f95cf6ce12475e565dbddd065ae698c5c72f0ca2",
+   "cut": {
+    "startS": 0.208125,
+    "endS": 4.0
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse, heavy: three shots · MOSS",
+   "de": "Düsenstoß, schwer: drei Schüsse · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone duration: 4.0s",
+    "seed": 24,
+    "round": 7,
+    "candidate": "ev7_2_thruster_three_1_moss_p1s24",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:15:11.542Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_thruster_heavy_hall",
+   "standsFor": "thruster_pulse_c",
+   "file": "g_thruster_heavy_hall.wav",
+   "sha256": "7ad0cc77ef58565d93681e2ac7442d09f6cfac96feaadfe6c5d9c803c6b15306",
+   "cut": {
+    "startS": 0.0,
+    "endS": 3.79
+   },
+   "lufs": -28.26,
+   "en": "Thruster pulse, heavy: three shots, prompted in a large steel hangar · MOSS",
+   "de": "Düsenstoß, schwer: drei Schüsse, im Prompt eine große Stahlhalle · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Large-caliber machine cannon fires three slow heavy shots inside a large steel hangar, each a chest-thumping boom with a metallic clank, the shots echo off the metal walls duration: 4.0s",
+    "seed": 21,
+    "round": 7,
+    "candidate": "ev7_3_thruster_hall_1_moss_p1s21",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:15:25.830Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_impact_shield_a",
+   "standsFor": "impact_shield_light",
+   "file": "g_impact_shield_a.wav",
+   "sha256": "5fd554cfea078062542b952fef1b10fc17884f8e1cf786ed563e5758a7f27c25",
+   "cut": {
+    "startS": 0.001354167,
+    "endS": 0.905
+   },
+   "lufs": -24.47,
+   "en": "Shield hit: high shelf added (corner 300 Hz, +8 dB) · MOSS, processed",
+   "de": "Schildtreffer: High-Shelf-Filter (Eckfrequenz 300 Hz, +8 dB) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Force field deflects a projectile, a quick clean electric snap with a short soft low pulse underneath, ends fast duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_4_shield_brighter_2_derived_r6p2s11b",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:15:36.127Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_shield_tight_2__s11.wav",
+    "parentSha256": "ba5a30ce01c5cad067c3aec72cfd9b13691d4c04c89688c4377fdb104f966cc8",
+    "parentRound": 6,
+    "parentCandidate": "ev6_3_shield_tight_2_moss_p2s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "shelf",
+      "hz": 300.0,
+      "gainDb": 8.0
+     }
+    ],
+    "operations": [
+     {
+      "op": "shelf",
+      "hz": 300.0,
+      "gainDb": 8.0,
+      "outputGainDb": -3.5997
+     }
+    ]
+   }
+  },
+  {
+   "id": "g_impact_shield_b",
+   "standsFor": "impact_shield_light",
+   "file": "g_impact_shield_b.wav",
+   "sha256": "f30459e1c060e888e624d62be25bde1b26248b30a41b04fb0945d9ca6320a949",
+   "cut": {
+    "startS": 0.0005625,
+    "endS": 0.762
+   },
+   "lufs": -24.47,
+   "en": "Shield hit: tuned 3 semitones up by resampling, high shelf added (corner 300 Hz, +8 dB) · MOSS, processed",
+   "de": "Schildtreffer: 3 Halbtöne höher gestimmt durch Resampling, High-Shelf-Filter (Eckfrequenz 300 Hz, +8 dB) · MOSS, bearbeitet",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Force field deflects a projectile, a quick clean electric snap with a short soft low pulse underneath, ends fast duration: 2.0s",
+    "seed": 11,
+    "round": 7,
+    "candidate": "ev7_4_shield_brighter_3_derived_r6p2s11c",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T19:15:41.496Z"
+   },
+   "licence": "made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "derived": {
+    "parentFile": "parent_shield_tight_2__s11.wav",
+    "parentSha256": "ba5a30ce01c5cad067c3aec72cfd9b13691d4c04c89688c4377fdb104f966cc8",
+    "parentRound": 6,
+    "parentCandidate": "ev6_3_shield_tight_2_moss_p2s11",
+    "parentVerdict": "close",
+    "process": [
+     {
+      "op": "pitch",
+      "semitones": 3.0
+     },
+     {
+      "op": "shelf",
+      "hz": 300.0,
+      "gainDb": 8.0
+     }
+    ],
+    "operations": [
+     {
+      "op": "pitch",
+      "semitones": 3.0,
+      "factor": 1.189207,
+      "ratioUsed": "1169/983",
+      "lengthFactor": 0.840896
+     },
+     {
+      "op": "shelf",
+      "hz": 300.0,
+      "gainDb": 8.0,
+      "outputGainDb": -3.6909
+     }
+    ]
+   }
   }
  ],
  "withdrawn": [

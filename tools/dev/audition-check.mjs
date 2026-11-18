@@ -261,7 +261,7 @@ try {
 
   await check('keyboard: Enter on a focused play button plays', async () => {
     await page.evaluate(() => window.__audition.resetPeak());
-    await page.focus('button[data-sound="switch_toggle"]');
+    await page.focus('button[data-sound="thruster_pulse_b"]');
     await page.keyboard.press('Enter');
     await sleep(500);
     assert((await peakMax(page)) > 0.001, 'no signal');

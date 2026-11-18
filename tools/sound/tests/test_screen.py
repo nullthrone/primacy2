@@ -644,7 +644,7 @@ def test_publish_removes_what_is_not_in_the_new_set_and_leaves_the_build_order()
         import build as b  # noqa: E402
 
         b.SELECTION = Path(td) / "no-selection.json"
-        b.GENERATED_LIST = Path(td) / "no-generated.json"  # without this the 8 g_ ids of assets/audio/generated.json are built in
+        b.GENERATED_LIST = Path(td) / "no-generated.json"  # without this the g_ ids of assets/audio/generated.json are built in
         pub = load("publish")
         assert pub.main(["--root", str(root), "--out", str(out)]) == 0
         target = out / "source"

@@ -66,7 +66,7 @@ class LevelTest(unittest.TestCase):
     def test_every_rendered_sound_is_under_the_ceiling(self):
         # all categories are loaded: the registry holds only what the test files happened to import
         self.assertEqual(synth.load_categories(), [])
-        self.assertGreaterEqual(len(synth.REGISTRY), 64)
+        self.assertGreaterEqual(len(synth.REGISTRY), 56)
         for sid in sorted(synth.REGISTRY):
             x, _ = synth.render(sid)
             pcm = synth.to_int16(x, sid).astype(np.float64) / 32768.0
@@ -84,8 +84,8 @@ class RegistryTest(unittest.TestCase):
             synth.register("cabin_ir")(lambda ctx: None)
 
     def test_shape_is_checked(self):
-        # always runs: whatever the other tests have registered, relay_click_a gets a renderer of the wrong shape
-        sid = "relay_click_a"
+        # always runs: whatever the other tests have registered, thruster_pulse_a gets a renderer of the wrong shape
+        sid = "thruster_pulse_a"
         saved = synth.REGISTRY.pop(sid, None)
         synth.register(sid)(lambda ctx: np.zeros(5))
         try:
