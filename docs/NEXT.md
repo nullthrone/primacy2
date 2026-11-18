@@ -3,7 +3,9 @@
 Written on 2026-11-15 and brought up to date on 2026-11-18 in the evening, after he rated round 7
 (built around the two candidates he called close) and every other sound that was still unrated on
 the page, and after the round was recorded (section 1). The session that made rounds 3 to 7 ended
-there on his word; this file is its hand-over. Delete or replace this file when the step is done;
+there on his word; this file is its hand-over. The session after it changed the way of working
+(below) and made the library step for round 7 the same night (section 1, step 2). Delete or replace
+this file when the step is done;
 `docs/ROADMAP.md` stays the lasting record.
 
 ## Where and how
@@ -22,7 +24,9 @@ there on his word; this file is its hand-over. Delete or replace this file when 
   what git ignores of the sound work, and part of that cannot be made again (the files of every
   round as he heard them, `assets/audio/gen/_kept`; also the rendered tree, the downloads, the MOSS
   model and the three Python environments). A branch for the sound is switched to in that
-  worktree, and the worktree is never removed.
+  worktree, and the worktree is never removed. A byte copy of `assets/audio/gen/_kept` (rounds 3 to
+  7) lies outside every worktree at `C:\Claude Code\LOCAL\primacy2-kept` since 2026-11-18, on his
+  word: copy a new round there once it is recorded.
 - Read `docs/ROADMAP.md` in full first, then `tools/audio/SOUND_DESIGN.md` (the direction for the
   sound, the rules, and in section 4 the owner's words from each listening round), then
   `tools/sound/README.md`, `RESULTS.md` (round 4), `RESULTS5.md` (round 5), `RESULTS6.md` (round 6)
@@ -64,15 +68,18 @@ there on his word; this file is its hand-over. Delete or replace this file when 
   `publish.py` without arguments still means round 4 and is not run on the real tree.
 - His audition page is not up by itself. It is the preview server `audition` of
   `.claude/launch.json` (port 5190, `http://localhost:5190/dev/audition.html`) and it writes his
-  real ratings file. Start it only on his word (on 2026-11-18 the app's permission check refused
+  real ratings file. That file was gone when the next session started (the folder `.claude` of the
+  worktree was empty, and git ignores it); an entry `audition` was written again on 2026-11-18, by
+  a guess at what it had been (`npm run dev -w @primacy2/client -- --port 5190 --strictPort`), and
+  has never been started. Start it only on his word (on 2026-11-18 the app's permission check refused
   the start until he asked for it), read the page and press nothing. Checks of the page run on an
   own port with `AUDITION_RATINGS_FILE` pointing at an own empty file in an own folder; nothing of
   ours starts on ports 5190, 8420 or 8421.
 - The eleven direction samples of round 3 (category `pilot`) are gone since 2026-11-17, on his word:
   out of `tools/audio/sounds.json` with their renderers and tests, and off the page without a build
   on the real tree (`docs/ROADMAP.md`, section 2, "The direction samples taken off the page"). The
-  manifest had 176 entries then (189 on 2026-11-18, counted by a script, after the library change
-  and round 7 with its changes). Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
+  manifest had 176 entries then (189 on 2026-11-18 after the library change and round 7 with its
+  changes, 197 since the library step for round 7; counted by a script). Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
   The check that nothing old moved reads: of the 165 hashes of `assets/audio/rounds/round5.json`,
   the 154 that are not `pilot_*` are unchanged and the eleven `pilot_*` are absent. That was the
   one change of the real tree during the freeze, made because he had not started rating and no
@@ -124,11 +131,13 @@ section 2, and in `tools/sound/RESULTS7.md`.
 - Each of the six event families of rounds 4 to 7 now has a sound he accepted. Hull hits, the gear,
   the fold jump and the fold exit are in the library (`assets/audio/generated.json`, ten sounds and
   two withdrawn); all ten are rated in their built form on the file the manifest lists, and all ten
-  fit (five of them since this evening). The thruster pulse and the shield hit are accepted as
-  candidates of round 7 and are NOT in the library yet.
+  fit (five of them since this evening). The thruster pulse and the shield hit were accepted as
+  candidates of round 7; since the library step of the same night they are in the library too
+  (eight more sounds, step 2 below), unrated in their built form.
 - The ratings do not choose among the thrusters: all six fit, without a note, and `room_1` and
-  `room_2` were rated 0.6 s apart. Which of them go into the library, and at what level, is open.
-  He heard them at the family target of -28 LUFS.
+  `room_2` were rated 0.6 s apart. He heard them at the family target of -28 LUFS. All six went
+  into the library as variants, at the level of `thruster_pulse_c` (step 2 below): the
+  orchestrator's choice, his to overrule.
 - The shield: the two that fit are processed copies of the one MOSS file he had called close. Of the
   nine shields that MOSS made from a prompt and he rated, none fits (2 close, 7 wrong: the seven of
   rounds 4 to 6 by the analysis of round 6, and the two of round 7). The shield is settled without
@@ -191,28 +200,28 @@ of the rounds and the voices left out):
 are quoted.)
 
 1. Look whether he has rated anything since (the test above). If so, record it first.
-2. The library step for round 7: the accepted candidates go into `assets/audio/generated.json`
-   (form and rules in `tools/audio/README.md`, "Generated sounds in the build"), then one build.
-   - The two generated thrusters go in as the sounds of round 6 did (raw file, cut).
-   - The six processed ones (four thrusters, two shields) are made by an operation on a raw file of
-     round 6 (room, pitch, shelf, append, with their numbers and the seed of the room), and the
-     build cannot record that yet: an entry knows a raw file and a cut, not an operation. That needs
-     a change of `tools/audio/build.py` and its tests, the two parent raw files committed under
-     `assets/audio/generated` (sha256 `02a8c33c...3aab` for the thruster, `ba5a30ce...6cc8` for the
-     shield; copies are in `_kept/round7/raw/parent__*`), and the operations with their numbers in
-     the entry (`kept.json` has them; `tools/sound/derive.py` is the code that made the files and
-     must give the same samples again: compare with `_kept/round7/raw/derived__*`).
-   - The gate of the earlier library steps holds: a copy first, then `build.py --manifest-only`,
-     with the old entries equal in every field and in order.
-   - Decide the level on purpose and say it: the two pulses he rejected in the library had played
-     8.25 and 6.77 dB above the candidates he had accepted, the one that fits 5.73 dB above. A
-     library sound plays at the level of the rendered event it stands for, not at the level he
-     heard.
-   - Which thrusters: the ratings choose none. Either all six go in as variants and the game picks,
-     or he is asked to choose; say which was done. `g_thruster_pulse_c` (the valve pulse that fits)
-     stays.
-   - The library sounds show on the page as new entries with new ids, so they are unrated in their
-     built form until he hears them.
+2. The library step for round 7: DONE on 2026-11-18, late evening (`docs/ROADMAP.md`, section 2,
+   "The library step for round 7"; `tools/audio/README.md`, "Generated sounds in the build"). All
+   six thrusters and the two shields that fit are in `assets/audio/generated.json` (18 sounds, 2
+   withdrawn) and in the real tree (197 manifest entries). What is left of it:
+   - He has not heard the eight in their built form: they are the only unrated sounds on the page
+     (ids `g_thruster_heavy_*`, `g_impact_shield_a` and `g_impact_shield_b`). When he is asked,
+     tell him two things. The five one-channel thrusters play about 1.7 dB under the candidates he
+     rated, because a library sound takes the place of its event (20 degrees) and the candidates
+     stood in the middle. The shields have no place, so every play comes from a new random
+     direction and is duller from behind: a single press says little.
+   - The choices are the orchestrator's and his to overrule: all six thrusters as variants, and
+     what each sound stands for chosen by level (`thruster_pulse_c`, `impact_shield_light`), so the
+     pulses a and b and the medium and heavy shield hit still have nothing he accepted.
+   - A library file of round 7 or later is built as its page copy times one gain
+     (`build.page_finish`). For the next library step: `screen.py` and `publish.py` record the cut
+     start with four decimals, which does not name a sample. Find the sample again (the built file
+     must have the length of the page copy and match it at offset 0) and write `startS` as
+     sample / 48000.
+   - The gate of this step was a script in the session's scratch folder, which is gone with the
+     session: write it again from the ROADMAP (the old entries equal in every field and in order,
+     exactly the new ids added, only `manifest.json` changed, two runs the same bytes, the real
+     tree after its build equal to the copy file for file).
 3. The relay sounds, on his word ("die ganzen Relais Töne bitte weglassen"): take the eight
    rendered sounds his note is on off the page and out of `tools/audio/sounds.json` with their
    renderers and tests, by the procedure used for the direction samples (`docs/ROADMAP.md`, section
@@ -315,9 +324,9 @@ built (it is a greenfield design):
 Not to be started without his word (section 4). Core work for the strongest model:
 `packages/client/src/audio` is rebuilt, not patched. Design it first and show Thomas the plan in a
 few sentences (done on 2026-11-17). Since round 7 each of the six event families of rounds 4 to 7
-has a sound he accepted: ten are in the library (`assets/audio/generated.json`; all ten fit in their
-built form; two more were withdrawn after he rejected them as library copies), and the six
-thrusters and two shields of round 7 wait for the library step (section 1). The cannon, the pulse
+has a sound he accepted: eighteen are in the library (`assets/audio/generated.json`; the first ten
+fit in their built form, the eight of round 7 are unrated as built; two more were withdrawn after
+he rejected them as library copies). The cannon, the pulse
 laser, the gear retracting and the shields-down alarm have nothing he accepted yet.
 What it has to do:
 
@@ -350,15 +359,16 @@ green, `docs/ROADMAP.md` is updated, and Thomas has played it and said what he h
 
 ### 4. Waiting for his word
 
-What waits on him now: which of the six thrusters he accepted the game uses, if not all of them as
-variants; whether the gun material of rounds 5 to 7 may also be tried for the cannon, and whether
+What waits on him now: to hear the eight library sounds of round 7 as built (section 1, step 2),
+and his word if the game should not use all six thrusters as variants; whether the gun material of rounds 5 to 7 may also be tried for the cannon, and whether
 he wants a round 8 for the sounds that have nothing he accepted (section 1); which voice model he
 accepts and whether the preset voices of Kokoro and Kitten count as artificial (the countdown
 samples are rated and fit); his word on the runtime audio, whose plan he was shown on 2026-11-17;
 optional Freesound CC0 downloads with his own account. The licence of Stable Audio he answered on
 2026-11-16 by choosing MOSS only, and the shield is settled without it (section 1).
 
-Unrated sounds on the page: none. Counted by a script from `assets/audio/render/manifest.json` and
+Unrated sounds on the page: the eight library sounds of round 7 (8 of 197, by a script after the
+library step of 2026-11-18). The 189 of before that step were counted by a script from `assets/audio/render/manifest.json` and
 `assets/audio/ratings.json` (saved 2026-11-18T19:22:12.338Z, SHA-256 prefix `4509dbcd`), with the
 page's rule that a sound is rated when it has stars, a verdict or a note: 0 of 189 are unrated. By
 verdict: 107 fit, 24 close, 56 wrong, and two have five stars and no verdict (`cruise_loop`,
@@ -387,6 +397,24 @@ Not to be started without his word:
 - His audition page (the preview server `audition` on port 5190).
 
 ### 5. Lessons of rounds 4 to 7
+
+The library step for round 7 (2026-11-18, late evening):
+
+- "It is the file he heard" is a gate to measure, not a sentence to write. The first build differed
+  from the page copies by -20 to -40 dB: the page copy has its mean taken out, ends by other
+  thresholds, and its cut start was recorded with too few decimals. Before a library file reaches
+  the real tree, compare it with the copy he rated: the same length, offset 0, one gain, and a
+  residual at the floor of the format.
+- Give a checker a threshold that can be met. "Below -70 dB" cannot be met by two 16 bit files at
+  -28 LUFS; the second checker showed that -65 dB there is the noise of the two quantisations and
+  nothing else. Name the floor of the format, not a round number.
+- Ask a server of your own which ratings file it writes (`/audio-lib/ratings-path`), read the
+  answer, and only then let anything open its page. The orchestrator put the question and the
+  measuring tool into one command; the variable had not reached the server, which named his real
+  file. The tool only presses Play and the file is byte-identical, but that was the nature of the
+  tool, not care.
+- Before the first merge under a new way of working, read the app's own settings: it archived a
+  session when its pull request merged, and archiving cleans up the session's worktree.
 
 The evening of round 7 (2026-11-18):
 
