@@ -2,8 +2,8 @@
 
     from synth import register, SR
 
-    @register("button_press")
-    def button_press(ctx):          # ctx.n samples, ctx.spec is the entry of sounds.json
+    @register("sensor_proximity_tick")
+    def sensor_proximity_tick(ctx):         # ctx.n samples, ctx.spec is the entry of sounds.json
         return some_float_array     # shape (ctx.n,) or (ctx.n, 2), any level; the build sets it
 
 The build sets the level from the table in levels.py, so a renderer returns the sound at any
