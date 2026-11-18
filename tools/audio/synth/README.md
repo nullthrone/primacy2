@@ -18,13 +18,14 @@ from . import register, hull_blow, apply_cabin, seeded
 def impact_hull_light(ctx):
     rng = ctx.rng()                       # fixed by the sound id: the same on every run
     return hull_blow(ctx.n, strength=0.25, rng=rng)
-
-@register("relay_click_a")
-def relay_click_a(ctx):
-    n = ctx.n
-    click = ...                           # build the dry sound with the helpers below
-    return apply_cabin(click)[:, 0]       # cabin sounds are heard in the cabin: bake it in
 ```
+
+A sound of path `cabin` that is heard in the seat is built dry with the helpers below and returned as
+`apply_cabin(dry)[:, 0]`, the cabin baked in (`cat_cabin.py` does it for the ambience). The eight
+rendered switch sounds that were the example here (`relay_click_a`, `relay_click_b`,
+`switch_toggle`, `switch_rotary`, `breaker_thunk`, `button_press`, `systems_power_up`,
+`systems_power_down`) were taken out on 2026-11-18 on the owner's word: "die ganzen Relais Töne
+bitte weglassen". The category `switches` has no rendered sound since; the downloaded ones stay.
 
 Build and read the result:
 
@@ -138,8 +139,6 @@ Loops are set by integrated loudness (LUFS), one-shots by true peak (dBFS); the 
 | cabin at rest / silent running | -45 / -55 LUFS |
 | engine idle, 1/4, 1/2, 3/4, full, boost (mono sum) | -38, -32, -27, -23, -20, -17 LUFS |
 | cruise loop / fold tunnel | -24 / -34 LUFS |
-| clicks, console keys, toggles | -16 dBFS peak |
-| relays, breaker | -14 dBFS peak |
 | thruster pulses | -12 dBFS peak |
 | hull and shield hits light / medium / heavy | -9 / -5 / -1.5 dBFS peak |
 | touchdown gentle / hard | -10 / -2 dBFS peak |

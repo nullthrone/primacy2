@@ -142,9 +142,11 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
 #   impacts  short -5 peak (impact_*_medium). Long: no value; an impact of medium strength that
 #            lasts a couple of seconds measures about -26 LUFS, taken as -26.
 #   landing  short -8 peak (landing one-shot default), long -32 LUFS (landing loop default).
-#   switches short -14 peak (relay_click_*, breaker_thunk); long: no value, -30 LUFS (as thrusters).
-#   cabin    short: no value, -16 peak (button_press); long one-shot -32 LUFS (see below); loop -45
-#            LUFS (cabin_ambience_loop).
+#   switches short -14 peak (the one-shot default of the category in levels.py; the rendered relay_click_*
+#            and breaker_thunk that had this level were taken out on 2026-11-18); long: no value, -30 LUFS
+#            (as thrusters).
+#   cabin    short: no value, -16 peak (the level button_press had until it was taken out on 2026-11-18);
+#            long one-shot -32 LUFS (see below); loop -45 LUFS (cabin_ambience_loop).
 #   sensors  default is -27 LUFS for any one-shot; for the short ones that is about -17 dB peak
 #            of a blip, taken as -16 peak. Loops: no value, -27 LUFS as the one-shots.
 #   radio    short -14 peak, long / loop -32 LUFS (radio defaults).
@@ -574,6 +576,7 @@ def _excerpt_downloads(out: Path, measure_mod, common) -> list[dict]:
 
 GENERATED_LIST_KEYS = ("id", "standsFor", "file", "sha256", "cut", "lufs", "en", "de", "origin", "licence")
 GENERATED_ORIGIN_KEYS = ("model", "prompt", "seed", "round", "candidate", "verdict", "ratedAt")
+GENERATED_DERIVED_KEYS = ("parentFile", "parentSha256", "parentRound", "parentCandidate", "parentVerdict", "process", "operations")
 LEVEL_TOLERANCE_LU = 0.1    # a generated sound must land this close to its target loudness (unless the ceiling stops it)
 LEVEL_SEARCH_LU = 0.01      # the search for the gain goes on until the measured loudness is this close
 
@@ -612,24 +615,119 @@ def set_loudness(x: np.ndarray, target: float, ceiling_db: float = DOWNLOAD_CEIL
                "truePeakDb": round(float(tp), 2), "limited": bool(limited), "iterations": n}
 
 
-def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float) -> tuple[np.ndarray, dict]:
+# From this round of the owner's listening tests on, a generated sound is built the way the page copy he rated was made
+# (tools/sound/screen.py _finish): the library file is that copy times one gain. Earlier rounds keep the repair of the ends
+# that is shared with downloads, so that the files built before do not change.
+PAGE_FINISH_FROM_ROUND = 7
+PAGE_STEP_DB = -72.0         # the page's rule: a sample above this at an end is a step (the page's static rule is -60 dBFS)
+PAGE_FADE_S = 0.030          # fade out (raised cosine) where the last PAGE_TAIL_S are not silent
+PAGE_TAIL_S = 0.010          # the last 10 ms the page checks; after a fade this much digital silence follows it
+PAGE_RAMP_S = 0.0015         # ramp in from zero to the first sample where that sample is a step
+PAGE_DC_LIMIT = 0.001        # the page fails a file whose mean is this or more: from half of it the mean is taken out
+
+
+def rated_from_page_copy(origin: dict) -> bool:
+    """True where the owner rated the candidate from a page copy that was finished like page_finish (round PAGE_FINISH_FROM_ROUND on)."""
+    r = origin.get("round")
+    return isinstance(r, int) and not isinstance(r, bool) and r >= PAGE_FINISH_FROM_ROUND
+
+
+def page_finish(y: np.ndarray) -> tuple[np.ndarray, dict]:
+    """The steps of tools/sound/screen.py _finish after its gain, in its order, on y (n, ch) at 48 kHz that is already at its level
+    (the decisions below are made on the level that ships): where the last PAGE_TAIL_S are above PAGE_STEP_DB the last PAGE_FADE_S
+    are faded out and PAGE_TAIL_S of silence follow; where the first sample is above PAGE_STEP_DB a ramp of PAGE_RAMP_S from zero is put
+    in front; where the mean is PAGE_DC_LIMIT / 2 or more it is taken out with a window that is 1 in the middle and tapers over the
+    first PAGE_RAMP_S and the last 5 ms (the silence at the end is left as it is). Every step is linear in y. y is not changed.
+    Returns (copy, {"fade", "ramp", "dcBefore", "dcAfter", "tailPeak", "firstPeak"}: what decided the first three)."""
+    y = np.array(y, dtype=np.float64)
+    thr = 10.0 ** (PAGE_STEP_DB / 20.0)
+    tail = int(round(PAGE_TAIL_S * DOWNLOAD_SR))
+    tail_peak = float(np.abs(y[-tail:]).max())
+    fade = bool(tail_peak > thr)
+    if fade:
+        m = min(int(round(PAGE_FADE_S * DOWNLOAD_SR)), y.shape[0])
+        y[-m:] *= (0.5 + 0.5 * np.cos(np.pi * (np.arange(m) + 1) / m))[:, None]
+        y = np.concatenate([y, np.zeros((tail, y.shape[1]))], axis=0)
+    first_peak = float(np.abs(y[0]).max())
+    ramp = bool(first_peak > thr)
+    if ramp:
+        n = int(round(PAGE_RAMP_S * DOWNLOAD_SR))
+        r = 0.5 - 0.5 * np.cos(np.pi * np.arange(n) / n)
+        y = np.concatenate([y[0][None, :] * r[:, None], y], axis=0)
+    dc_before = float(np.abs(y.mean(axis=0)).max())
+    if dc_before >= PAGE_DC_LIMIT / 2:
+        n = y.shape[0] - tail
+        a_, b_ = min(int(round(PAGE_RAMP_S * DOWNLOAD_SR)), n // 4), min(int(round(0.005 * DOWNLOAD_SR)), n // 4)
+        w = np.ones(n)
+        w[:a_] = 0.5 - 0.5 * np.cos(np.pi * np.arange(a_) / max(a_, 1))
+        w[n - b_:] = 0.5 + 0.5 * np.cos(np.pi * np.arange(b_) / max(b_, 1))
+        corr = np.zeros_like(y)
+        corr[:n] = (y.mean(axis=0, keepdims=True) * (y.shape[0] / float(w.sum()))) * w[:, None]
+        y = y - corr
+    return y, {"fade": fade, "ramp": ramp, "dcBefore": dc_before, "dcAfter": float(np.abs(y.mean(axis=0)).max()),
+               "tailPeak": tail_peak, "firstPeak": first_peak}
+
+
+def process_generated(data: np.ndarray, sr: int, cut: tuple[float, float], lufs_target: float,
+                      page_copy: bool = False) -> tuple[np.ndarray, dict]:
     """Turn the raw file of a generated sound into the file that is shipped: arrays in, array out.
     Cut as recorded (seconds, to the nearest sample), 48 kHz (prepare_download), the ends of a one-shot made without a step
     (repair_oneshot_ends, the same as for a download), then the integrated loudness set to
     lufs_target (set_loudness) within the true-peak ceiling of the download step. Nothing here is
-    random, so the same input gives the same output."""
-    # the recorded seconds are sample positions written with four decimals: the nearest sample, not
-    # the one below (int(0.006 * 48000) is 287 because of the binary fraction; the position is 288)
+    random, so the same input gives the same output.
+    page_copy (the sound was rated from a page copy, see rated_from_page_copy): instead of repair_oneshot_ends the
+    steps of page_finish, which the page copy went through, then the loudness. The level is set once on the cut, the
+    steps of page_finish are decided on that level, and the loudness is set again on what they made, so that
+    the result is the page copy times one gain (fade, ramp and mean removal are linear)."""
+    # the recorded seconds are sample positions: the nearest sample, not the one below
+    # (int(0.006 * 48000) is 287 because of the binary fraction; the position is 288). A position written with four decimals
+    # is a sample only to within 2.4 samples at 48 kHz: the cut of a page_copy sound is written with enough decimals for its sample.
     first, last = int(round(cut[0] * sr)), int(round(cut[1] * sr))
     x, info = prepare_download(np.asarray(data)[first:last], sr)
     info["fadeInMs"] = info["fadeOutMs"] = info["leadInMs"] = info["appendedTailMs"] = 0.0
-    x = repair_oneshot_ends(x, info)
+    if page_copy:
+        leveled, _ = set_loudness(x, lufs_target)
+        x, fin = page_finish(leveled)
+        info["fadeOutMs"] = round(1000.0 * PAGE_FADE_S, 3) if fin["fade"] else 0.0
+        info["leadInMs"] = round(1000.0 * PAGE_RAMP_S, 3) if fin["ramp"] else 0.0
+        info["pageFinish"] = fin
+    else:
+        x = repair_oneshot_ends(x, info)
     y, info["level"] = set_loudness(x, lufs_target)
     return y, info
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _derived_problem(d) -> str | None:
+    """The optional object "derived" of a generated entry (a sound made by tools/sound/derive.py from the committed raw file
+    of a parent): parentFile (a plain .wav file name next to the raw files), parentSha256, parentRound (an integer),
+    parentCandidate and parentVerdict (text), process (the list of operations, each with its "op") and operations (what each
+    one reported, one per operation, in the same order). Returns a message or None."""
+    if not isinstance(d, dict):
+        return "derived is not an object"
+    for k in GENERATED_DERIVED_KEYS:
+        if k not in d:
+            return "no derived.%s" % k
+    f = d["parentFile"]
+    if not isinstance(f, str) or not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_.-]*\.wav", f):
+        return "derived.parentFile is not a plain file name"
+    if not isinstance(d["parentSha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", d["parentSha256"]):
+        return "derived.parentSha256 is not a sha256"
+    if not isinstance(d["parentRound"], int) or isinstance(d["parentRound"], bool):
+        return "derived.parentRound is not an integer"
+    for k in ("parentCandidate", "parentVerdict"):
+        if not isinstance(d[k], str) or not d[k]:
+            return "derived.%s is not text" % k
+    for k in ("process", "operations"):
+        v = d[k]
+        if not isinstance(v, list) or not v or not all(isinstance(o, dict) and isinstance(o.get("op"), str) for o in v):
+            return "derived.%s is not a list of operations" % k
+    if [o["op"] for o in d["process"]] != [o["op"] for o in d["operations"]]:
+        return "derived.operations does not follow derived.process"
+    return None
 
 
 def _generated_entry_problem(it: dict) -> str | None:
@@ -644,6 +742,10 @@ def _generated_entry_problem(it: dict) -> str | None:
             return "no cut.%s" % k
     if not it["cut"]["endS"] > it["cut"]["startS"] >= 0:
         return "the cut is empty"
+    if "derived" in it:
+        why = _derived_problem(it["derived"])
+        if why:
+            return why
     return None
 
 
@@ -719,9 +821,22 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 problem("  generated entry %s refused: the sha256 of %s is %s, the list says %s; "
                         "a sound is never built from another file" % (sid, it["file"], have, it["sha256"]))
                 continue
+            if "derived" in it:
+                # the parent file is committed next to the raw files; the sound is built from its own raw file, never from the parent,
+                # but the record of how it was made must name a parent that is there and unchanged
+                d = it["derived"]
+                parent = raw_dir / d["parentFile"]
+                if not parent.is_file():
+                    problem("  generated entry %s refused: the parent file %s is missing on disk" % (sid, d["parentFile"]))
+                    continue
+                have_parent = _sha256(parent)
+                if have_parent != d["parentSha256"]:
+                    problem("  generated entry %s refused: the sha256 of the parent file %s is %s, the list says %s; "
+                            "a sound is never recorded as made from another file" % (sid, d["parentFile"], have_parent, d["parentSha256"]))
+                    continue
             cut = (float(it["cut"]["startS"]), float(it["cut"]["endS"]))
             data, sr = common.load_audio(src)
-            y, info = process_generated(data, sr, cut, float(it["lufs"]))
+            y, info = process_generated(data, sr, cut, float(it["lufs"]), page_copy=rated_from_page_copy(it["origin"]))
             wav = folder / (sid + ".wav")
             write_wav(wav, y, dither_seed="generated/" + sid)
             back, back_sr = common.load_audio(wav)
@@ -751,7 +866,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 "id": sid, "file": "generated/%s.wav" % sid, "spectrogram": "generated/%s.png" % sid,
                 "category": event["category"], "kind": event["kind"], "path": event["path"],
                 **({"place": event["place"]} if "place" in event else {}),
-                "en": it["en"], "de": it["de"], "intent": it.get("intent") or generated_intent(it, event),
+                "en": it["en"], "de": it["de"], "intent": it.get("intent") or generated_intent(it, event, int(back.shape[1])),
                 "source": "generated", "licence": it["licence"],
                 "duration": round(back.shape[0] / back_sr, 4), "channels": int(back.shape[1]), "gain": 1.0,
                 "dry": False, "hash": file_hash(wav), "checks": checks,
@@ -760,6 +875,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                     "round": o["round"], "candidate": o["candidate"], "sha256": it["sha256"],
                     "modelRevision": o.get("modelRevision"), "codeCommit": o.get("codeCommit"),
                     "verdict": o["verdict"], "ratedAt": o["ratedAt"], "cut": it["cut"], "rawFile": it["file"],
+                    **({"derived": it["derived"]} if "derived" in it else {}),
                 },
             })
         except Exception as e:
@@ -771,16 +887,52 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     return entries
 
 
-def generated_intent(it: dict, event: dict) -> str:
+def _say_operation(p: dict, o: dict) -> str:
+    """One operation of a derived sound in words, built from the data of the entry: its name, the settings of the list
+    (derived.process) and what it reported (derived.operations), nothing from a table of the code."""
+    parts = ["%s %s" % (k, str(v)) for k, v in p.items() if k != "op"]
+    for k, v in o.items():
+        if k == "op" or k in p:
+            continue
+        if isinstance(v, dict):
+            v = "(" + ", ".join("%s %s" % (kk, str(vv)) for kk, vv in v.items()) + ")"
+        parts.append("%s %s" % (k, str(v)))
+    return "%s (%s)" % (p["op"], ", ".join(parts))
+
+
+def generated_intent(it: dict, event: dict, channels: int = 1) -> str:
     """The intent text of a generated sound: prompt, seed, round, who accepted it and when, which
-    event it stands for and the level rule."""
+    event it stands for and the level rule. A derived sound (the entry has "derived") says that it was
+    made from the parent candidate and by which operations with the numbers they reported; its prompt and
+    seed are those of the parent. channels is that of the built file: the level sentence says the lufs is the loudness
+    of the rendered event (one channel) only for one channel; a file with two channels is set higher than that, because
+    the audition page takes about 3 dB off a two-channel file (see README, round 7)."""
     o = it["origin"]
-    return ("Generated with %s. Prompt: \"%s\" (seed %s, round %s, candidate %s). The owner heard it and accepted it "
-            "(verdict %s) on %s. It stands for the event %s (%s). Level: the integrated loudness is set to %.2f LUFS, "
-            "the loudness of that rendered event today; provisional until the mix of the game is designed. "
-            "The owner heard the candidate at a lower level." % (
-                o["model"], o["prompt"], o["seed"], o["round"], o["candidate"], o["verdict"], o["ratedAt"],
-                it["standsFor"], event.get("en", it["standsFor"]), float(it["lufs"])))
+    d = it.get("derived")
+    if d is None:
+        head = "Generated with %s. Prompt: \"%s\" (seed %s, round %s, candidate %s). " % (
+            o["model"], o["prompt"], o["seed"], o["round"], o["candidate"])
+    else:
+        ops = "; ".join(_say_operation(p, q) for p, q in zip(d["process"], d["operations"]))
+        head = ("Made from a file generated with %s: the parent file %s (sha256 %s), the candidate %s of round %s, which the owner called %s. "
+                "Prompt of the parent: \"%s\" (seed %s). Operations on the parent, in this order, with the numbers they reported: %s. "
+                "This sound is the candidate %s of round %s; the build does not run the operations again, it starts from the committed raw file of this sound. " % (
+                    o["model"], d["parentFile"], d["parentSha256"], d["parentCandidate"], d["parentRound"], d["parentVerdict"],
+                    o["prompt"], o["seed"], ops, o["candidate"], o["round"]))
+    # rounds 4 to 6 were heard at -34 or -35 LUFS, under the library level; from round 7 on the candidates were heard at about the library level
+    lower = isinstance(o["round"], int) and not isinstance(o["round"], bool) and o["round"] < PAGE_FINISH_FROM_ROUND
+    # the sentence about one and two channels is true only where the event has one channel and the built file two
+    if channels == 2 and int(event.get("channels", 1)) == 1:
+        level = ("Level: the integrated loudness is set to %.2f LUFS. The rendered event has one channel, and the audition page plays a "
+                 "file with two channels about 3 dB lower than a one-channel file of the same loudness; this file keeps that relation, so "
+                 "its loudness is about 3 dB above that of the rendered event today; provisional until the mix of the game is designed. " % float(it["lufs"]))
+    else:
+        level = ("Level: the integrated loudness is set to %.2f LUFS, the loudness of that rendered event today; "
+                 "provisional until the mix of the game is designed. " % float(it["lufs"]))
+    return (head + "The owner heard it and accepted it (verdict %s) on %s. It stands for the event %s (%s). %s%s" % (
+                o["verdict"], o["ratedAt"], it["standsFor"], event.get("en", it["standsFor"]), level,
+                "The owner heard the candidate at a lower level." if lower else
+                "The level is close to the one the owner heard the candidate at (tools/audio/README.md gives both)."))
 
 
 def assemble_manifest(out: Path, measure_mod, common, problems: list | None = None) -> dict:
@@ -868,6 +1020,10 @@ def validate_manifest(manifest: dict, out: Path) -> list[str]:
                 for k in ("standsFor", "model", "prompt", "seed", "round", "candidate", "sha256"):
                     if g.get(k) in (None, ""):
                         bad.append("%s: generated.%s missing" % (name, k))
+                if "derived" in g:
+                    why = _derived_problem(g["derived"])
+                    if why:
+                        bad.append("%s: generated.%s" % (name, why))
         if s.get("source") in ("download", "generated"):
             if not s.get("duration"):
                 bad.append("%s: duration is 0" % name)

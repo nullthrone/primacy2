@@ -453,7 +453,6 @@ class LevelsCeilingAndTable(unittest.TestCase):
         self.assertEqual(L["silent_running_loop"], ("lufs", -55.0))
         self.assertEqual(L["fold_jump"], ("peak", -1.5))
         self.assertEqual(L["impact_hull_heavy"], ("peak", -1.5))
-        self.assertEqual(L["button_press"], ("peak", -16.0))
         self.assertEqual(levels.target_for("not_in_the_table", "alarms", "oneshot"), ("lufs", -20.0))
         with self.assertRaises(KeyError):
             levels.target_for("not_in_the_table", "nowhere", "loop")
@@ -461,7 +460,7 @@ class LevelsCeilingAndTable(unittest.TestCase):
     def test_every_rendered_sound_is_under_the_ceiling_measured_independently(self):
         errors = synth.load_categories()   # every cat_* module, so that all sounds are registered
         self.assertEqual(errors, [])
-        self.assertGreaterEqual(len(synth.REGISTRY), 64)
+        self.assertGreaterEqual(len(synth.REGISTRY), 56)
         for sid in sorted(synth.REGISTRY):
             x, _ = synth.render(sid)
             pcm = synth.to_int16(x, sid).astype(np.float64) / 32768.0
