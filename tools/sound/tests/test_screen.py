@@ -29,6 +29,7 @@ def load(name: str):
 
 
 screen = load("screen")
+derive = load("derive")
 import soundfile as sf  # noqa: E402
 
 SR = 48000
@@ -1153,10 +1154,12 @@ def test_round_4_files_have_none_of_the_new_keys():
 def test_the_new_category_comes_first_in_sounds_json():
     spec = json.loads((SOUND.parent / "audio" / "sounds.json").read_text(encoding="utf-8"))
     cats = [c["id"] for c in spec["categories"]]
+    if cats[0] == "events7":  # the select step of round 7 puts its category in front of the others
+        cats = cats[1:]
     assert cats[:3] == ["events6", "events5", "source"], cats[:3]
-    c0 = spec["categories"][0]
+    c0 = next(c for c in spec["categories"] if c["id"] == "events6")
     assert c0["de"] == "Ereignisklänge (Runde 6)" and c0["en"] == "Event sounds (round 6)"
-    assert spec["categories"][1]["de"] == "Ereignisklänge (Runde 5)"
+    assert next(c for c in spec["categories"] if c["id"] == "events5")["de"] == "Ereignisklänge (Runde 5)"
     assert json.loads((SOUND / "prompts6.json").read_text(encoding="utf-8"))["category"]["id"] == "events6"
     sk6 = json.loads((SOUND / "skips6.json").read_text(encoding="utf-8"))["skips"]
     assert isinstance(sk6, list) and all(s["candidate"].count("/") == 1 and s["reason"].strip() for s in sk6), sk6
@@ -1164,6 +1167,412 @@ def test_the_new_category_comes_first_in_sounds_json():
     # The list grows with every spectrogram review of the round, so only its form is fixed here.
     sk5 = json.loads((SOUND / "skips5.json").read_text(encoding="utf-8"))["skips"]
     assert isinstance(sk5, list) and all(s["candidate"].count("/") == 1 and s["reason"].strip() for s in sk5), sk5
+
+
+# ---- round 7: derive.py, the shot counter, fixed families, the shots rule -------------------------
+
+def sine(freq: float, seconds: float, amp: float = 0.3, sr: int = SR) -> np.ndarray:
+    t = np.arange(int(seconds * sr)) / sr
+    return amp * np.sin(2 * np.pi * freq * t)
+
+
+def peak_freq(x: np.ndarray, sr: int = SR) -> float:
+    spec = np.abs(np.fft.rfft(np.asarray(x, dtype=np.float64).reshape(-1) * np.hanning(np.asarray(x).reshape(-1).size)))
+    return float(np.fft.rfftfreq(np.asarray(x).reshape(-1).size, 1.0 / sr)[int(spec.argmax())])
+
+
+def db_between(a: np.ndarray, b: np.ndarray) -> float:
+    return 10.0 * np.log10(float((np.asarray(a, dtype=np.float64) ** 2).sum()) / float((np.asarray(b, dtype=np.float64) ** 2).sum()))
+
+
+def test_derive_identities():
+    x = sine(440, 0.5)
+    n = x.size
+    cases = {"empty process": [], "pitch 0": [{"op": "pitch", "semitones": 0.0}], "shelf 0 dB": [{"op": "shelf", "hz": 300.0, "gainDb": 0.0}]}
+    for what, proc in cases.items():
+        y, _ = derive.apply_process(x, SR, proc)
+        assert y.shape == (n, 1) and np.abs(y[:, 0] - x).max() < 1e-6, what
+    y, ops = derive.apply_process(x, SR, [{"op": "room", "rt60S": 0.5, "wetDb": -200.0, "channels": 1, "seed": 3}])
+    assert np.abs(y[:n, 0] - x).max() < 1e-6 and np.abs(y[n:]).max() < 1e-6 and y.shape[0] == n + int(round(1.5 * 0.5 * SR)) - 1
+    assert ops[0]["outputGainDb"] == 0.0
+    y2, _ = derive.apply_process(x, SR, [{"op": "room", "rt60S": 0.5, "wetDb": -200.0, "channels": 2, "seed": 3}])
+    assert y2.shape[1] == 2 and np.abs(y2[:n, 0] - x).max() < 1e-6 and np.abs(y2[:n, 1] - x).max() < 1e-6
+
+
+def test_derive_room_has_the_asked_wet_level_and_a_tail_that_decays_as_asked():
+    rng = np.random.default_rng(5)
+    t = np.arange(int(0.3 * SR)) / SR
+    x = 0.15 * rng.standard_normal(t.size) * np.exp(-12 * t)
+    for nch in (1, 2):
+        y, ops = derive.apply_process(x, SR, [{"op": "room", "rt60S": 0.9, "wetDb": -9.0, "channels": nch, "seed": 7}])
+        assert ops[0]["outputGainDb"] == 0.0 and y.shape[1] == nch
+        wet = y.copy()
+        wet[:x.size, :] -= x[:, None]
+        e_wet = float((wet ** 2).sum(axis=0).mean())  # for two channels the mean energy of the two wet channels
+        near(10.0 * np.log10(e_wet / float((x ** 2).sum())), -9.0, 0.02, "wet/dry %d ch" % nch)
+        near(ops[0]["wetDryDbReached"], -9.0, 0.02, "recorded wet/dry")
+        assert y.shape[0] == x.size + int(round(1.5 * 0.9 * SR)) - 1
+        near(ops[0]["irLengthS"], 1.35, 1e-3, "ir length")
+        if nch == 2:
+            assert np.abs(y[:, 0] - y[:, 1]).max() > 1e-3  # two rooms, not a copy
+    # the response: early reflections as single samples with alternating sign, a tail in three bands
+    ir = derive.room_ir(SR, 0.9, 7, 0)
+    for k, (ms, db) in enumerate(zip(derive.EARLY_MS[0], derive.EARLY_DB)):
+        i = int(round(ms * SR / 1000))
+        if ms < 30.0:  # before the tail starts the sample is the reflection alone; later the noise of the tail is added to it
+            near(float(ir[i]) / (-1.0) ** k, 10 ** (db / 20), 1e-9, "early reflection %d" % k)
+    ir2 = derive.room_ir(SR, 0.9, 7, 1)  # the second channel: other delays, another noise
+    assert [int(i) for i in np.flatnonzero(ir2[:int(0.030 * SR)])] == [int(round(ms * SR / 1000)) for ms in derive.EARLY_MS[1][:2]]
+    assert float(np.abs(ir[:int(0.018 * SR)]).max()) == 0.0 and ir.size == int(round(1.5 * 0.9 * SR))
+    from scipy import signal
+
+    def level(sos, t0):  # the level of one band of the response in a 50 ms window, dB
+        b = signal.sosfilt(sos, ir)
+        i = int(t0 * SR)
+        return 10 * np.log10(float((b[i:i + int(0.05 * SR)] ** 2).mean()))
+
+    bands = {"low": (signal.butter(4, 300, "lowpass", fs=SR, output="sos"), 0.9 * 1.2),
+             "mid": (signal.butter(4, [300, 3000], "bandpass", fs=SR, output="sos"), 0.9),
+             "high": (signal.butter(4, 3000, "highpass", fs=SR, output="sos"), 0.9 * 0.5)}
+    for name, (sos, rt) in bands.items():
+        fall = level(sos, 0.15) - level(sos, 0.40)
+        near(fall, 60.0 * 0.25 / rt, 3.0, "decay of the %s band between 0.15 s and 0.40 s" % name)
+    # the same seed gives the same response, another seed another one
+    assert np.array_equal(ir, derive.room_ir(SR, 0.9, 7, 0)) and not np.array_equal(ir, derive.room_ir(SR, 0.9, 8, 0))
+    # a loud result is scaled down to 0.999 and says by how much
+    loud = sine(300, 0.3, 1.0)
+    y, ops = derive.apply_process(loud, SR, [{"op": "room", "rt60S": 0.4, "wetDb": -3.0, "channels": 1, "seed": 1}])
+    near(float(np.abs(y).max()), 0.999, 1e-9, "scaled peak")
+    assert ops[0]["outputGainDb"] < 0
+
+
+def test_derive_pitch_moves_a_sine_by_the_asked_interval_and_shortens_the_file():
+    x = sine(1000, 1.0)
+    for semi in (12.0, 3.0, -5.0):
+        y, ops = derive.apply_process(x, SR, [{"op": "pitch", "semitones": semi}])
+        f = 2.0 ** (semi / 12.0)
+        near(peak_freq(y[:, 0]), 1000 * f, 2.0, "pitch %g" % semi)
+        near(y.shape[0] / x.size, 1.0 / f, 0.002, "length at %g" % semi)
+    y, _ = derive.apply_process(x, SR, [{"op": "pitch", "semitones": 12.0}])
+    assert y.shape[0] == x.size // 2
+
+
+def test_derive_shelf_lifts_a_high_sine_by_the_asked_gain_and_leaves_a_low_one():
+    for hz, expect in ((100.0, 0.0), (8000.0, 8.0)):
+        x = sine(hz, 1.0, 0.1)
+        y, ops = derive.apply_process(x, SR, [{"op": "shelf", "hz": 2000.0, "gainDb": 8.0}])
+        a, b = x[SR // 2:], y[SR // 2:, 0]  # past the start-up
+        near(10 * np.log10(float((b ** 2).sum() / (a ** 2).sum())), expect, 0.3, "gain at %g Hz" % hz)
+        assert ops[0]["outputGainDb"] == 0.0
+    y, ops = derive.apply_process(sine(8000, 0.5, 0.9), SR, [{"op": "shelf", "hz": 2000.0, "gainDb": 8.0}])
+    near(float(np.abs(y).max()), 0.999, 1e-9, "scaled peak")
+    assert ops[0]["outputGainDb"] < 0
+
+
+def burst(ms: float = 150.0, amp: float = 0.15) -> np.ndarray:
+    n = int(ms / 1000 * SR)
+    return amp * RNG.standard_normal(n) * np.exp(-np.arange(n) / SR * 25.0)
+
+
+def test_the_shots_counter_gives_1_2_and_3_also_with_a_room_between_the_shots():
+    for k in (1, 2, 3):
+        x = place(0.2 + 1.0 * k + 0.5, [(0.1 + 1.0 * i, burst()) for i in range(k)])
+        assert screen.count_shots(x, SR) == k, k
+        y, _ = derive.apply_process(x[:, 0], SR, [{"op": "room", "rt60S": 0.9, "wetDb": -9.0, "channels": 1, "seed": 7}])
+        assert screen.count_shots(y, SR) == k, ("room", k)
+        y2, _ = derive.apply_process(x[:, 0], SR, [{"op": "room", "rt60S": 1.2, "wetDb": -6.0, "channels": 2, "seed": 7}])
+        assert screen.count_shots(y2, SR) == k, ("two-channel room", k)
+    # the rule: two bursts 50 ms apart (the level has not stayed under -20 dB for 80 ms) are one shot, 200 ms apart two
+    assert screen.count_shots(place(1.0, [(0.1, burst(100)), (0.25, burst(100))]), SR) == 1
+    assert screen.count_shots(place(1.0, [(0.1, burst(100)), (0.50, burst(100))]), SR) == 2
+    # a level between -20 and -12 dB is not quiet: a bed at about -16 dB holds the counter, a burst on it is no new shot
+    x = place(1.2, [(0.1, burst(100)), (0.2, 0.024 * RNG.standard_normal(int(0.6 * SR))), (0.6, burst(100, 0.09))])
+    assert screen.count_shots(x, SR) == 1
+    assert screen.count_shots(np.zeros((SR, 1)), SR) == 0
+
+
+SPEC7 = {"category": {"id": "events5", "de": "d", "en": "e", "idPrefix": "ev7"}, "sources": ["moss", "derived"], "seeds": [21, 22, 23, 24],
+         "families": [
+             {"id": "thruster_fix", "de": "Duese fix", "en": "Thruster fixed", "what": "w", "history": "Made from a candidate that the owner called close.",
+              "fixed": True, "maxS": 3.6, "oneEvent": False, "lufs": -28.0, "picks": [], "prompts": [], "derived": [
+                  {"id": "thruster_fix_1", "tag": "r6p3s11a", "de": "Raum leicht", "en": "light room",
+                   "from": {"round": 6, "candidate": "ev6_2_thruster_mighty_2_moss_p3s11", "verdict": "close", "raw": "RAW", "sha256": "SHA"},
+                   "process": [{"op": "room", "rt60S": 0.5, "wetDb": -9.0, "channels": 1, "seed": 7}]},
+                  {"id": "thruster_fix_2", "tag": "r6p3s11b", "de": "Raum breit", "en": "wide room",
+                   "from": {"round": 6, "candidate": "ev6_2_thruster_mighty_2_moss_p3s11", "verdict": "close", "raw": "RAW", "sha256": "SHA"},
+                   "process": [{"op": "room", "rt60S": 0.7, "wetDb": -6.0, "channels": 2, "seed": 7}]},
+                  {"id": "thruster_fix_3", "tag": "r6p3s11c", "de": "hoeher", "en": "higher",
+                   "from": {"round": 6, "candidate": "ev6_2_thruster_mighty_2_moss_p3s11", "verdict": "close", "raw": "RAW", "sha256": "SHA"},
+                   "process": [{"op": "pitch", "semitones": 3.0}]}]},
+             {"id": "thruster_gen", "de": "Duese drei", "en": "Thruster three", "what": "w", "history": "The owner heard this prompt in round 6.",
+              "proven": False, "seconds": 4, "maxS": 3.8, "oneEvent": False, "shots": 2, "lufs": -28.0, "picks": ["moss", "moss"],
+              "prompts": [{"id": "thruster_gen_1", "text": "A cannon fires two shots"}]},
+             {"id": "shield_fix", "de": "Schild fix", "en": "Shield fixed", "what": "w", "history": "Made from a candidate that the owner called close.",
+              "fixed": True, "maxS": 1.5, "oneEvent": True, "lufs": -24.0, "picks": [], "prompts": [], "derived": [
+                  {"id": "shield_fix_1", "tag": "r6p2s11b", "de": "mehr Hoehen", "en": "more highs",
+                   "from": {"round": 6, "candidate": "ev6_3_shield_tight_2_moss_p2s11", "verdict": "close", "raw": "RAW2", "sha256": "SHA2"},
+                   "process": [{"op": "shelf", "hz": 300.0, "gainDb": 8.0}]}]},
+             {"id": "hull_gen", "de": "Rumpf", "en": "Hull", "what": "w", "proven": True, "seconds": 2, "maxS": 1.5, "oneEvent": True, "lufs": -30.0,
+              "picks": ["moss"], "prompts": [{"id": "hull_gen_1", "text": "A knock"}]}]}
+
+
+def build_round7(td: Path, shots_by_seed: dict, fixed_raw: dict | None = None) -> tuple[Path, Path, Path]:
+    """A fake round-7 tree: the raw files of the derived items (two shots 1 s apart, one burst for the shield), a prompts file
+    with their real sha256, the derived files made by derive.py, and moss files with the given number of shots."""
+    import hashlib
+
+    rawd = td / "raw6"
+    rawd.mkdir()
+    sets = {}
+    thr = place(2.2, [(0.1, burst(200)), (1.1, burst(200))])[:, 0]
+    sh = place(0.8, [(0.05, burst(120, 0.15))])[:, 0]
+    for key, data in (("RAW", thr), ("RAW2", sh)):
+        p = rawd / (key + ".wav")
+        sf.write(str(p), (fixed_raw or {}).get(key, data).astype(np.float32), SR, subtype="FLOAT")
+        sets[key] = (str(p), hashlib.sha256(p.read_bytes()).hexdigest())
+    spec = json.loads(json.dumps(SPEC7))
+    for f in spec["families"]:
+        for it in f.get("derived", []):
+            it["from"]["raw"], it["from"]["sha256"] = sets[it["from"]["raw"]]
+    pf = td / "prompts7.json"
+    pf.write_text(json.dumps(spec), encoding="utf-8")
+    root = td / "r7"
+    assert derive.main(["--prompts-file", str(pf), "--out-root", str(root)]) == 0
+    (root / "moss" / "raw").mkdir(parents=True)
+    items = {}
+    for fam, pr in (("thruster_gen", "thruster_gen_1"), ("hull_gen", "hull_gen_1")):
+        for k, seed in enumerate(spec["seeds"]):
+            n = "%s__s%d" % (pr, seed)
+            if fam == "thruster_gen":
+                shots = shots_by_seed[seed]
+                x = place(0.4 + 1.0 * shots, [(0.1 + 1.0 * i, burst(200 + 20 * k)) for i in range(shots)])[:, 0]
+            else:
+                x = place(1.0, [(0.05, burst(150 + 30 * k))])[:, 0]
+            sf.write(str(root / "moss" / "raw" / (n + ".wav")), x.astype(np.float32), SR, subtype="FLOAT")
+            items[n] = {"file": "raw/%s.wav" % n, "family": fam, "prompt": pr, "seed": seed, "text_given": "x"}
+    (root / "moss" / "gen.json").write_text(json.dumps({"source": "moss", "items": items}), encoding="utf-8")
+    return td, root, pf
+
+
+def test_a_fixed_family_is_chosen_whole_and_in_order_and_the_shots_rule_picks_the_right_count():
+    with tempfile.TemporaryDirectory() as td:
+        td, root, pf = build_round7(Path(td), {21: 1, 22: 2, 23: 2, 24: 3})
+        # derive.py: the files are in the form of a MOSS gen.json and say what was done
+        rec = json.loads((root / "derived" / "gen.json").read_text(encoding="utf-8"))
+        assert rec["source"] == "derived" and list(rec["items"]) == ["thruster_fix_1", "thruster_fix_2", "thruster_fix_3", "shield_fix_1"]
+        it = rec["items"]["thruster_fix_2"]
+        assert it["channels"] == 2 and it["seed"] is None and it["prompt"] == "thruster_fix_2" and it["family"] == "thruster_fix"
+        assert {"file", "sr", "channels", "audio_s", "peak", "family", "prompt", "seed", "text_given", "derived"} <= set(it)
+        assert it["derived"]["tag"] == "r6p3s11b" and it["derived"]["process"][0]["op"] == "room" and "two channels" in it["text_given"]
+        for k in ("peak", "lengthS", "shareUnder250Hz", "shareAbove2kHz", "centroidHz"):
+            assert k in it["derived"]["numbers"]["raw"] and k in it["derived"]["numbers"]["result"]
+        assert "wetDryDb" in it["derived"]["numbers"] and "irLengthS" in it["derived"]["numbers"]
+        assert screen.main(["--no-models", "--root", str(root), "--prompts-file", str(pf), "--skips", str(td / "none.json")]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        fix = [c for c in res["chosen"] if c["family"] == "thruster_fix"]
+        assert [c["id"] for c in fix] == ["ev7_1_thruster_fix_%d_derived_%s" % (i, t) for i, t in ((1, "r6p3s11a"), (2, "r6p3s11b"), (3, "r6p3s11c"))]
+        assert [c["slot"] for c in fix] == [1, 2, 3] and all(c["role"] == "fixed" and c["fixed"] and c["faults"] == [] for c in fix)
+        assert [c["listen"]["channels"] for c in fix] == [1, 2, 1] and all(abs(c["listen"]["levelErrorDb"]) <= 0.05 for c in fix)
+        assert (root / "_listen" / (fix[1]["id"] + ".wav")).is_file()
+        assert [c["id"] for c in res["chosen"] if c["family"] == "shield_fix"] == ["ev7_3_shield_fix_1_derived_r6p2s11b"]
+        # the measures of round 7 on every chosen candidate; the shot count where the family id starts with "thruster"
+        assert all(isinstance(c["loud50Db"], float) and isinstance(c["above2kHzLoud"], float) for c in res["chosen"])
+        assert all(c.get("shots") == 2 for c in fix if c["family"] == "thruster_fix") and all(c.get("shots") == 2 for c in fix)
+        assert not any("shots" in c for c in res["chosen"] if not c["family"].startswith("thruster"))
+        # the shots rule: only the two candidates with exactly two shots, the others stay in the pool and say so
+        gen = [c for c in res["chosen"] if c["family"] == "thruster_gen"]
+        assert sorted(c["name"] for c in gen) == ["thruster_gen_1__s22", "thruster_gen_1__s23"] and all(c["shots"] == 2 for c in gen)
+        rows = {r["name"]: r for r in res["files"]}
+        assert {n: r["shots"] for n, r in rows.items() if n.startswith("thruster_gen")} == {
+            "thruster_gen_1__s21": 1, "thruster_gen_1__s22": 2, "thruster_gen_1__s23": 2, "thruster_gen_1__s24": 3}
+        assert "notPickedShots" in rows["thruster_gen_1__s21"] and "notPickedShots" in rows["thruster_gen_1__s24"]
+        assert "notPickedShots" not in rows["thruster_gen_1__s22"] and rows["thruster_gen_1__s21"]["status"] == "kept"
+        assert res["families"]["thruster_gen"]["notes"] == []
+        # a fixed family does not enter the statistics of another: its files are not in the pool of the generated family
+        assert res["families"]["thruster_gen"]["candidates"]["moss"] == 4 and res["families"]["thruster_gen"]["candidates"]["derived"] == 0
+        assert res["families"]["thruster_fix"]["candidates"]["derived"] == 3 and res["families"]["thruster_fix"]["candidates"]["moss"] == 0
+        assert "shots" not in rows["hull_gen_1__s21"] and rows["hull_gen_1__s21"]["loud50Db"] is not None
+        # fewer candidates with the right count than slots: the slot stays empty and a note says so (nothing else fills it)
+        td2 = td / "again"
+        td2.mkdir()
+        _, root2, pf2 = build_round7(td2, {21: 1, 22: 2, 23: 3, 24: 3})
+        assert screen.main(["--no-models", "--root", str(root2), "--prompts-file", str(pf2), "--skips", str(td / "none.json")]) == 0
+        res2 = json.loads((root2 / "screen.json").read_text(encoding="utf-8"))
+        gen2 = [c["name"] for c in res2["chosen"] if c["family"] == "thruster_gen"]
+        assert gen2 == ["thruster_gen_1__s22"], gen2
+        notes = res2["families"]["thruster_gen"]["notes"]
+        assert any("1 of 2 slots stay empty" in n and "exactly 2 separate shots" in n for n in notes), notes
+        # no candidate at all in a generated family is no error (the round starts with only the fixed ones)
+        td3 = td / "third"
+        td3.mkdir()
+        _, root3, pf3 = build_round7(td3, {21: 1, 22: 1, 23: 1, 24: 1})
+        assert screen.main(["--no-models", "--root", str(root3), "--prompts-file", str(pf3), "--skips", str(td / "none.json")]) == 0
+        assert not [c for c in json.loads((root3 / "screen.json").read_text(encoding="utf-8"))["chosen"] if c["family"] == "thruster_gen"]
+        # the derived file is read from a root that holds nothing else
+        import shutil
+        shutil.rmtree(root3 / "moss")
+        assert screen.main(["--no-models", "--root", str(root3), "--prompts-file", str(pf3), "--skips", str(td / "none.json")]) == 0
+        assert len(json.loads((root3 / "screen.json").read_text(encoding="utf-8"))["chosen"]) == 4
+
+
+def test_a_missing_or_stale_fixed_item_stops_screen_with_a_message():
+    import contextlib
+    import io
+
+    with tempfile.TemporaryDirectory() as td:
+        td, root, pf = build_round7(Path(td), {21: 2, 22: 2, 23: 2, 24: 2})
+        gj = root / "derived" / "gen.json"
+        full = json.loads(gj.read_text(encoding="utf-8"))
+        no_skips = str(td / "none.json")
+
+        def run_with(rec: dict) -> tuple[int, str]:
+            gj.write_text(json.dumps(rec), encoding="utf-8")
+            (root / "screen.json").unlink(missing_ok=True)
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                code = screen.main(["--no-models", "--root", str(root), "--prompts-file", str(pf), "--skips", no_skips])
+            return code, err.getvalue()
+
+        gone = json.loads(json.dumps(full))
+        del gone["items"]["thruster_fix_2"]
+        code, msg = run_with(gone)
+        assert code == 1 and "thruster_fix_2" in msg and "missing" in msg and not (root / "screen.json").exists(), (code, msg)
+        stale = json.loads(json.dumps(full))
+        stale["items"]["thruster_fix_1"]["derived"]["process"][0]["wetDb"] = -3.0  # made from another plan
+        code, msg = run_with(stale)
+        assert code == 1 and "thruster_fix_1" in msg and "derive.py" in msg, (code, msg)
+        silent = json.loads(json.dumps(full))
+        sf.write(str(root / "derived" / "raw" / "shield_fix_1.wav"), np.zeros(SR // 2, dtype=np.float32), SR, subtype="FLOAT")
+        code, msg = run_with(silent)
+        assert code == 1 and "shield_fix_1" in msg and "silent" in msg, (code, msg)
+        # the faults of a fixed item are recorded, and the item is chosen all the same (a flat top: clipped)
+        raw = np.clip(sine(300, 0.6, 1.5), -0.5, 0.5)
+        td2 = td / "two"
+        td2.mkdir()
+        _, root2, pf2 = build_round7(td2, {21: 2, 22: 2, 23: 2, 24: 2}, {"RAW2": np.concatenate([raw, np.zeros(SR // 2)])})
+        # pitch 0 keeps the flat top: replace the shelf by an identity for this item
+        spec = json.loads(pf2.read_text(encoding="utf-8"))
+        spec["families"][2]["derived"][0]["process"] = [{"op": "pitch", "semitones": 0.0}]
+        pf2.write_text(json.dumps(spec), encoding="utf-8")
+        assert derive.main(["--prompts-file", str(pf2), "--out-root", str(root2)]) == 0
+        assert screen.main(["--no-models", "--root", str(root2), "--prompts-file", str(pf2), "--skips", no_skips]) == 0
+        res = json.loads((root2 / "screen.json").read_text(encoding="utf-8"))
+        sh = next(c for c in res["chosen"] if c["family"] == "shield_fix")
+        assert "clipped" in sh["faults"] and sh["id"].endswith("derived_r6p2s11b")
+        row = next(r for r in res["files"] if r["name"] == "shield_fix_1")
+        assert row["status"] == "kept" and row["faults"] == sh["faults"] and row["reasons"] == []
+
+
+def test_derive_refuses_an_item_whose_raw_file_differs_and_a_second_run_gives_the_same_samples():
+    import contextlib
+    import io
+
+    with tempfile.TemporaryDirectory() as td:
+        td, root, pf = build_round7(Path(td), {21: 2, 22: 2, 23: 2, 24: 2})
+        first = {p.name: sf.read(str(p), dtype="float32", always_2d=True)[0].tobytes() for p in (root / "derived" / "raw").glob("*.wav")}
+        gen1 = (root / "derived" / "gen.json").read_bytes()
+        assert derive.main(["--prompts-file", str(pf), "--out-root", str(root)]) == 0
+        assert {p.name: sf.read(str(p), dtype="float32", always_2d=True)[0].tobytes() for p in (root / "derived" / "raw").glob("*.wav")} == first
+        assert (root / "derived" / "gen.json").read_bytes() == gen1 and b"\r" not in gen1
+        spec = json.loads(pf.read_text(encoding="utf-8"))
+        spec["families"][0]["derived"][1]["from"]["sha256"] = "0" * 64
+        pf.write_text(json.dumps(spec), encoding="utf-8")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = derive.main(["--prompts-file", str(pf), "--out-root", str(root)])
+        assert code == 1 and "REFUSED thruster_fix_2" in out.getvalue()
+        assert sorted(json.loads((root / "derived" / "gen.json").read_text(encoding="utf-8"))["items"]) == ["shield_fix_1", "thruster_fix_1", "thruster_fix_3"]
+
+
+def test_publish_writes_the_page_entries_of_derived_candidates_from_the_plan_and_the_run():
+    import build as b  # noqa: E402
+
+    with tempfile.TemporaryDirectory() as td:
+        td, root, pf = build_round7(Path(td), {21: 1, 22: 2, 23: 2, 24: 3})
+        no_skips = str(td / "none.json")
+        assert screen.main(["--no-models", "--root", str(root), "--prompts-file", str(pf), "--skips", no_skips]) == 0
+        res = json.loads((root / "screen.json").read_text(encoding="utf-8"))
+        b.SELECTION = td / "no-selection.json"
+        b.GENERATED_LIST = td / "no-generated.json"
+        pub = load("publish")
+        out = td / "render"
+        assert pub.main(["--prompts-file", str(pf), "--root", str(root), "--out", str(out)]) == 0
+        manifest = json.loads((out / "manifest.json").read_text(encoding="utf-8"))
+        sounds = {s["id"]: s for s in manifest["sounds"] if s["category"] == "events5"}
+        assert set(sounds) == {c["id"] for c in res["chosen"]}
+        s1, s2, s3 = (sounds["ev7_1_thruster_fix_%d_derived_%s" % (i, t)] for i, t in ((1, "r6p3s11a"), (2, "r6p3s11b"), (3, "r6p3s11c")))
+        assert s1["en"] == "Thruster fixed · light room" and s1["de"] == "Duese fix · Raum leicht"
+        assert s2["channels"] == 2 and "place" not in s2 and s1["channels"] == 1 and s1["place"] == 0
+        assert all(s["kind"] == "oneshot" and s["path"] == "structure" and s["source"] == "synth" and s["dry"] is False for s in (s1, s2, s3))
+        assert s1["licence"] == "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0), processed with tools/sound/derive.py"
+        assert "Made from the raw file of the candidate ev6_2_thruster_mighty_2_moss_p3s11 of round 6, which the owner called close." in s1["intent"]
+        assert "decay time (60 dB) 0.5 s, wet level -9 dB" in s1["intent"] and "one channel" in s1["intent"]
+        assert "two channels" in s2["intent"] and "decay time (60 dB) 0.7 s, wet level -6 dB" in s2["intent"]
+        assert "Tuned 3 semitones higher by resampling, so the sound is shorter: " in s3["intent"] and " s instead of 2.2 s." in s3["intent"]
+        assert "Cut out of the processed file" in s1["intent"] and "LUFS" in s1["intent"] and "Share of the event's energy above 60 Hz" in s1["intent"]
+        assert "Made from a candidate that the owner called close." in s1["intent"] and "first try" not in s1["intent"]
+        assert all(s["intent"].endswith("Measured in the file: 2 separate shots.") for s in (s1, s2, s3))
+        sh = sounds["ev7_3_shield_fix_1_derived_r6p2s11b"]
+        assert sh["path"] == "energy" and "A high shelf filter changed everything above 300 Hz by 8 dB." in sh["intent"] and "Measured" not in sh["intent"]
+        assert sh["en"] == "Shield fixed · more highs"
+        g = [sounds[c["id"]] for c in res["chosen"] if c["family"] == "thruster_gen"]
+        assert len(g) == 2 and all(s["intent"].endswith("Measured in the file: 2 separate shots.") for s in g)
+        assert all("The owner heard this prompt in round 6." in s["intent"] and "first try" not in s["intent"] for s in g)
+        assert g[0]["en"] == "Thruster three · MOSS-SoundEffect" and g[1]["en"].endswith("second pick")
+        h = next(s for s in sounds.values() if s["id"].startswith("ev7_4_hull_gen"))
+        assert "Measured" not in h["intent"] and "rests on a prompt the owner accepted" in h["intent"]
+        assert pub.main(["--prompts-file", str(pf), "--root", str(root), "--out", str(out), "--remove"]) == 0
+        assert not (out / "events5").exists()
+
+
+def test_the_default_prompts_files_know_no_source_derived():
+    for name in ("prompts.json", "prompts5.json", "prompts6.json"):
+        spec = json.loads((SOUND / name).read_text(encoding="utf-8"))
+        assert "derived" not in (spec.get("sources") or []) and not any(f.get("fixed") or f.get("derived") or f.get("shots") for f in spec["families"]), name
+    p7 = json.loads((SOUND / "prompts7.json").read_text(encoding="utf-8"))
+    assert p7["sources"] == ["moss", "derived"] and p7["category"]["id"] == "events7" and p7["category"]["idPrefix"] == "ev7"
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "gen"
+        build_tree(root)
+        no_skips = str(Path(td) / "none.json")
+        assert screen.main(["--no-models", "--root", str(root), "--skips", no_skips]) == 0
+        first = (root / "screen.json").read_bytes()
+        # a derived folder in the root of a round that does not list the source is not read: the same screen.json
+        (root / "derived" / "raw").mkdir(parents=True)
+        sf.write(str(root / "derived" / "raw" / "hull_1.wav"), (0.5 * sine(200, 1.0)).astype(np.float32), SR, subtype="FLOAT")
+        (root / "derived" / "gen.json").write_text(json.dumps({"source": "derived", "items": {"hull_1": {
+            "file": "raw/hull_1.wav", "family": "hull", "prompt": "hull_1", "seed": None, "text_given": "x"}}}), encoding="utf-8")
+        assert screen.main(["--no-models", "--root", str(root), "--skips", no_skips]) == 0
+        assert (root / "screen.json").read_bytes() == first
+        res = json.loads(first)
+        assert "derived" not in res["sources"] and not any("shots" in f or "loud50Db" in f for f in res["files"])
+        assert not any(c["source"] == "derived" or "fixed" in c or "shots" in c for c in res["chosen"])
+        # a prompts file with a fixed family but without the source is a plain error
+        spec = json.loads(json.dumps(SPEC7))
+        spec["sources"] = ["moss"]
+        pf = Path(td) / "p.json"
+        pf.write_text(json.dumps(spec), encoding="utf-8")
+        assert screen.main(["--no-models", "--root", str(root), "--prompts-file", str(pf), "--skips", no_skips]) == 1
+    # round 7's adapter jobs: five prompts, eight seeds, nothing for the fixed families
+    common = importlib.util.spec_from_file_location("sound_common_t", SOUND / "common.py")
+    cm = importlib.util.module_from_spec(common)
+    common.loader.exec_module(cm)
+    cm.configure(str(SOUND / "prompts7.json"))
+    jobs = cm.jobs()
+    assert len(jobs) == 40 and not [j for j in jobs if j["family"] in ("thruster_room", "shield_brighter")]
+    assert sorted({j["seed"] for j in jobs}) == list(range(21, 29)) and len({j["prompt"] for j in jobs}) == 5
+
+
+def test_a_category_events7_in_sounds_json_is_first_with_the_names_of_the_plan():
+    spec = json.loads((SOUND.parent / "audio" / "sounds.json").read_text(encoding="utf-8"))
+    cats = [c for c in spec["categories"] if c["id"]]
+    ids = [c["id"] for c in cats]
+    p7 = json.loads((SOUND / "prompts7.json").read_text(encoding="utf-8"))["category"]
+    if "events7" in ids:
+        assert ids[0] == "events7"
+        assert cats[0]["de"] == p7["de"] and cats[0]["en"] == p7["en"]
+    sk7 = json.loads((SOUND / "skips7.json").read_text(encoding="utf-8"))
+    assert sk7["skips"] == [] and sk7["note"].strip()
 
 
 def main() -> int:

@@ -56,7 +56,6 @@ LICENCE = {
 }
 
 
-VERDICT_WORDS = {"fits": "fitting (Passt)", "close": "close (Nah dran)", "wrong": "wrong (Falsch)"}
 LOW_SHARE_HINT = 0.10  # below this share of the energy above 60 Hz the page shows a hint (a measure shown, not a rule)
 
 
@@ -148,7 +147,7 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
         d = rec.get("derived") or {}
         frm = d.get("from") or {}
         made = "Made from the raw file of the candidate %s of round %s, which the owner called %s. %s " % (
-            frm.get("candidate", "?"), frm.get("round", "?"), VERDICT_WORDS.get(frm.get("verdict"), frm.get("verdict", "?")),
+            frm.get("candidate", "?"), frm.get("round", "?"), frm.get("verdict", "?"),
             describe_process(d.get("process", []), d.get("numbers", {})))
         intent = made + how
         if c["family"].startswith("thruster") and c.get("shots") is not None:

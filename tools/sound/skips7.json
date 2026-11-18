@@ -1,0 +1,4 @@
+{
+ "note": "Hand skips of round 7, read by screen.py when it is run with --prompts-file tools/sound/prompts7.json: candidates that are never picked, for a plain fault the rules do not see, found in a spectrogram or in the recorded share above 60 Hz, never for how a sound sounds. Same form as skips6.json (candidate as source/name, reason). Empty when the round is made. No skip applies to a fixed candidate (the families thruster_room and shield_brighter): it is always on the page.",
+ "skips": []
+}
