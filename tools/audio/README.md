@@ -147,16 +147,28 @@ measured numbers as a rendered sound.
 `build.py` returns 1 when a generated entry is refused, missing or failed (the message is printed and the other entries are still built), as well as for failed checks and manifest problems.
 
 Sounds made by a model that the owner heard and accepted become library sounds, with source
-`generated`. At present these are ten sounds of MOSS-SoundEffect v2.0 (code and weights
-Apache-2.0): two from round 4, four from round 5, four from round 6. Two more were withdrawn on
-2026-11-18 (see below).
+`generated`. At present these are eighteen sounds of MOSS-SoundEffect v2.0 (code and weights
+Apache-2.0): two from round 4, four from round 5, four from round 6, eight from round 7. Six of the
+eight of round 7 are processed copies ("derived") of two raw files of round 6 (see `derived`
+below). Two more were withdrawn on 2026-11-18 (see below).
 
 - `assets/audio/generated.json` is the list: `{"note", "sounds": [...], "withdrawn": [...]}`. Each entry has `id`
   (`g_...`), `standsFor` (the event of `sounds.json` it stands for), `file`, `sha256` of the raw
   file, `cut` (`startS`, `endS`), `lufs`, `en`, `de`, `origin` (model, model revision, code, code
   commit, prompt, seed, round, candidate, verdict, ratedAt, and `note` where the owner wrote one)
   and `licence`. Several sounds may stand for one event (`impact_hull_heavy`, `impact_hull_light`,
-  `fold_exit`).
+  `fold_exit`, `thruster_pulse_c`, `impact_shield_light`).
+- A sound that `tools/sound/derive.py` made from a raw file of an earlier round (a room, a pitch, a
+  shelf, a copied part) has one more optional object, `derived`: `parentFile` (a plain file name of
+  a `.wav` in `assets/audio/generated`, committed like the raw files), `parentSha256`, `parentRound`,
+  `parentCandidate`, `parentVerdict`, `process` (the list of operations exactly as `derive.py` was
+  given it, as `kept.json` of the round holds it) and `operations` (the numbers each operation
+  reported, one per operation, in the order of `process`). For such an entry `origin.prompt` and
+  `origin.seed` are those of the PARENT (the entry has no prompt of its own, and `validate_manifest`
+  demands one); `origin.round` and `origin.candidate` are those of the candidate the owner heard.
+  The parent files are `parent_thruster_mighty_3__s11.wav` (round 6 candidate
+  `ev6_2_thruster_mighty_2_moss_p3s11`, four sounds) and `parent_shield_tight_2__s11.wav`
+  (`ev6_3_shield_tight_2_moss_p2s11`, two sounds).
 - `withdrawn` holds sounds that were built once and that the owner then rejected (here the library
   copies `g_thruster_pulse_a` and `g_thruster_pulse_b`, rated wrong on 2026-11-18 after he had
   accepted the same raw files as candidates at a level 6 to 8 dB lower). An entry has every field
@@ -182,10 +194,58 @@ Apache-2.0): two from round 4, four from round 5, four from round 6. Two more we
   `level-limited-by-ceiling`. Otherwise `reached` must be within 0.1 LU of `target` or the sound
   fails as `level-missed`. Clipping of the raw cut is counted (`checks.sourceClipped`) and shown as
   a hint, not a failure, because the owner heard and accepted the sound. Two runs give the same bytes.
+- What is checked of `derived`, where an entry has it. `_generated_entry_problem` refuses an entry
+  whose object is malformed: not an object, a key missing, a parent file name that is not a plain
+  `.wav` name (no folder, no path), a sha256 that is not 64 lower case hex digits, a round that is not
+  an integer, a candidate or verdict that is not text, no operations, or `operations` that do not
+  follow `process` in number and in the name `op` of each. `_generated_sounds` then reads the parent
+  file: a parent missing on disk, or with a sha256 that differs, refuses the entry with a message and
+  the build returns 1, as a wrong raw file does. The sound itself is always built from the committed
+  raw file of the entry, never from the parent: the build does not run the operations again. The
+  manifest object `generated` carries `derived` as it is, and `generated_intent` says which parent
+  candidate the sound was made from and by which operations with the numbers they reported (built
+  from the data of the entry). A parent file that an entry names is not a stray file (the build
+  reports no stray files at all). `tests/test_generated_derived.py` reads the tracked files and holds
+  two things the build does not do: every file in `assets/audio/generated` is the raw file or the
+  parent file of an entry, and every derived entry is reproduced sample for sample
+  (`derive.apply_process` on the committed parent, first channel, read as float64 and converted to
+  float32, equals the float32 samples of the committed raw file; samples, not file hashes, because
+  the writer puts a time stamp into the header, so two writes of the same samples differ in their
+  sha256).
+- Two channels. A raw file with two channels builds as a two-channel copy: the cut, the conversion
+  to 48 kHz, the repair of the ends and the loudness measurement (`set_loudness`) work on both
+  channels, and the copy, its spectrogram and `channels: 2` in the manifest follow. `g_thruster_heavy_room_wide`
+  is the one such sound at present. Nothing in `build.py` needed repair for it;
+  `tests/test_generated_derived.py` (class `TwoChannels`) holds it, with two different channels.
 - `validate_manifest` demands for a generated entry a spectrogram, a licence, a duration above 0, a
   true peak not above -1 dB and the object `generated` (`standsFor`, `model`, `prompt`, `seed`,
-  `round`, `candidate`, `sha256`).
+  `round`, `candidate`, `sha256`) and, where `generated.derived` is there, a well-formed one.
 - The `lufs` of an entry is the loudness of the rendered event it stands for: `checks.lufs` of the
   entry with the id `standsFor` in `assets/audio/render/manifest.json` (as the manifest had it on
-  2026-11-16 for the first eight; the four of round 6 take it from the manifest of 2026-11-18). These levels are provisional until the mix of the game is designed. The owner heard
-  the candidates at another level (-34 or -35 LUFS, for the comparison). The rendered events stay.
+  2026-11-16 for the first eight; the four of round 6 and the eight of round 7 take it from the manifest of 2026-11-18). These levels are provisional until the mix of the game is designed. The owner heard
+  the candidates of rounds 4 to 6 at another level (-34 or -35 LUFS, for the comparison). The rendered events stay.
+- Round 7: levels heard and built. A library sound plays at the loudness of the rendered event it
+  stands for: `checks.lufs` of `thruster_pulse_c` is -28.26 and of `impact_shield_light` -24.47 in
+  `assets/audio/render/manifest.json`. Those two events were chosen because their level is the
+  nearest to what the owner heard: the page copies he rated
+  (`assets/audio/gen/_kept/round7/page/<candidate>.wav`) measure -27.99 to -28.00 LUFS for the
+  one-channel thrusters and -24.00 and -23.97 for the two shields, so the library copies play 0.26 to
+  0.27 dB and 0.47 to 0.50 dB under what he heard. The two-channel thruster was heard from a file at
+  -24.98 LUFS, because the audition page plays a two-channel file about 3 dB lower than a one-channel
+  file of the same loudness; it keeps that relation and gets -25.24. `standsFor` was chosen by level,
+  not by meaning: `thruster_pulse_a`, `thruster_pulse_b`, `impact_shield_medium` and
+  `impact_shield_heavy` still have no sound he accepted. Heard is the integrated loudness of the page
+  copy as `tools/audio/listen/measure.py` measures it; built is `checks.lufs` of the shipped file in
+  the manifest of a `--manifest-only` build (every one reached its target, none was limited by the
+  ceiling, none has a hint):
+
+  | id | stands for | channels | heard (LUFS) | built (LUFS) | built minus heard (dB) |
+  |---|---|---|---|---|---|
+  | g_thruster_heavy_room_a | thruster_pulse_c | 1 | -27.99 | -28.26 | -0.27 |
+  | g_thruster_heavy_room_b | thruster_pulse_c | 1 | -27.99 | -28.26 | -0.27 |
+  | g_thruster_heavy_room_wide | thruster_pulse_c | 2 | -24.98 | -25.24 | -0.26 |
+  | g_thruster_heavy_room_three | thruster_pulse_c | 1 | -28.00 | -28.26 | -0.26 |
+  | g_thruster_heavy_three | thruster_pulse_c | 1 | -28.00 | -28.26 | -0.26 |
+  | g_thruster_heavy_hall | thruster_pulse_c | 1 | -27.99 | -28.26 | -0.27 |
+  | g_impact_shield_a | impact_shield_light | 1 | -24.00 | -24.47 | -0.47 |
+  | g_impact_shield_b | impact_shield_light | 1 | -23.97 | -24.47 | -0.50 |
