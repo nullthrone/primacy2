@@ -4,7 +4,10 @@ Written on 2026-11-15 and brought up to date on 2026-11-18 in the evening, after
 (built around the two candidates he called close) and every other sound that was still unrated on
 the page, and after the round was recorded (section 1). The session that made rounds 3 to 7 ended
 there on his word; this file is its hand-over. The session after it changed the way of working
-(below) and made the library step for round 7 the same night (section 1, step 2). Delete or replace
+(below), made the library step for round 7 and took the relay sounds off the page the same night
+(section 1, steps 2 and 3), and started the runtime audio on his word in a session of its own
+(section 3). It had grown to half a million tokens by then: a fresh session takes the sound work
+over from this file. Delete or replace
 this file when the step is done;
 `docs/ROADMAP.md` stays the lasting record.
 
@@ -45,8 +48,10 @@ this file when the step is done;
   your worktree (it ends by itself after eight hours, and it does nothing while `main` is checked
   out).
 - Other sessions work in worktrees of their own; what they change reaches you through `main`.
-  Since 2026-11-18 one works on the special effects (`packages/client/src/render`; it starts with
-  proposals and an interview with him). Keep to your own files, and change shared documents
+  Since 2026-11-18 one works on the special effects (`packages/client/src/render`; its interview
+  with him is in `docs/ROADMAP.md`) and one on the game's runtime audio (section 3; it reads
+  `assets/audio/render` of the sound worktree and writes nothing there, so do not move or rename
+  that tree without telling it). Keep to your own files, and change shared documents
   (`docs/ROADMAP.md`, `docs/CLIENT.md`) by exact replacement, never by writing the whole file: two
   branches that both rewrite a document cannot be merged.
 - An agent that queues work behind the bench lock (`tools/voice/with_lock.py`) and then ends its
@@ -79,7 +84,8 @@ this file when the step is done;
   out of `tools/audio/sounds.json` with their renderers and tests, and off the page without a build
   on the real tree (`docs/ROADMAP.md`, section 2, "The direction samples taken off the page"). The
   manifest had 176 entries then (189 on 2026-11-18 after the library change and round 7 with its
-  changes, 197 since the library step for round 7; counted by a script). Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
+  changes, 197 with the library step for round 7, 189 again since the relay sounds went; counted by
+  a script). Their rendered files are kept in `assets/audio/gen/_kept/round3-pilot`.
   The check that nothing old moved reads: of the 165 hashes of `assets/audio/rounds/round5.json`,
   the 154 that are not `pilot_*` are unchanged and the eleven `pilot_*` are absent. That was the
   one change of the real tree during the freeze, made because he had not started rating and no
@@ -203,7 +209,7 @@ are quoted.)
 2. The library step for round 7: DONE on 2026-11-18, late evening (`docs/ROADMAP.md`, section 2,
    "The library step for round 7"; `tools/audio/README.md`, "Generated sounds in the build"). All
    six thrusters and the two shields that fit are in `assets/audio/generated.json` (18 sounds, 2
-   withdrawn) and in the real tree (197 manifest entries). What is left of it:
+   withdrawn) and in the real tree (197 manifest entries then, 189 since step 3). What is left of it:
    - He has not heard the eight in their built form: they are the only unrated sounds on the page
      (ids `g_thruster_heavy_*`, `g_impact_shield_a` and `g_impact_shield_b`). When he is asked,
      tell him two things. The five one-channel thrusters play about 1.7 dB under the candidates he
@@ -222,13 +228,15 @@ are quoted.)
      session: write it again from the ROADMAP (the old entries equal in every field and in order,
      exactly the new ids added, only `manifest.json` changed, two runs the same bytes, the real
      tree after its build equal to the copy file for file).
-3. The relay sounds, on his word ("die ganzen Relais Töne bitte weglassen"): take the eight
-   rendered sounds his note is on off the page and out of `tools/audio/sounds.json` with their
-   renderers and tests, by the procedure used for the direction samples (`docs/ROADMAP.md`, section
-   2, "The direction samples taken off the page"; the lesson in section 5: on a copy first, the
-   manifest must be the real one minus exactly those entries; keep the rendered files under
-   `assets/audio/gen/_kept`). The scope is those eight. What the cockpit switches sound like then
-   is open: the two downloaded toggles fit.
+3. The relay sounds: DONE on 2026-11-18, night (`docs/ROADMAP.md`, section 2, "The relay and switch
+   sounds taken off the page"). The eight are out of `tools/audio/sounds.json` (56 sounds), their
+   renderers and tests, and the docking scene of the page; their files are kept in
+   `assets/audio/gen/_kept/relays-2026-11-18`; the real manifest has 189 entries. He had been asked
+   not to rate the eight library sounds of step 2 before this step was done, because a new rating
+   stops every tool that writes the real tree until it is recorded. Open after it: what the cockpit
+   switches sound like (the two downloaded toggles fit), the title of the category ("Relays and
+   switches") and the two lines of `tools/audio/RECORDINGS.md` that still ask him for relay clicks
+   and a rotary selector.
 4. What has nothing accepted. Ask him in one question whether he wants a round 8 for it, and give
    him candidates, not a request to describe sounds: the cannon, the pulse laser, the gear
    retracting, the shields-down alarm, the debris patter; and new candidates beside the old files
@@ -250,9 +258,9 @@ are quoted.)
    `--no-clap` strips those fields), on a copy first, and compare the hashes of all entries with
    the record of round 7. At a re-render every one-shot starts at zero (a rule is missing); a
    re-render needs his word.
-6. The plan for the game's runtime audio (section 3) was shown to him on 2026-11-17. It is still
-   not started without his word. He was told on 2026-11-18 that the six families are settled and
-   that the runtime audio and the voices wait for his word.
+6. The game's runtime audio (section 3) is started: on 2026-11-18 he answered "Ja, bauen" to the
+   question whether it should now be built as a first playable version, and a session of its own
+   builds it. The voices still wait for his word.
 7. If he says the crackling is still there: the discharges at the end of the shield hits and fold
    sounds are designed crackle, the NASA laser shots are snaps, and the SLS recording is clipped
    in its source. Ask which sound he means before changing anything.
@@ -321,7 +329,13 @@ built (it is a greenfield design):
 
 ### 3. The game's runtime audio on the library
 
-Not to be started without his word (section 4). Core work for the strongest model:
+Started on 2026-11-18 on his word. He asked whether any worktree already plays the new sounds,
+because he wants to play with them (none did), and answered "Ja, bauen" to the question whether
+the runtime audio should now be built as a first playable version. The session "Laufzeit-Klang:
+erste spielbare Fassung" builds it in a worktree of its own, cut from `main`; it reads
+`assets/audio/render` of the sound worktree by its path and writes nothing there. This section is
+its specification, and it may change this section by exact replacement. Events that have no sound
+he accepted stay silent in the first version. Core work for the strongest model:
 `packages/client/src/audio` is rebuilt, not patched. Design it first and show Thomas the plan in a
 few sentences (done on 2026-11-17). Since round 7 each of the six event families of rounds 4 to 7
 has a sound he accepted: eighteen are in the library (`assets/audio/generated.json`; the first ten
@@ -363,18 +377,17 @@ What waits on him now: to hear the eight library sounds of round 7 as built (sec
 and his word if the game should not use all six thrusters as variants; whether the gun material of rounds 5 to 7 may also be tried for the cannon, and whether
 he wants a round 8 for the sounds that have nothing he accepted (section 1); which voice model he
 accepts and whether the preset voices of Kokoro and Kitten count as artificial (the countdown
-samples are rated and fit); his word on the runtime audio, whose plan he was shown on 2026-11-17;
-optional Freesound CC0 downloads with his own account. The licence of Stable Audio he answered on
+samples are rated and fit); optional Freesound CC0 downloads with his own account. The licence of Stable Audio he answered on
 2026-11-16 by choosing MOSS only, and the shield is settled without it (section 1).
 
-Unrated sounds on the page: the eight library sounds of round 7 (8 of 197, by a script after the
-library step of 2026-11-18). The 189 of before that step were counted by a script from `assets/audio/render/manifest.json` and
+Unrated sounds on the page: the eight library sounds of round 7 (8 of 189, by a script after the
+relay sounds went on 2026-11-18; of the 189 on the page 107 fit, 24 are close, 48 are wrong, two have
+five stars and no verdict, and eight are unrated). The 189 of before that step were counted by a script from `assets/audio/render/manifest.json` and
 `assets/audio/ratings.json` (saved 2026-11-18T19:22:12.338Z, SHA-256 prefix `4509dbcd`), with the
 page's rule that a sound is rated when it has stars, a verdict or a note: 0 of 189 are unrated. By
 verdict: 107 fit, 24 close, 56 wrong, and two have five stars and no verdict (`cruise_loop`,
-`fold_charge`). 28 of the ratings are not on the file the manifest lists now (section 1). Two
-ratings in the file belong to sounds that are not on the page any more (the two withdrawn pulses,
-both wrong).
+`fold_charge`). 28 of the ratings are not on the file the manifest lists now (section 1). Ten ratings in the file belong to sounds that are not on the page any more (the eight relay and
+switch sounds and the two withdrawn pulses, all wrong).
 Also open:
 
 - From round 1: the old list "fold jump, fold exit, shields-down alarm, the longer cruise charge"
@@ -390,7 +403,6 @@ Also open:
 Not to be started without his word:
 
 - The build of the voice pipeline.
-- The rebuild of the game's runtime audio.
 - A re-render of the event sounds.
 - Any download beyond the three sources of 2026-11-15.
 - Music: the model is downloaded and has never been run.
@@ -415,6 +427,10 @@ The library step for round 7 (2026-11-18, late evening):
   tool, not care.
 - Before the first merge under a new way of working, read the app's own settings: it archived a
   session when its pull request merged, and archiving cleans up the session's worktree.
+- The manifest is assembled from the files in the render tree, not from `sounds.json`. A sound
+  leaves the page only when its files leave the tree, and the files go first: with them still
+  there the build kept 197 entries and moved the eight relay sounds to the end of the rendered
+  block.
 
 The evening of round 7 (2026-11-18):
 

@@ -30,19 +30,20 @@ which the owner listens and rates. On 2026-11-18 its manifest (`assets/audio/ren
 lists 189 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
 samples of round 3 were taken off the page on the owner's word, see section 2, "The direction
 samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18,
-189 with the changes of round 7 after its first check, and 197 since the library step for round 7
-late that evening; the counts of this paragraph are of the 197).
+189 with the changes of round 7 after its first check, 197 with the library step for round 7 late
+that evening, and 189 again since the eight relay and switch sounds were taken off the page that
+night; the counts of this paragraph are of those 189).
 By category: eleven are the candidates of round 7, the category `events7`; fourteen the candidates of
 round 6, `events6`; seventeen the event sounds of round 5, `events5`; and sixteen the candidates of
 round 4, `source` (see section 2). Eighteen are the generated sounds of the library itself: MOSS
 candidates he accepted in rounds 4 to 7 (six of the eight of round 7 are processed copies of two
 MOSS files), built as processed copies with their origin and licence
-(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 121
-are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty of the speech
+(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 113
+are 80 `synth` (rendered by scripts: 56 sounds, and 24 voice samples, the twenty of the speech
 comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
 of rounds 5 to 7 are all `synth` (made by MOSS, or derived from a MOSS file), and the sixteen of
 round 4 carry the same field: twelve `synth` (made by the two models) and four `download` (the
-recordings), so the whole manifest reads 142 `synth`, 37 `download` and 18 `generated`. The game
+recordings), so the whole manifest reads 134 `synth`, 37 `download` and 18 `generated`. The game
 itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
@@ -166,8 +167,8 @@ The sound library, all of it outside the game's runtime:
   loudness, spectrum, envelope, loop seam, two channels, a spectrogram picture), compares it with
   descriptions (CLAP), transcribes speech (Whisper) and has it described (Qwen2-Audio).
 - `tools/audio/synth` and `tools/audio/build.py`: the synthesis library and one script per
-  category; `tools/audio/sounds.json` is the list of the 64 sounds and what each is meant to be (it
-  held 75 while the eleven direction samples of round 3 were in it, 2026-11-15 to 2026-11-17). The build renders them, checks every rule and writes
+  category; `tools/audio/sounds.json` is the list of the 56 sounds and what each is meant to be (it
+  held 75 while the eleven direction samples of round 3 were in it, 2026-11-15 to 2026-11-17, and 64 until the eight relay and switch sounds went on 2026-11-18). The build renders them, checks every rule and writes
   the manifest. Rendered files are not in git; the build is deterministic and makes them again.
 - `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
   from kenney.nl and NASA recordings without voices (25 entries, about 160 MB, not in git,
@@ -873,13 +874,67 @@ answer, and only then open the page.
 
 Not verified: how any of the eight sounds as built (nobody listened, and he has not rated them in
 this form: 8 of the 197 sounds on the page are unrated); the page check `audition-check.mjs` was not
-run for them; the level of a shield at the page was measured for one random direction only.
+run for them; the level of a shield at the page was measured for one random direction only. The
+third checker (the manifest gate, the suites, whether each rule is pinned) was not run again after
+the repair: the orchestrator made the gate and the suites again, but the tests of the page's steps
+were seen failing only by the agent that wrote them. The test that makes the six processed files
+again from their parents and wants every sample equal has run on this machine only; another
+version of numpy or scipy may round a sample differently.
 Left as it is and known: the choice of the page's steps hangs on the round number in the code, not
 on a field of the entry; `screen.py` and `publish.py` still record a cut start with four decimals,
 so the next library step has to find the sample again; no test compares the `lufs` of an entry
 with the event it stands for (the manifest is not in git); `tools/sound/compare.py` rebuilds
 library files without the page's steps, which is right for the pulses of rounds 4 and 5 that it
 reads and would be wrong for a sound of round 7.
+
+The relay and switch sounds taken off the page (2026-11-18, night). His note on eight rendered
+sounds of the category `switches`, each rated wrong: "die ganzen Relais Töne bitte weglassen". The
+scope is those eight (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
+`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`). The six downloaded
+sounds of the category stay, the three he rated wrong among them (`k_door_close_1`,
+`k_door_open_1`, `k_toggle_1`): his note stands on the rendered ones.
+
+- In the repository: the eight are out of `tools/audio/sounds.json` (56 sounds in 16 categories;
+  `switches` stays as a category of downloads), `tools/audio/synth/cat_switches.py` is deleted (it
+  held only these eight), and their level rows and tests went with them. Commit 59bce6b is the last
+  one that can render them. Where one of them had served as an arbitrary example, another sound
+  stands now (a registry test, and the keyboard step of `tools/dev/audition-check.mjs`, which
+  presses `thruster_pulse_b`).
+- In the scenes of the audition page only the docking approach played any of them: the cues at
+  0.5 s (power up) and 36.5 s (power down) and three event buttons are gone. The other cues keep
+  their times and the scene its 40 s.
+- On the real tree, by the procedure of the direction samples, this time with the build: the
+  ratings file was compared with the record of round 7 first; the 24 files (wav, spectrogram and
+  build record of each) were moved to `assets/audio/gen/_kept/relays-2026-11-18` with a `kept.json`
+  (hashes, his rating of each, the manifest entry); then `build.py --manifest-only` ran. Gate: 189
+  entries, each equal to its entry of before in every field and in the same order, the eight gone
+  and none added; of the 541 files under `assets/audio/render` only `manifest.json` changed and
+  exactly the 24 are gone. The files have to go first: the manifest is assembled from the files in
+  the tree, not from `sounds.json`, and a checker showed on a copy that with the files still there
+  the build keeps 197 entries and moves the eight to the end of the rendered block.
+- His eight ratings stay in `assets/audio/ratings.json`, which is never written by a tool: ten
+  ratings there now belong to sounds that are not on the page (these eight and the two withdrawn
+  pulses). The backup outside the worktrees was copied again (366 files).
+
+Suites after the change: 149, 80, 112 and 62 in the four Python suites, `npx tsc -p packages/client
+--noEmit` without output, `npx vitest run` 807 passed and 2 expected failures. One builder and two
+independent checkers (the manifest gate and the suites; every reference, the scenes and the
+scope), on the cheaper model; no finding had to be repaired. Not verified: the page in a browser
+(the page check was not run; it will meet the docking scene with 7 event buttons and 9 cues, and
+the keyboard step on another sound). Left as it is and known: the rules `switch-too-long` and
+`switch-centroid` apply to no rendered sound any more (two tests with made-up sounds still pin
+them); the level of -16 dBFS for a short cabin sound is pinned by no test since `button_press`
+went; the category is still titled "Relays and switches", and `tools/audio/RECORDINGS.md` still
+asks him for recordings of relay clicks and a rotary selector, which no longer fits his word. What
+the cockpit switches sound like is open: the two downloaded toggles fit.
+
+The runtime audio is started (2026-11-18, night). Asked whether any worktree already plays the new
+sounds, because he wants to play with them, he was told that none does (the game still makes its
+sound with oscillators, and the scenes of the audition page still play the rendered events he
+rejected), and to the question whether the runtime audio should now be built as a first playable
+version he answered "Ja, bauen". A session of its own builds it in a worktree of its own; it reads
+the render tree of the sound worktree and writes nothing there. `docs/NEXT.md`, section 3, is its
+specification.
 
 ### The owner's first play session (2026-11-14)
 
@@ -1205,7 +1260,8 @@ Each step is one work session with its own workflow runs.
    round 7 he has not heard as built) and heard once more; new numbers
    for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
-   rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
+   rendered; started on the owner's word of 2026-11-18 in a session of its own, see section 2, "The
+   runtime audio is started"); the voice pipeline, designed with him after he has heard the models (see "Voices"
    in section 2); music. The runtime audio and the design of the voice pipeline are core work
    for the strongest model; `docs/NEXT.md` is the brief. What is left of the controller: the
    owner's own test with a real pad.
@@ -1383,8 +1439,8 @@ Never verified:
   and in the evening of 2026-11-18 the 11 candidates of round 7, `g_gear_deploy` and the four
   newest library sounds as built, and the 34 older sounds that had been unrated). By the page's own
   definition none of the 189 sounds on the page was unrated then (script, ratings saved
-  2026-11-18T19:22:12.338Z); since the library step for round 7 the page has 197 and the eight new
-  library copies are unrated. Every other judgement of the sound library and of the
+  2026-11-18T19:22:12.338Z); since the library step for round 7 and the removal of the relay sounds the page
+  has 189 again, of which the eight new library copies are unrated. Every other judgement of the sound library and of the
   speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
   - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
@@ -1540,7 +1596,8 @@ Other notes:
   sessions that used that folder are archived and it is still there, but why the app kept it is
   not known: before the session that holds it is archived, or "Clean up inactive sessions" is used,
   look at what happens to the folder. Since 2026-11-18 a byte copy of `assets/audio/gen/_kept`
-  (rounds 3 to 7, 341 files, with a list of their sha256) lies outside every worktree, at
+  (rounds 3 to 7 and the relay sounds taken off the page, 366 files, with a list of their sha256)
+  lies outside every worktree, at
   `C:\Claude Code\LOCAL\primacy2-kept`, on the owner's word; a new round is copied there once it is
   recorded. The pools of unrated raw candidates (`assets/audio/gen/r5`, `r6`, `r7`, `moss/raw`) are
   not in that copy.
