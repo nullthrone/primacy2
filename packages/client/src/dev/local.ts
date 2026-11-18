@@ -2,7 +2,7 @@
  * Development page for the local layer: the real layer over the real space renderer, fed with
  * synthetic frame views, so ships, structures and effects can be worked on without a server.
  *
- *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight|surface|orient
+ *   /dev/local.html?scene=ships|chase|cockpit|station|outpost|gate|beacon|belt|fight|surface|orient|fx
  *
  * Scenes
  *   ships    every hull in a row, turning slowly; `hull=<id>` shows that one alone and close
@@ -21,6 +21,8 @@
  *            spots, to see that they stay there while the body turns.
  *   orient   the pilot near a place to dock with the nose turned away from it and ships around,
  *            for the direction indicators of the HUD (use with `hud=1&cam=cockpit`)
+ *   fx       the effect stage: one effect at a time, close to the camera and repeating. Its acts
+ *            and options (`show`, `dist`, `hull`, `every`, `own`) are listed in `dev/stage/index.ts`
  *
  * Options
  *   parts=objects,fx   parts of the layer to load (default both); a broken part is left out
@@ -31,6 +33,7 @@
  *   dist, phase, elev  camera distance in metres, angle from the sun and elevation in degrees
  *   gate=planned|building|active|dormant, progress=0..1   state of the gate
  *   t=<seconds>        start value of the scene clock, to look at a later moment
+ *   slow=<factor>      the scene clock runs at that fraction of real time (0.2 is slow motion)
  *   q=0..2, bloom=0, and the effect overrides cruise, fold, charge, kind, dil, heat, hit
  *   universe=<label>   server Alpha of the fixed test universe <label> instead of the demo sector
  *                      (16 is what scripts/e2e.mjs plays in; its capital has the ground base)
@@ -76,6 +79,7 @@ import type { PartName } from '../render/local/part.ts';
 import { terrainDebug } from '../render/local/terrain/index.ts';
 import { createRenderer } from '../render/Renderer.ts';
 import { demoGalaxy, demoSector, fixedSector, makeSurfaceView, makeView, type FakeViewOptions, type SurfacePlace, type SurfaceViewOptions } from './fakeView.ts';
+import { programme, type StageFrame } from './stage/index.ts';
 
 const params = new URLSearchParams(location.search);
 const sceneName = params.get('scene') ?? 'ships';
@@ -440,6 +444,56 @@ function orient(): SceneFn {
   };
 }
 
+/**
+ * The effect stage (`dev/stage`): the act that is due puts its ships before the camera and sends
+ * the events its effect is started by. The station far behind gives the place its sun.
+ */
+function fxStage(): SceneFn {
+  const r = rig(structure('station_ring'), 6000);
+  const cue = programme(str('show', ''), num('every', 0));
+  const dist = Math.max(10, num('dist', 90));
+  const hull = HULLS[str('hull', 'wisp')] ? str('hull', 'wisp') : 'wisp';
+  const own = params.get('own') === '1' || str('cam', 'chase') === 'cockpit';
+  let label: HTMLElement | null = null;
+  if (params.get('info') !== '0') {
+    label = document.createElement('pre');
+    label.id = 'stage-info';
+    label.style.cssText = 'position:fixed;left:12px;top:12px;margin:0;padding:6px 10px;font:12px/1.45 ui-monospace,Consolas,monospace;color:#cfd6dc;background:rgba(8,12,16,0.72);border:1px solid #2a343c;pointer-events:none;white-space:pre';
+    document.body.appendChild(label);
+  }
+  // Acts are timed against the clock of the frame before, not against `dt`, which is capped.
+  let last = num('t', 10) - 1e-3;
+  let shown = '';
+  return (clock, dt) => {
+    const now = cue(clock), was = cue(last);
+    last = clock;
+    const ents: EntityView[] = [];
+    const view = base(r, clock, dt, { ents, hull: own ? 'wisp' : null });
+    const events: GameEvent[] = [];
+    const t = now.t;
+    const prev = was.name === now.name && was.round === now.round && was.t <= t ? was.t : -1e-6;
+    const frame: StageFrame = {
+      t, prev, clock, dt, round: now.round, dist, hull, ents, events,
+      ownId: view.self ? view.self.id : null,
+      rel: (x, y, z) => ahead(r, x, y, z),
+      at: (rel) => toZone(r, rel),
+      dir: (x, y, z) => quat.rotate(r.rot, [x, y, -z]),
+      facing: (x, y, z) => quat.lookRotation(quat.rotate(r.rot, [x, y, -z]), quat.rotate(r.rot, [0, 1, 0])),
+      ship: shipEnt,
+      crossed: (time) => prev < time && t >= time,
+      ticked: (perSecond, phase = 0) => t >= phase && Math.floor((t - phase) * perSecond) !== Math.floor((prev - phase) * perSecond),
+    };
+    now.act.frame(frame);
+    view.events = events;
+    if (label && shown !== now.name) {
+      shown = now.name;
+      label.textContent = `${now.name}
+${now.act.note}`;
+    }
+    return view;
+  };
+}
+
 /** What the surface scene last drew, for the readout and for scripts. */
 let surfacePlace: SurfacePlace | null = null;
 
@@ -595,6 +649,7 @@ const SCENES: Record<string, () => SceneFn> = {
   fight,
   surface,
   orient,
+  fx: fxStage,
   station: () => structureScene('station_ring'),
   outpost: () => structureScene('station_outpost'),
   gate: () => structureScene('gate'),
@@ -624,12 +679,14 @@ async function main(): Promise<void> {
   hooks.__work = [];
   if (params.get('hud') === '1') (await import('./hud.ts')).mountDevHud(() => hooks.__view ?? null, params);
   const start = performance.now();
+  // `slow` runs the scene clock at a fraction of real time; everything a scene does follows that clock.
+  const rate = Math.max(0, num('slow', 1));
   let last = num('t', 10);
   let frames = 0;
   let before = start;
   const frame = (): void => {
     const now = performance.now();
-    const clock = num('t', 10) + (now - start) / 1000;
+    const clock = num('t', 10) + ((now - start) / 1000) * rate;
     const dt = Math.min(0.1, Math.max(1e-4, clock - last));
     last = clock;
     hooks.__clock = clock;
