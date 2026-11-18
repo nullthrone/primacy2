@@ -199,6 +199,19 @@ def high_shelf_sos(sr: int, hz: float, gain_db: float) -> np.ndarray:
     return np.array([[b0 / a0, b1 / a0, b2 / a0, 1.0, a1 / a0, a2 / a0]])
 
 
+def shelf_words(hz: float, gain_db: float, sr: int = 48000) -> str:
+    """A high shelf in numbers read off the filter itself: the corner, the gain, the gain at the corner and the frequency
+    above which the gain is reached to within 0.3 dB (rounded up to 100 Hz). The corner is not where the change starts."""
+    from scipy.signal import sosfreqz
+    f = np.linspace(20.0, sr / 2.0 - 100.0, 40000)
+    _, h = sosfreqz(high_shelf_sos(sr, hz, gain_db), worN=f, fs=sr)
+    d = 20.0 * np.log10(np.abs(h))
+    full = f[int(np.argmax(np.abs(d - gain_db) <= 0.3))]
+    at_corner = float(np.interp(hz, f, d))
+    return ("a high shelf with its corner at %g Hz and %+g dB: the filter gives %+.1f dB at the corner and reaches the %+g dB "
+            "(to within 0.3 dB) above about %d Hz" % (hz, gain_db, at_corner, gain_db, int(math.ceil(full / 100.0) * 100)))
+
+
 def op_shelf(x: np.ndarray, sr: int, p: dict) -> tuple[np.ndarray, dict]:
     from scipy.signal import sosfilt
 
@@ -290,7 +303,7 @@ def say(process: list[dict]) -> str:
             parts.append("the sound was tuned %g semitones %s by resampling, which also made it shorter" % (
                 abs(p["semitones"]), "higher" if p["semitones"] >= 0 else "lower"))
         elif p["op"] == "shelf":
-            parts.append("the highs above %g Hz were changed by %g dB with a high shelf" % (p["hz"], p["gainDb"]))
+            parts.append("the sound was filtered with " + shelf_words(float(p["hz"]), float(p["gainDb"])))
         else:
             parts.append("operation %s" % p["op"])
     return "; ".join(parts) if parts else "nothing was changed"

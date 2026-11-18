@@ -97,7 +97,8 @@ def describe_process(process: list[dict], numbers: dict) -> str:
                 _g(abs(p["semitones"])), "higher" if p["semitones"] >= 0 else "lower",
                 ": %s s instead of %s s" % (_g(e["lengthS"]), _g(r["lengthS"])) if r and e else "")
         elif p["op"] == "shelf":
-            t = "A high shelf filter changed everything above %s Hz by %s dB." % (_g(p["hz"]), _g(p["gainDb"]))
+            import derive  # the numbers are read off the filter itself, not claimed from the corner
+            t = "The sound was filtered with %s." % derive.shelf_words(float(p["hz"]), float(p["gainDb"]))
         elif p["op"] == "append":
             lv = o.get("levelsDbUnderPeak") or {}
             what = "the raw file" if i == 0 else "the sound as it was at that point"
@@ -116,7 +117,31 @@ def describe_process(process: list[dict], numbers: dict) -> str:
     return " ".join(out)
 
 
-def describe_source(c: dict, fam: dict) -> tuple[str, str]:
+def _typical_sentence(c: dict, screen: dict | None) -> str:
+    """The sentence for the first pick of a source. In a round-7 screen.json (it lists "derived" among its sources) a pick that was
+    the only one left to choose from does not get "most typical": nothing was weighed, and the sentence counts what ruled the others out.
+    Every other case, and every older round, keeps the sentence it always had."""
+    usual = " Chosen as the most typical candidate of its source in this family."
+    if not screen or "derived" not in (screen.get("sources") or []):
+        return usual
+    rows = [f for f in screen.get("files", []) if f.get("family") == c["family"] and f.get("source") == c["source"]
+            and f.get("status") == "kept" and not f.get("fixed")]
+    free = [f for f in rows if not (f.get("notPickedShots") or f.get("notPickedLowShare") or f.get("notPickedSaturatedNoise")
+                                    or f.get("skip") or f.get("skipped"))]
+    if len(free) != 1 or len(rows) < 2:
+        return usual
+    n_shots = sum(1 for f in rows if f.get("notPickedShots"))
+    n_low = sum(1 for f in rows if f.get("notPickedLowShare"))
+    n_sat = sum(1 for f in rows if f.get("notPickedSaturatedNoise"))
+    n_skip = sum(1 for f in rows if f.get("skip") or f.get("skipped"))
+    why = [t for t in ("%d with another number of shots than the family asks for" % n_shots if n_shots else "",
+                       "%d under the family's smallest share of energy above 60 Hz" % n_low if n_low else "",
+                       "%d pressed noise" % n_sat if n_sat else "", "%d on the hand skip list" % n_skip if n_skip else "") if t]
+    return (" The only eligible candidate of its source in this family: of the %d kept candidates of this source, the other %d were "
+            "ruled out (%s), so no typicality was weighed." % (len(rows), len(rows) - 1, "; ".join(why)))
+
+
+def describe_source(c: dict, fam: dict, screen: dict | None = None) -> tuple[str, str]:
     """(intent, licence) of a chosen candidate."""
     rec = c.get("record", {})
     cut = c["cut"]
@@ -144,7 +169,7 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
         if c.get("sourceRank", 1) > 1:
             how += " A further pick of this source: the candidate farthest from the picks already made in this family in the description used for variety."
         else:
-            how += " Chosen as the most typical candidate of its source in this family."
+            how += _typical_sentence(c, screen)
     elif c["role"] != "typical" or c["slot"] == 4:
         how += (" Second pick: " + ("the candidate farthest from the other three in the description used for variety."
                                     if c["role"] == "farthest" else "chosen because this family has no candidate from the source of its slot."))
@@ -283,7 +308,7 @@ def main(argv=None) -> int:
                 suffix_de, suffix_en = pick_suffix(rank)
             else:
                 suffix_de, suffix_en = (SECOND[0], SECOND[1]) if second else ("", "")
-            intent, licence = describe_source(c, fam)
+            intent, licence = describe_source(c, fam, screen)
             ch = int(data.shape[1])
             share = c.get("energyAbove60Hz")
             hints = [HINT]
