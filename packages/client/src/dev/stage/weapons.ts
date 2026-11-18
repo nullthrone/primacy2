@@ -59,6 +59,29 @@ export const acts: Record<string, Act> = {
       if (f.t >= 4 && f.t < 5.6 && f.ticked(10, 4.1)) f.events.push({ e: 'shot', from: SHOOTER, w: 'beam_1', slot: 0, at: far });
     },
   },
+  mine: {
+    note: 'mining laser: the beam walks along a wreck for 3 s and is cut; the places it heated cool',
+    period: 8,
+    frame: (f) => {
+      const from = shooterRel(f), to = targetRel(f);
+      const radius = HULLS[f.hull]?.radius ?? 10;
+      f.ents.push(
+        f.ship(SHOOTER, 'delver', from, f.facing(0.9, 0.18, 0.28), { flags: 0 }),
+        {
+          id: WRECK, info: { id: WRECK, kind: EntityKind.Wreck, name: 'Wreck', model: f.hull, radius },
+          rel: to, vel: [0, 0, 0], rot: f.facing(0.2, 0.3, -1), flags: 0, hull: 1, shield: 0,
+        },
+      );
+      // A rock is not an entity; the wreck stands in for one. The server reports a tool beam about
+      // four times a second, and here every report is half a metre further along the hull.
+      if (f.t >= 0.4 && f.t < 3.4 && f.ticked(4, 0.4)) {
+        const p = facingPoint(f, to, from, 0.5);
+        const side = f.dir(0.15, 1, 0);
+        const k = ((f.t - 1.9) / 1.5) * 0.45 * radius;
+        f.events.push({ e: 'mine', from: SHOOTER, ast: 0, at: f.at([p[0] + side[0] * k, p[1] + side[1] * k, p[2] + side[2] * k]) });
+      }
+    },
+  },
   torch: {
     note: 'salvage torch: a ship cuts up a wreck',
     period: 6,
