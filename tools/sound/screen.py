@@ -37,6 +37,11 @@ they are there, and does what round 4 did when they are not; see "Round 5" in to
 "notSaturatedNoise": {"loud50Db", "above2kHz"} of a family (see saturation_measures and "Round 6" in the README).
 Ids are
 <idPrefix>_<family number>_<family>_<slot>_<source>_<tag> with the idPrefix of the category of that file.
+Round 7 (a prompts file that lists "derived" in "sources") adds the source "derived" (tools/sound/derive.py), a
+family key "fixed" (every item of its "derived" list is chosen, in order, no pick rule applies, the faults are only
+recorded), a family key "shots": N (only candidates with exactly N separate shots are picked, see count_shots) and
+the measures shots, loud50Db and above2kHzLoud; see "Round 7" in the README. Without "derived" in "sources" nothing of
+this is read or written.
 
 The speech recogniser (Whisper small) and CLAP are the models of the sound library, read from the
 local cache only. They run on the processor by default (they are small); with --device cuda the
@@ -245,6 +250,41 @@ def saturation_measures(event: np.ndarray, sr: int) -> dict:
     return {"loud50Db": round(loud50, 2), "above2kHzLoud": round(share, 4)}
 
 
+SHOT_WIN_S = 0.010   # level windows of the shot counter
+SHOT_ON_DB = -12.0   # a shot begins when the level rises above this (dB under the loudest window of the cut) ...
+SHOT_OFF_DB = -20.0  # ... after it has stayed under this ...
+SHOT_QUIET_S = 0.080  # ... for at least this long, or since the start of the cut
+
+
+def count_shots(event: np.ndarray, sr: int) -> int:
+    """The number of separate shots in a cut event (n, channels): the number of times the level (root mean square in
+    non-overlapping 10 ms windows, power mean over the channels, in dB under the loudest window of the cut) rises above
+    -12 dB after it has stayed under -20 dB for at least 80 ms, or since the start of the cut. A level between -20 and
+    -12 dB neither starts a shot nor counts as quiet."""
+    x = np.asarray(event, dtype=np.float64)
+    if x.ndim == 1:
+        x = x[:, None]
+    w = max(1, int(round(SHOT_WIN_S * sr)))
+    n = x.shape[0] // w
+    if n == 0:
+        return 0
+    p = (x[:n * w] ** 2).mean(axis=1).reshape(n, w).mean(axis=1)
+    if p.max() <= 0:
+        return 0
+    db = 10.0 * np.log10(np.maximum(p / p.max(), 1e-20))
+    need = max(1, int(round(SHOT_QUIET_S / SHOT_WIN_S)))
+    armed, quiet, shots = True, 0, 0
+    for v in db:
+        if armed and v > SHOT_ON_DB:
+            shots += 1
+            armed, quiet = False, 0
+        elif not armed:
+            quiet = quiet + 1 if v < SHOT_OFF_DB else 0
+            if quiet >= need:
+                armed = True
+    return shots
+
+
 def is_saturated_noise(meas: dict, rule: dict) -> bool:
     """Pressed (loudest 50 ms above loud50Db) AND noise-like (share above 2 kHz at or above above2kHz)."""
     return bool(meas["loud50Db"] > float(rule["loud50Db"]) and meas["above2kHzLoud"] >= float(rule["above2kHz"]))
@@ -389,12 +429,12 @@ def _unpickable(c: dict) -> bool:
     """A candidate that stays in the pool (it counts for the normalisation and the centre) but is never picked:
     a hand skip, under the family's smallest share of energy above 60 Hz ("minAbove60Hz"), or pressed noise
     ("notSaturatedNoise"; the last can still fill a slot that has nothing else)."""
-    return bool(c.get("skip") or c.get("lowShare") or c.get("satNoise"))
+    return bool(c.get("skip") or c.get("lowShare") or c.get("satNoise") or c.get("wrongShots"))
 
 
 def _hard_unpickable(c: dict) -> bool:
-    """What no fallback brings back: a hand skip or a low share."""
-    return bool(c.get("skip") or c.get("lowShare"))
+    """What no fallback brings back: a hand skip, a low share or a wrong number of shots."""
+    return bool(c.get("skip") or c.get("lowShare") or c.get("wrongShots"))
 
 
 def choose_by_picks(cands: list[dict], picks: list[str]) -> tuple[list[dict], list[str]]:
@@ -651,6 +691,8 @@ def candidate_tag(source: str, name: str, item: dict | None = None) -> str:
     the excerpt's name for a recording. The same candidate always gives the same tag, so an id never comes to
     mean another sound when a pick is replaced."""
     item = item or {}
+    if source == "derived" and isinstance(item.get("derived"), dict) and item["derived"].get("tag"):
+        return str(item["derived"]["tag"])  # the plan names it (round 7)
     if source in GENERATIVE:
         r4 = "r4" if item.get("fromRound4") else ""  # a file of round 4 kept its prompt number: "r4p1s12" is not "p1s12" of round 5
         m = re.search(r"(\d+)__s(\d+)$", name)
@@ -716,7 +758,15 @@ def family_settings(f: dict) -> dict:
     if f.get("notSaturatedNoise"):  # round 6; the key is only there when the family has the setting
         r = f["notSaturatedNoise"]
         out["notSaturatedNoise"] = {"loud50Db": float(r["loud50Db"]), "above2kHz": float(r["above2kHz"])}
+    if f.get("shots") is not None:  # round 7: only candidates with exactly this number of shots are picked
+        out["shots"] = int(f["shots"])
+    if f.get("fixed"):  # round 7: every item of "derived" is chosen, in order
+        out["fixed"] = True
     return out
+
+
+class ScreenError(Exception):
+    """A fixed candidate that is missing or cannot be chosen: screen.py stops with a message and a non-zero exit code."""
 
 
 def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None = None,
@@ -735,12 +785,22 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
     sets = {fid: family_settings(f) for fid, f in fams.items()}
     category = spec.get("category") or {}
     id_prefix = category.get("idPrefix", ID_PREFIX)
+    # round 7: the source "derived" is known only when the prompts file lists it; the rounds before see no change
+    derived_known = "derived" in (spec.get("sources") or [])
+    round7 = derived_known
+    fixed_ids = {fid for fid in fams if sets[fid].get("fixed")}
+    if fixed_ids and not derived_known:
+        raise ScreenError("family %s is fixed, but the prompts file does not list the source \"derived\"" % sorted(fixed_ids)[0])
+    plan_items = {fid: {it["id"]: it for it in fams[fid].get("derived", [])} for fid in fixed_ids}
+    problems: list[str] = []
     models = Models(device) if use_models else None
     files: list[dict] = []
     cands: dict[str, list[dict]] = {f: [] for f in fams}
     sources_found: dict[str, dict] = {}
     for gj in sorted(root.glob("*/gen.json")):
         key = gj.parent.name
+        if key == "derived" and not derived_known:
+            continue
         rec = json.loads(gj.read_text(encoding="utf-8"))
         items = rec.get("items", {})
         sources_found[key] = {"files": len(items), "kept": 0}
@@ -750,9 +810,16 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             row = {"source": key, "name": name, "family": fam, "status": "thrown-out", "reason": None, "reasons": []}
             files.append(row)
             raw = find_raw(root, key, name, item)
+            if fam in fixed_ids and not (key == "derived" and name in plan_items[fam]):
+                row["reason"] = "not-a-fixed-item"  # a fixed family holds its own items only; nothing enters another family's pool
+                row["reasons"] = [row["reason"]]
+                continue
+            fixed = fam in fixed_ids
             if fam is None or raw is None:
                 row["reason"] = "unknown-family" if fam is None else "missing-file"
                 row["reasons"] = [row["reason"]]
+                if fixed:
+                    problems.append("fixed item %s: its raw file is missing" % name)
                 continue
             row["file"] = _rel(raw, ROOT)
             x, sr = sf.read(str(raw), dtype="float32", always_2d=True)
@@ -762,16 +829,29 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             row.update(info)
             if cut is not None:
                 row["energyAbove60Hz"] = round(energy_share_above(x[cut["start"]:cut["end"]], sr), 4)
-            if cut is not None and models is not None and not reasons:
+            want_shots = (round7 and fam.startswith("thruster")) or sets[fam].get("shots") is not None
+            if cut is not None and want_shots:
+                row["shots"] = count_shots(x[cut["start"]:cut["end"]], sr)
+            if fixed and cut is None:
+                row["reasons"] = reasons
+                row["reason"] = reasons[0]
+                problems.append("fixed item %s cannot be chosen: %s" % (name, ", ".join(reasons)))
+                continue
+            if cut is not None and models is not None and (not reasons or fixed):
                 ev = x[cut["start"]:cut["end"]].mean(axis=1)
-                texts = [p["text"] for p in fams[fam]["prompts"]]
+                texts = [p["text"] for p in fams[fam]["prompts"]] or [fams[fam]["en"]]
                 m = models.speech_and_music(ev, sr, texts)
                 row["models"] = m
                 if m["speech"]:
                     reasons.append("speech")
                 if m["music"]:
                     reasons.append("music")
-            row["reasons"] = reasons
+            if fixed:  # a fixed candidate is on the page whatever the rules find: they are recorded as faults
+                row["faults"] = reasons
+                row["fixed"] = True
+                row["reasons"] = reasons = []
+            else:
+                row["reasons"] = reasons
             if reasons:
                 row["reason"] = reasons[0]
                 continue
@@ -780,15 +860,35 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             sources_found[key]["kept"] += 1
             # a file carried over from round 4 keeps the hand skip it had there (the same file, the same cut)
             skip = skips.get("%s/%s" % (key, name)) or item.get("round4Skip")
+            if fixed:
+                skip = None  # no hand skip applies to a fixed candidate
+                d = item.get("derived") or {}
+                plan = plan_items[fam][name]
+                if d.get("tag") != plan["tag"] or d.get("from") != plan["from"] or d.get("process") != plan["process"]:
+                    problems.append("fixed item %s: %s was not made from this plan (tag, from or process differ): run derive.py again" % (
+                        name, _rel(gj, ROOT)))
             cand = {"source": key, "name": name, "raw": describe(event, sr),
                     "cut": cut, "x": x, "sr": sr, "item": item, "skip": skip}
+            if fixed:
+                cand["fixed"] = True
+                cand["faults"] = list(row["faults"])
+            if round7:
+                meas = saturation_measures(event, sr)  # a measure for every kept file of round 7, with or without the rule
+                row.update(meas)
+                cand.update(meas)
+            if "shots" in row:
+                cand["shots"] = row["shots"]
+                want = sets[fam].get("shots")
+                if want is not None and not fixed and row["shots"] != want:
+                    cand["wrongShots"] = True  # stays in the pool for the statistics, is never picked, nothing fills its slot
+                    row["notPickedShots"] = "%d separate shots measured, the family asks for exactly %d" % (row["shots"], want)
             floor = sets[fam]["minAbove60Hz"]
             share = row.get("energyAbove60Hz")
             if floor is not None and share is not None and share < floor:
                 cand["lowShare"] = True  # stays in the pool for the statistics, is never picked
                 row["notPickedLowShare"] = "energy above 60 Hz %.4f is under the family's minimum %.2f" % (share, floor)
             rule = sets[fam].get("notSaturatedNoise")
-            if rule:
+            if rule and not fixed:
                 meas = saturation_measures(event, sr)  # on the raw cut, before any gain
                 row.update(meas)
                 cand.update(meas)
@@ -798,6 +898,14 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
             cands[fam].append(cand)
             if skip:
                 row["skippedAsPick"] = skip
+    for fid in sorted(fixed_ids):  # every item of a fixed family has to be there
+        got = {c["name"] for c in cands[fid] if c["source"] == "derived"}
+        for iid in plan_items[fid]:
+            if iid not in got and not any(("fixed item %s " % iid) in m or ("fixed item %s:" % iid) in m for m in problems):
+                problems.append("fixed item %s of family %s is missing from the pool (no item in derived/gen.json, or its file "
+                                "is not found): run tools/sound/derive.py" % (iid, fid))
+    if problems:
+        raise ScreenError("; ".join(problems))
     listen = root / "_listen"
     listen.mkdir(parents=True, exist_ok=True)
     for old in listen.glob(id_prefix + "_*.wav"):
@@ -806,8 +914,20 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
     fam_out: dict[str, dict] = {}
     for fam, f in fams.items():
         cs = cands[fam]
-        picks, notes = choose(cs, sets[fam]["picks"])
+        if fam in fixed_ids:  # every item, in the order of the plan, slot = position; no pick rule
+            by_name = {c["name"]: c for c in cs}
+            picks = [{"slot": i, "cand": by_name[it["id"]], "role": "fixed"} for i, it in enumerate(f["derived"], 1)]
+            notes = []
+        else:
+            picks, notes = choose(cs, sets[fam]["picks"])
+            want = sets[fam].get("shots")
+            if want is not None and sets[fam]["picks"] and len(picks) < len(sets[fam]["picks"]):
+                ok = sum(1 for c in cs if not c.get("wrongShots"))
+                notes.append("%d of %d slots stay empty (they are not filled): %d of %d kept candidates have exactly %d separate shots" % (
+                    len(sets[fam]["picks"]) - len(picks), len(sets[fam]["picks"]), ok, len(cs), want))
         counts = {s: sum(1 for c in cs if c["source"] == s) for s in SOURCES}
+        if derived_known:
+            counts["derived"] = sum(1 for c in cs if c["source"] == "derived")
         fam_out[fam] = {"number": fam_no[fam], "candidates": counts, "notes": notes, "chosen": []}
         for p in picks:
             c = p["cand"]
@@ -828,10 +948,15 @@ def run(root: Path, use_models: bool, device: str, skips: dict[str, str] | None 
                                    "cappedAtFamilyLength": cut["capped"]},
                            "listen": dict(info, file=_rel(out, ROOT)),
                            "record": c["item"]})
-            if sets[fam].get("notSaturatedNoise"):
+            if sets[fam].get("notSaturatedNoise") or round7:
                 chosen[-1]["loud50Db"], chosen[-1]["above2kHzLoud"] = row.get("loud50Db"), row.get("above2kHzLoud")
                 if p.get("saturatedFallback"):
                     chosen[-1]["pressedNoiseFallback"] = True
+            if "shots" in row:
+                chosen[-1]["shots"] = row["shots"]
+            if c.get("fixed"):
+                chosen[-1]["fixed"] = True
+                chosen[-1]["faults"] = c["faults"]
             if "sourceRank" in p:  # only a family with its own "picks" has it: round 4 files stay as they were
                 chosen[-1]["sourceRank"] = p["sourceRank"]
             fam_out[fam]["chosen"].append(sid)
@@ -882,7 +1007,11 @@ def main(argv=None) -> int:
     for t in a.skip:
         k, _, why = t.partition("=")
         skips[k.strip()] = why.strip() or "skipped by hand"
-    result = run(root, not a.no_models, a.device, skips, prompts_file)
+    try:
+        result = run(root, not a.no_models, a.device, skips, prompts_file)
+    except ScreenError as e:
+        print("screen.py: " + str(e), file=sys.stderr)
+        return 1
     path = root / "screen.json"
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         json.dump(_clean(result), f, indent=1, ensure_ascii=False)

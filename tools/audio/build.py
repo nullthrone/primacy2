@@ -656,7 +656,7 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
     the manifest entry points to that copy. An entry whose raw file does not match its sha256 is
     refused with a message: the sound is never built from another file. A raw file missing on disk
     is reported and skipped, like a missing download. Processed copies that are no longer in the
-    list are removed. Category, kind, path and place are those of the event the sound stands for
+    list are removed; so is the copy of an entry of the list "withdrawn", which is otherwise ignored. Category, kind, path and place are those of the event the sound stands for
     (sounds.json). listing and raw_dir default to GENERATED_LIST and GENERATED_DIR.
 
     problems, when a list is given, receives one line for every entry that was not built: refused
@@ -675,6 +675,15 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
         return []
     raw = json.loads(listing.read_text(encoding="utf-8"))
     items = raw if isinstance(raw, list) else raw.get("sounds", [])
+    # "withdrawn": sounds that were built once and the owner then rejected. They are not built, not in
+    # the manifest, and their processed copy goes like any copy no longer in the list; the raw file stays
+    # in the raw folder and nothing reports it. An id in both lists is a mistake of the list: the entry
+    # of "sounds" is refused, so that a withdrawn sound is never built by accident.
+    withdrawn_ids = set()
+    if isinstance(raw, dict):
+        for w in raw.get("withdrawn", []):
+            if isinstance(w, dict) and isinstance(w.get("id"), str):
+                withdrawn_ids.add(w["id"])
     spec = synth.load_spec()
     folder = out / "generated"
     entries = []
@@ -690,6 +699,9 @@ def _generated_sounds(out: Path, measure_mod, common, listing: Path | None = Non
                 problem("  generated entry %s refused: the id is listed twice; the first one stays" % sid)
                 continue
             seen.add(sid)
+            if sid in withdrawn_ids:
+                problem("  generated entry %s refused: it is also listed as withdrawn" % sid)
+                continue
             why = _generated_entry_problem(it)
             if why:
                 problem("  generated entry %s refused: %s" % (sid, why))

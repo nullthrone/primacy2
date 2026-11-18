@@ -276,6 +276,59 @@ class Housekeeping(Base):
         self.assertTrue((self.out / 'downloads' / 'keep.wav').exists())
 
 
+class Withdrawn(Base):
+    """The list "withdrawn" (round 7): sounds the owner rejected after they were built once."""
+
+    def write_both(self, items, withdrawn):
+        self.listing.write_text(json.dumps({'note': 'test', 'sounds': items, 'withdrawn': withdrawn}), encoding='utf-8')
+
+    def test_a_withdrawn_entry_is_not_built_and_its_copy_is_removed_but_its_raw_file_stays(self):
+        sha_a = write_raw(self.raw, 'a.wav', burst(edge_ms=5))
+        sha_w = write_raw(self.raw, 'w.wav', burst(edge_ms=5, seed=2))
+        folder = self.out / 'generated'
+        folder.mkdir(parents=True)
+        for ext in ('.wav', '.png', '.json'):
+            (folder / ('g_w' + ext)).write_bytes(b'x')
+        w = item('g_w', sha_w, 'w.wav')
+        w['withdrawn'] = {'date': '2026-11-18', 'verdict': 'wrong', 'ratedAt': '2026-11-18T14:36:38.602Z', 'reason': 'test'}
+        self.write_both([item('g_a', sha_a, 'a.wav')], [w])
+        entries, text = self.run_build()
+        self.assertEqual([e['id'] for e in entries], ['g_a'])
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ['g_a.png', 'g_a.wav'])
+        self.assertTrue((self.raw / 'w.wav').is_file())
+        self.assertNotIn('g_w', text)      # not reported as refused, missing or stray
+        self.assertNotIn('w.wav', text)
+
+    def test_a_withdrawn_entry_whose_raw_file_is_gone_or_changed_is_not_reported(self):
+        w = item('g_w', 'ab' * 32, 'gone.wav')
+        self.write_both([], [w])
+        entries, text = self.run_build()
+        self.assertEqual(entries, [])
+        self.assertEqual(text, '')
+
+    def test_an_id_in_both_lists_is_refused_and_not_built(self):
+        sha = write_raw(self.raw, 'a.wav', burst(edge_ms=5))
+        self.write_both([item('g_a', sha, 'a.wav')], [item('g_a', sha, 'a.wav')])
+        entries, text = self.run_build()
+        self.assertEqual(entries, [])
+        self.assertIn('withdrawn', text)
+        self.assertFalse((self.out / 'generated' / 'g_a.wav').exists())
+
+    def test_the_real_list_keeps_the_two_pulses_out_of_sounds_and_counts_from_the_data(self):
+        real = json.loads((Path(HERE) / '..' / '..' / '..' / 'assets' / 'audio' / 'generated.json').read_text(encoding='utf-8'))
+        sounds = {s['id'] for s in real['sounds']}
+        gone = {s['id']: s for s in real['withdrawn']}
+        self.assertEqual(set(gone), {'g_thruster_pulse_a', 'g_thruster_pulse_b'})
+        self.assertFalse(sounds & set(gone))
+        self.assertEqual(len(real['sounds']), len(sounds))
+        for w in gone.values():
+            self.assertEqual(w['withdrawn']['verdict'], 'wrong')
+            self.assertTrue(w['withdrawn']['reason'])
+        raw_dir = Path(HERE) / '..' / '..' / '..' / 'assets' / 'audio' / 'generated'
+        for s in list(real['sounds']) + list(gone.values()):
+            self.assertEqual(hashlib.sha256((raw_dir / s['file']).read_bytes()).hexdigest(), s['sha256'], s['id'])
+
+
 class Entry(Base):
     def test_the_manifest_entry_follows_decision_5(self):
         """Rule 5: source generated; category, kind, path, place of the event; en and de from the list; intent says

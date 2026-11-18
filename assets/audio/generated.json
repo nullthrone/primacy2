@@ -1,5 +1,5 @@
 {
- "note": "Sounds made by the model MOSS-SoundEffect v2.0 that the owner heard and accepted (verdict fits). Each one is a library sound that stands for one event of tools/audio/sounds.json. The raw files in assets/audio/generated are committed byte for byte, because a run of the model is not reproducible bit for bit and assets/audio/gen is ignored by git. tools/audio/build.py checks the sha256 of every raw file, cuts it as recorded, converts it to 48 kHz, repairs the ends and sets the integrated loudness to lufs. These lufs levels are the loudness of the rendered event the sound stands for, as assets/audio/render/manifest.json had it on 2026-11-16, and they are provisional until the mix of the game is designed. The owner heard the candidates at another level: they were levelled to -34 or -35 LUFS for the comparison. The two heavy hits stand for the same event. The thruster valve picks of round 5 were cut from raw files generated in round 4.",
+ "note": "Sounds made by the model MOSS-SoundEffect v2.0 that the owner heard and accepted (verdict fits). Each one is a library sound that stands for one event of tools/audio/sounds.json. The list \"sounds\" has ten of them (from round 4: 2, round 5: 4, round 6: 4); the list \"withdrawn\" has two that were built once and are not any more. The raw files in assets/audio/generated are committed byte for byte, because a run of the model is not reproducible bit for bit and assets/audio/gen is ignored by git; the raw file of a withdrawn sound stays there. tools/audio/build.py checks the sha256 of every raw file, cuts it as recorded, converts it to 48 kHz, repairs the ends and sets the integrated loudness to lufs. These lufs levels are the loudness of the rendered event the sound stands for (checks.lufs of that event in assets/audio/render/manifest.json: as it was on 2026-11-16 for the first eight, as it is on 2026-11-18 for the four of round 6), and they are provisional until the mix of the game is designed. The owner heard the candidates at another level: they were levelled to -34 or -35 LUFS for the comparison. More than one sound stands for the events fold_exit, impact_hull_heavy, impact_hull_light. The thruster valve picks of round 5 were cut from raw files generated in round 4. The two thruster pulses a and b were rated wrong as library copies on 2026-11-18 and moved to \"withdrawn\" (a withdrawn entry is not built and is not in the manifest).",
  "sounds": [
   {
    "id": "g_impact_hull_light",
@@ -106,58 +106,6 @@
    "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
   },
   {
-   "id": "g_thruster_pulse_a",
-   "standsFor": "thruster_pulse_a",
-   "file": "g_thruster_pulse_a.wav",
-   "sha256": "2ee2b510661e7f3c3bb22ab2a2d00b6b285077990faebc9126762cc37ffdcd51",
-   "cut": {
-    "startS": 0.006,
-    "endS": 0.409
-   },
-   "lufs": -25.75,
-   "en": "Thruster pulse A · MOSS",
-   "de": "Düsenstoß A · MOSS",
-   "origin": {
-    "model": "MOSS-SoundEffect v2.0",
-    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
-    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
-    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
-    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
-    "seed": 11,
-    "round": 4,
-    "candidate": "src_2_thruster_4_moss_p1s11",
-    "verdict": "fits",
-    "ratedAt": "2026-11-16T06:05:19.029Z"
-   },
-   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
-  },
-  {
-   "id": "g_thruster_pulse_b",
-   "standsFor": "thruster_pulse_b",
-   "file": "g_thruster_pulse_b.wav",
-   "sha256": "4a6f3a41d4a95a92aa756fb9f791c1b8bdccc688fb258d4e9ded2cbf9dfdf5c9",
-   "cut": {
-    "startS": 0.0,
-    "endS": 1.004
-   },
-   "lufs": -27.23,
-   "en": "Thruster pulse B · MOSS",
-   "de": "Düsenstoß B · MOSS",
-   "origin": {
-    "model": "MOSS-SoundEffect v2.0",
-    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
-    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
-    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
-    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
-    "seed": 12,
-    "round": 5,
-    "candidate": "ev5_3_thruster_valve_1_moss_r4p1s12",
-    "verdict": "fits",
-    "ratedAt": "2026-11-16T16:50:51.142Z"
-   },
-   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
-  },
-  {
    "id": "g_thruster_pulse_c",
    "standsFor": "thruster_pulse_c",
    "file": "g_thruster_pulse_c.wav",
@@ -208,6 +156,177 @@
     "ratedAt": "2026-11-16T06:05:23.972Z"
    },
    "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_impact_hull_light_b",
+   "standsFor": "impact_hull_light",
+   "file": "g_impact_hull_light_b.wav",
+   "sha256": "65b02f7c788239038c6802dc00deb8a966c840337da954586cb90bee4e646c73",
+   "cut": {
+    "startS": 0.0,
+    "endS": 0.467
+   },
+   "lufs": -29.63,
+   "en": "Hull hit, light · MOSS b",
+   "de": "Rumpftreffer, leicht · MOSS b",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Heavy wrench dropped once onto a steel deck plate, single short hard metallic knock, close microphone duration: 2.0s",
+    "seed": 22,
+    "round": 6,
+    "candidate": "ev6_1_hull_light_1_moss_p1s22",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T14:32:33.202Z",
+    "note": "ist ok, schauen wir mal wie es weiterhin wird"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_fold_jump",
+   "standsFor": "fold_jump",
+   "file": "g_fold_jump.wav",
+   "sha256": "a74279e89d855b0d4a652529481cb92939b01cb6b569cc0544b39613a7cadfef",
+   "cut": {
+    "startS": 0.0,
+    "endS": 3.8
+   },
+   "lufs": -20.23,
+   "en": "Fold · MOSS",
+   "de": "Faltsprung · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Science fiction warp drive engages, a fast rising electric whine snaps into a bright shimmering surge of energy that fades out cleanly duration: 4.0s",
+    "seed": 14,
+    "round": 6,
+    "candidate": "ev6_4_fold_jump_1_moss_p1s14",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T14:28:38.068Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_fold_exit_a",
+   "standsFor": "fold_exit",
+   "file": "g_fold_exit_a.wav",
+   "sha256": "7e049eddeab397a7143150a451eae626a6986841699fb61ab667f037b9fa52b6",
+   "cut": {
+    "startS": 0.0,
+    "endS": 3.121
+   },
+   "lufs": -23.79,
+   "en": "Fold exit · MOSS a",
+   "de": "Faltaustritt · MOSS a",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "A deep rushing surge arrives fast from the distance and ends in a powerful low pulse of energy that dissipates into a dark soft hum, science fiction duration: 4.0s",
+    "seed": 13,
+    "round": 6,
+    "candidate": "ev6_5_fold_exit_2_moss_p1s13",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T14:28:12.976Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  },
+  {
+   "id": "g_fold_exit_b",
+   "standsFor": "fold_exit",
+   "file": "g_fold_exit_b.wav",
+   "sha256": "a16c39c90544ff6b705e3b1348097ea758ec6515524a3ff41a26bca5b90ce2c1",
+   "cut": {
+    "startS": 0.1449,
+    "endS": 3.883
+   },
+   "lufs": -23.79,
+   "en": "Fold exit · MOSS b",
+   "de": "Faltaustritt · MOSS b",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "A deep rushing surge arrives fast from the distance and ends in a powerful low pulse of energy that dissipates into a dark soft hum, science fiction duration: 4.0s",
+    "seed": 16,
+    "round": 6,
+    "candidate": "ev6_5_fold_exit_3_moss_p1s16",
+    "verdict": "fits",
+    "ratedAt": "2026-11-18T14:28:21.255Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)"
+  }
+ ],
+ "withdrawn": [
+  {
+   "id": "g_thruster_pulse_a",
+   "standsFor": "thruster_pulse_a",
+   "file": "g_thruster_pulse_a.wav",
+   "sha256": "2ee2b510661e7f3c3bb22ab2a2d00b6b285077990faebc9126762cc37ffdcd51",
+   "cut": {
+    "startS": 0.006,
+    "endS": 0.409
+   },
+   "lufs": -25.75,
+   "en": "Thruster pulse A · MOSS",
+   "de": "Düsenstoß A · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
+    "seed": 11,
+    "round": 4,
+    "candidate": "src_2_thruster_4_moss_p1s11",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T06:05:19.029Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "withdrawn": {
+    "date": "2026-11-18",
+    "verdict": "wrong",
+    "ratedAt": "2026-11-18T14:36:38.602Z",
+    "reason": "The owner rated this library copy wrong on 2026-11-18 (no note), after he had accepted the same raw file as a candidate in round 4 at a level 6 to 8 dB lower (the library level was the rendered event's, -25.75 LUFS; the candidates were levelled to -34 or -35 LUFS)."
+   }
+  },
+  {
+   "id": "g_thruster_pulse_b",
+   "standsFor": "thruster_pulse_b",
+   "file": "g_thruster_pulse_b.wav",
+   "sha256": "4a6f3a41d4a95a92aa756fb9f791c1b8bdccc688fb258d4e9ded2cbf9dfdf5c9",
+   "cut": {
+    "startS": 0.0,
+    "endS": 1.004
+   },
+   "lufs": -27.23,
+   "en": "Thruster pulse B · MOSS",
+   "de": "Düsenstoß B · MOSS",
+   "origin": {
+    "model": "MOSS-SoundEffect v2.0",
+    "modelRevision": "e35df4d82fbe87fcd5d14e5d100e349c0c3c076d",
+    "code": "https://github.com/OpenMOSS/MOSS-TTS moss_soundeffect_v2",
+    "codeCommit": "934d6826b084c46a0d033402174d5f8ac4ed2519",
+    "prompt": "Short sharp burst of compressed gas from a pneumatic valve, a punchy hiss with a low thump, single burst duration: 2.0s",
+    "seed": 12,
+    "round": 5,
+    "candidate": "ev5_3_thruster_valve_1_moss_r4p1s12",
+    "verdict": "fits",
+    "ratedAt": "2026-11-16T16:50:51.142Z"
+   },
+   "licence": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
+   "withdrawn": {
+    "date": "2026-11-18",
+    "verdict": "wrong",
+    "ratedAt": "2026-11-18T14:36:39.204Z",
+    "reason": "The owner rated this library copy wrong on 2026-11-18 (no note), after he had accepted the same raw file as a candidate in round 5 at a level 6 to 8 dB lower (the library level was the rendered event's, -27.23 LUFS; the candidates were levelled to -34 or -35 LUFS)."
+   }
   }
  ]
 }

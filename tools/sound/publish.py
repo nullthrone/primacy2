@@ -49,12 +49,14 @@ NAMES = {  # (German, English) after the family name
 SECOND = (", zweite Auswahl", ", second pick")
 ORDINALS = ((None, None), ("zweite", "second"), ("dritte", "third"), ("vierte", "fourth"), ("fünfte", "fifth"), ("sechste", "sixth"))
 LICENCE = {
+    "derived": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0), processed with tools/sound/derive.py",
     "moss": "generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0)",
     "sa3": "generated with Stable Audio 3 Small-SFX Base (Stability AI Community License): test material, not to be "
            "shipped until the owner has decided",
 }
 
 
+VERDICT_WORDS = {"fits": "fitting (Passt)", "close": "close (Nah dran)", "wrong": "wrong (Falsch)"}
 LOW_SHARE_HINT = 0.10  # below this share of the energy above 60 Hz the page shows a hint (a measure shown, not a rule)
 
 
@@ -74,19 +76,53 @@ def pick_suffix(rank: int) -> tuple[str, str]:
     return ", %s Auswahl" % de, ", %s pick" % en
 
 
+def _g(v) -> str:
+    return "%g" % v
+
+
+def describe_process(process: list[dict], numbers: dict) -> str:
+    """The operations of a derived candidate in plain words with their numbers (plan and run)."""
+    ops = numbers.get("operations", [])
+    out = []
+    for i, p in enumerate(process):
+        o = ops[i] if i < len(ops) else {}
+        if p["op"] == "room":
+            nch = int(p["channels"])
+            t = ("A room was added: decay time (60 dB) %s s, wet level %s dB against the dry sound%s, %s." % (
+                _g(p["rt60S"]), _g(p["wetDb"]),
+                " (reached %s dB)" % _g(o["wetDryDbReached"]) if "wetDryDbReached" in o else "",
+                "one channel" if nch == 1 else "two channels, the direct sound stays in the middle"))
+        elif p["op"] == "pitch":
+            r, e = numbers.get("raw", {}), numbers.get("result", {})
+            t = "Tuned %s semitones %s by resampling, so the sound is shorter%s." % (
+                _g(abs(p["semitones"])), "higher" if p["semitones"] >= 0 else "lower",
+                ": %s s instead of %s s" % (_g(e["lengthS"]), _g(r["lengthS"])) if r and e else "")
+        elif p["op"] == "shelf":
+            t = "A high shelf filter changed everything above %s Hz by %s dB." % (_g(p["hz"]), _g(p["gainDb"]))
+        else:
+            t = "Operation %s." % p["op"]
+        if o.get("outputGainDb"):
+            t += " The output was scaled by %s dB to stay under a peak of 0.999." % _g(o["outputGainDb"])
+        out.append(t)
+    return " ".join(out)
+
+
 def describe_source(c: dict, fam: dict) -> tuple[str, str]:
     """(intent, licence) of a chosen candidate."""
     rec = c.get("record", {})
     cut = c["cut"]
     lis = c["listen"]
-    how = ("Cut out of the raw file (%.2f to %.2f s)%s. Level: family target %s LUFS (one channel); as the page plays "
+    derived = c["source"] == "derived"
+    how = ("Cut out of the %s file (%.2f to %.2f s)%s. Level: family target %s LUFS (one channel); as the page plays "
            "it in the Stereo stage, over two channels with a one-channel file counted on both, %s LUFS, reached %s." % (
-               cut["startS"], cut["endS"], ", at the family's longest length" if cut.get("cappedAtFamilyLength") else "",
+               "processed" if derived else "raw", cut["startS"], cut["endS"], ", at the family's longest length" if cut.get("cappedAtFamilyLength") else "",
                lis["lufsTarget"], lis.get("lufsPageTarget", "?"), lis.get("lufsReachedPage", "?")))
     share = c.get("energyAbove60Hz")
     if share is not None:
         how += " Share of the event's energy above 60 Hz: %d %%." % round(100 * share)
-    if "picks" in fam:  # round 5: the family names the sources of its slots
+    if c.get("role") == "fixed":
+        how += " A fixed candidate: it is on the page whatever the rules find, no pick rule applies to it."
+    elif "picks" in fam:  # round 5: the family names the sources of its slots
         if c.get("sourceRank", 1) > 1:
             how += " A further pick of this source: the candidate farthest from the picks already made in this family in the description used for variety."
         else:
@@ -96,15 +132,28 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
                                     if c["role"] == "farthest" else "chosen because this family has no candidate from the source of its slot."))
     else:
         how += " Chosen as the most typical candidate of its source in this family."
-    if "proven" in fam:
+    if fam.get("proven") is True:
         # 'provenRound' of the family names the round in which he accepted the prompt (round 4 where it is not given,
         # which is what every proven family of prompts5.json rests on)
-        how += (" This family rests on a prompt the owner accepted in round %d." % int(fam.get("provenRound", 4)) if fam["proven"]
-                else " This family is a first try: no prompt of it has been heard yet.")
+        how += " This family rests on a prompt the owner accepted in round %d." % int(fam.get("provenRound", 4))
+    elif fam.get("history"):  # round 7: a sentence of the plan replaces the sentence that the family is a first try
+        how += " " + str(fam["history"]).strip()
+    elif "proven" in fam:
+        how += " This family is a first try: no prompt of it has been heard yet."
     if rec.get("fromRound4"):
         how += " The file was made in round 4 (prompt %s, seed %s) and was not heard then." % (rec.get("round4Prompt", rec.get("prompt", "?")), rec.get("seed", "?"))
     if c["listen"].get("limitedByPeak"):
         how += " The true peak ceiling lowered the gain: the loudness reached is %s LUFS on the page." % lis.get("lufsReachedPage", lis["lufsReached"])
+    if derived:
+        d = rec.get("derived") or {}
+        frm = d.get("from") or {}
+        made = "Made from the raw file of the candidate %s of round %s, which the owner called %s. %s " % (
+            frm.get("candidate", "?"), frm.get("round", "?"), VERDICT_WORDS.get(frm.get("verdict"), frm.get("verdict", "?")),
+            describe_process(d.get("process", []), d.get("numbers", {})))
+        intent = made + how
+        if c["family"].startswith("thruster") and c.get("shots") is not None:
+            intent += " Measured in the file: %d separate shots." % c["shots"]
+        return intent, LICENCE["derived"]
     if c["source"] == "oga":
         title = _first(rec, ("title", "name", "itemTitle", "pageTitle"), c["name"])
         author = _first(rec, ("author", "credit", "creator", "user"))
@@ -116,6 +165,8 @@ def describe_source(c: dict, fam: dict) -> tuple[str, str]:
     intent = 'Prompt given to %s: "%s" (seed %s). %s' % (name, text, rec.get("seed", "?"), how)
     if c["source"] == "sa3":
         intent += " " + STABLE_NOTE
+    if c["family"].startswith("thruster") and c.get("shots") is not None:
+        intent += " Measured in the file: %d separate shots." % c["shots"]
     return intent, LICENCE[c["source"]]
 
 
@@ -199,9 +250,16 @@ def main(argv=None) -> int:
                 failed.append("dc-offset")
             if np.abs(data[-int(0.010 * sr):]).max() > 10 ** (-60 / 20):
                 failed.append("tail-not-silent")
-            de_name, en_name = NAMES[c["source"]]
+            if c["source"] == "derived":  # round 7: the family's name, then the name of the item in the plan
+                item = next(it for it in fam["derived"] if it["id"] == c["name"])
+                de_name, en_name = item["de"], item["en"]
+                suffix_de = suffix_en = ""
+            else:
+                de_name, en_name = NAMES[c["source"]]
             second = c["slot"] == 4 or c["role"] != "typical"
-            if "picks" in fam:  # round 5: second pick, third pick, ... by the order of the slots within the source
+            if c["source"] == "derived":
+                pass
+            elif "picks" in fam:  # round 5: second pick, third pick, ... by the order of the slots within the source
                 rank = c.get("sourceRank") or 1 + sum(1 for o in screen["chosen"] if o["family"] == c["family"]
                                                       and o["source"] == c["source"] and o["slot"] < c["slot"])
                 suffix_de, suffix_en = pick_suffix(rank)
@@ -232,6 +290,10 @@ def main(argv=None) -> int:
                 "candidate": {"source": c["source"], "family": c["family"], "slot": c["slot"], "role": c["role"],
                               "raw": c["raw"], "cut": c["cut"], "listen": c["listen"]},
             }
+            if c["source"] == "derived":
+                entry["candidate"]["derived"] = {k: v for k, v in (c.get("record", {}).get("derived") or {}).items()}
+            if c.get("shots") is not None:
+                entry["candidate"]["shots"] = c["shots"]
             if ch == 1:
                 entry["place"] = 0  # a fixed place, ahead: otherwise the page picks a new direction on every play
             wav.with_suffix(".json").write_text(

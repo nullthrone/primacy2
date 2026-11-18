@@ -147,13 +147,23 @@ measured numbers as a rendered sound.
 `build.py` returns 1 when a generated entry is refused, missing or failed (the message is printed and the other entries are still built), as well as for failed checks and manifest problems.
 
 Sounds made by a model that the owner heard and accepted become library sounds, with source
-`generated`. At present these are eight sounds of MOSS-SoundEffect v2.0 (code and weights
-Apache-2.0).
+`generated`. At present these are ten sounds of MOSS-SoundEffect v2.0 (code and weights
+Apache-2.0): two from round 4, four from round 5, four from round 6. Two more were withdrawn on
+2026-11-18 (see below).
 
-- `assets/audio/generated.json` is the list: `{"note", "sounds": [...]}`. Each entry has `id`
+- `assets/audio/generated.json` is the list: `{"note", "sounds": [...], "withdrawn": [...]}`. Each entry has `id`
   (`g_...`), `standsFor` (the event of `sounds.json` it stands for), `file`, `sha256` of the raw
   file, `cut` (`startS`, `endS`), `lufs`, `en`, `de`, `origin` (model, model revision, code, code
-  commit, prompt, seed, round, candidate, verdict, ratedAt) and `licence`.
+  commit, prompt, seed, round, candidate, verdict, ratedAt, and `note` where the owner wrote one)
+  and `licence`. Several sounds may stand for one event (`impact_hull_heavy`, `impact_hull_light`,
+  `fold_exit`).
+- `withdrawn` holds sounds that were built once and that the owner then rejected (here the library
+  copies `g_thruster_pulse_a` and `g_thruster_pulse_b`, rated wrong on 2026-11-18 after he had
+  accepted the same raw files as candidates at a level 6 to 8 dB lower). An entry has every field
+  of a sound plus `withdrawn: {date, verdict, ratedAt, reason}`. It is not built and is not in the
+  manifest; its processed copy under `<out>/generated` is removed like any copy no longer in the
+  list; its raw file stays in `assets/audio/generated` and nothing reports it as stray. An id that
+  is in both lists is refused (the entry of `sounds` is not built, the message says so).
 - The raw files lie in `assets/audio/generated/<id>.wav` and are committed, byte for byte: a run of
   the model is not reproducible bit for bit, and `assets/audio/gen` is ignored by git.
 - The command is the one of every build, `.venv-audio/Scripts/python.exe tools/audio/build.py
@@ -175,6 +185,7 @@ Apache-2.0).
 - `validate_manifest` demands for a generated entry a spectrogram, a licence, a duration above 0, a
   true peak not above -1 dB and the object `generated` (`standsFor`, `model`, `prompt`, `seed`,
   `round`, `candidate`, `sha256`).
-- The `lufs` of an entry is the loudness of the rendered event it stands for as the manifest had it
-  on 2026-11-16. These levels are provisional until the mix of the game is designed. The owner heard
+- The `lufs` of an entry is the loudness of the rendered event it stands for: `checks.lufs` of the
+  entry with the id `standsFor` in `assets/audio/render/manifest.json` (as the manifest had it on
+  2026-11-16 for the first eight; the four of round 6 take it from the manifest of 2026-11-18). These levels are provisional until the mix of the game is designed. The owner heard
   the candidates at another level (-34 or -35 LUFS, for the comparison). The rendered events stay.
