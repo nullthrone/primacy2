@@ -1001,6 +1001,117 @@ directory of its own), and both test scripts follow `PRIMACY2_DEV_PORT`. Run tha
 and 8431, an empty data directory) `scripts/e2e.mjs` took 18 minutes and passed; it was started
 in the foreground and went on in the background after ten minutes.
 
+### Special effects: inventory, proposals and the owner's choices (2026-11-18)
+
+His request, in his words: "Überlege dir, wie wir die Spezialeffekte noch verbessern können. Mach
+Vorschläge und führe ein Interview mit mir, bevor du es umsetzt." He named lasers, explosions, the
+fold drive, the cruise drive and the neutron star, with "etc.": every effect of the game is meant.
+
+What was looked at, with nothing changed: the effect code (`packages/client/src/render/local/fx`,
+`local/objects/exhaust.ts`, `post/Composite.ts`, `post/Cruise.ts`, `space/Bodies.ts`,
+`space/BlackHole.ts`) and every effect family on the dev pages, as stills and as sequences taken
+with the page clock stopped at chosen moments, many as crops at 3840x2160. What it showed:
+
+- At fighting range little is left. Weapons reach 2.6 to 7 km (`packages/shared/src/catalog.ts`)
+  and a shot is under a metre wide, so even in the demo fight at 270 to 700 m every shot is a
+  hairline and a hull hit a dot; what is seen is the bloom.
+- All weapons are the same streak in another colour and length. A beam is an even line that
+  switches on and off; the muzzle flash is a round disc.
+- The thin rings (blast, fold arrival, the shock on the ground) read as a drawing of the HUD.
+- No effect lights anything: blast, muzzle flash, beam and engine throw no light on hulls, the
+  cockpit or the ground.
+- Everything is over after about a second. A blast leaves 6 to 16 chunks and nothing else; a
+  missile hit looks like any other hit.
+- The fold tunnel, the charge glow, the heat haze and the hit flash are filters over the finished
+  frame: over the cockpit in the cockpit view, over the pilot's own ship in the chase view.
+- The neutron star stands still (no rotation, no field, jets are smooth cones); a black hole seen
+  from far is a white blob; the sun from close up is nearly white and flat.
+- The streaks after a hard landing can be made on the dev page (`local.html?scene=surface&alt=14&
+  climb=-7&extras=0`): a second after the ship touches down at 7 m/s, wide pale bands fan across
+  the sky. They are clumps of the touchdown burst that pass close to the camera and are drawn very
+  large there. The dust is added as light and cannot darken the sky, so whether these are the
+  "dark streaks" of his test is to be confirmed in the game; the dev scene lets the ship sink into
+  the ground.
+
+The proposals were shown to him as a page with pictures of the present state (not in the
+repository). Each point named its side (sober or magic), its rough effort and an estimated cost
+per frame; none of the costs is measured (the card stood at 16 % and 88 W, not idle). He was told
+that everything marked as recommended is built as proposed unless he objects. Recommended were:
+
+- Weapons: a beam with a white core in a coloured sheath, waves of brightness running to the
+  target, ignition from the muzzle and an afterglow; a smallest size on screen of about 2.5 pixels
+  for shots and hits; a shape of its own for pulse, cannon and rail gun; mining beam and salvage
+  torch that leave a glowing spot, droplets and a jet of gas. Not recommended: lightning around
+  rail gun and beam.
+- Hits: the shield swallows the shot (his idea from the listening rounds: the shell gives way
+  inward, the bolt shrinks to a point, a soft dome of light drains toward the rim; a smooth
+  membrane, no honeycomb); the state of a shield shows, and its collapse; hull hits leave a scar
+  that glows for 2 to 3 s, with more sparks and a puff of gas; ships below 40 % hull throw sparks
+  and below 20 % vent gas; the pilot's own hit shows its direction instead of a red veil; a missile
+  detonates with a picture of its own (derived by the client from the missile vanishing).
+- Blasts: debris instead of a fireball, the flash as light with rays in the lens instead of a
+  disc, a soft thick shell instead of the ring, after-blasts on the wreck, size classes. Camera
+  shake only under 200 m and weak. Not recommended: a long fireball with smoke.
+- Engines: a plume with a bright core, motion in the gas, visible shock diamonds, ignition and
+  afterglow, a glowing nozzle throat instead of a white disc, a clearly longer boost; attitude
+  jets as short hard puffs of cold gas. A trail behind ships only on boost, short and faint. Not
+  now: heat shimmer behind the nozzle.
+- Cruise: charging happens in the world (light at the drive and ahead of the bow, on the
+  dashboard), a moment of engaging and one of dropping out, starlight crowding toward the heading
+  (aberration) with blue ahead and red astern, dust lines with depth, a flash with lens rays for
+  other ships. Not recommended: a tunnel of light.
+- Fold: the jump is drawn behind the cockpit and the pilot's own ship, which stay and are lit by
+  it; charging in the world; other ships arrive and leave with a bubble that bends the sky behind
+  it and collapses in a flash; the membrane of a gate gets the same lensing afterwards.
+- Compact stars and suns: the neutron star as a pulsar with two faint turning cones and a flash in
+  the lens when one sweeps the camera, jets with structure, field arcs and bending of light from
+  close up; light in the lens for the disk of a black hole and a shape from far; a sun with
+  contrast in its granulation, spots, arcs at the limb and a corona with streamers; rays for the
+  stars of the neighbouring systems.
+- Ground: clumps of dust fade near the camera and are limited in size on screen; impacts on the
+  ground get a glowing spot and a burst, a missile a curtain of ejecta.
+- Overlays: haze and fringe act only on the view outside, the cockpit gets warm light on the
+  dashboard instead, and in the chase view the ship glows where it is hot.
+- Light: two or three lights shared by the strongest effects near the camera (blast, muzzle
+  flash, beam, engine), a fixed number so that no shader is compiled anew.
+
+The interview (2026-11-18, one round of four questions, each with the recommendation first). His
+answers are the option texts he chose; he wrote no text of his own:
+
+- "Faltantrieb: Wie soll der Sprung selbst aussehen?" He chose "Gefalteter Raum (Empfohlen)":
+  the sky bulges ahead of the bow as around the black hole, a ring of light grows and swallows the
+  view, inside it the stretched starlight of the destination instead of clouds. Not chosen:
+  "Lichttunnel, neu gebaut", "Heutigen Tunnel behalten".
+- "Explosionen: Was soll von einem zerstörten Schiff zu sehen sein?" He chose "Trümmer und Licht
+  (Empfohlen)": a short flash with rays in the lens that lights hulls and cockpit, then 6 to 10 s
+  of a glowing, cooling cloud of debris and after-blasts on the wreck, no long fire. Not chosen:
+  "Feuerball wie im Kino", "Beides zusammen".
+- "Welche Pakete soll ich in dieser Runde bauen?" (several could be chosen) He chose all four:
+  "Mängel und Licht, Kampf, Antriebe, Himmelskörper". They are built in that order, one pull
+  request per effect family: first a stage for effects on the dev page and the capture tool, then
+  the defects (overlays behind the cockpit, landing streaks, lens light of the black hole,
+  neighbour stars) and the lights of effects, then weapons, hits and shield, blasts, then engines,
+  cruise and fold, then neutron star and sun.
+- "Drei bekannte Mängel sind Spielregeln auf dem Server, kein Bild: Die Basis hält Schüsse nicht
+  auf, Abbau- und Bergungsstrahl enden nicht am Boden, eine Rakete am Boden macht keinen
+  Flächenschaden. Wer soll das machen?" He chose "Hauptsession, später (Empfohlen)": the effects
+  work draws only the picture (impacts on the ground and on the base), the three rules are a task
+  for the main session. Not chosen: "Du baust sie mit", "Liegen lassen".
+
+My reading, not his words: the points he was not asked about one by one (the smooth shield without
+honeycomb, the faint cones of the pulsar, the trail on boost only, the weak camera shake) stand as
+recommended because he chose the recommendation in all four questions and objected to nothing.
+
+Seen only as frozen values, not in motion: the course of a fold jump and the rise of a charge;
+the pilot's own hits, the heat haze and time dilation from the cockpit. Not seen at all: dust
+under the engines of a ship hovering at 10 m (the dev scene showed none; whether the scene or the
+effect is at fault is open), the salvage torch from close up, and anything in the real game
+(every picture came from a dev page). The dev pages have no scene that shows one effect alone
+from close by; that stage is the first thing built.
+
+After he has played with the new effects he wants to be asked what to improve, with proposals of
+what more is possible (his standing wish of 2026-11-14 for work on the picture).
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -1055,7 +1166,10 @@ Defects seen and left in:
   a flat top. From the cockpit the ground beyond about 30 m stays smooth. The edge of a base's
   apron is hard against the new grain. In a low approach the detail costs 0.74 ms per frame at
   3840x2160, more than the 0.5 ms it was meant to.
-- After a hard landing dark streaks fan across the sky (probably the dust burst).
+- After a hard landing dark streaks fan across the sky (probably the dust burst). On 2026-11-18
+  wide pale bands were made on the dev page a second after a touchdown at 7 m/s: clumps of the
+  burst drawn very large close to the camera (section 2, "Special effects"). Whether they are the
+  same streaks is to be confirmed in the game; the cure is planned with the effects work.
 - The ground casts no shadows on itself: no long crater and hill shadows at the terminator.
 - A pale disc of 800 m radius around every base at noon (the pad's fixed tone); ice ridges read
   as scribble from 50 km; rays around fresh craters look painted from 500 m.
@@ -1073,7 +1187,9 @@ Defects seen and left in:
 - An arrow for a place and the label of another can lie close together when two places are in
   nearly the same direction; the nearer one keeps its label and the other shows the arrow only.
 - Projectiles and beams end at the ground; salvage and mining beams and the base structure do not
-  stop shots. A missile that hits the ground does no area damage.
+  stop shots. A missile that hits the ground does no area damage. These three are rules on the
+  server; on 2026-11-18 the owner left them to the main session, for later ("Hauptsession,
+  später"). The effects work draws only the picture of an impact on the ground and on a base.
 - Surfaces of 2026-11-15. Hull plates do not follow the grooves that are modelled, because the
   models have no texture coordinates; on the dashboard wings of the cockpit, which are turned by
   30 degrees, the joints follow the model's axes and not the wing. The fracture planes of the
