@@ -204,6 +204,13 @@ class IntentOfTwoChannels(Base):
         self.assertEqual(build.generated_intent(it, event), build.generated_intent(it, event, 1))
         self.assertNotEqual(build.generated_intent(it, event, 2), build.generated_intent(it, event, 1))
 
+    def test_a_two_channel_sound_of_a_two_channel_event_does_not_say_the_event_has_one_channel(self):
+        it = item('g_a', 'x')
+        text = build.generated_intent(it, {'en': 'Shield hit, light', 'channels': 2}, 2)
+        self.assertIn('the loudness of that rendered event today', text)
+        self.assertNotIn('The rendered event has one channel', text)
+        self.assertIn('The rendered event has one channel', build.generated_intent(it, {'en': 'Thruster pulse C', 'channels': 1}, 2))
+
 
 class RealList(unittest.TestCase):
     """The tracked list and the tracked raw files next to it."""

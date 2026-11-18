@@ -217,8 +217,8 @@ below). Two more were withdrawn on 2026-11-18 (see below).
   to 48 kHz, the repair of the ends and the loudness measurement (`set_loudness`) work on both
   channels, and the copy, its spectrogram and `channels: 2` in the manifest follow. `g_thruster_heavy_room_wide`
   is the one such sound at present. Nothing in the processing needed repair for it; the intent text did
-  (`generated_intent(it, event, channels)`: for two channels it says that the level is about 3 dB above the loudness of the rendered
-  event, which has one channel, and why, not that it is that loudness);
+  (`generated_intent(it, event, channels)`: for a two-channel file of an event that has one channel it says that the level is
+  about 3 dB above the loudness of the rendered event, and why, not that it is that loudness);
   `tests/test_generated_derived.py` (class `TwoChannels`) holds it, with two different channels.
 - `validate_manifest` demands for a generated entry a spectrogram, a licence, a duration above 0, a
   true peak not above -1 dB and the object `generated` (`standsFor`, `model`, `prompt`, `seed`,
@@ -227,6 +227,7 @@ below). Two more were withdrawn on 2026-11-18 (see below).
   entry with the id `standsFor` in `assets/audio/render/manifest.json` (as the manifest had it on
   2026-11-16 for the first eight; the four of round 6 and the eight of round 7 take it from the manifest of 2026-11-18). These levels are provisional until the mix of the game is designed. The owner heard
   the candidates of rounds 4 to 6 at another level (-34 or -35 LUFS, for the comparison). The rendered events stay.
+  One entry is an exception: the two-channel `g_thruster_heavy_room_wide` lies 3.02 dB above its event (next point).
 - Round 7: levels heard and built. A library sound plays at the loudness of the rendered event it
   stands for: `checks.lufs` of `thruster_pulse_c` is -28.26 and of `impact_shield_light` -24.47 in
   `assets/audio/render/manifest.json`. Those two events were chosen because their level is the
@@ -255,8 +256,9 @@ below). Two more were withdrawn on 2026-11-18 (see below).
 
 - Round 7: the page copy. A library sound of round 7 or later is the page copy he rated times one gain, to the
   sample. Three things made the first build differ from it (measured on the eight, built against
-  `assets/audio/gen/_kept/round7/page/<candidate>.wav`: -19.7 to -39.9 dB residual after the best gain, lengths
-  479 to 482 samples short), and each is repaired where it came from:
+  `assets/audio/gen/_kept/round7/page/<candidate>.wav`: -19.7 to -39.9 dB residual after the best gain at the best
+  offset of up to two samples, -9.6 to -33.3 dB at offset 0, lengths 479 to 482 samples short), and each is repaired
+  where it came from:
   1. The page copy has the mean taken out (`tools/sound/screen.py` `_finish`: where the mean of the copy is 0.0005
      or more, a window that is 1 in the middle and tapers over 1.5 ms and 5 ms is subtracted, because the page
      fails a file whose mean is 0.001 or more). The eight have a mean of 0.0006 to 0.0053 at the level of the

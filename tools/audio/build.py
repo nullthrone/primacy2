@@ -919,7 +919,8 @@ def generated_intent(it: dict, event: dict, channels: int = 1) -> str:
                     o["prompt"], o["seed"], ops, o["candidate"], o["round"]))
     # rounds 4 to 6 were heard at -34 or -35 LUFS, under the library level; from round 7 on the candidates were heard at about the library level
     lower = isinstance(o["round"], int) and not isinstance(o["round"], bool) and o["round"] < PAGE_FINISH_FROM_ROUND
-    if channels == 2:
+    # the sentence about one and two channels is true only where the event has one channel and the built file two
+    if channels == 2 and int(event.get("channels", 1)) == 1:
         level = ("Level: the integrated loudness is set to %.2f LUFS. The rendered event has one channel, and the audition page plays a "
                  "file with two channels about 3 dB lower than a one-channel file of the same loudness; this file keeps that relation, so "
                  "its loudness is about 3 dB above that of the rendered event today; provisional until the mix of the game is designed. " % float(it["lufs"]))
