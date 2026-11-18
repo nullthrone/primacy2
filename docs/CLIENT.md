@@ -260,6 +260,11 @@ hit flash) by the final pass `src/render/post/Composite.ts`; the look of cruise 
   strongest source outside, in its direction, with 0.45 of its strength. At quality 0 the lights
   stay dark. Sources are kept until the effects part ends its frame, so another part may add its
   own before.
+- The overlays of the final pass that belong to the pilot's own ship (charge glow, heat haze, hit
+  flash) act only on what is seen outside: not on the pixels of the cockpit, and in the chase view
+  not on what stands within about a hull radius of the pilot's ship. `Renderer.ts` hands the pass
+  what it needs to rebuild a pixel's place from the depth buffer. The fold tunnel and time
+  dilation still lie over the whole frame.
 - Each family of effects (`Weapons`, `Impacts`, `Blasts`, `Missiles`) has a `group` for what it
   draws beyond the shared streaks and discs, and `update`, `clear` and `dispose` of its own; a new
   primitive of a family is a new file under `fx/` and needs no change in `fx/index.ts`.

@@ -4,11 +4,21 @@ import type { BodyDef } from '@primacy2/shared';
 import type { BodyView } from '../../contracts.ts';
 import { GLSL_NOISE } from './glsl.ts';
 import { effectiveLum, hexToLinear } from './lighting.ts';
-import { bodyAxis, type SpaceFrame, type ViewParams } from './types.ts';
+import { bodyAxis, type LensLight, type SpaceFrame, type ViewParams } from './types.ts';
 import { Glow, NO_DEPTH, QUAD, compress, glare, smoothstep, type Visual } from './visual.ts';
 
 /** Radius of the sphere inside which rays are bent, in Schwarzschild radii. Outside it rays are straight. */
 const LENS_RADIUS = 120;
+/**
+ * The light of the hot inner disk in the lens: its size and strength against the glare of a star
+ * of the same flux (the values of the neutron star), and the size of the bright core on screen
+ * (the innermost 300 Schwarzschild radii, in pixels) up to which it has its full strength and at
+ * which it is gone.
+ */
+const LENS_SIZE = 0.8;
+const LENS_GAIN = 0.5;
+const LENS_FULL = 20;
+const LENS_GONE = 200;
 
 const VERT = /* glsl */ `
 uniform mat3 uCamRot;
@@ -198,6 +208,8 @@ void main() {
  */
 export class BlackHoleVisual implements Visual {
   readonly group = new Group();
+  /** The glare of the hot inner disk in the lens; `Bodies` hands it to the final pass and sees to what covers it. */
+  readonly light: LensLight;
   private readonly material: ShaderMaterial;
   private readonly mesh: Mesh;
   private readonly glow: Glow;
@@ -235,6 +247,9 @@ export class BlackHoleVisual implements Visual {
     this.glow = new Glow([color[0], color[1] * 0.86, color[2] * 0.72]);
     this.glow.mesh.renderOrder = 1;
     this.group.add(this.mesh, this.glow.mesh);
+    // The light of the hot inner disk in the lens, in the colour of the glow, its largest channel at 1.
+    const top = Math.max(color[0], color[1] * 0.86, color[2] * 0.72, 1e-3);
+    this.light = { dir: [0, 0, -1], discPx: 0, sizePx: 1, gain: 0, color: [color[0] / top, (color[1] * 0.86) / top, (color[2] * 0.72) / top], vis: [1, 1, 1] };
   }
 
   update(body: BodyView, frame: SpaceFrame, params: ViewParams): void {
@@ -265,7 +280,20 @@ export class BlackHoleVisual implements Visual {
     const g = glare(flux, params);
     const corePx = (300 * this.rs) / body.dist / params.pixAngle;
     const fade = 1 - smoothstep(2, 12, corePx);
-    this.glow.set(this.center, params, g.sizePx, 0, Math.max(1.1, g.sizePx * 0.03), g.gain * fade, 0.3);
+    // In the scene only the core itself, small and hard as that of a neutron star; the wide glare
+    // around it forms in the lens and is drawn by the final pass.
+    const res = params.height / 1080;
+    this.glow.set(this.center, params, g.sizePx * 0.4, 0, Math.max(1.3 * res, g.sizePx * 0.02), g.gain * LENS_GAIN * fade, 0.15);
+    // In the lens the hot inner disk dazzles as a point for as long as it is small on screen, and
+    // less and less as it grows into a thing with parts to look at.
+    const light = this.light;
+    const d = Math.max(body.dist, 1);
+    light.dir[0] = body.rel[0] / d;
+    light.dir[1] = body.rel[1] / d;
+    light.dir[2] = body.rel[2] / d;
+    light.discPx = 0;
+    light.sizePx = g.sizePx * LENS_SIZE;
+    light.gain = this.def.disk ? g.gain * LENS_GAIN * (1 - smoothstep(LENS_FULL, LENS_GONE, corePx)) : 0;
   }
 
   dispose(): void {
