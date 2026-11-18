@@ -27,10 +27,11 @@ and a binding screen. No real controller has been used yet.
 
 Built on 2026-11-14 beside the game and not yet in it: the sound library and the audition page on
 which the owner listens and rates. On 2026-11-18 its manifest (`assets/audio/render/manifest.json`)
-lists 188 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
+lists 189 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
 samples of round 3 were taken off the page on the owner's word, see section 2, "The direction
-samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18).
-By category: ten are the candidates of round 7, the category `events7`; fourteen the candidates of
+samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18,
+and 189 with the changes of round 7 after its first check).
+By category: eleven are the candidates of round 7, the category `events7`; fourteen the candidates of
 round 6, `events6`; seventeen the event sounds of round 5, `events5`; and sixteen the candidates of
 round 4, `source` (see section 2). Ten are the generated sounds of the library itself: MOSS
 candidates he accepted in rounds 4 to 6, built as processed copies with their origin and licence
@@ -39,7 +40,7 @@ are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty
 comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
 of rounds 5 to 7 are all `synth` (made by MOSS, or derived from a MOSS file), and the sixteen of
 round 4 carry the same field: twelve `synth` (made by the two models) and four `download` (the
-recordings), so the whole manifest reads 141 `synth`, 37 `download` and 10 `generated`. The game
+recordings), so the whole manifest reads 142 `synth`, 37 `download` and 10 `generated`. The game
 itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
@@ -55,16 +56,19 @@ work on the HUD in the same checkout, so this is the state at the time of that c
 tools have tests of their own in Python.
 Run on 2026-11-18 (the check of round 7, `docs/reports/2026-11-18/sound7-verify-report.json`):
 `unittest discover -s tools/audio/tests` passes 111 tests (107 on 2026-11-17, 4 new with the
-library change), and the screening of sound candidates has 58, all of which pass (47 before round 7;
+library change), and the screening of sound candidates has 58 as the check counted them and 62 since the changes of
+round 7 (the fix step's run, all pass; 47 before round 7;
 `tools/sound/tests/test_screen.py` is a script, not a unittest module: run it with
 `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`). Not run again since 2026-11-17,
 when `unittest discover` passed 80 tests of the listening tools and 112 of the synthesis (128 until
 the sixteen tests of the direction samples went with them); the scoring of the voice comparison is
 in `tools/voice/tests` and was not counted. The browser check of the audition page
-(`tools/dev/audition-check.mjs`), last run on 2026-11-18 against the page with its 188 sounds,
-passed 48 steps in a run limited to the ten candidates of round 7 and two test files, with no
-scenes (the independent check ran it again and got 48 of 48): no fault comes from the page, and
-clicks inside sound files are listed (round 7 below). The last full run, on
+(`tools/dev/audition-check.mjs`), last run on 2026-11-18 against the page with its 189 sounds:
+48 steps passed in a run limited to four candidates of round 7 (`room_4`, the hangar pick,
+`brighter_3`, the snap pick) and two test files, with no scenes; the second independent check ran it
+once and got 48 passed, 0 failed. A first run of that set failed one step (a click blamed on the page
+in `room_4`, Headphones), which did not come back in two more runs and is not explained. No fault
+comes from the page in the passing runs, and clicks inside sound files are listed (round 7 below). The last full run, on
 2026-11-15, passed 52 steps, among them a recording of everything the page plays with no click added
 by the page; the check has changed since and was not run in full again (see section 4). The number
 of steps depends on what a run records: 41 without the recording, 47 or 48 with the recording
@@ -662,72 +666,102 @@ ones are unrated as built.
 
 Round 7 (2026-11-18; `tools/sound/prompts7.json` with its "note", `tools/sound/RESULTS7.md`,
 `tools/sound/README.md`, "Round 7"; category "Ereignisklänge (Runde 7)", `events7`, the first
-category of the page, round 6 after it). Why it is built this way: the two families that are
-still open were each answered by one candidate he called close, and new prompts had landed less
-than one time in three, so the round starts from those two files. MOSS only. Five fixed
-candidates, made by `tools/sound/derive.py` from the raw files of round 6 (sha256 checked first),
-always on the page, with no pick rule or skip:
+category of the page, round 6 after it). State when this was written, by script: 11 candidates on the
+page, 189 manifest entries, waiting for his ratings (0 of 11 rated by the page's rule;
+`assets/audio/ratings.json` has the SHA-256 prefix `28ba8285` and equals `round6-ratings.json`), and
+nobody has listened to any of it. Why it is built this way: the two families that are still open were
+each answered by one candidate he called close, and new prompts had landed less than one time in
+three, so the round starts from those two files. MOSS only. He is asked only for Passt / Falsch.
 
-- Thruster, from the raw file of the close one (2.0 s, two shots 1.0 s apart; the third did not
-  fit into the file, the cut was not the cause): a room of 0.9 s decay at -9 dB wet, one channel; a
-  room of 1.4 s decay at -4 dB, one channel; a wide room of 1.2 s decay at -6 dB, two channels
-  ("Raumklang" can mean reverberation or width, so both are offered). The page already puts every
-  sound through its own 0.5 s cabin response; the baked rooms are 1.35 to 2.1 s.
-- Shield, from the raw file of the close one: tuned 3 semitones higher by resampling (which made it
-  shorter), and a high shelf of +8 dB at 300 Hz (scaled down 3.60 dB to stay under the peak limit).
+What each candidate is. Fixed candidates are made by `tools/sound/derive.py` from the raw files of
+round 6 (sha256 checked first) and are always on the page, with no pick rule or skip:
 
-Beside them 40 new MOSS files (5 prompts x seeds 21 to 28): the thruster prompt he called good in
-principle, unchanged, asked for 4 s so that three shots fit, and the same in a steel hangar (only a
-file with exactly three measured shots is picked); three shield prompts in which the shield swallows a
-projectile or absorbs a beam, or snaps, brighter. Screening kept 34 of 45 files and threw out 11
-(7 cut off, 3 speech, 1 several events; the three "speech" files are thruster files in which
-Whisper wrote "BANG!" and "BOOM!"). On the page: 10 sounds, not the 11 planned, because the
-second slot of `thruster_three` is empty (only 1 of 7 kept files has exactly three shots by
-`count_shots`). The page text of every thruster candidate says how many shots were measured in the
-file. He is asked only for Passt / Falsch. No hand skip was made (`skips7.json` is empty). Measured
-and not heard: the three room versions are over both numbers of `notSaturatedNoise`, as the close
-candidate they were made from is; the two generated thrusters have a higher loudest 50 ms (-1.58
-and -2.21 dBFS) than any thruster file he has rated, and both match `thruster_mighty_1`, which he
-rated wrong, on all four measures of the select test (the plan skips only on two matches);
-`shield_brighter_2` is over both numbers; `shield_swallow` and `shield_snap` have the spectral shape
-of two bright shields he turned down (the recorded spark and `shield_bright_2`), at a loudest 50 ms
-about 10 dB higher, and were kept and flagged; `shield_absorb` is a fallback, the only file of its
-family that was not cut off and not pressed noise by the rule, and it is over both numbers (0.14 dB
-over the level number). A line at 16 kHz is in every MOSS file measured, in those he accepted as
-well; absorb and snap are the highest (about 30 dB against 27.6 for the highest accepted one).
-Level at the page: one-channel files lie at -0.14 to +0.38 dB file to page, the two-channel file at
--3.10 dB; thrusters -28 and shields -24 LUFS within 0.39 dB.
+- `ev7_1_thruster_room_1` to `_4` (tags `r6p3s11a` to `d`), from the raw file of the close thruster
+  (2.0 s, two shots 1.0 s apart; the third did not fit into the file, the cut was not the cause): a
+  room of 0.9 s decay at -9 dB wet, one channel; 1.4 s at -4 dB, one channel; a wide room of 1.2 s at
+  -6 dB, two channels ("Raumklang" can mean reverberation or width); each with 2 shots measured. The
+  fourth appends a copy of the first second of the raw file (its first shot), so the file holds three
+  shots (`count_shots`: 3, at 0.07, 1.08 and 2.07 s), and then adds the clear room (1.4 s, -4 dB, one
+  channel). Its third shot is a copy of the first, which the name and the page text say. At the
+  splice the three levels are 69.36, 56.78 and 62.67 dB under the peak and the largest sample step
+  within 1 ms is 0.000186; the published third shot also carries the room tails of shots 1 and 2,
+  which nobody quantified.
+- `ev7_4_shield_brighter_1` to `_3` (tags `r6p2s11a` to `c`), from the raw file of the close shield
+  (2.0 s): tuned 3 semitones higher by resampling (which made it shorter); a high shelf with its
+  corner at 300 Hz and +8 dB (the page text: +4.0 dB at the corner, +8 dB to within 0.3 dB above
+  about 700 Hz); both together.
+- Generated, MOSS, 5 prompts x seeds 21 to 28 (40 files; screening threw out 11 of the 47 files of
+  the round: 7 cut off, 3 speech, 1 several events; the three "speech" files are thruster files in
+  which Whisper wrote "BANG!" and "BOOM!"). `ev7_2_thruster_three_1_moss_p1s24`: the prompt of the
+  close thruster unchanged (a large-caliber machine cannon fires three slow heavy shots), asked for 4
+  s so that three shots fit; 3 shots measured. `ev7_3_thruster_hall_1_moss_p1s21`: the same shots in
+  a large steel hangar; 3 shots measured. Both were the only eligible candidate of their source, and
+  the page text says no typicality was weighed. `ev7_5_shield_swallow_1_moss_p1s22`: a shield that
+  swallows an incoming projectile. `ev7_7_shield_snap_1_moss_p1s24`: a force field deflects a
+  projectile, a quick snap with a short soft pulse underneath; the cut is 0.32 s. `shield_absorb` (a
+  beam swallowed) has no candidate: its slot is empty.
 
-The independent check (`docs/reports/2026-11-18/sound7-verify-report.json`, made with its own
-measurements, nothing in the repository changed by it but the report). Verdict: round 7 holds on
-all nine points, with caveats. Held: all 176 recorded ids untouched (174 in the manifest with record hash and file
-hash equal; the two missing are the withdrawn pulses), the library list, the page entries against
-`screen.json`, the processing recomputed with its own code (pitch +3.00 semitones, shelf +7.94 to
-+8.0 dB, the room gains and wet levels, tails 1.2 to 5.8 % longer than half the asked decay),
-`validate_manifest` without a finding, the page level, `audition-check` 48 of 48 with no fault
-from the page, 40 generated items equal to the plan, no Stable Audio file, nothing downloaded or
-installed, `unittest discover` 111 tests, `test_screen.py` 58 tests, vitest 807 passed with the 2
-expected failures, `tsc` exit 0. Partly held, points 6 and 9. What it asks to be repaired
-(`mustFix`): the manifest text of `ev7_6_shield_absorb_1_moss_p1s27` says "Chosen as the most
-typical candidate of its source in this family", which is wrong for a pressed-noise fallback that
-fills the slot only because nothing else was left. NOT REPAIRED as of this writing: the entry and
-`publish.py` still carry that sentence, and so does the page he reads. The orchestrator decides
-whether the text is changed (a publish changes nothing he rated, but it writes `events7`) or the
-pick is dropped by a skip. Eight more wrong sentences are listed in the report and are not
-repaired either: in `RESULTS7.md` the shot claims rest on `count_shots` alone (the check's own
-counter differs on 4 of 16 generated thruster files), the column "length s" is the cut length and
-the published files are 0.007 to 0.015 s longer, "no faults" stands beside a click of about +-0.05
-at 0.531 s in the raw file of `shield_snap` s22 (the page check lists it), several 16 kHz values
-differ from the check's (conclusion unchanged), and the click time reads 0.597 s where the check got
-0.586 s; in `tools/sound/README.md` the example id is `p1s23` and the page has `p1s24`; and the
-intent texts say the page plays a file at -25 and -21 LUFS, which is a way of counting (the page
-plays -28 and -24 over both channels).
+What was changed after the first check, and why. The first independent check
+(`docs/reports/2026-11-18/sound7-verify-report.json`) found one wrong sentence on the page, and the
+orchestrator then changed the plan in five places, all in `tools/sound/prompts7.json`. This happened
+before he rated anything: `assets/audio/ratings.json` was unchanged (SHA-256 prefix `28ba8285`, before
+and after each step).
 
-What nobody could verify: how any of round 7 sounds, whether a room of 1.35 to 2.1 s (one channel
-or wide) is what he means by "Raumklang", whether the tuned or the shelved shield is "a little
-brighter" in his sense, whether the click in `shield_snap` s22 or the 16 kHz line is heard,
-whether the three generated bright shields are the kind he turned down, whether the speech rule
-was right to throw out three thruster files, and whether the shot count agrees with his ear.
+1. A fourth fixed thruster, `room_4`: his note was that the file held two shots, not three. New
+   operation `append` of `derive.py`, which refuses an item unless the levels at the splice are at
+   least 50 dB under the peak; the family's maxS went from 3.6 to 4.0.
+2. A third fixed shield, `brighter_3` (tuned and shelved), so that he can say where on that line the
+   right brightness lies.
+3. `minAbove60Hz: 0.4` for `thruster_three` and `thruster_hall`: the first hangar pick (seed 24)
+   had 29.2 % of its energy above 60 Hz. Seed 24 left the page, seed 21 took the slot.
+4. `pressedNoiseFallback: false` for `shield_absorb`: the fallback had put seed 27 on the page under
+   the text "most typical candidate", which the check called wrong (cut 1.1577 s, loudest 50 ms -9.36
+   dBFS, share above 2 kHz 0.5932, over both numbers of `notSaturatedNoise`). The slot stays empty.
+5. A hand skip, `moss/shield_snap_1__s22` (`tools/sound/skips7.json`), a click in the tail found by
+   the page check; the tool chose seed 24, whose step test found no click.
+
+Three ids left the page (`ev7_3_thruster_hall_1_moss_p1s24`, `ev7_6_shield_absorb_1_moss_p1s27`,
+`ev7_7_shield_snap_1_moss_p1s22`) and four came in (`room_4`, hangar seed 21, `brighter_3`, snap
+seed 24). Gates of the republish: 189 manifest entries, the 178 outside `events7` equal to before in
+every field and in order, 0 of 189 hashes mismatched, the seven unchanged candidates byte for byte
+as before, `assets/audio/render/events7` holding 33 files, three per id. Level at the page in the dry
+run for all 11 ids: the largest deviation 0.13 dB from -28 (thrusters) and 0.26 dB from -24
+(shields); the two-channel room is at -3.10 dB file to page (RESULTS7.md). Round 6 reproduced on a scratch
+copy of `assets/audio/gen/r6` with the changed tools: the same 14 chosen ids and cuts.
+
+What rests on what.
+
+- The shot counts rest on counters, and the counters differ. `count_shots` of `screen.py` (a rise of
+  the 10 ms level) gives the number on the page. The first check's own counter disagreed with it on
+  four unpicked generated thruster files; the second check's counter agreed with it on the hangar
+  seeds and on `thruster_three` seed 24 but not on `thruster_three` seeds 22 and 28.
+- The answer to his "leicht heller" is in the three fixed shields. The generated shields have a
+  spectral centroid of several kHz (swallow 7958 Hz, snap 9723 Hz) against 160.8 Hz for the shield
+  he called close; the fixed ones have 191.4, 531.2 and 627.4 Hz (`RESULTS7.md`, rectangular window;
+  with a Hann window the three cuts give 104.8, 210.5 and 253.6 Hz, so the order holds and the
+  absolute values do not).
+- The room, the pitch and the shelf are guesses at what he meant by "Raumklang" and "heller".
+
+The second independent check (`docs/reports/2026-11-18/sound7-verify2-report.json`, its own
+measurements, nothing changed by it but the report). Verdict: the page holds exactly the 11
+expected candidates, nothing for `shield_absorb`, every hash and file matches, rounds 4 to 6 and
+`ratings.json` are untouched, and its measurements reproduce the report's numbers for the appended
+thruster, the fixed shields, the hangar and thruster picks, the snap step test, the level run and the
+page check (48 passed, 0 failed, 0 page faults in its one run). It found one inexact sentence on the
+page (the shelf described as a change of "everything above 300 Hz by 8 dB"), one incomplete README
+sentence, two "most typical candidate" sentences that hid that each pick was the only eligible one,
+and spectral numbers in `RESULTS7.md` that depend on a rectangular window. A repair step
+(`docs/reports/2026-11-18/sound7-repair-report.json`) corrected these in `derive.py`, `publish.py`,
+the plan, the README and `RESULTS7.md`, republished `events7` once (189 entries, the 178 outside it
+equal, ratings file unchanged) and ran `test_screen.py` (62 tests, 0 failed). Nobody has checked the
+repair again and no page check was run after it.
+
+What nobody could verify: how any of the 11 sounds; whether the third shot of `room_4` is a copy
+after the room (the dry part is, the tails are not quantified); the one page fault of the first
+page-check run after the changes (`room_4`, Headphones, ratio 3.1), which did not come back and is
+not explained; the numbers of the skipped snap seed 22 (its published file is gone, the figures were
+rebuilt from the raw file and are close to the text, not equal); that the shot counts depend on the
+counter.
 
 What follows, the orchestrator's plan and not his decision. When he has rated round 7, the round
 is recorded the way rounds 4 to 6 were (`assets/audio/rounds/round7.json`, `round7-ratings.json`,
@@ -1126,8 +1160,8 @@ Never verified:
   samples and no direction sample; in round 4 the sixteen candidates; in round 5 the seventeen
   event sounds; on 2026-11-18 the 14 candidates of round 6, the four countdown samples, the
   other voice samples of that day and seven of the eight first library sounds in their built form;
-  not yet the ten candidates of round 7, nor `g_gear_deploy` and the four newest library sounds as
-  built). By the page's own definition 49 of the 188 sounds on the page are unrated (script,
+  not yet the 11 candidates of round 7, nor `g_gear_deploy` and the four newest library sounds as
+  built). By the page's own definition 50 of the 189 sounds on the page are unrated (script,
   ratings saved 2026-11-18T14:40:34.900Z). Every other judgement of the sound library and of the
   speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
@@ -1147,7 +1181,7 @@ Never verified:
     between 17 and 20 dB at the cap, and one kept file lies 1.8 dB from the rule.
   - The loudness matching of events under about 0.5 s rests on a convention: BS.1770 measures them
     in one or two 400 ms blocks, and a 1.5 ms ramp moved one value by 2.5 dB.
-  - The capture part of `tools/dev/audition-check.mjs` for all sounds (188 on 2026-11-18) and the
+  - The capture part of `tools/dev/audition-check.mjs` for all sounds (189 on 2026-11-18) and the
     four scenes was not run after the publishes of rounds 5 to 7 (only the candidates of the round
     and two test files, 48 steps each time).
 - Round 5, the event sounds (2026-11-16; `tools/sound/RESULTS5.md`, "What could not be judged", and
@@ -1207,18 +1241,19 @@ Never verified:
     were not run in the copy build, so the hints and descriptions of a new full build are unknown;
     the full build was run on a copy only. The level hint never fired on a real sound, because none
     is limited by the ceiling.
-- Round 7 (2026-11-18; `tools/sound/RESULTS7.md`, "What could not be judged", and
-  `docs/reports/2026-11-18/sound7-verify-report.json`, `notVerified`):
-  - How any of the ten candidates sounds: nobody listened. Whether the rooms of 1.35 to 2.1 s are
-    his "Raumklang", whether the wide one is wanted, whether the tuned or the shelved shield is
-    "a little brighter", whether the three generated bright shields are the kind he turned down,
-    whether the click in `shield_snap` s22 and the 16 kHz line are heard.
-  - The shot counts: `count_shots` is a rise of the 10 ms level and agrees with the pictures of
-    the five thruster files on the page; the check's own counter differs from it on 4 of 16
-    generated thruster files, so "exactly three" and the empty second slot rest on one heuristic.
-  - The text on the page for `shield_absorb` s27 is wrong and not repaired (see section 2, round
-    7, `mustFix`); eight more wrong sentences of the documents of the round are listed in the
-    check report.
+- Round 7 (2026-11-18; `tools/sound/RESULTS7.md`, "What nobody could verify", the `notVerified` of
+  `docs/reports/2026-11-18/sound7-verify2-report.json` and of `sound7-repair-report.json`):
+  - How any of the 11 candidates sounds: nobody listened. Whether a room of 1.35 to 2.1 s is his
+    "Raumklang", whether the wide one is wanted, whether three shots of which the third is a copy of
+    the first are what he asks for, which of the three fixed shields (if any) is "leicht heller" in
+    his sense, whether the two generated shields (swallow, snap) are the kind he turned down, whether
+    the 16 kHz line is heard.
+  - The shot counts rest on counters: `count_shots` gives the page's number, and the two checks'
+    counters differ from it on some generated thruster files (the first on four), so "exactly three"
+    and the empty second slot of `thruster_three` rest on one heuristic.
+  - The text repair after the second check was not checked again and no page check was run after
+    it; the page fault of the first page-check run after the changes (`room_4`, Headphones) is not
+    explained; whether the third shot of `room_4` is a copy after the room was not quantified.
   - That `build.py` gives the same bytes in two runs and that `publish.py` would make the same
     manifest from scratch: not run by the check. Old manifest entries were proven equal in hash and
     file, not in every field (no earlier manifest is in git).
