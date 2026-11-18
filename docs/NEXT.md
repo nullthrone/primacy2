@@ -91,6 +91,11 @@ this file when the step is done;
   one change of the real tree during the freeze, made because he had not started rating and no
   file he is asked to rate was written. A page that was open before lists the samples until it is
   loaded again.
+- The record of round 7 no longer equals the page either. Of the 189 hashes of
+  `assets/audio/rounds/round7.json`, 181 are on the page unchanged and eight are absent: the relay
+  and switch sounds, taken off on 2026-11-18. Eight sounds on the page are not in that record: the
+  library sounds of round 7. The check that nothing old moved reads accordingly (counted by a
+  script).
 - Disk on 2026-11-18: 547 GB free of 1.9 TB (stop line of this work 200 GB; his condition: at
   least 10 % free). `.venv-sound` about 16 GB, the MOSS model 11 GB under
   `assets/audio/gen/moss/model`, the Stable Audio weights 4.5 GB under `.venv-sound/sa3/weights`,
