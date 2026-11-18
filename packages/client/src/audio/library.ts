@@ -91,7 +91,6 @@ export class Library {
   error: string | null = null;
   private byId = new Map<string, ShippedSound>();
   private buffers = new Map<string, AudioBuffer>();
-  private waiting = new Map<string, ((b: AudioBuffer) => void)[]>();
   private started = false;
 
   /** Starts loading; safe to call again. */
@@ -128,8 +127,6 @@ export class Library {
       if (!r.ok) throw new Error(`${r.status}`);
       const buf = await off.decodeAudioData(await r.arrayBuffer());
       this.buffers.set(id, buf);
-      for (const cb of this.waiting.get(id) ?? []) cb(buf);
-      this.waiting.delete(id);
     } catch (e) {
       // One missing file leaves one sound silent.
       console.warn(`audio: ${s.file} could not be loaded:`, e);
@@ -143,13 +140,6 @@ export class Library {
   /** The decoded file, when it is there. */
   buffer(id: string): AudioBuffer | undefined {
     return this.buffers.get(id);
-  }
-
-  /** Calls back once the file is decoded: at once when it is, later when it arrives, never when it fails. */
-  whenLoaded(id: string, cb: (b: AudioBuffer) => void): void {
-    const b = this.buffers.get(id);
-    if (b) cb(b);
-    else this.waiting.set(id, [...(this.waiting.get(id) ?? []), cb]);
   }
 
   /** The sounds of an event (or role) that are decoded, in the order of the manifest. */
