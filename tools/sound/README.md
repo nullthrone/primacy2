@@ -256,8 +256,10 @@ candidates he called close: their raw files are processed as he asked by `tools/
 are generated beside them. Files: raw candidates `assets/audio/gen/r7/moss/raw`, derived candidates `assets/audio/gen/r7/derived/raw` (each
 with its `gen.json`), screening output `assets/audio/gen/r7/screen.json` and `_listen/`, published files `assets/audio/render/events7/`
 (category `events7`, added to `tools/audio/sounds.json` by the select step), ids `ev7_<family number>_<family>_<slot>_<source>_<tag>`
-(`ev7_1_thruster_room_1_derived_r6p3s11a`, `ev7_2_thruster_three_1_moss_p1s23`), hand skips `tools/sound/skips7.json` (empty). `assets/audio/gen`
-is ignored by git.
+(`ev7_1_thruster_room_1_derived_r6p3s11a`, `ev7_2_thruster_three_1_moss_p1s24`), hand skips `tools/sound/skips7.json` (one skip: `moss/shield_snap_1__s22`,
+a click in the tail found by the page check). The page holds 11 candidates (thruster_room 4, thruster_three 1, thruster_hall 1, shield_brighter 3,
+shield_swallow 1, shield_absorb none, shield_snap 1); the plan was changed after the first check of the round, see "After the first check" in
+`tools/sound/RESULTS7.md`. `assets/audio/gen` is ignored by git.
 
 The whole run, in order (each line can be copied; only the generating step uses the graphics card and goes through the lock):
 
@@ -287,8 +289,16 @@ New plan keys. `"sources"` lists `"derived"`: only then does `screen.py` read `<
 (`loud50Db` and `above2kHzLoud` of every kept file and chosen candidate, `shots` for every file of a family whose id starts with
 `thruster`); for the prompts files of rounds 4 to 6 nothing changes (checked: the screen.json of round 6, made again on a copy, differs only in
 the path of the listening copies). `"derived"` of a family is a list of items `{id, tag, de, en, from {round, candidate, verdict, raw, sha256},
-process [...]}`; the operations are `room {rt60S, wetDb, channels, seed}`, `pitch {semitones}` and `shelf {hz, gainDb}` (see the head of
-`derive.py`; a room and a shelf scale the output to a peak of 0.999 when it would be above, and say by how much). `"fixed": true` makes every
+process [...]}`; the operations are `room {rt60S, wetDb, channels, seed}`, `pitch {semitones}`, `shelf {hz, gainDb}` and `append {fromS, toS}` (see the head of
+`derive.py`; a room and a shelf scale the output to a peak of 0.999 when it would be above, and say by how much). `append` adds a copy of the samples
+from `fromS` to `toS` of the signal, as it is at that point of the process list, to its end (no fade, no gain); the text of the candidate says that the appended part is a copy.
+It refuses the item (message `REFUSED ...`, the other items go on, exit code 1, as for a wrong sha256) unless the last 10 ms before the splice, the first 10 ms of the copy and the last
+10 ms of the copy are each at least 50 dB under the peak of the signal, and it records the three levels, the lengths, the splice time and the largest sample step within 1 ms of the splice
+in `numbers.operations` of the item's record; thruster_room_4 of the plan is `append {0.0, 1.0}` followed by a room, so that its file holds three shots, the third a copy of the first.
+`"pressedNoiseFallback": false` of a family with `notSaturatedNoise` (default true, which is what rounds 5 and 6 do): a slot that has only pressed-noise candidates left stays empty
+instead of being filled from them, and the notes of the family in `screen.json` say how many kept candidates there were and that they are over both numbers; shield_absorb of round 7 has it.
+`publish.py` never gives a pick that carries `pressedNoiseFallback` the sentence "Chosen as the most typical candidate of its source in this family.": it says it is a fallback, with the pick's two numbers
+and the family's two limits. `"minAbove60Hz"` is a family key of rounds 5 and 6; round 7 sets it for the two generated thruster families too. `"fixed": true` makes every
 item of `"derived"` a candidate, in the order of the list (slot = position, tag = the item's tag); no pick rule, skip or exclusion applies, the fault
 rules are only recorded as `faults` (on the file and on the chosen entry) and the fixed files do not enter the statistics of another family.
 `"shots": N` of a generated family picks only kept candidates with exactly N separate shots (a shot is a rise of the 10 ms level above -12 dB
