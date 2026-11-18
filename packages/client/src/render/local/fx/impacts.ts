@@ -4,7 +4,7 @@
  * flecks flying off.
  */
 import {
-  DynamicDrawUsage, FrontSide, InstancedBufferAttribute, InstancedMesh, ShaderMaterial, SphereGeometry,
+  DynamicDrawUsage, FrontSide, Group, InstancedBufferAttribute, InstancedMesh, ShaderMaterial, SphereGeometry,
 } from 'three';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
 import { clamp } from '../util.ts';
@@ -145,8 +145,12 @@ const HULL_SPARKS = [4, 7, 10] as const;
 export class Impacts {
   private readonly shields = new Shields();
   readonly mesh = this.shields.mesh;
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
 
-  constructor(private readonly f: Frame, private readonly sparks: Sparks, private readonly flashes: Flashes) {}
+  constructor(private readonly f: Frame, private readonly sparks: Sparks, private readonly flashes: Flashes) {
+    this.group.add(this.mesh);
+  }
 
   hit(ev: HitEvent): void {
     const f = this.f;
