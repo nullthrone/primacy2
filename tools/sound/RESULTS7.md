@@ -313,6 +313,11 @@ check's. NOBODY LISTENED to any of it.
 2. **shield_brighter_3** (new fixed candidate, tag r6p2s11c): tuned 3 semitones higher and a high shelf at 300 Hz, +8 dB (the two
    operations of the first two together), so that he can say where on that line the right brightness lies. Result 1.68 s, peak 0.999 after a
    scaling of -3.69 dB, under 250 Hz 74.3 %, above 2 kHz 0.0813, centroid 627.3 Hz (the other two: 94.3 % / 0.0168 / 191.3 Hz and 74.8 % / 0.0722 / 531.1 Hz).
+   These values are of the whole processed file with no taper (a rectangular window). With a Hann window over the same files: brighter_3 92.9 % / 0.0233 / 211.5 Hz,
+   brighter_2 93.4 % / 0.0217 / 177.5 Hz, brighter_1 98.6 % / 0.0040 / 95.7 Hz, and the raw file of round 6 98.7 % / 0.0036 / 80.4 Hz. The order of the centroids holds,
+   the absolute values do not (they depend on the window). The shelf is a high shelf with its corner at 300 Hz; it is not a change of everything above 300 Hz by 8 dB.
+   Measured, brighter_3 against brighter_1 (the same tuned file without the shelf) with the output scaling removed, per band of the whole file: 100 to 200 Hz +0.33 dB, 200 to 300 Hz +2.5,
+   300 to 500 Hz +5.5, 500 to 700 Hz +7.4, 700 to 1000 Hz +7.9, above 1 kHz +8.0 dB; the filter itself gives +4.0 dB at 300 Hz.
 3. **`minAbove60Hz: 0.4` for thruster_three and thruster_hall.** The first hangar pick (seed 24) had 29.2 % of its energy above 60 Hz. Now
    seed 24 of the hangar (3 shots, 0.2916 above 60 Hz) is not picked ("energy above 60 Hz 0.2916 is under the family's minimum 0.40") and seed 21 (3 shots,
    0.8128) takes the slot. thruster_three seed 24 has 0.4962 and stays.
@@ -345,7 +350,9 @@ records are equal too); the seven unchanged chosen ids have the same cut and the
 ### The picks now (11 candidates; from `screen.json` and the listening copies, by script)
 
 "cut length" is the cut of `screen.json`; "shots" is `count_shots` (where counted); above 60 Hz, loud 50 ms and above 2 kHz (loud frames) are
-measures of the raw cut before any gain as in the tables above; centroid is of the listening copy, power weighted. "over both" says whether the
+measures of the raw cut before any gain as in the tables above; centroid is of the listening copy (the cut, as played), rectangular window, the power summed over the channels (for the two-channel file ev7_1_thruster_room_3 that is
+443.1 Hz; the page shows 474.1 Hz for the same file, the centroid of the mean of the two channels, which is a different definition, not a different file). With a Hann window the centroids of the three shield cuts are 104.8 Hz
+(brighter_1), 210.5 Hz (brighter_2) and 253.6 Hz (brighter_3): the order holds, the absolute values depend on the window. "over both" says whether the
 two numbers of `notSaturatedNoise` (loudest 50 ms above -9.5 dBFS and a share above 2 kHz of 0.03 or more) are both exceeded; the plan applies that rule to
 shield_swallow, shield_absorb and shield_snap only.
 
@@ -385,8 +392,8 @@ Seed 24: window levels -31.8, -17.5, -15.2, -20.0, -36.0 and -51.8 dB; the large
 a click by the rule). The 50 ms trace of the whole raw file (2.0 s): about -88 dB until 0.40 s, then -80.6, -40.8, -19.7, -15.2, -17.7, -30.7, -48.0, -58.0, -65.1, -73.3, -82.1 dB, then
 about -88 dB again until 1.9 s, and a last window (1.95 to 2.0 s) of -52.8 dB, outside the cut and not in the published file. Waveform: one burst, no step inside it;
 time within 6 dB of the loudest 0.15 s of 0.32 (47 %); strongest 50 Hz band 6.2 % at 16000 Hz (the 16 kHz line of the files above); above 60 Hz 100.0 %; no silence inside the cut.
-The spectrogram picture was looked at: broadband energy from the lowest bins up to about 18 kHz for the length of the burst, darker above 18 kHz, no separate tone line
-visible. For seed 22 the window levels fall from -12.9 to -55.7 dB over 0.77 s. One candidate was tested; no further skip was needed. The page check found no click in seed 24 (below).
+The spectrogram picture was looked at: broadband energy from the lowest bins up to about 18 kHz for the length of the burst, darker above 18 kHz, the 16 kHz band was measured on the raw cut: 6.2 % of the cut's energy lies in 16000 to 16050 Hz and 3.0 % in 15950 to 16000 Hz, against 0.0003 to 0.0005 in each of the
+neighbouring 50 Hz bands; that is a narrow band of energy, and the picture, whose frequency axis is logarithmic, does not show it as a line. For seed 22 the window levels fall from -12.9 to -55.7 dB over 0.77 s. One candidate was tested; no further skip was needed. The page check found no click in seed 24 (below).
 
 ### Gates of the publication
 
@@ -438,7 +445,8 @@ The shield he called close (ev6_3_shield_tight_2_moss_p2s11, its raw file) has i
 centroid of 160.8 Hz. The generated shields of this round are of another kind by the numbers: shield_swallow seed 22 (on the page) has a centroid of 7958 Hz (10.9 % under 250 Hz, share above 2 kHz 0.7847)
 and shield_snap seed 24 (on the page) 9723 Hz (0.0 % under 250 Hz, share above 2 kHz 0.9963); the two that left the page had 8741 Hz (snap seed 22) and 5868 Hz (absorb seed 27). So a generated
 shield here has a centroid of several kHz where the candidate he called close has 161 Hz; none of them lies near it. The answer to his "a little brighter" is therefore in the three fixed shields: centroids
-191.4 Hz (tuned), 531.2 Hz (shelf) and 627.4 Hz (both), against the 160.8 Hz of the raw file.
+191.4 Hz (tuned), 531.2 Hz (shelf) and 627.4 Hz (both), against the 160.8 Hz of the raw file. These are centroids of a rectangular window; with a Hann window the three processed files give 95.7, 177.5 and 211.5 Hz
+against 80.4 Hz for the raw file (whole files). The order holds, the absolute values do not.
 
 ### What nobody could verify
 
@@ -447,3 +455,17 @@ whether any of the three fixed shields is the "little brighter", whether the han
 described. The shot counts rest on `count_shots` alone; the check's counter differed on four of the generated files. The one page fault of the first page-check run (room_4, Headphones, ratio 3.1) did not come back in two
 further runs and was not explained. The 16 kHz line is in files he accepted and was measured only approximately. The last 50 ms of the raw file of snap seed 24 start something (-52.8 dB) that lies outside the cut and is not
 published. The two replacements (snap seed 24, hangar seed 21) were chosen by the tool, not by an ear.
+
+### After the repair check (2026-11-18, second check of the round; the owner had rated nothing of round 7)
+
+Fixed after the check, by script, with `assets/audio/ratings.json` at sha256 28ba828550516814fff3fc617dfa32fbfdbaae7cdfb418be5db157819c0961d4 before and after:
+
+- The page text of the shelf (brighter_2 and brighter_3) said that everything above 300 Hz was changed by 8 dB. It now says a high shelf with its corner at 300 Hz and +8 dB, +4.0 dB
+  at the corner, reached to within 0.3 dB above about 700 Hz (numbers read off the filter by `derive.shelf_words`, used by `derive.say` and `publish.describe_process`).
+- The page text of ev7_2_thruster_three_1_moss_p1s24 and ev7_3_thruster_hall_1_moss_p1s21 no longer says "most typical candidate": each was the only eligible candidate of its source
+  (thruster_three: of 7 kept, the other 6 do not have three shots by `count_shots`; thruster_hall: of 6 kept, 4 have another number of shots and seed 24, which has three shots, is under the 0.40 floor).
+  No typicality was weighed. `publish.py` writes this sentence for a round-7 screen.json when exactly one candidate of the source was left to pick; every other pick keeps its sentence.
+- The sentences about the window of the centroids, about the definition of the centroid of the two-channel file, about the 16 kHz band, about the round-6 screen.json comparison (README) and
+  about shield_absorb seed 27 (`prompts7.json`, measured values instead of a description) were corrected above, in the README and in the plan.
+- One republish (`publish.py` as in the README): 189 manifest entries, the 178 outside events7 equal to before in every field and in order; the seven unchanged candidates keep their wav and png
+  byte for byte; their json files differ for ev7_2_thruster_three_1_moss_p1s24 and ev7_4_shield_brighter_2_derived_r6p2s11b only in the `intent` text.

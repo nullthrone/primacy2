@@ -1514,7 +1514,7 @@ def test_publish_writes_the_page_entries_of_derived_candidates_from_the_plan_and
         assert "Made from a candidate that the owner called close." in s1["intent"] and "first try" not in s1["intent"]
         assert all(s["intent"].endswith("Measured in the file: 2 separate shots.") for s in (s1, s2, s3))
         sh = sounds["ev7_3_shield_fix_1_derived_r6p2s11b"]
-        assert sh["path"] == "energy" and "A high shelf filter changed everything above 300 Hz by 8 dB." in sh["intent"] and "Measured" not in sh["intent"]
+        assert sh["path"] == "energy" and "a high shelf with its corner at 300 Hz and +8 dB" in sh["intent"] and "changed everything above" not in sh["intent"] and "Measured" not in sh["intent"]
         assert sh["en"] == "Shield fixed · more highs"
         g = [sounds[c["id"]] for c in res["chosen"] if c["family"] == "thruster_gen"]
         assert len(g) == 2 and all(s["intent"].endswith("Measured in the file: 2 separate shots.") for s in g)

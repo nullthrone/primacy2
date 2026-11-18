@@ -79,6 +79,17 @@ def _g(v) -> str:
     return "%g" % v
 
 
+def _derive():
+    """tools/sound/derive.py, loaded by its path (the folder of this script is not always on the path, and tools/audio has a common.py of
+    its own). The shelf numbers of the page text are read off the filter itself."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("sound_derive", HERE / "derive.py")
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault("sound_derive", mod)
+    spec.loader.exec_module(sys.modules["sound_derive"])
+    return sys.modules["sound_derive"]
+
+
 def describe_process(process: list[dict], numbers: dict) -> str:
     """The operations of a derived candidate in plain words with their numbers (plan and run)."""
     ops = numbers.get("operations", [])
@@ -97,8 +108,7 @@ def describe_process(process: list[dict], numbers: dict) -> str:
                 _g(abs(p["semitones"])), "higher" if p["semitones"] >= 0 else "lower",
                 ": %s s instead of %s s" % (_g(e["lengthS"]), _g(r["lengthS"])) if r and e else "")
         elif p["op"] == "shelf":
-            import derive  # the numbers are read off the filter itself, not claimed from the corner
-            t = "The sound was filtered with %s." % derive.shelf_words(float(p["hz"]), float(p["gainDb"]))
+            t = "The sound was filtered with %s." % _derive().shelf_words(float(p["hz"]), float(p["gainDb"]))
         elif p["op"] == "append":
             lv = o.get("levelsDbUnderPeak") or {}
             what = "the raw file" if i == 0 else "the sound as it was at that point"

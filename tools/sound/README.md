@@ -287,8 +287,8 @@ The whole run, in order (each line can be copied; only the generating step uses 
 
 New plan keys. `"sources"` lists `"derived"`: only then does `screen.py` read `<root>/derived/gen.json` and record the round-7 measures
 (`loud50Db` and `above2kHzLoud` of every kept file and chosen candidate, `shots` for every file of a family whose id starts with
-`thruster`); for the prompts files of rounds 4 to 6 nothing changes (checked: the screen.json of round 6, made again on a copy, differs only in
-the path of the listening copies). `"derived"` of a family is a list of items `{id, tag, de, en, from {round, candidate, verdict, raw, sha256},
+`thruster`); for the prompts files of rounds 4 to 6 nothing changes (checked: the screen.json of round 6, made again on a copy, differs in 106 values, all of them paths: 92 "file" keys (the listening copies and the raw
+files of the file list) and 14 "raw" keys of the chosen entries). `"derived"` of a family is a list of items `{id, tag, de, en, from {round, candidate, verdict, raw, sha256},
 process [...]}`; the operations are `room {rt60S, wetDb, channels, seed}`, `pitch {semitones}`, `shelf {hz, gainDb}` and `append {fromS, toS}` (see the head of
 `derive.py`; a room and a shelf scale the output to a peak of 0.999 when it would be above, and say by how much). `append` adds a copy of the samples
 from `fromS` to `toS` of the signal, as it is at that point of the process list, to its end (no fade, no gain); the text of the candidate says that the appended part is a copy.
@@ -298,7 +298,7 @@ in `numbers.operations` of the item's record; thruster_room_4 of the plan is `ap
 `"pressedNoiseFallback": false` of a family with `notSaturatedNoise` (default true, which is what rounds 5 and 6 do): a slot that has only pressed-noise candidates left stays empty
 instead of being filled from them, and the notes of the family in `screen.json` say how many kept candidates there were and that they are over both numbers; shield_absorb of round 7 has it.
 `publish.py` never gives a pick that carries `pressedNoiseFallback` the sentence "Chosen as the most typical candidate of its source in this family.": it says it is a fallback, with the pick's two numbers
-and the family's two limits. `"minAbove60Hz"` is a family key of rounds 5 and 6; round 7 sets it for the two generated thruster families too. `"fixed": true` makes every
+and the family's two limits. For a screen.json that lists "derived" among its sources, a first pick whose source had exactly one candidate left that could be picked is not called "the most typical candidate" either: the text says it was the only eligible one and counts what ruled the others out (shot count, share above 60 Hz, pressed noise, hand skip); nothing was weighed. `"minAbove60Hz"` is a family key of rounds 5 and 6; round 7 sets it for the two generated thruster families too. `"fixed": true` makes every
 item of `"derived"` a candidate, in the order of the list (slot = position, tag = the item's tag); no pick rule, skip or exclusion applies, the fault
 rules are only recorded as `faults` (on the file and on the chosen entry) and the fixed files do not enter the statistics of another family.
 `"shots": N` of a generated family picks only kept candidates with exactly N separate shots (a shot is a rise of the 10 ms level above -12 dB

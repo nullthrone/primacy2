@@ -283,7 +283,7 @@
    "id": "shield_absorb",
    "de": "Schildtreffer, verschluckt einen Energiestrahl",
    "en": "Shield hit, swallows an energy beam",
-   "what": "His idea in the wording: the shield swallows an energy beam. Brighter than round 6, short, tight and clean. No fallback: when every kept candidate is pressed noise the slot stays empty, as a slot of the thruster families stays empty when no candidate has three shots. Decided after the first check of the round: 6 of the 8 files were cut off and the 2 kept ones are over both numbers; the one the fallback had put on the page (seed 27) is 1.2 s of hiss, the kind he turned down in round 5 (\"zu lang, zu viel rauschen\").",
+   "what": "His idea in the wording: the shield swallows an energy beam. Brighter than round 6, short, tight and clean. No fallback: when every kept candidate is pressed noise the slot stays empty, as a slot of the thruster families stays empty when no candidate has three shots. Decided after the first check of the round: 6 of the 8 files were cut off and the 2 kept ones are over both numbers; the one the fallback had put on the page (seed 27) was cut to 1.1577 s, with a loudest 50 ms of -9.36 dBFS and a share above 2 kHz in the loud frames of 0.5932 (over both numbers); in round 5 he turned a file down with the note \"zu lang, zu viel rauschen\".",
    "proven": false,
    "seconds": 2,
    "maxS": 1.5,
