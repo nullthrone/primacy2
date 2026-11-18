@@ -1308,9 +1308,43 @@ Other notes:
 
 ## 5. How the work is done
 
-- Branch `claude/primacy2-space-simulator-b9a0b8`; pushes go to this branch only, never to `main`.
-- `bash tools/dev/checkpoint.sh` (run in the background) commits and pushes the working tree
-  every five minutes for eight hours. One loop at a time.
+- Feature branches, merged into `main` early. The owner's word of 2026-11-18: "Wir arbeiten ab
+  jetzt mit Feature Branches und mergen früh in main und arbeiten hier lokal in Worktrees". Until
+  that day all work went to the one branch `claude/primacy2-space-simulator-b9a0b8` and never to
+  `main`; pull request 1, which he merged that evening, brought `main` from the licence alone to
+  the whole work (350 commits). Since then:
+  - A piece of work gets a branch of its own, cut from `main`: `feat/<topic>`, or the `claude/...`
+    branch the app gives a session. It is small enough to be merged within the session: one
+    library step, one effect family, one change of a document, not a whole step of section 3.
+  - It reaches `main` through a pull request, as soon as it is green by itself. The repository has
+    no CI and `main` is not protected, so green means the runs of the session: the three `tsc`
+    runs and `npx vitest run`, and the Python suites of what the branch touched. Nothing is
+    committed on `main` directly, and no branch waits until other work is finished.
+  - Who merges (asked on 2026-11-18; his choice, "Claude mergt, Squash"): the session that made
+    the branch merges its own pull request, as one commit with a message that says what changed
+    (`gh pr merge <n> --squash --delete-branch --subject "..." --body "..."`), so the checkpoint
+    commits do not reach `main` one by one. This holds for every session.
+  - The next piece is cut from the `main` that holds the last one. `git fetch origin main:main`
+    moves the local `main` without checking it out; `main` is not checked out in a worktree.
+- Worktrees. Each session works in a git worktree of its own under `.claude/worktrees/`, so
+  sessions that run side by side no longer share a checkout; what one changes reaches the others
+  through `main`. A new worktree holds only what is in git: run `npm ci` in it first. Shared
+  documents (this file, `docs/CLIENT.md`) are still changed by exact replacement, never by writing
+  the whole file: two branches that both rewrite a document cannot be merged. One worktree cannot
+  be thrown away: `.claude/worktrees/primacy2-space-simulator-b9a0b8` alone holds what git ignores
+  of the sound work, and part of that cannot be made again (the files of every round as he heard
+  them under `assets/audio/gen/_kept`; also the rendered tree, the downloads, the MOSS model and
+  the environments `.venv-audio`, `.venv-voice` and `.venv-sound`). A branch for the sound is
+  switched to in that worktree, and the worktree is never removed.
+  `tools/dev/live-landing/live2.mts` imports by that worktree's absolute path and runs only there;
+  `tools/dev/journal.py` shortens paths by its name. The checkout at the root of the repository
+  (`C:\Claude Code\LOCAL\primacy2`) stood on `feat/primacy2-foundation` on 2026-11-18, a branch of
+  2026-11-12 whose every commit is in `main`; it has no `tools` folder and no Python environment.
+- `bash tools/dev/checkpoint.sh` (run in the background) commits the working tree every five
+  minutes for eight hours and pushes the branch that is checked out. One loop per worktree. It
+  does nothing while `main` or no branch is checked out. After a branch is merged, switch the
+  worktree to the next branch at once: a loop that still finds the merged branch checked out
+  pushes it again.
 - `python tools/dev/guards.py <spec.json>` switches one rule off at a time, runs the tests that
   must catch it and restores the file; every new rule is seen failing once this way.
 - `python tools/dev/journal.py <journal.jsonl>` prints the reports of a workflow run.

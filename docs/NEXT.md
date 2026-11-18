@@ -8,13 +8,21 @@ there on his word; this file is its hand-over. Delete or replace this file when 
 
 ## Where and how
 
-- Work in this checkout: the git worktree
-  `C:\Claude Code\LOCAL\primacy2\.claude\worktrees\primacy2-space-simulator-b9a0b8`, branch
-  `claude/primacy2-space-simulator-b9a0b8`. Push only to this branch, never to `main`. On his word of
-  2026-11-18 the branch has one pull request to `main`,
-  https://github.com/nullthrone/primacy2/pull/1 (`main` held only the licence before): every push
-  to the branch updates it, he merges it himself, and no second one is opened. The README was
-  rewritten for it the same evening (early-development notice, badges, status table).
+- Work on feature branches that are merged into `main` early, each session in a git worktree of
+  its own. His word of 2026-11-18, after he had merged pull request 1
+  (https://github.com/nullthrone/primacy2/pull/1, which brought `main` from the licence alone to the
+  whole work): "Wir arbeiten ab jetzt mit Feature Branches und mergen früh in main und arbeiten
+  hier lokal in Worktrees". The rules are in `docs/ROADMAP.md`, section 5. In short: a small branch
+  cut from `main` per piece of work, a pull request as soon as it is green by itself, and the
+  session merges it itself as one commit (asked that evening, his choice: "Claude mergt, Squash").
+  The old rule (push only to `claude/primacy2-space-simulator-b9a0b8`, never to `main`, he merges)
+  has ended.
+- The sound work happens in one worktree only,
+  `C:\Claude Code\LOCAL\primacy2\.claude\worktrees\primacy2-space-simulator-b9a0b8`. It alone holds
+  what git ignores of the sound work, and part of that cannot be made again (the files of every
+  round as he heard them, `assets/audio/gen/_kept`; also the rendered tree, the downloads, the MOSS
+  model and the three Python environments). A branch for the sound is switched to in that
+  worktree, and the worktree is never removed.
 - Read `docs/ROADMAP.md` in full first, then `tools/audio/SOUND_DESIGN.md` (the direction for the
   sound, the rules, and in section 4 the owner's words from each listening round), then
   `tools/sound/README.md`, `RESULTS.md` (round 4), `RESULTS5.md` (round 5), `RESULTS6.md` (round 6)
@@ -29,11 +37,14 @@ there on his word; this file is its hand-over. Delete or replace this file when 
   tokens) costs about 10 points of the 5-hour window. The orchestrating session on the strongest
   model is what eats the weekly allowance: keep its own reading small. Never send a message to an
   agent that is running inside a workflow (it starts a second copy).
-- Before anything else: start `bash tools/dev/checkpoint.sh` in the background if no loop runs
-  (it ends by itself after eight hours).
-- Other sessions work in the same checkout (on 2026-11-15 one changed the radar and compass part
-  of the roadmap). Keep to your own files, and change shared documents by exact replacement, never
-  by writing the whole file.
+- Before anything else: start `bash tools/dev/checkpoint.sh` in the background if no loop runs in
+  your worktree (it ends by itself after eight hours, and it does nothing while `main` is checked
+  out).
+- Other sessions work in worktrees of their own; what they change reaches you through `main`.
+  Since 2026-11-18 one works on the special effects (`packages/client/src/render`; it starts with
+  proposals and an interview with him). Keep to your own files, and change shared documents
+  (`docs/ROADMAP.md`, `docs/CLIENT.md`) by exact replacement, never by writing the whole file: two
+  branches that both rewrite a document cannot be merged.
 - An agent that queues work behind the bench lock (`tools/voice/with_lock.py`) and then ends its
   turn leaves the work running with nobody to read the result. Tell agents to wait for their own
   locked commands, and check for left-over processes before you trust a "partial".
