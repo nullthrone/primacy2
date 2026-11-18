@@ -10,7 +10,7 @@ The client is split into parts with one owner each. They only meet through
 | Space renderer | `src/render/Renderer.ts`, `src/render/space`, `src/render/post` | Owns the canvas and the frame: sky, stars, planets, black holes, belts, post-processing. |
 | Local layer | `src/render/local` | Ships, stations, gates, asteroids, cargo, effects and the cockpit. Implements `LocalLayer`. |
 | Interface | `src/ui`, `src/styles`, `src/i18n/en.ts`, `src/i18n/de.ts` | Start screen, HUD, station screens, maps. Talks to the game only through `GameApi` and the store. |
-| Audio | `src/audio` | Procedural sound from the frame view and its events. |
+| Audio | `src/audio` | Plays the approved sounds of the sound library, from the frame view and its events, on the stage of the audition page. See "Sound". |
 
 `src/main.ts` wires them together and is the only place that knows all of them.
 
@@ -222,6 +222,47 @@ its panel show. Choosing one never drops the other.
   `/dev/local.html?scene=orient&hud=1&cam=cockpit`; `dev/hud.ts` lists the options of the HUD on
   it (chosen targets, controller hints, a made-up station), and `more=1` puts another pilot, a
   wreck, far contacts and a gate into the scene.
+
+## Sound
+
+The game plays files, not oscillators: the sounds of the sound library that the owner has approved
+(`tools/audio/SOUND_DESIGN.md` is the concept, "you hear your ship, not space"). They are shipped
+as lossless FLAC under `packages/client/public/audio` by `tools/audio/ship.py`, which derives what
+may go in from the library's manifest and his ratings (`tools/audio/README.md`, "Shipping to the
+game"); `public/audio/manifest.json` is what the game loads and `public/audio/CREDITS.md` gives the
+licence of every shipped file. An event of the game without an approved sound makes no sound: the
+manifest lists those under `silent`, with the reason.
+
+| File in `src/audio` | Role |
+|---|---|
+| `library.ts` | The shipped manifest and the decoded files. Fetching and decoding start with the page and need no click (an offline context decodes); the room, the cabin, the engine and the thrusters come first. |
+| `stage.ts` | The audio graph, the one of the audition page: a one-channel sound at its place by a balance law (straight ahead it plays at the file's level on both sides; behind it is duller), a two-channel file as it is, everything through the cabin's impulse response, a limiter that leaves everything below -2 dBFS as it is. |
+| `cues.ts` | The mapping from a `FrameView` to what should sound, as a pure function with its state and its random numbers handed in. It names events of the sound list (`assets/audio/game.json`), never files. |
+| `mixer.ts` | Makes the stage sound like the mapping says: the engine group, the loops, the one-shots; picks among an event's sounds, never the same twice in a row. |
+| `index.ts` | `createAudio()`, the `GameAudio` the game core and the interface use. |
+
+Rules that hold across these files:
+
+- The levels are in the files. Sounds are mixed by adding them at gain 1; a gain in `cues.ts` is
+  there only where the game has something to say with it.
+- The audio context is created by `GameAudio.unlock()`, which the game core calls from the first
+  click or key. Before that, and while the page is hidden (the context is suspended then), a mix is
+  dropped: loops start with the first mix once the context runs, and a one-shot whose moment has
+  passed is not played late.
+- The volume setting is one gain ahead of the limiter.
+- `window.__audio` holds the library, the stage with its play log, the mixer and the last mix, for
+  the console and for `tools/dev/audio-check.mjs`, which plays the real game in a headless browser
+  on ports of its own and reads what was scheduled and what level leaves the output.
+
+What sounds when (`cues.ts`; the numbers are `TUNING` there):
+
+| What | When |
+|---|---|
+| Cabin (`cabin_ambience_loop`) | Whenever the pilot sits in the ship, docked and in the fold tunnel included; `silent_running_loop` instead while silent running is on. Nothing once the ship is destroyed. |
+| Main engines (`engine_main_*`, six levels) | In flight and on the ground. The levels are crossfaded with equal power by what the pilot asks for: the forward axis or the throttle setpoint, whichever is more; the boost level while the boost runs; half thrust while the brake is held and the ship moves. The sound follows a change with a spool time (0.25 s up, 0.45 s down). In cruise and on the ground the engines idle. |
+| Thruster pulse (the sounds of `thruster_pulse_c`) | When sideways or vertical thrust sets in or turns round. No sooner than 1.2 s after the pulse before it, at most two at once. |
+| Thruster burn (`thruster_burn_loop`) | While sideways or vertical thrust is held, as loud as the stick is pushed. |
+| Interface | A press on any button plays `ui_click`; an information notice `ui_notice`, a warning `alarm_master_caution`. |
 
 ## Models
 

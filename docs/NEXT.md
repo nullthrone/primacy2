@@ -321,7 +321,10 @@ built (it is a greenfield design):
 
 ### 3. The game's runtime audio on the library
 
-Not to be started without his word (section 4). Core work for the strongest model:
+STARTED on 2026-11-18 on his word ("Ja, bauen"), in a worktree and session of its own
+(`.claude/worktrees/runtime-audio-43eb54`); what is built, what was decided and what is silent is
+in `docs/ROADMAP.md`, section 2, "The game's runtime audio on the library", and `docs/CLIENT.md`,
+"Sound". The text below is the brief it was built from. Core work for the strongest model:
 `packages/client/src/audio` is rebuilt, not patched. Design it first and show Thomas the plan in a
 few sentences (done on 2026-11-17). Since round 7 each of the six event families of rounds 4 to 7
 has a sound he accepted: eighteen are in the library (`assets/audio/generated.json`; the first ten

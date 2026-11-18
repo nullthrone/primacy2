@@ -224,8 +224,9 @@ measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
 
 He offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
 
-Not built: the game's runtime audio on the library (see section 3), the voice pipeline (only the
-comparison of models exists), music (the model is downloaded and has never been run).
+Not built: the voice pipeline (only the comparison of models exists), music (the model is
+downloaded and has never been run). The game's runtime audio on the library is being built since
+2026-11-18, on his word (see "The game's runtime audio on the library").
 
 ### Voices: a comparison of open speech models (2026-11-15)
 
@@ -880,6 +881,59 @@ so the next library step has to find the sample again; no test compares the `luf
 with the event it stands for (the manifest is not in git); `tools/sound/compare.py` rebuilds
 library files without the page's steps, which is right for the pulses of rounds 4 and 5 that it
 reads and would be wrong for a sound of round 7.
+
+### The game's runtime audio on the library (first playable version, from 2026-11-18)
+
+His word, on 2026-11-18, asked whether the runtime audio should now be built as a first playable
+version: "Ja, bauen". Before that he had asked: "gibt es irgendeinen worktree der die neuen sounds
+schon irgendwo integriert hat? ich würde es gerne einmal probespielen". There was none: the game
+made its sound with oscillators and shipped no sound file. The plan had been shown to him on
+2026-11-17, so there was no new round of questions. It is built in a worktree of its own
+(`runtime-audio-43eb54`), in three pieces, each a pull request against `main`. How the parts work
+is in `docs/CLIENT.md`, "Sound"; how the sounds get to the game in `tools/audio/README.md`,
+"Shipping to the game".
+
+Decided by the session that built it, and told to him (his to overrule):
+
+- The sounds ship as FLAC, lossless: what the game plays is sample for sample what he rated, and
+  nobody here can hear what a lossy codec would change. Measured on the shipped list: 5.70 MB
+  (27.42 MB as WAV). A probe of a list of 60 sounds before that: 5.73 MB as FLAC, 1.83 MB as Ogg
+  Vorbis at the encoder's default quality.
+- The shipped files are in git (`packages/client/public/audio`), so that `main` plays with sound in
+  every worktree without the Python environment and the rendered tree.
+- The 28 ratings that are not on the file the manifest lists now: a positive one (fits, or four
+  stars and more) still counts until he rates the new version otherwise, a negative one keeps the
+  sound out. Nine sounds are shipped on such a rating and are marked: the engine idle, the cruise
+  charge, engage and loop, the fold charge and tunnel, the two cabin beds, the missile warning.
+- The eight library sounds of round 7 that he accepted as candidates and has not heard as built
+  are shipped (the six heavy thrusters and the two shields).
+- Five events without an approved sound of their own play the approved sounds of another event
+  (`standIn` in `assets/audio/game.json`): a medium and a heavy shield hit play the shield sounds
+  he accepted (they stand for the light hit in the library), a hard touchdown plays the soft one,
+  and the thruster pulses a and b, which were withdrawn, play the sounds of `thruster_pulse_c`.
+- Three downloads he rated fits get a role the sound list has no event for (`adopt`): the toggle
+  `k_switch_ui_5` is the press of a button of the interface, `k_switch_ui_18` a panel opening or
+  closing, `k_bong_1` an information notice. He rated the files, not that use, and he asked for
+  the relay sounds to go ("die ganzen Relais Töne bitte weglassen") the same evening: it is his to
+  say whether the interface should click at all.
+- NASA recordings are not shipped, though he rated ten of them fits: `assets/audio/CREDITS.md` says
+  why their use in a game is his decision, and no event of the game plays one yet.
+
+Silent in the first version, because nothing he accepted exists for them: the cannon, the pulse
+laser, the gear retracting, the shields-down alarm, the debris patter, the scraping and the
+regolith on the ground; and the cockpit switches, whose rendered sounds went on his word.
+
+Piece 1 (2026-11-18): the shipping step with the derived list (57 sounds), the loader, the stage,
+and what is heard at once in flight: the engine crossfaded by thrust, the thruster pulses and the
+burn, the cabin with silent running, the clicks of the interface. Checked without ears by
+`tools/dev/audio-check.mjs`, which plays the built game in a headless browser on ports of its own
+(10 of 10 checks on 2026-11-18): all 57 files are decoded before the first click, the cabin runs
+when docked, the engine idles on its lowest level and ends on the full-thrust level under full
+thrust, between two settings exactly the two neighbours sound with equal power, one pulse sets in
+with sideways thrust and the burn runs while the key is held, eight quick taps start no more than
+two pulses, silent running swaps the cabin bed; the output peak was -29.1 dBFS at idle and
+-14.9 dBFS at full thrust at the default volume, and the page logged no error. Not established:
+how any of it sounds. Nobody has heard it.
 
 ### The owner's first play session (2026-11-14)
 
@@ -1580,6 +1634,14 @@ Other notes:
   (sheets in `screenshots/fx/`, jobs in `tools/dev/fx-shots.json`). For old against new, a second
   dev server runs from a worktree of the commit to compare with. On the stage the distance of the
   action is `range`; `dist` is the camera's distance from the station, as in the other scenes.
+- The game's sound without ears: `npm run build && PRIMACY2_DEV_PORT=<free port> node
+  tools/dev/audio-check.mjs` plays the built game in a headless browser, with two servers of its
+  own on that port and the next and their data in a temporary folder (it refuses 8420, 8421 and
+  5190), and reads `window.__audio`: what was scheduled, the target gains of the engine levels, the
+  loops that run, the level at the output. The sounds the game ships are written by
+  `tools/audio/ship.py --library <assets/audio of the sound worktree>` (it reads there and writes
+  only in the tree it is started from; `tools/audio/README.md`, "Shipping to the game"); run it
+  again when the library or the ratings have changed, and commit what it changed.
 - Start `node scripts/e2e.mjs` in the foreground. Started as a detached background job of an
   agent session it failed twice on 2026-11-14 at its steering steps; in the foreground it passed
   (see "Orientation on the HUD").
