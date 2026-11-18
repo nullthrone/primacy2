@@ -7,6 +7,7 @@ import { MODULES } from '@primacy2/shared';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
 import { clamp, smooth } from '../util.ts';
 import { Pool, rand, randCone, type Frame, type Track } from './core.ts';
+import { effectLights } from './lights.ts';
 import { GLOW, type Sprites } from './sprites.ts';
 import type { Flashes, Sparks } from './particles.ts';
 import type { Ribbons } from './ribbons.ts';
@@ -170,6 +171,8 @@ export class Weapons {
     const s = src.own ? size * 0.45 : size;
     const p = this.flashes.spawn(GLOW, M[0] - src.x, M[1] - src.y, M[2] - src.z, life, s, s * 1.6, c[0], c[1], c[2], gain);
     p.follow = src.id;
+    // The light it throws back on the ship that fired.
+    effectLights.pulse(M[0] - src.x, M[1] - src.y, M[2] - src.z, c[0], c[1], c[2], 1.5 * gain * s * s, 8 + 6 * s, life * 1.5, src.id);
   }
 
   /** Starts or refreshes the beam `key` from `src` to `at`. */
@@ -281,6 +284,11 @@ export class Weapons {
         ribbons.seg(sx, sy, sz, tx, ty, tz, 0.5, c[0] * g, c[1] * g, c[2] * g, 1, 1);
         sprites.glow(sx, sy, sz, 1.6, c[0] * 6 * flick, c[1] * 6 * flick, c[2] * 6 * flick);
         if (touch) sprites.glow(cx, cy, cz, 2.6, c[0] * 8 * flick, c[1] * 8 * flick, c[2] * 8 * flick);
+        // Both glows tint the plating around them, a few metres and no more. The one at the far end
+        // stands off the hull it touches, toward the muzzle: a light in the skin lights nothing.
+        const off = 1.2 / (Math.hypot(sx - cx, sy - cy, sz - cz) || 1);
+        effectLights.add(sx, sy, sz, c[0], c[1], c[2], 15 * flick, 7);
+        if (touch) effectLights.add(cx + (sx - cx) * off, cy + (sy - cy) * off, cz + (sz - cz) * off, c[0], c[1], c[2], 40 * flick, 10);
       } else if (b.kind === MINE) {
         const g = 7 * flick;
         ribbons.seg(sx, sy, sz, tx, ty, tz, 0.8, MINING[0] * g, MINING[1] * g, MINING[2] * g, 1, 1);
