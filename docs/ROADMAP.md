@@ -753,8 +753,12 @@ sentence, two "most typical candidate" sentences that hid that each pick was the
 and spectral numbers in `RESULTS7.md` that depend on a rectangular window. A repair step
 (`docs/reports/2026-11-18/sound7-repair-report.json`) corrected these in `derive.py`, `publish.py`,
 the plan, the README and `RESULTS7.md`, republished `events7` once (189 entries, the 178 outside it
-equal, ratings file unchanged) and ran `test_screen.py` (62 tests, 0 failed). Nobody has checked the
-repair again and no page check was run after it.
+equal, ratings file unchanged) and ran `test_screen.py` (62 tests, 0 failed). The orchestrating
+session checked the repair afterwards on 2026-11-18: by script (189 entries, the 178 outside
+`events7` equal in every field and in order, 0 of 189 hashes differ, 33 files, only two json files
+of the unchanged candidates differ and only in `intent`) and by one page check over all 11
+candidates on an own port (48 passed, 0 failed, 0 page faults; 18 file listings of 0.001 to 0.003
+for hangar seed 21). Nobody listened.
 
 What nobody could verify: how any of the 11 sounds; whether the third shot of `room_4` is a copy
 after the room (the dry part is, the tails are not quantified); the one page fault of the first
@@ -1251,8 +1255,8 @@ Never verified:
   - The shot counts rest on counters: `count_shots` gives the page's number, and the two checks'
     counters differ from it on some generated thruster files (the first on four), so "exactly three"
     and the empty second slot of `thruster_three` rest on one heuristic.
-  - The text repair after the second check was not checked again and no page check was run after
-    it; the page fault of the first page-check run after the changes (`room_4`, Headphones) is not
+  - The text repair after the second check was checked afterwards by script and by one page check
+    over all 11 candidates (48 passed, 0 failed, 0 page faults); the page fault of the first page-check run after the changes (`room_4`, Headphones) is not
     explained; whether the third shot of `room_4` is a copy after the room was not quantified.
   - That `build.py` gives the same bytes in two runs and that `publish.py` would make the same
     manifest from scratch: not run by the check. Old manifest entries were proven equal in hash and

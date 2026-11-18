@@ -209,8 +209,21 @@ sentences that hid that each pick was the only eligible one, and spectral number
 that depend on a rectangular window. A repair step corrected those (page texts of the shelf
 candidates and of `thruster_three` seed 24 and the hangar pick, `RESULTS7.md`, the README, the plan),
 republished `events7` once (189 entries, ratings file unchanged), and ran `test_screen.py`: 62
-tests, 0 failed. Nobody has checked the repair again, and no page check was run after it
-(`sound7-repair-report.json`).
+tests, 0 failed (`sound7-repair-report.json`). The orchestrating session then checked the repair
+itself on 2026-11-18, by script: 189 manifest entries, the 178 outside `events7` equal to the state
+before the changes in every field and in order, 0 of 189 hashes differ from their files, 33 files in
+`render/events7`; of the 21 files of the first publish that are still there, 19 are byte equal and
+two json files differ (`thruster_three` seed 24 and `brighter_2`, the `intent` text only);
+`validate_manifest` finds nothing. One page check over all 11 candidates and the two controls on an
+own port with an own empty ratings file: 48 passed, 0 failed, 0 page faults, 22 file listings
+(hangar seed 21: 18, sizes 0.001 to 0.003; `test_step`: 4). `test_screen.py` 62 tests,
+`unittest discover tools/audio/tests` 111, vitest 807 passed and 2 expected fail,
+`npm run typecheck` exit 0 with no output; the ratings file kept its sha256. Measured in the same
+pass on the raw files, loudest 200 ms: crest factor 3.03 dB (`thruster_three` seed 24) and 3.58 dB
+(hangar seed 21) against 5.54 dB for the round-6 thruster he called close; 12.5 % and 13.9 % of the
+samples of that window lie within 1 dB of the peak against 2.9 %; the longest run of samples at
+0.98 of the peak is 6 and 6 against 5, so the two generated thrusters are denser than his
+candidate but have no flat tops. Nobody listened.
 
 **Left open by the second check:** how any of the 11 files sounds; whether the third shot of `room_4`
 is a copy after the room (the dry part is, see above); the page fault of the first page-check run of

@@ -829,7 +829,13 @@ by 8 dB"), one incomplete README sentence, two "most typical candidate" sentence
 pick was the only eligible one, and spectral numbers that depend on a rectangular window. A repair
 step (`docs/reports/2026-11-18/sound7-repair-report.json`) corrected them, republished `events7`
 once (189 entries, ratings file unchanged) and ran `tools/sound/tests/test_screen.py`: 62 tests, 0
-failed. Nobody has checked the repair again and no page check was run after it.
+failed. The orchestrating session checked the repair afterwards on 2026-11-18: by script (189
+entries, the 178 outside `events7` equal in every field and in order, 0 of 189 hashes differ, 33
+files in `render/events7`, only two json files of the unchanged candidates differ and only in
+`intent`) and by one page check over all 11 candidates on an own port (48 passed, 0 failed, 0 page
+faults; 18 file listings of 0.001 to 0.003 for hangar seed 21). The two generated thrusters are
+denser than the round-6 thruster he called close (crest factor of the loudest 200 ms 3.03 and
+3.58 dB against 5.54 dB) and have no flat tops. Nobody listened.
 
 Not established, and to be told to him with the hand-over: how any of the 11 sounds; nobody has
 heard one. Whether a room of 1.35 to 2.1 s, in one channel or wide, is his "Raumklang"; whether three
