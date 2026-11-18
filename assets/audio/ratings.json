@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "savedAt": "2026-11-18T19:18:54.325Z",
+  "savedAt": "2026-11-18T19:22:12.338Z",
   "manifest": {
     "placeholder": false,
     "count": 189
@@ -165,9 +165,9 @@
     },
     "weapon_pulse_fire": {
       "stars": 0,
-      "verdict": "",
-      "note": "",
-      "at": "2026-11-14T20:14:35.886Z",
+      "verdict": "wrong",
+      "note": "Klingt überhaupt nicht nach Laser, sondern als ob jemand auf einem Plastikeimer tippt...",
+      "at": "2026-11-18T19:20:29.292Z",
       "hash": "233ee0d3bd38"
     },
     "engine_main_t025": {
@@ -1147,59 +1147,220 @@
     },
     "relay_click_a": {
       "stars": 0,
-      "verdict": "fits",
-      "note": "",
-      "at": "2026-11-18T19:17:49.914Z",
+      "verdict": "wrong",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:02.651Z",
       "hash": "2a64495b35cb"
     },
     "relay_click_b": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:53.824Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:04.273Z",
       "hash": "4a0703006c0f"
     },
     "switch_toggle": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:52.406Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:04.716Z",
       "hash": "42d259bb658d"
     },
     "switch_rotary": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:51.086Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:05.225Z",
       "hash": "5c186dc390be"
     },
     "breaker_thunk": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:51.791Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:06.208Z",
       "hash": "eb2f8ca85149"
     },
     "button_press": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:38.770Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:07.505Z",
       "hash": "bb4b79f4353e"
     },
     "systems_power_up": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:38.207Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:08.789Z",
       "hash": "264a59f10f51"
     },
     "systems_power_down": {
       "stars": 0,
       "verdict": "wrong",
-      "note": "",
-      "at": "2026-11-18T19:18:37.802Z",
+      "note": "die ganzen Relais Töne bitte weglassen",
+      "at": "2026-11-18T19:19:09.943Z",
       "hash": "22eaa85fe059"
+    },
+    "k_door_close_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:19:15.694Z",
+      "hash": "93e5e5e15d1b"
+    },
+    "k_door_open_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:19:18.027Z",
+      "hash": "ec8e2eb8d429"
+    },
+    "k_switch_ui_5": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:21.936Z",
+      "hash": "2a9410fae1f5"
+    },
+    "k_switch_ui_18": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:24.200Z",
+      "hash": "2d760d9ddf5c"
+    },
+    "k_toggle_1": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T19:19:29.786Z",
+      "hash": "c90595d31a07"
+    },
+    "n_insight_arm": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:31.818Z",
+      "hash": "86889a8aca1b"
+    },
+    "g_fold_jump": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:37.812Z",
+      "hash": "363f09f3f018"
+    },
+    "g_fold_exit_a": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:41.749Z",
+      "hash": "52318b1ed58b"
+    },
+    "g_fold_exit_b": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:45.088Z",
+      "hash": "6b2ce982a6ea"
+    },
+    "cabin_ir": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:52.962Z",
+      "hash": "019f7a1821c0"
+    },
+    "k_tick_2": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:19:55.963Z",
+      "hash": "ae34de11f941"
+    },
+    "weapon_cannon_fire": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "klingt nach einfach nur ein dumpes klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in anderen Runden ja schon etwas gesammelt",
+      "at": "2026-11-18T19:21:04.545Z",
+      "hash": "23c1de334ab0"
+    },
+    "sensor_fire_outside": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:10.665Z",
+      "hash": "647a53ae0b09"
+    },
+    "sensor_explosion_outside": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:14.160Z",
+      "hash": "cc9e1e08d928"
+    },
+    "k_bong_1": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:22.996Z",
+      "hash": "d62a8c9d010b"
+    },
+    "k_tone_1": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:26.946Z",
+      "hash": "ffbcd3ef4bd3"
+    },
+    "k_two_tone_1": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:29.167Z",
+      "hash": "71229fa68378"
+    },
+    "n_voyager_lightning": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:40.492Z",
+      "hash": "b8173d8f3f57"
+    },
+    "n_cassini_saturn_1": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:45.503Z",
+      "hash": "191dacdb99ee"
+    },
+    "n_emfisis_chorus": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:50.970Z",
+      "hash": "092575621053"
+    },
+    "n_plasma_hiss": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:21:54.451Z",
+      "hash": "69b4fbaecf26"
+    },
+    "n_juno_ganymede": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:22:01.711Z",
+      "hash": "80acab872e76"
+    },
+    "n_laser_shots": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T19:22:11.837Z",
+      "hash": "46643ccd4172"
     }
   },
   "scenes": {},
