@@ -469,3 +469,27 @@ Fixed after the check, by script, with `assets/audio/ratings.json` at sha256 28b
   about shield_absorb seed 27 (`prompts7.json`, measured values instead of a description) were corrected above, in the README and in the plan.
 - One republish (`publish.py` as in the README): 189 manifest entries, the 178 outside events7 equal to before in every field and in order; the seven unchanged candidates keep their wav and png
   byte for byte; their json files differ for ev7_2_thruster_three_1_moss_p1s24 and ev7_4_shield_brighter_2_derived_r6p2s11b only in the `intent` text.
+
+### His ratings (2026-11-18, 19:14 to 19:22 UTC)
+
+Recorded as `assets/audio/rounds/round7.json` (189 hashes), `round7-ratings.json` (a byte copy of the saved ratings, SHA-256
+4509dbcdfc368b04b08ad54d6b8e5b88e9c7ee191a4b73e75367962ac7fa71f8) and `assets/audio/gen/_kept/round7` (ignored by git; `kept.json` holds verdict, raw file, cut, gain and, for
+a processed candidate, its operations). Counts from the recording script. He wrote no note on any candidate of the round.
+
+| candidate | verdict | loudest 50 ms dBFS | share above 2 kHz, loud frames | over both numbers of notSaturatedNoise |
+|---|---|---|---|---|
+| ev7_1_thruster_room_1_derived_r6p3s11a | fits | -6.23 | 0.0520 | yes |
+| ev7_1_thruster_room_2_derived_r6p3s11b | fits | -6.97 | 0.0446 | yes |
+| ev7_1_thruster_room_3_derived_r6p3s11c | fits | -7.03 | 0.0547 | yes |
+| ev7_1_thruster_room_4_derived_r6p3s11d | fits | -7.00 | 0.0446 | yes |
+| ev7_2_thruster_three_1_moss_p1s24 | fits | -1.58 | 0.0189 | no |
+| ev7_3_thruster_hall_1_moss_p1s21 | fits | -2.73 | 0.0304 | yes |
+| ev7_4_shield_brighter_1_derived_r6p2s11a | close | -4.36 | 0.0165 | no |
+| ev7_4_shield_brighter_2_derived_r6p2s11b | fits | -7.65 | 0.0714 | yes |
+| ev7_4_shield_brighter_3_derived_r6p2s11c | fits | -7.68 | 0.0811 | yes |
+| ev7_5_shield_swallow_1_moss_p1s22 | wrong | -12.81 | 0.7738 | no |
+| ev7_7_shield_snap_1_moss_p1s24 | wrong | -15.16 | 0.9963 | no |
+
+8 fit, 1 close, 2 wrong. By kind: of the seven processed copies of files he had called close 6 fit and 1 is close; of the four generated from a prompt the two thrusters fit and the
+two shields are wrong. All seven candidates over both numbers of `notSaturatedNoise` fit. The ratings do not choose among the six thrusters (all fit; room_1 and room_2 were rated 0.6 s
+apart). What follows is in `docs/NEXT.md`, section 1.

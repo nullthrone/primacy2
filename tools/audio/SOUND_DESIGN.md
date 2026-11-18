@@ -145,8 +145,8 @@ full scale, 10 to 20 dB above the rendered set, several cut hard at the end. Now
 - A file whose source is clipped carries that in its entry.
 
 By path (the rules for structure describe the beds; the one-shots of the structure path and the
-energy path get new numbers from what he has accepted in rounds 4 to 7, once round 7 is rated (round
-6 is rated, and the numbers are still to be set), and until then the code in `synth/rules.py` still
+energy path get new numbers from what he has accepted in rounds 4 to 7, now that round 7 is rated (2026-11-18;
+the numbers are still to be set), and until then the code in `synth/rules.py` still
 checks them the old way):
 
 - structure: at least 85 % of the energy below 500 Hz, at most 2 % above 4 kHz.
@@ -722,11 +722,10 @@ three families that carried the rule had none over both, and no note says overdr
 
 While he rated, `assets/audio/render/events6` was frozen; the record ended the freeze.
 
-### Round 7, 2026-11-18 (eleven candidates; waiting for his ratings)
+### Round 7, 2026-11-18 (eleven candidates; he rated them the same evening)
 
-State when this was written, by script: 11 candidates on the page, 189 manifest entries, 0 of 11
-rated by the page's rule (`assets/audio/ratings.json` has the SHA-256 prefix `28ba8285` and equals
-`round6-ratings.json`), and nobody has listened to any of it.
+State when the round went out, by script: 11 candidates on the page, 189 manifest entries, and
+nobody had listened to any of it. His ratings stand at the end of this section.
 
 Why this round. After round 6 two families are open, the thruster pulse and the shield hit, and each
 has one candidate he called close, with a note that says what to change. New prompts had landed less
@@ -846,5 +845,35 @@ changes (`room_4`, Headphones, ratio 3.1) did not come back in two more runs nor
 check's single run, and is not explained. A line at 16 kHz is in every MOSS file measured, in those he
 accepted as well. The shot counts depend on the counter.
 
-While he rates, `assets/audio/render/events7` is frozen: no screen, publish or build on the real
-tree until the round is recorded (`docs/NEXT.md`, section 1).
+His ratings of round 7 (2026-11-18, 19:14 to 19:22 UTC; recorded as
+`assets/audio/rounds/round7.json` and `round7-ratings.json`, SHA-256 `4509dbcd...71f8`, and kept in
+`assets/audio/gen/_kept/round7`, which is ignored by git; every count from the recording script). Of
+the 11 candidates 8 fit, 1 is close, 2 are wrong, none with a note. All six thrusters fit: the four
+processed copies of the round-6 candidate (three rooms, and the one with a copied third shot) and
+the two generated ones. Of the shields the shelved one and the tuned and shelved one fit, the tuned
+one is close, and the two generated ones are wrong. So each of the six event families of rounds 4
+to 7 has a sound he accepted; the thruster and the shield are not in the library yet, and the
+ratings do not choose among the six thrusters. All seven candidates that are over both numbers of
+`notSaturatedNoise` fit. Of the nine shields MOSS made from a prompt and he rated, none fits (2
+close, 7 wrong); the two shields that fit are processed copies of one of the close ones.
+
+The same evening he rated the 39 sounds that were still unrated on the page (23 fit, 3 close, 13
+wrong), so that all 189 are rated by the page's rule. His notes of that evening, word for word: on
+eight rendered switch sounds (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
+`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`), each wrong, "die ganzen
+Relais Töne bitte weglassen"; on `weapon_cannon_fire`, wrong, "klingt nach einfach nur ein dumpes
+klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in
+anderen Runden ja schon etwas gesammelt"; on `weapon_pulse_fire`, wrong, "Klingt überhaupt nicht
+nach Laser, sondern als ob jemand auf einem Plastikeimer tippt..."; on `touchdown_hard` and on
+`dust_patter_loop`, both close, "Klingt übersteuert"; on `ground_scrape_loop`, close, "der tiefe
+Basston passt, aber das "Kratzen" in den höhen stört". The five library sounds that had been
+unrated in their built form fit, so all ten library sounds fit as built.
+
+What his words of that evening say for the direction (a reading, not his words): a sound made by
+changing something he already likes is accepted far more often than a new one made from a
+description; "Raumklang" was met by every one of the three rooms, the wide one included; "leicht
+heller" was met by the shelf and not by the pitch alone; the cockpit is to stay without relay and
+switch chatter; and "übersteuert" is a word he also uses for two rendered landing sounds, which
+nobody has measured yet.
+
+Round 7 is recorded (`docs/NEXT.md`, section 1, says what follows).

@@ -47,7 +47,8 @@ the audition page, and since 2026-11-16 a listening test of two sound models and
 (`tools/sound`), whose sixteen candidates he rated the same day; round 5, whose seventeen event
 sounds he rated on 2026-11-16 (5 fit, 2 close, 10 wrong); round 6, another try for the families he
 rejected, which he rated on 2026-11-18 (4 fit, 2 close, 8 wrong); and round 7, built around the two
-candidates he called close, which is the first category of the page and waits for his ratings.
+candidates he called close, which is the first category of the page and which he rated the same
+evening (8 fit, 1 close, 2 wrong), together with every other sound that was still unrated.
 
 Tests. `npx vitest run` passed 807 tests on 2026-11-18 (the independent check of round 7; 47 files
 on 2026-11-16, not counted again), with 2 more marked as expected failures on purpose (see section
@@ -271,7 +272,7 @@ last used; English and German. `docs/CLIENT.md`, section Controls, has the layou
 `tools/sound` holds a listening test and no new library. He rated the sixteen candidates of round 4
 on 2026-11-16 (below); round 5 made the event sounds from that, and he rated its seventeen the same
 day; round 6 tried the families he rejected again and he rated it on 2026-11-18; round 7 is built
-around the two candidates he called close and waits for his ratings (all below). Nobody but him
+around the two candidates he called close and he rated it the same evening (all below). Nobody but him
 has listened to anything.
 
 Why. After round 3 the owner said on 2026-11-15: "Wir gehen langsam in die richtige Richtung. Aber
@@ -666,10 +667,9 @@ ones are unrated as built.
 
 Round 7 (2026-11-18; `tools/sound/prompts7.json` with its "note", `tools/sound/RESULTS7.md`,
 `tools/sound/README.md`, "Round 7"; category "Ereignisklänge (Runde 7)", `events7`, the first
-category of the page, round 6 after it). State when this was written, by script: 11 candidates on the
-page, 189 manifest entries, waiting for his ratings (0 of 11 rated by the page's rule;
-`assets/audio/ratings.json` has the SHA-256 prefix `28ba8285` and equals `round6-ratings.json`), and
-nobody has listened to any of it. Why it is built this way: the two families that are still open were
+category of the page, round 6 after it). State when the round went out, by script: 11 candidates on the
+page, 189 manifest entries, and nobody had listened to any of it. He rated it on 2026-11-18 in the
+evening; the result stands at the end of this passage. Why it is built this way: the two families that are still open were
 each answered by one candidate he called close, and new prompts had landed less than one time in
 three, so the round starts from those two files. MOSS only. He is asked only for Passt / Falsch.
 
@@ -767,20 +767,41 @@ not explained; the numbers of the skipped snap seed 22 (its published file is go
 rebuilt from the raw file and are close to the text, not equal); that the shot counts depend on the
 counter.
 
-What follows, the orchestrator's plan and not his decision. When he has rated round 7, the round
-is recorded the way rounds 4 to 6 were (`assets/audio/rounds/round7.json`, `round7-ratings.json`,
-`gen/_kept/round7`). An accepted fixed candidate goes into the library with its processing recorded
-(the build cannot yet do that: `generated.json` knows a raw file and a cut, not a derived sound),
-an accepted generated one the way round 6 went. Then the rules in `tools/audio` get new numbers,
-taken from everything he has accepted, and the first full build after the repairs refreshes the
-checks. The plan for the game's runtime audio was shown to him in a few sentences on 2026-11-17;
-it is not started without his word. A family he rejects again: another round with new prompts is
-possible; for the shield, a MOSS shield he accepts has not happened in seven tries, which is the
-point to ask him whether he wants to reopen Stable Audio or allow another source (Freesound CC0
-with his own account, recordings made at home, other models), each of which needs a new yes. While
-he rates round 7, `assets/audio/render/events7` is frozen: `screen.py`, `publish.py` and
-`tools/audio/build.py` are not run on the real tree until his ratings are recorded, since a new
-publish changes ids or hashes and orphans ratings. Not to be started without his word: the voice
+His ratings of round 7 (2026-11-18, 19:14 to 19:22 UTC; recorded as
+`assets/audio/rounds/round7.json` and `round7-ratings.json`, SHA-256 `4509dbcd...71f8`, and kept in
+`assets/audio/gen/_kept/round7`, which is ignored by git; every count from the recording script). Of
+the 11 candidates 8 fit, 1 is close, 2 are wrong, none with a note. All six thrusters fit: the four
+processed copies of the round-6 candidate (three rooms, and the one with a copied third shot) and
+the two generated ones. Of the shields the shelved one and the tuned and shelved one fit, the tuned
+one is close, and the two generated ones are wrong. So each of the six event families of rounds 4
+to 7 has a sound he accepted; the thruster and the shield are not in the library yet, and the
+ratings do not choose among the six thrusters. All seven candidates that are over both numbers of
+`notSaturatedNoise` fit. Of the nine shields MOSS made from a prompt and he rated, none fits (2
+close, 7 wrong); the two shields that fit are processed copies of one of the close ones.
+
+The same evening he rated the 39 sounds that were still unrated on the page (23 fit, 3 close, 13
+wrong), so that all 189 are rated by the page's rule. His notes of that evening, word for word: on
+eight rendered switch sounds (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
+`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`), each wrong, "die ganzen
+Relais Töne bitte weglassen"; on `weapon_cannon_fire`, wrong, "klingt nach einfach nur ein dumpes
+klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in
+anderen Runden ja schon etwas gesammelt"; on `weapon_pulse_fire`, wrong, "Klingt überhaupt nicht
+nach Laser, sondern als ob jemand auf einem Plastikeimer tippt..."; on `touchdown_hard` and on
+`dust_patter_loop`, both close, "Klingt übersteuert"; on `ground_scrape_loop`, close, "der tiefe
+Basston passt, aber das "Kratzen" in den höhen stört". The five library sounds that had been
+unrated in their built form fit, so all ten library sounds fit as built.
+
+What follows, the orchestrator's plan and not his decision (`docs/NEXT.md`, section 1, has it in
+order). The accepted candidates of round 7 go into the library: a generated one the way round 6
+went, a processed one with its processing recorded (the build cannot yet do that: `generated.json`
+knows a raw file and a cut, not a derived sound). The eight relay sounds come off the page on his
+word. Then the rules in `tools/audio` get new numbers, taken from everything he has accepted, and
+the first full build after the repairs refreshes the checks. Nothing he accepted exists yet for the
+cannon, the pulse laser, the gear retracting and the shields-down alarm, and three landing sounds
+are close; a further round for those is his to want. The plan for the game's runtime audio was
+shown to him in a few sentences on 2026-11-17; it is not started without his word. Before a tool
+writes to the real tree, look whether he has rated anything new: `assets/audio/ratings.json` is
+byte-identical to `assets/audio/rounds/round7-ratings.json` as long as he has not. Not to be started without his word: the voice
 pipeline, the game's runtime audio, a re-render of the event sounds, other downloads, music.
 
 ### The owner's first play session (2026-11-14)
@@ -989,7 +1010,8 @@ Each step is one work session with its own workflow runs.
    direction; in round 4 he accepted candidates from two generative models; in round 5 he accepted
    hull hits and valve pulses made with MOSS and rejected the thruster with more bang, the shield
    and both fold events; in round 6 he accepted a light hull hit, a fold jump and two fold exits and
-   called a thruster and a shield close; round 7 is built around those two, see `tools/sound`); the
+   called a thruster and a shield close; round 7 was built around those two, and on 2026-11-18 he accepted its six thrusters and two of
+   its shields, see `tools/sound`); the
    event sounds he accepts built into the library (ten are in, see section 2; he has rated five of
    them in their built form) and heard once more; new numbers
    for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
@@ -1095,7 +1117,7 @@ Defects seen and left in:
   new numbers only when he has accepted a short event. He has accepted hull hits, valve pulses and
   the gear (rounds 4 and 5), and in round 6 a light hull hit, a fold jump and two fold exits; the
   numbers are still to be set, from all accepted sounds at once, and round 7 (thruster and shield)
-  was made first because those two families are open. Some rendered one-shots start on a sample
+  was made first because those two families were open (he accepted both on 2026-11-18). Some rendered one-shots start on a sample
   that is not silence (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
   radio squelch): the audition page fades such a start, the game's runtime will have to do the
   same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
@@ -1164,9 +1186,10 @@ Never verified:
   samples and no direction sample; in round 4 the sixteen candidates; in round 5 the seventeen
   event sounds; on 2026-11-18 the 14 candidates of round 6, the four countdown samples, the
   other voice samples of that day and seven of the eight first library sounds in their built form;
-  not yet the 11 candidates of round 7, nor `g_gear_deploy` and the four newest library sounds as
-  built). By the page's own definition 50 of the 189 sounds on the page are unrated (script,
-  ratings saved 2026-11-18T14:40:34.900Z). Every other judgement of the sound library and of the
+  and in the evening of 2026-11-18 the 11 candidates of round 7, `g_gear_deploy` and the four
+  newest library sounds as built, and the 34 older sounds that had been unrated). By the page's own
+  definition none of the 189 sounds on the page is unrated (script, ratings saved
+  2026-11-18T19:22:12.338Z). Every other judgement of the sound library and of the
   speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
   - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
@@ -1353,13 +1376,12 @@ Other notes:
   `--prompts-file tools/sound/prompts6.json`, `--root assets/audio/gen/r6` and `skips6.json`
   (`tools/sound/README.md`, "Round 6"). Round 7 uses `--prompts-file tools/sound/prompts7.json`,
   `--root assets/audio/gen/r7` and `skips7.json`, and `tools/sound/derive.py` for the fixed
-  candidates (`tools/sound/README.md`, "Round 7"). While the owner rates round 7,
-  `assets/audio/render/events7` is frozen (rounds 4 to 6 stay as recorded): `screen.py`,
-  `publish.py` and `tools/audio/build.py` are not run on the real tree until his ratings are
-  recorded (see section 2), because a new publish orphans them; the one build allowed on the real
-  tree is `build.py --manifest-only`, by the role that is told to run it. He has rated something
-  new only when `assets/audio/ratings.json` differs from `assets/audio/rounds/round6-ratings.json`
-  (byte-identical as long as he has not). A sound he accepted comes
+  candidates (`tools/sound/README.md`, "Round 7"). Round 7 is rated and
+  recorded since 2026-11-18 (rounds 4 to 7 stay as recorded), so nothing is frozen now; while he
+  rates a round, its render folder is frozen: `screen.py`, `publish.py` and `tools/audio/build.py`
+  are not run on the real tree until his ratings are recorded (see section 2), because a new
+  publish orphans them. He has rated something new only when `assets/audio/ratings.json` differs
+  from `assets/audio/rounds/round7-ratings.json` (byte-identical as long as he has not). A sound he accepted comes
   into the library through `assets/audio/generated.json` and the build (`tools/audio/README.md`,
   "Generated sounds in the build"). `tools/audio/fetch.py` fetches only from https hosts on its list: kenney.nl,
   nasa.gov with its subdomains and, since 2026-11-15, opengameart.org (the exact host); the list
