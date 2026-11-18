@@ -1231,12 +1231,13 @@ def test_derive_room_has_the_asked_wet_level_and_a_tail_that_decays_as_asked():
         i = int(t0 * SR)
         return 10 * np.log10(float((b[i:i + int(0.05 * SR)] ** 2).mean()))
 
-    bands = {"low": (signal.butter(4, 300, "lowpass", fs=SR, output="sos"), 0.9 * 1.2),
-             "mid": (signal.butter(4, [300, 3000], "bandpass", fs=SR, output="sos"), 0.9),
-             "high": (signal.butter(4, 3000, "highpass", fs=SR, output="sos"), 0.9 * 0.5)}
+    # measured well inside each band (the filters of the bands overlap at their edges)
+    bands = {"low": (signal.butter(4, 150, "lowpass", fs=SR, output="sos"), 0.9 * 1.2),
+             "mid": (signal.butter(4, [700, 1400], "bandpass", fs=SR, output="sos"), 0.9),
+             "high": (signal.butter(4, 6000, "highpass", fs=SR, output="sos"), 0.9 * 0.5)}
     for name, (sos, rt) in bands.items():
-        fall = level(sos, 0.15) - level(sos, 0.40)
-        near(fall, 60.0 * 0.25 / rt, 3.0, "decay of the %s band between 0.15 s and 0.40 s" % name)
+        fall = level(sos, 0.10) - level(sos, 0.30)
+        near(fall, 60.0 * 0.20 / rt, 3.0, "decay of the %s band between 0.10 s and 0.30 s" % name)
     # the same seed gives the same response, another seed another one
     assert np.array_equal(ir, derive.room_ir(SR, 0.9, 7, 0)) and not np.array_equal(ir, derive.room_ir(SR, 0.9, 8, 0))
     # a loud result is scaled down to 0.999 and says by how much

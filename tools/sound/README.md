@@ -247,3 +247,52 @@ Commands (from the repository root):
 4. Take the round off the page: the same command with `--remove`.
 
 The tests: `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`. The results of the round are in `tools/sound/RESULTS6.md`.
+
+## Round 7
+
+Round 7 answers what the owner rated on 2026-11-18 (round 6: 4 fit, 2 close, 8 wrong), MOSS only, from `tools/sound/prompts7.json` (its "note"
+says what each family is for). Two families are still open, the thruster pulse and the shield hit. The round is built around the two
+candidates he called close: their raw files are processed as he asked by `tools/sound/derive.py` (fixed candidates), and a few new files
+are generated beside them. Files: raw candidates `assets/audio/gen/r7/moss/raw`, derived candidates `assets/audio/gen/r7/derived/raw` (each
+with its `gen.json`), screening output `assets/audio/gen/r7/screen.json` and `_listen/`, published files `assets/audio/render/events7/`
+(category `events7`, added to `tools/audio/sounds.json` by the select step), ids `ev7_<family number>_<family>_<slot>_<source>_<tag>`
+(`ev7_1_thruster_room_1_derived_r6p3s11a`, `ev7_2_thruster_three_1_moss_p1s23`), hand skips `tools/sound/skips7.json` (empty). `assets/audio/gen`
+is ignored by git.
+
+The whole run, in order (each line can be copied; only the generating step uses the graphics card and goes through the lock):
+
+1. The derived candidates (writes only `assets/audio/gen/r7/derived`; checks the sha256 of every raw file first; safe to run twice, the samples are the same):
+
+       .venv-audio/Scripts/python.exe tools/sound/derive.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7
+
+2. The jobs of the adapter without making anything (40: 5 prompts x seeds 21 to 28, nothing for the two fixed families):
+
+       .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7 --list-jobs
+
+3. The generated candidates, MOSS:
+
+       .venv-audio/Scripts/python.exe tools/voice/with_lock.py --wait 3600 -- .venv-sound/moss/venv/Scripts/python.exe tools/sound/adapters/moss.py --prompts-file tools/sound/prompts7.json --out-root assets/audio/gen/r7
+
+4. Screen and choose (Whisper and CLAP on the processor; stops with a non-zero exit code if a fixed item is missing, stale or silent):
+
+       .venv-audio/Scripts/python.exe tools/sound/screen.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7 --device cpu
+
+5. Publish (only `render/events7` is written and pruned; the category has to be in `tools/audio/sounds.json`; the manifest is assembled and validated):
+
+       .venv-audio/Scripts/python.exe tools/sound/publish.py --prompts-file tools/sound/prompts7.json --root assets/audio/gen/r7
+
+6. Take the round off the page: the same command with `--remove`. The tests: `.venv-audio/Scripts/python.exe tools/sound/tests/test_screen.py`.
+
+New plan keys. `"sources"` lists `"derived"`: only then does `screen.py` read `<root>/derived/gen.json` and record the round-7 measures
+(`loud50Db` and `above2kHzLoud` of every kept file and chosen candidate, `shots` for every file of a family whose id starts with
+`thruster`); for the prompts files of rounds 4 to 6 nothing changes (checked: the screen.json of round 6, made again on a copy, differs only in
+the path of the listening copies). `"derived"` of a family is a list of items `{id, tag, de, en, from {round, candidate, verdict, raw, sha256},
+process [...]}`; the operations are `room {rt60S, wetDb, channels, seed}`, `pitch {semitones}` and `shelf {hz, gainDb}` (see the head of
+`derive.py`; a room and a shelf scale the output to a peak of 0.999 when it would be above, and say by how much). `"fixed": true` makes every
+item of `"derived"` a candidate, in the order of the list (slot = position, tag = the item's tag); no pick rule, skip or exclusion applies, the fault
+rules are only recorded as `faults` (on the file and on the chosen entry) and the fixed files do not enter the statistics of another family.
+`"shots": N` of a generated family picks only kept candidates with exactly N separate shots (a shot is a rise of the 10 ms level above -12 dB
+under the loudest window of the cut after at least 80 ms under -20 dB, or since the start; see `count_shots`); the others stay in the pool with
+`notPickedShots`, and a slot that cannot be filled stays empty with a note in `screen.json`. `"history"` is one sentence of the plan that
+replaces, on the page, the sentence that a family is a first try; the intent line of a derived candidate says from which candidate of which round
+(and what the owner called it) it was made and what was done, with the numbers, and that of every thruster candidate ends with the measured number of shots.
