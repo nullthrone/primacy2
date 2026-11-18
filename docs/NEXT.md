@@ -73,8 +73,8 @@ hashes, each checked against its file), `round6-ratings.json` (the saved ratings
 The older test ("differs from `round5-ratings.json`") is out of date.
 
 **The result of round 6** (rated 2026-11-18 between 14:28 and 14:40 UTC, 55 ratings on the file the
-manifest lists; counts from the recording script and `docs/reports/2026-11-18/round6-ratings-analysis.json`).
-Of the 14 candidates 4 fit, 2 are close, 8 are wrong. By family: hull_light 1 fits, 1 wrong;
+manifest lists; counts from the recording script and
+`docs/reports/2026-11-18/round6-ratings-analysis.json`). Of the 14 candidates 4 fit, 2 are close, 8 are wrong. By family: hull_light 1 fits, 1 wrong;
 thruster_mighty 1 close, 2 wrong; shield_tight 1 close, 2 wrong; fold_jump 1 fits, 2 wrong;
 fold_exit 2 fit, 1 wrong. His notes, word for word:
 

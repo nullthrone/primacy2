@@ -699,8 +699,8 @@ Level at the page: one-channel files lie at -0.14 to +0.38 dB file to page, the 
 -3.10 dB; thrusters -28 and shields -24 LUFS within 0.39 dB.
 
 The independent check (`docs/reports/2026-11-18/sound7-verify-report.json`, made with its own
-measurements, nothing in the repository changed by it but the report). Verdict: round 7 holds on all nine points,
-with caveats. Held: all 176 recorded ids untouched (174 in the manifest with record hash and file
+measurements, nothing in the repository changed by it but the report). Verdict: round 7 holds on
+all nine points, with caveats. Held: all 176 recorded ids untouched (174 in the manifest with record hash and file
 hash equal; the two missing are the withdrawn pulses), the library list, the page entries against
 `screen.json`, the processing recomputed with its own code (pitch +3.00 semitones, shelf +7.94 to
 +8.0 dB, the room gains and wet levels, tails 1.2 to 5.8 % longer than half the asked decay),
@@ -1057,8 +1057,8 @@ Defects seen and left in:
   new numbers only when he has accepted a short event. He has accepted hull hits, valve pulses and
   the gear (rounds 4 and 5), and in round 6 a light hull hit, a fold jump and two fold exits; the
   numbers are still to be set, from all accepted sounds at once, and round 7 (thruster and shield)
-  was made first because those two families are open. Some rendered one-shots start on a sample that is not silence
-  (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
+  was made first because those two families are open. Some rendered one-shots start on a sample
+  that is not silence (the three shield hits, the fold jump and exit, which carry on from the sound before them, the
   radio squelch): the audition page fades such a start, the game's runtime will have to do the
   same or the files are changed at the re-render. The downloaded NASA recording of the SLS test
   firing is clipped in its source (marked; the owner rated it as fitting), and the recording of
