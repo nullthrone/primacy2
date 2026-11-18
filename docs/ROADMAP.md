@@ -1490,6 +1490,13 @@ Other notes:
   `node tools/dev/orient-check.mjs` (own Vite server, screenshots in `screenshots/orient/`), on the
   page `/dev/local.html?scene=orient&hud=1&cam=cockpit&universe=16`; `sys=1` is a system with 19
   places, `panel=station` a made-up station with all six tabs (`packages/client/src/dev/hud.ts`).
+- Effects without a server: the stage `/dev/local.html?scene=fx&show=<act>` plays one effect at a
+  time close to the camera (`packages/client/src/dev/stage`, one file of acts per effect family),
+  and `node tools/dev/fx-shots.mjs --port=<dev server> [--old=<second dev server>] [--only=<jobs>]`
+  takes picture sequences at exact moments with the page's clock stopped and `Math.random` seeded
+  (sheets in `screenshots/fx/`, jobs in `tools/dev/fx-shots.json`). For old against new, a second
+  dev server runs from a worktree of the commit to compare with. On the stage the distance of the
+  action is `range`; `dist` is the camera's distance from the station, as in the other scenes.
 - Start `node scripts/e2e.mjs` in the foreground. Started as a detached background job of an
   agent session it failed twice on 2026-11-14 at its steering steps; in the foreground it passed
   (see "Orientation on the HUD").
