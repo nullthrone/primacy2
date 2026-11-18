@@ -1,0 +1,281 @@
+{
+ "decision": "ROUND 7 IS MADE WITH MOSS ONLY, as rounds 5 and 6 were. The owner decided on 2026-11-16: \"Lass uns mit MOSS weiter machen, ohne Stable Audio. Ich denke damit kommen wir auch ans Ziel.\" No Stable Audio file is generated, screened or published. This decision wins over any brief that says otherwise.",
+ "note": "Round 7: the two families that are still open after round 6 (assets/audio/rounds/round6-ratings.json: of 14 candidates 4 fit, 2 close, 8 wrong), the thruster pulse and the shield hit. Everything else he has accepted: hull hits light, medium and heavy, the gear, the fold jump and the fold exit. The round is built around the two candidates he called close, because new prompts have landed less than one time in three. His notes of 2026-11-18, word for word. On ev6_2_thruster_mighty_2_moss_p3s11 (close): \"Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht. Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel\". On ev6_3_shield_tight_2_moss_p2s11 (close): \"Es wird besser, ich würde den Ton vielleicht leicht heller machen als bisher, aber die Idee, dass der Schild ein Projektil oder einen Energiestrahl \\\"verschluckt\\\", und so klingt es hier ein wenig, ist die richtige Richtung\". What follows from them. (1) Fixed candidates: the very raw file of each close candidate, processed as he asked: the thruster with a room at two strengths in one channel and as a wide room in two channels (\"Raumklang\" can mean reverberation or width, so both are offered), the shield a little brighter in two ways (tuned higher, and with more highs). A fixed candidate is always on the page; no pick rule, hand skip or exclusion applies to it. (2) New generations beside them: the thruster prompt he called good in principle, asked for 4 s so that three shots fit (the raw file of round 6 was 2 s long and holds two shots 1.0 s apart, so the third did not fit; the cut was not the cause), and the same prompt in a steel hangar; the shield as something that swallows a projectile or a beam, brighter. The page text of every thruster candidate says how many separate shots were measured in the file, because his remark was that text and file did not match. The page already sends every sound through the cabin impulse response (0.5 s long, fully open by default; his slider lives in his browser), so the baked room is made clearly longer than that.",
+ "category": {
+  "id": "events7",
+  "de": "Ereignisklänge (Runde 7)",
+  "en": "Event sounds (round 7)",
+  "idPrefix": "ev7"
+ },
+ "sources": [
+  "moss",
+  "derived"
+ ],
+ "seeds": [
+  21,
+  22,
+  23,
+  24,
+  25,
+  26,
+  27,
+  28
+ ],
+ "families": [
+  {
+   "id": "thruster_room",
+   "de": "Düsenstoß, mächtig, mit Raumklang",
+   "en": "Thruster pulse, mighty, with room sound",
+   "what": "The round-6 candidate he called close and good in principle, with the room sound he asked for. Three fixed candidates made from its raw file: a light room and a clear room in one channel, and a wide room in two channels. The two shots of the raw file stay as they are. Library event: the thruster pulse.",
+   "history": "Made from a candidate of round 6 that the owner called close.",
+   "fixed": true,
+   "maxS": 3.6,
+   "oneEvent": false,
+   "lufs": -28.0,
+   "derived": [
+    {
+     "id": "thruster_room_1",
+     "tag": "r6p3s11a",
+     "de": "Raumklang leicht, ein Kanal",
+     "en": "light room, one channel",
+     "from": {
+      "round": 6,
+      "candidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+      "verdict": "close",
+      "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s11.wav",
+      "sha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab"
+     },
+     "process": [
+      {
+       "op": "room",
+       "rt60S": 0.9,
+       "wetDb": -9.0,
+       "channels": 1,
+       "seed": 7
+      }
+     ]
+    },
+    {
+     "id": "thruster_room_2",
+     "tag": "r6p3s11b",
+     "de": "Raumklang deutlich, ein Kanal",
+     "en": "clear room, one channel",
+     "from": {
+      "round": 6,
+      "candidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+      "verdict": "close",
+      "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s11.wav",
+      "sha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab"
+     },
+     "process": [
+      {
+       "op": "room",
+       "rt60S": 1.4,
+       "wetDb": -4.0,
+       "channels": 1,
+       "seed": 7
+      }
+     ]
+    },
+    {
+     "id": "thruster_room_3",
+     "tag": "r6p3s11c",
+     "de": "Raumklang breit, zwei Kanäle",
+     "en": "wide room, two channels",
+     "from": {
+      "round": 6,
+      "candidate": "ev6_2_thruster_mighty_2_moss_p3s11",
+      "verdict": "close",
+      "raw": "assets/audio/gen/r6/moss/raw/thruster_mighty_3__s11.wav",
+      "sha256": "02a8c33c5c3cc25f6ce1a27e3e23e183c6cc2110bb496f94c7b3b404ad113aab"
+     },
+     "process": [
+      {
+       "op": "room",
+       "rt60S": 1.2,
+       "wetDb": -6.0,
+       "channels": 2,
+       "seed": 7
+      }
+     ]
+    }
+   ],
+   "picks": [],
+   "prompts": []
+  },
+  {
+   "id": "thruster_three",
+   "de": "Düsenstoß, mächtig, drei Schüsse",
+   "en": "Thruster pulse, mighty, three shots",
+   "what": "The prompt of the candidate he called good in principle, unchanged, asked for 4 s so that the three shots it names fit into the file. Only a candidate in which exactly three separate shots are measured is picked.",
+   "history": "The owner heard this prompt in round 6 at 2 s length: one candidate was close (it held two shots, not three), one wrong.",
+   "proven": false,
+   "seconds": 4,
+   "maxS": 3.8,
+   "oneEvent": false,
+   "shots": 3,
+   "lufs": -28.0,
+   "picks": [
+    "moss",
+    "moss"
+   ],
+   "prompts": [
+    {
+     "id": "thruster_three_1",
+     "text": "Large-caliber machine cannon fires three slow heavy shots, each a chest-thumping boom with a metallic clank, dry, close microphone"
+    }
+   ]
+  },
+  {
+   "id": "thruster_hall",
+   "de": "Düsenstoß, mächtig, in einer Stahlhalle",
+   "en": "Thruster pulse, mighty, in a steel hangar",
+   "what": "The same three shots with the room in the wording: the model makes the room, not our processing. Only a candidate in which exactly three separate shots are measured is picked.",
+   "proven": false,
+   "seconds": 4,
+   "maxS": 3.8,
+   "oneEvent": false,
+   "shots": 3,
+   "lufs": -28.0,
+   "picks": [
+    "moss"
+   ],
+   "prompts": [
+    {
+     "id": "thruster_hall_1",
+     "text": "Large-caliber machine cannon fires three slow heavy shots inside a large steel hangar, each a chest-thumping boom with a metallic clank, the shots echo off the metal walls"
+    }
+   ]
+  },
+  {
+   "id": "shield_brighter",
+   "de": "Schildtreffer, etwas heller",
+   "en": "Shield hit, a little brighter",
+   "what": "The round-6 candidate he called close (the shield swallows a projectile or a beam, the right direction), made a little brighter as he asked, in two ways: tuned three semitones higher, and with more highs. Two fixed candidates made from its raw file. With MOSS alone this family and the three after it decide whether the shield can be made; it is the fourth try, and the first with a candidate he called close. Library event: the shield hit.",
+   "history": "Made from a candidate of round 6 that the owner called close.",
+   "fixed": true,
+   "maxS": 1.5,
+   "oneEvent": true,
+   "lufs": -24.0,
+   "derived": [
+    {
+     "id": "shield_brighter_1",
+     "tag": "r6p2s11a",
+     "de": "drei Halbtöne höher gestimmt",
+     "en": "tuned three semitones higher",
+     "from": {
+      "round": 6,
+      "candidate": "ev6_3_shield_tight_2_moss_p2s11",
+      "verdict": "close",
+      "raw": "assets/audio/gen/r6/moss/raw/shield_tight_2__s11.wav",
+      "sha256": "ba5a30ce01c5cad067c3aec72cfd9b13691d4c04c89688c4377fdb104f966cc8"
+     },
+     "process": [
+      {
+       "op": "pitch",
+       "semitones": 3.0
+      }
+     ]
+    },
+    {
+     "id": "shield_brighter_2",
+     "tag": "r6p2s11b",
+     "de": "mehr Höhen",
+     "en": "more highs",
+     "from": {
+      "round": 6,
+      "candidate": "ev6_3_shield_tight_2_moss_p2s11",
+      "verdict": "close",
+      "raw": "assets/audio/gen/r6/moss/raw/shield_tight_2__s11.wav",
+      "sha256": "ba5a30ce01c5cad067c3aec72cfd9b13691d4c04c89688c4377fdb104f966cc8"
+     },
+     "process": [
+      {
+       "op": "shelf",
+       "hz": 300.0,
+       "gainDb": 8.0
+      }
+     ]
+    }
+   ],
+   "picks": [],
+   "prompts": []
+  },
+  {
+   "id": "shield_swallow",
+   "de": "Schildtreffer, verschluckt ein Projektil",
+   "en": "Shield hit, swallows a projectile",
+   "what": "His idea in the wording: the shield swallows a projectile. Brighter than round 6, short, tight and clean.",
+   "proven": false,
+   "seconds": 2,
+   "maxS": 1.5,
+   "oneEvent": true,
+   "lufs": -24.0,
+   "minAbove60Hz": 0.4,
+   "notSaturatedNoise": {
+    "loud50Db": -9.5,
+    "above2kHz": 0.03
+   },
+   "picks": [
+    "moss"
+   ],
+   "prompts": [
+    {
+     "id": "shield_swallow_1",
+     "text": "Energy shield swallows an incoming projectile, a quick bright electric snap is sucked inward into a short soft pulse and vanishes, clean and tight, science fiction"
+    }
+   ]
+  },
+  {
+   "id": "shield_absorb",
+   "de": "Schildtreffer, verschluckt einen Energiestrahl",
+   "en": "Shield hit, swallows an energy beam",
+   "what": "His idea in the wording: the shield swallows an energy beam. Brighter than round 6, short, tight and clean.",
+   "proven": false,
+   "seconds": 2,
+   "maxS": 1.5,
+   "oneEvent": true,
+   "lufs": -24.0,
+   "minAbove60Hz": 0.4,
+   "notSaturatedNoise": {
+    "loud50Db": -9.5,
+    "above2kHz": 0.03
+   },
+   "picks": [
+    "moss"
+   ],
+   "prompts": [
+    {
+     "id": "shield_absorb_1",
+     "text": "Force field absorbs an energy beam, a short bright sizzling zap collapses into a brief soft thump and is gone, clean, ends fast"
+    }
+   ]
+  },
+  {
+   "id": "shield_snap",
+   "de": "Schildtreffer, heller Schlag",
+   "en": "Shield hit, bright snap",
+   "what": "The prompt of the candidate he called close, with the snap asked bright and the pulse no longer asked low.",
+   "history": "The owner heard a darker wording of this prompt in round 6: one candidate was close, the other kept ones were not shown.",
+   "proven": false,
+   "seconds": 2,
+   "maxS": 1.5,
+   "oneEvent": true,
+   "lufs": -24.0,
+   "minAbove60Hz": 0.4,
+   "notSaturatedNoise": {
+    "loud50Db": -9.5,
+    "above2kHz": 0.03
+   },
+   "picks": [
+    "moss"
+   ],
+   "prompts": [
+    {
+     "id": "shield_snap_1",
+     "text": "Force field deflects a projectile, a quick clean bright electric snap with a short soft pulse underneath, ends fast"
+    }
+   ]
+  }
+ ]
+}

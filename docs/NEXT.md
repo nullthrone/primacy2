@@ -57,7 +57,39 @@ rated and round 6 (another try for the families he rejected) was made. Delete or
 
 ## The step: round 6 with the owner, then the sound comes into the game
 
-### 1. Round 6: another try for the rejected families (made on 2026-11-17, waiting for his ratings)
+### 1. Round 6: another try for the rejected families (rated on 2026-11-18; round 7 is being made)
+
+Update of 2026-11-18, by the session that recorded the round. ROUND 6 IS RATED AND RECORDED. Do not
+record it again: `assets/audio/rounds/round6.json` (176 hashes, each checked against its file),
+`round6-ratings.json` (the saved ratings, SHA-256 `28ba8285...61d4`) and
+`assets/audio/gen/_kept/round6` exist. The test further down ("differs from
+`round5-ratings.json`") is out of date: from now on he has rated something new only when
+`assets/audio/ratings.json` differs from `assets/audio/rounds/round6-ratings.json`.
+
+He rated on 2026-11-18 between 14:28 and 14:40 UTC, 55 ratings, every one on the file the manifest
+lists (counts from the recording script):
+
+- The 14 candidates of round 6: 4 fit, 2 close, 8 wrong. Fit: the first light hull hit ("ist ok,
+  schauen wir mal wie es weiterhin wird"), the first fold jump, the second and third fold exit.
+  Close: the second thruster ("Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht.
+  Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel")
+  and the second shield ("Es wird besser, ich würde den Ton vielleicht leicht heller machen als
+  bisher, aber die Idee, dass der Schild ein Projektil oder einen Energiestrahl "verschluckt", und so
+  klingt es hier ein wenig, ist die richtige Richtung"). Wrong, without a note: the other eight. No
+  note of this round says "übersteuert".
+- 41 other sounds and voice samples: 35 fit, 4 close, 2 wrong. The two wrong ones are
+  `g_thruster_pulse_a` and `g_thruster_pulse_b`, library copies of valve pulses he had accepted as
+  candidates in rounds 4 and 5 (they play 6 to 8 dB louder in the library; no note). All four
+  countdown samples fit. Voices: 15 fit, 4 close ("Klingt wie vorgelesen" on the dock line of
+  Chatterbox, Kokoro and Kitten; "zu langsam gesprochen" on the clearance of Phonon); the dock line
+  of Qwen3 went from close to fits ("Klingt natürlich").
+
+What is being done with it (2026-11-18): round 7 for the thruster and the shield
+(`tools/sound/prompts7.json`, category `events7`, root `assets/audio/gen/r7`), built around the two
+candidates he called close; the four accepted candidates go into `assets/audio/generated.json` and
+the two rejected library pulses are taken off the build list. The numbers of the rules (step 4
+below) are not part of this wave. The rest of this section was written before he rated and is
+brought up to date by the last agent of that work.
 
 The result of round 5. He rated all seventeen event sounds on 2026-11-16 (record:
 `assets/audio/rounds/round5.json` and `round5-ratings.json`; the files as he heard them are kept in

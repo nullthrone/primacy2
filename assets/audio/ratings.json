@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "savedAt": "2026-11-16T16:54:56.939Z",
+  "savedAt": "2026-11-18T14:40:34.900Z",
   "manifest": {
     "placeholder": false,
-    "count": 165
+    "count": 176
   },
   "ratings": {
     "engine_main_t000": {
@@ -405,9 +405,9 @@
     },
     "voice_3_dock_1_qwen3": {
       "stars": 0,
-      "verdict": "close",
-      "note": "",
-      "at": "2026-11-15T19:34:39.180Z",
+      "verdict": "fits",
+      "note": "Klingt natürlich",
+      "at": "2026-11-18T14:39:12.137Z",
       "hash": "719b445c3be2"
     },
     "src_1_hull_1_moss_p1s16": {
@@ -640,6 +640,384 @@
       "note": "klingt gehaucht, nach Luft, die es im Vakuum nicht gibt..",
       "at": "2026-11-16T16:54:56.436Z",
       "hash": "db81ac89ae4f"
+    },
+    "ev6_5_fold_exit_1_moss_p3s16": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:28:10.927Z",
+      "hash": "20545aa5e08f"
+    },
+    "ev6_5_fold_exit_2_moss_p1s13": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:28:12.976Z",
+      "hash": "fde46eaf3db7"
+    },
+    "ev6_5_fold_exit_3_moss_p1s16": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:28:21.255Z",
+      "hash": "6e611ad17d4a"
+    },
+    "ev6_4_fold_jump_1_moss_p1s14": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:28:38.068Z",
+      "hash": "d884a21efb42"
+    },
+    "ev6_4_fold_jump_2_moss_p2s15": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:28:40.903Z",
+      "hash": "1c4b62f971f8"
+    },
+    "ev6_4_fold_jump_3_moss_p2s12": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:28:52.899Z",
+      "hash": "907eab9df5f7"
+    },
+    "ev6_3_shield_tight_2_moss_p2s11": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Es wird besser, ich würde den Ton vielleicht leicht heller machen als bisher, aber die Idee, dass der Schild ein Projektil oder einen Energiestrahl \"verschluckt\", und so klingt es hier ein wenig, ist die richtige Richtung",
+      "at": "2026-11-18T14:30:30.527Z",
+      "hash": "465765852131"
+    },
+    "ev6_3_shield_tight_1_moss_p1s11": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:29:14.295Z",
+      "hash": "3edd48cbaf22"
+    },
+    "ev6_3_shield_tight_3_moss_p1s16": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:29:15.299Z",
+      "hash": "893617eb48e8"
+    },
+    "ev6_2_thruster_mighty_3_moss_p3s12": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:30:39.165Z",
+      "hash": "807eb2e16d90"
+    },
+    "ev6_2_thruster_mighty_1_moss_p1s12": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:30:43.199Z",
+      "hash": "c20d055b10ff"
+    },
+    "ev6_2_thruster_mighty_2_moss_p3s11": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Es waren nur zwei statt Drei Schüsse wie im Prompt gewünscht. Grundsätzlich gut. Wenn wir noch ein bisschen Raumklang reinbringen, sind wir langsam am Ziel",
+      "at": "2026-11-18T14:31:46.227Z",
+      "hash": "7304767c9955"
+    },
+    "ev6_1_hull_light_2_moss_p1s21": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:32:11.506Z",
+      "hash": "5c970a8655a0"
+    },
+    "ev6_1_hull_light_1_moss_p1s22": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "ist ok, schauen wir mal wie es weiterhin wird",
+      "at": "2026-11-18T14:32:33.202Z",
+      "hash": "e78a8b6ecc18"
+    },
+    "radio_tone": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:33:25.343Z",
+      "hash": "933b28cf0f63"
+    },
+    "radio_static_loop": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:33:27.818Z",
+      "hash": "a2f3c06b8274"
+    },
+    "radio_squelch_open": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:33:40.769Z",
+      "hash": "9e067d65c41a"
+    },
+    "radio_squelch_close": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:33:43.200Z",
+      "hash": "f2f184b7dfa3"
+    },
+    "sensor_proximity_tick": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:00.915Z",
+      "hash": "2952780d68f9"
+    },
+    "sensor_contact_ping": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:12.444Z",
+      "hash": "350d3e2ffc63"
+    },
+    "sensor_lock_tone": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:13.194Z",
+      "hash": "aa3a1a0cafaf"
+    },
+    "missile_launch": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:17.835Z",
+      "hash": "726ac47e3fc7"
+    },
+    "mining_laser_loop": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:20.664Z",
+      "hash": "89963b766aa1"
+    },
+    "weapon_beam_loop": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:29.032Z",
+      "hash": "1742cc9080b2"
+    },
+    "cruise_disengage": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:34:53.970Z",
+      "hash": "1081ee2b36d8"
+    },
+    "alarm_master_caution": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:35:04.141Z",
+      "hash": "f97045adef2d"
+    },
+    "alarm_hull_critical": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:35:04.808Z",
+      "hash": "5e09f1ce80a6"
+    },
+    "alarm_fuel_low": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:35:12.948Z",
+      "hash": "e595e9382eba"
+    },
+    "alarm_heat": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:35:29.274Z",
+      "hash": "edbbe96e3136"
+    },
+    "g_impact_hull_heavy_a": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:03.962Z",
+      "hash": "d89fd3401e00"
+    },
+    "g_impact_hull_heavy_b": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:04.501Z",
+      "hash": "d32fd034cb17"
+    },
+    "g_impact_hull_medium": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:07.102Z",
+      "hash": "de738cf5770b"
+    },
+    "g_impact_hull_light": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:09.947Z",
+      "hash": "7d47a6a97cd5"
+    },
+    "g_thruster_pulse_c": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:32.178Z",
+      "hash": "ff39b3780cba"
+    },
+    "g_thruster_pulse_a": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:36:38.602Z",
+      "hash": "3ec2aed4e58e"
+    },
+    "g_thruster_pulse_b": {
+      "stars": 0,
+      "verdict": "wrong",
+      "note": "",
+      "at": "2026-11-18T14:36:39.204Z",
+      "hash": "41ff9fa04b61"
+    },
+    "voice_5_countdown_4_chatterbox_list": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:52.913Z",
+      "hash": "29dedf7e5f2d"
+    },
+    "voice_5_countdown_3_chatterbox_single": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:36:57.728Z",
+      "hash": "e2ac3c5366fd"
+    },
+    "voice_5_countdown_2_qwen3_list": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:06.684Z",
+      "hash": "3e57a15b56f8"
+    },
+    "voice_5_countdown_1_qwen3_single": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:10.921Z",
+      "hash": "d988709f71f0"
+    },
+    "voice_4_convoy_5_phonon": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:26.327Z",
+      "hash": "091fcd0c339e"
+    },
+    "voice_4_convoy_4_kitten": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:36.581Z",
+      "hash": "b57743d6e551"
+    },
+    "voice_4_convoy_3_kokoro": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:39.082Z",
+      "hash": "b546967828ff"
+    },
+    "voice_4_convoy_2_chatterbox": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:39.796Z",
+      "hash": "88adc52f9fbb"
+    },
+    "voice_4_convoy_1_qwen3": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:37:45.159Z",
+      "hash": "61f21e818bf0"
+    },
+    "voice_3_dock_5_phonon": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "Klingt natürlich",
+      "at": "2026-11-18T14:39:14.996Z",
+      "hash": "5a55c561ef2f"
+    },
+    "voice_3_dock_4_kitten": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt wie vorgelesen",
+      "at": "2026-11-18T14:38:27.095Z",
+      "hash": "d2e09d0eed9e"
+    },
+    "voice_3_dock_3_kokoro": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt wie vorgelesen",
+      "at": "2026-11-18T14:38:28.597Z",
+      "hash": "fa1be723c442"
+    },
+    "voice_3_dock_2_chatterbox": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "Klingt wie vorgelesen",
+      "at": "2026-11-18T14:38:57.717Z",
+      "hash": "25e7b4ead174"
+    },
+    "voice_1_clearance_5_phonon": {
+      "stars": 0,
+      "verdict": "close",
+      "note": "zu langsam gesprochen",
+      "at": "2026-11-18T14:39:45.183Z",
+      "hash": "827965e809e6"
+    },
+    "voice_1_clearance_4_kitten": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "Klingt sehr gut und sie sagt \"Niner,\" statt \"Nine\", was sehr gut ist für Funksprache",
+      "at": "2026-11-18T14:40:08.661Z",
+      "hash": "7e77dd08a80e"
+    },
+    "voice_1_clearance_3_kokoro": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:40:13.366Z",
+      "hash": "62dd47fb8a78"
+    },
+    "voice_1_clearance_2_chatterbox": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:40:22.021Z",
+      "hash": "f194a18f37e4"
+    },
+    "voice_1_clearance_1_qwen3": {
+      "stars": 0,
+      "verdict": "fits",
+      "note": "",
+      "at": "2026-11-18T14:40:34.391Z",
+      "hash": "646bb21fb391"
     }
   },
   "scenes": {},
