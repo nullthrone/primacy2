@@ -1,7 +1,8 @@
 /**
  * Effects near the camera: weapon fire, impacts, explosions, mining and salvage beams, jump
  * flashes, missile trails, the dust that gives a sense of speed, and the regolith a ship kicks up
- * from the ground. Most are self-lit; debris and dust shine by the light that falls on them.
+ * from the ground. Most are self-lit; debris and dust shine by the light that falls on them. What
+ * the effects themselves light up around them is in `lights.ts`.
  *
  * Game events arrive once, with coordinates relative to the zone anchor. Each starts one or more
  * pooled effects that live in anchor coordinates; every frame the live effects are stepped and
@@ -17,6 +18,7 @@ import { Frame } from './core.ts';
 import { Debris } from './debris.ts';
 import { Dust } from './dust.ts';
 import { Impacts } from './impacts.ts';
+import { effectLights } from './lights.ts';
 import { Missiles } from './missiles.ts';
 import { Flashes, Sparks } from './particles.ts';
 import { Regolith } from './regolith.ts';
@@ -26,6 +28,10 @@ import { Weapons } from './weapons.ts';
 
 export function createFx(): Part {
   const root = new Group();
+  // What is drawn hangs one level down and is hidden there. The root holds the effect lights, and
+  // a light in a hidden group is no longer counted, which makes every lit material compile anew.
+  const drawn = new Group();
+  const lights = effectLights;
   const frame = new Frame();
   const ribbons = new Ribbons(4096);
   const sprites = new Sprites(1024);
@@ -38,7 +44,8 @@ export function createFx(): Part {
   const missiles = new Missiles(frame, ribbons, sprites);
   const dust = new Dust();
   const regolith = new Regolith(frame);
-  root.add(debris.group, dust.mesh, regolith.mesh, impacts.mesh, ribbons.mesh, sprites.mesh);
+  drawn.add(debris.group, dust.mesh, regolith.mesh, impacts.mesh, ribbons.mesh, sprites.mesh);
+  root.add(drawn, lights.group);
   /** The light that reaches the camera: the sun is gone on the night side of the body it is near. Refilled every frame. */
   const lit: Lighting = { sunDir: [0, 1, 0], sunColor: [1, 1, 1], sunIntensity: 0, ambient: 0, envMap: null };
 
@@ -51,10 +58,12 @@ export function createFx(): Part {
     debris.clear();
     missiles.clear();
     regolith.clear();
+    lights.off();
   };
 
   return {
     root,
+    cockpitRoot: lights.cockpit,
 
     init(renderer: WebGLRenderer): Promise<void> {
       // The debris models are optional and may arrive late; generated shards stand in until then.
@@ -80,14 +89,16 @@ export function createFx(): Part {
       const zone = view.zone;
       if (!zone) {
         clear();
-        root.visible = false;
+        drawn.visible = false;
         return;
       }
-      root.visible = true;
+      drawn.visible = true;
       if (!frame.begin(view, zone)) clear();
       // Every effect writes its positions in the axes of the zone's frame (see `core.ts`); in a
       // surface frame those turn with the body, and this turns the whole part into system axes.
       root.quaternion.set(frame.qx, frame.qy, frame.qz, frame.qw);
+      lights.cockpit.quaternion.copy(root.quaternion);
+      lights.begin(frame);
 
       const events = view.events;
       for (let i = 0; i < events.length; i++) {
@@ -123,6 +134,7 @@ export function createFx(): Part {
       flashes.update(frame, sprites);
       ribbons.end();
       sprites.end();
+      lights.end();
     },
 
     dispose(): void {

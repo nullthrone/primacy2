@@ -14,8 +14,13 @@
  * - **Depth ranges.** The local scene is drawn from 0.5 m to 400 km, the cockpit scene from 5 cm
  *   to 100 m, each with a freshly cleared depth buffer. Celestial bodies are already in the colour
  *   buffer behind both.
- * - **Lights belong to `objects`.** The `objects` part adds the sun and ambient lights to both
- *   scenes. Effects are self-lit and need none.
+ * - **Lights belong to `objects` and to `fx/lights.ts`.** The `objects` part adds the sun and
+ *   ambient lights to both scenes, and the lamps of ships and bases. What an effect throws on its
+ *   surroundings comes from a fixed few point lights that the effects part keeps in both scenes
+ *   (`effectLights`): an effect adds no light of its own, it names a source there each frame and
+ *   the strongest sources get the lights. The effects themselves stay self-lit. The number of
+ *   lights in a scene must not change while the game runs, because materials are compiled for it:
+ *   a light that is not needed is set to intensity 0, never hidden or removed.
  * - **No allocation per frame** in `update`; reuse vectors, matrices and buffers.
  */
 import type { Object3D, WebGLRenderer } from 'three';
