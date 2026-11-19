@@ -252,7 +252,10 @@ Rules that hold across these files:
 - The volume setting is one gain ahead of the limiter.
 - `window.__audio` holds the library, the stage with its play log, the mixer and the last mix, for
   the console and for `tools/dev/audio-check.mjs`, which plays the real game in a headless browser
-  on ports of its own and reads what was scheduled and what level leaves the output.
+  on ports of its own and reads what was scheduled and what level leaves the output. Its `capture()`
+  loads a recorder (`src/dev/gameCapture.ts`, a chunk of its own that a player never fetches) with
+  which the check listens to the output for clicks and clipped samples, using the detector of the
+  audition page.
 
 What sounds when (`cues.ts`; the numbers are `TUNING` there):
 
