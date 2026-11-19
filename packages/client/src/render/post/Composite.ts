@@ -1,13 +1,41 @@
-import { NoBlending, ShaderMaterial, Vector2 } from 'three';
+import { NoBlending, ShaderMaterial, Vector2, Vector3, Vector4 } from 'three';
 import type { IUniform, PerspectiveCamera, Texture, WebGLRenderer } from 'three';
 import type { FrameFx } from '../../contracts.ts';
 import type { LensLight } from '../space/types.ts';
 import type { FullscreenPass } from './fullscreen.ts';
 import { CANOPY, COCKPIT_DEPTH, LENS_FRAG, LENS_VERT, aimLens, lensUniforms } from './lens.ts';
 
+/** The pilot's own ship as the final pass needs it to leave it alone (see `openOf`). */
+export interface OwnShip {
+  /** Its origin in the axes of the camera, metres. */
+  at: Vector3;
+  /** Its up axis in the axes of the camera (unit vector). */
+  up: Vector3;
+  /** Its bounding radius, metres. */
+  radius: number;
+  /** How far below its origin its lowest point is, metres: what stands on the ground. */
+  belly: number;
+  /** Near and far plane of the camera that draws the local scene. */
+  near: number;
+  far: number;
+}
+
+/**
+ * What the local scene drew within OWN_FROM radii of the origin of the pilot's ship is the ship;
+ * the effects of the view outside reach their full strength OWN_TO radii from it. Below the ship
+ * they set in from OWN_BELLY of the way down to its belly and are in full at the belly, which is
+ * where the ground is under a landed ship.
+ */
+const OWN_FROM = 1.1;
+const OWN_TO = 1.5;
+const OWN_BELLY = 0.8;
+
 // Final pass: screen-space flight effects, bloom, filmic tone mapping, sRGB encoding and dither.
-// Everything here lies over the finished frame, the cockpit included. What belongs behind the
-// cockpit and behind other objects (the streaks of cruise flight) is drawn earlier, see Cruise.ts.
+// It works on the finished frame. Bloom, the light in the lens, the fold tunnel and time dilation
+// lie over all of it, the cockpit included. Heat haze, the flash of a hit and the glow of a charging
+// drive belong to the view outside: they leave out the cockpit and, in the chase view, the pilot's
+// own ship, which the depth buffer tells apart (see `openOf`). What belongs behind other objects
+// too (the streaks of cruise flight) is drawn earlier, see Cruise.ts.
 const VERT = /* glsl */ `
 uniform sampler2D tExposure;
 varying vec2 vUv;
@@ -36,6 +64,10 @@ uniform float uFold;
 uniform float uDilation;
 uniform float uHeat;
 uniform float uHit;
+uniform vec4 uOwn;
+uniform vec4 uOwnUp;
+uniform vec3 uOwnDepth;
+uniform vec2 uTan;
 varying vec2 vUv;
 
 float h21(vec2 p) {
@@ -66,6 +98,46 @@ vec3 aces(vec3 x) {
 }
 
 vec3 sceneAt(vec2 uv) { return texture2D(tScene, clamp(uv, 0.0005, 0.9995)).rgb; }
+
+// How much of the effects of the view outside a pixel takes, from its depth: none where the cockpit
+// is (the front part of the buffer), and none on the pilot's own ship in the chase view. The buffer
+// does not name what it holds, so the ship is whatever the local scene drew inside the ship's
+// bounding sphere and not below its belly: the depth gives the distance along the view axis (plain
+// perspective depth, squeezed into the local scene's part of the buffer), the pixel the direction,
+// and the two the place. From OWN_FROM to OWN_TO radii from the ship's origin the effects set in,
+// so a station the sphere reaches into shows no seam; the ground a ship stands on lies under its
+// belly and takes them all.
+float openOf(vec2 uv, float depth) {
+  if (depth < ${COCKPIT_DEPTH.toFixed(3)}) return 0.0;
+  if (uOwn.w <= 0.0) return 1.0;
+  float z = uOwnDepth.x / max(uOwnDepth.y - depth * uOwnDepth.z, 1e-6);
+  vec3 p = vec3((uv * 2.0 - 1.0) * uTan * z, -z) - uOwn.xyz;
+  float inside = 1.0 - smoothstep(${OWN_FROM.toFixed(2)}, ${OWN_TO.toFixed(2)}, length(p) / uOwn.w);
+  float above = 1.0 - smoothstep(${OWN_BELLY.toFixed(2)}, 1.0, -dot(p, uOwnUp.xyz) / uOwnUp.w);
+  return 1.0 - inside * above;
+}
+// The depth is read with textureLod: such a read needs no derivatives, so the branches around it
+// stay branches and a frame without these effects does not pay for them.
+float openAt(vec2 uv) {
+  uv = clamp(uv, 0.0005, 0.9995);
+  return openOf(uv, textureLod(tDepth, uv, 0.0).r);
+}
+// Whether a place may be shown at another pixel: only if it and all around it is open. The picture
+// is antialiased and read between pixels, so the last pixels before the cockpit or the ship hold
+// some of their colour, which a warp would otherwise set down beside them as a second outline.
+float openWide(vec2 uv) {
+  vec2 d = 1.5 / uRes;
+  float around = min(min(openAt(uv + d), openAt(uv - d)), min(openAt(uv + vec2(d.x, -d.y)), openAt(uv + vec2(-d.x, d.y))));
+  return min(openAt(uv), around);
+}
+// The same for a pixel that is open, eased toward its diagonal neighbours: the picture is
+// antialiased and the depth is not, so a tint that stopped dead at an edge would show its steps.
+float openSoft(float open) {
+  if (open <= 0.0) return 0.0;
+  vec2 d = 0.75 / uRes;
+  float around = openAt(vUv + d) + openAt(vUv - d) + openAt(vUv + vec2(d.x, -d.y)) + openAt(vUv + vec2(-d.x, d.y));
+  return (2.0 * open + around) / 6.0;
+}
 ${LENS_FRAG}
 
 // Fold tunnel: streaked walls flowing past the viewer toward a bright exit point.
@@ -104,36 +176,62 @@ void main() {
   vec2 pc = vec2(c.x * uRes.x / uRes.y, c.y);
   float rad = length(pc);
 
-  // Heat haze: the image shimmers once heat passes about 80 percent of capacity.
   float haze = smoothstep(0.8, 1.2, uHeat);
+  float foldCharge = uChargeKind > 1.5 ? uCharge : 0.0;
+  // The depth is read only while something needs it.
+  bool outside = haze > 0.0 || uHit > 0.0 || uCharge > 0.002;
+  float depth = outside || uLensCanopy > 0.0 ? textureLod(tDepth, vUv, 0.0).r : 1.0;
+  float open = outside ? openOf(vUv, depth) : 0.0;
+  // For what is laid over the picture; what moves it (the warp, the split) asks at each place it reads.
+  float tinted = openSoft(open);
+
+  vec2 warp = vec2(0.0);
+  // Heat haze: the image shimmers once heat passes about 80 percent of capacity.
   if (haze > 0.0) {
     vec2 q = pc * 9.0 + vec2(0.0, -uTime * 1.7);
     vec2 w = vec2(n2(q), n2(q + 31.7)) - 0.5;
-    uv += w * 0.012 * haze * (0.35 + rad);
+    warp += w * 0.012 * haze * (0.35 + rad);
   }
   // Fold charge pulls the image toward the centre.
-  float foldCharge = uChargeKind > 1.5 ? uCharge : 0.0;
-  uv -= c * 0.10 * foldCharge * foldCharge * exp(-rad * 2.5);
+  warp -= c * 0.10 * foldCharge * foldCharge * exp(-rad * 2.5);
+  // A pixel of the view outside shows another one of it, never the cockpit or the ship: where the
+  // warp would reach onto those it stops short of them (how far it may go is found by halving), so
+  // the picture closes up to their edge and the light around an engine shows no seam.
+  if (open > 0.0 && (haze > 0.0 || foldCharge > 0.0)) {
+    warp *= open;
+    float reach = 1.0;
+    if (openWide(uv + warp) < 0.99) {
+      float stop = 1.0;
+      reach = 0.0;
+      for (int i = 0; i < 4; i++) {
+        float mid = 0.5 * (reach + stop);
+        if (openWide(uv + warp * mid) < 0.99) stop = mid; else reach = mid;
+      }
+    }
+    uv += warp * reach;
+  }
 
   vec3 col = sceneAt(uv);
-  if (uHit > 0.01) {
-    // Chromatic split on impact.
-    col.r = mix(col.r, sceneAt(uv + c * 0.02 * uHit).r, 0.8);
-    col.b = mix(col.b, sceneAt(uv - c * 0.02 * uHit).b, 0.8);
+  if (uHit > 0.01 && open > 0.0) {
+    // Chromatic split on impact, with the same care at the edges.
+    vec2 split = c * 0.02 * uHit;
+    col.r = mix(col.r, sceneAt(uv + split).r, 0.8 * open * openWide(uv + split));
+    col.b = mix(col.b, sceneAt(uv - split).b, 0.8 * open * openWide(uv - split));
   }
   col += texture2D(tBloom, uv).rgb * uBloom;
   // Behind canopy glass is every pixel of a cockpit view that the cockpit itself does not cover.
-  float canopy = uLensCanopy > 0.0 ? step(${COCKPIT_DEPTH.toFixed(3)}, texture2D(tDepth, vUv).r) : 0.0;
+  float canopy = uLensCanopy > 0.0 ? step(${COCKPIT_DEPTH.toFixed(3)}, depth) : 0.0;
   col += lensGlare(gl_FragCoord.xy, canopy);
   col *= vExposure;
 
-  if (uCharge > 0.002) {
+  if (uCharge > 0.002 && open > 0.0) {
     float pulse = 0.85 + 0.15 * sin(uTime * (6.0 + 10.0 * uCharge));
     float edge = smoothstep(0.25, 1.0, rad);
     vec3 tint = uChargeKind > 1.5 ? vec3(0.55, 0.35, 1.3) : vec3(0.25, 0.75, 1.25);
-    col += tint * edge * edge * uCharge * uCharge * 0.22 * pulse;
-    col += tint * uCharge * 0.16 * exp(-rad * rad / (0.001 + 0.008 * uCharge * uCharge)) * pulse;
-    if (uChargeKind > 1.5) col += vec3(1.0, 0.9, 1.3) * pow(uCharge, 4.0) * 0.004 / (rad * rad + 0.0008);
+    vec3 glow = tint * edge * edge * uCharge * uCharge * 0.22 * pulse;
+    glow += tint * uCharge * 0.16 * exp(-rad * rad / (0.001 + 0.008 * uCharge * uCharge)) * pulse;
+    if (uChargeKind > 1.5) glow += vec3(1.0, 0.9, 1.3) * pow(uCharge, 4.0) * 0.004 / (rad * rad + 0.0008);
+    col += glow * tinted;
   }
 
   if (uFold > 0.0) {
@@ -155,10 +253,10 @@ void main() {
 
   if (haze > 0.0) {
     float flick = 0.8 + 0.2 * sin(uTime * 9.0);
-    col += vec3(1.0, 0.32, 0.05) * haze * smoothstep(0.35, 1.05, rad) * 0.22 * flick;
+    col += vec3(1.0, 0.32, 0.05) * haze * smoothstep(0.35, 1.05, rad) * 0.22 * flick * tinted;
   }
   if (uHit > 0.0) {
-    col += vec3(1.0, 0.22, 0.08) * uHit * (0.06 + 0.5 * smoothstep(0.3, 1.0, rad));
+    col += vec3(1.0, 0.22, 0.08) * uHit * (0.06 + 0.5 * smoothstep(0.3, 1.0, rad)) * tinted;
   }
 
   col *= 1.0 - 0.16 * rad * rad;
@@ -190,6 +288,14 @@ export class Composite {
       uDilation: { value: 1 },
       uHeat: { value: 0 },
       uHit: { value: 0 },
+      // The pilot's own ship in the chase view: its origin in camera axes and its radius (0: not in the picture).
+      uOwn: { value: new Vector4() },
+      // Its up axis in camera axes and how far below its origin its belly is.
+      uOwnUp: { value: new Vector4(0, 1, 0, 1) },
+      // To turn the depth of the local scene into metres along the view axis: near / (y - depth * z).
+      uOwnDepth: { value: new Vector3(1, 1, 0) },
+      // Tangent of half the field of view, across and up.
+      uTan: { value: new Vector2(1, 1) },
     },
     depthTest: false,
     depthWrite: false,
@@ -206,10 +312,28 @@ export class Composite {
    * @param depth the depth of the local scene and the cockpit, 1 where neither drew
    * @param lights the sources that dazzle, and `cam` the camera of the celestial pass that places them
    * @param canopy whether the view is through the canopy glass of a cockpit
+   * @param local the camera the local scene was drawn with, for the lights that stand in that scene
+   * @param own the pilot's own ship when it is in the picture (the chase view): heat haze, hit
+   *   flash and charge glow leave it alone
    */
-  prepare(depth: Texture | null, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number, canopy: boolean): void {
+  prepare(
+    depth: Texture | null, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number, canopy: boolean,
+    local: PerspectiveCamera, own: OwnShip | null = null,
+  ): void {
     const u = this.material.uniforms;
-    aimLens(u, lights, cam, width, height);
+    const o = u.uOwn!.value as Vector4;
+    if (own && own.radius > 0) {
+      o.set(own.at.x, own.at.y, own.at.z, own.radius);
+      (u.uOwnUp!.value as Vector4).set(own.up.x, own.up.y, own.up.z, Math.max(own.belly, 0.05));
+      // Depth in the buffer is COCKPIT_DEPTH + (1 - COCKPIT_DEPTH) * f / (f - n) * (1 - n / z); solved for z.
+      const a = (own.far - own.near) / ((1 - COCKPIT_DEPTH) * own.far);
+      (u.uOwnDepth!.value as Vector3).set(own.near, 1 + COCKPIT_DEPTH * a, a);
+      const e = cam.projectionMatrix.elements;
+      (u.uTan!.value as Vector2).set(1 / e[0]!, 1 / e[5]!);
+    } else {
+      o.set(0, 0, 0, 0);
+    }
+    aimLens(u, lights, cam, width, height, local);
     u.tDepth!.value = depth;
     (u.uRes!.value as Vector2).set(width, height);
     u.uLensCanopy!.value = canopy ? CANOPY : 0;
