@@ -245,11 +245,17 @@ Rules that hold across these files:
 
 - The levels are in the files. Sounds are mixed by adding them at gain 1; a gain in `cues.ts` is
   there only where the game has something to say with it.
-- The audio context is created by `GameAudio.unlock()`, which the game core calls from the first
-  click or key. Before that, and while the page is hidden (the context is suspended then), a mix is
-  dropped: loops start with the first mix once the context runs, and a one-shot whose moment has
+- Browsers start sound only after a gesture. The audio context is created by `GameAudio.unlock()`,
+  which the game core calls from the first click or key; any press of a pointer or a key does the
+  same, and a context that was created without a gesture (a start by controller) is asked to run
+  once a second until the browser lets it. Before the context runs, and while the page is hidden
+  (the context is suspended then), a mix is dropped: loops start with the first mix once the context runs, and a one-shot whose moment has
   passed is not played late.
 - The volume setting is one gain ahead of the limiter.
+- Between two systems the game has no view for a moment (the system is replaced while the ship is in
+  the fold tunnel, also when another server takes it over). While the game is playing, a frame
+  without a view changes nothing: what sounds goes on and the mapping keeps its state, so that the
+  tunnel bed lasts until the arrival and the arrival is heard. Only the menu is silence.
 - `window.__audio` holds the library, the stage with its play log, the mixer and the last mix, for
   the console and for `tools/dev/audio-check.mjs`, which plays the real game in a headless browser
   on ports of its own and reads what was scheduled and what level leaves the output. Its `capture()`
@@ -266,7 +272,7 @@ What sounds when (`cues.ts`; the numbers are `TUNING` there):
 | Thruster pulse (the sounds of `thruster_pulse_c`) | When sideways or vertical thrust sets in or turns round. No sooner than 1.2 s after the pulse before it, at most two at once. |
 | Thruster burn (`thruster_burn_loop`) | While sideways or vertical thrust is held, as loud as the stick is pushed. |
 | Cruise | `cruise_charge` while the drive charges (cut short when the charge is cancelled), `cruise_engage` when it takes hold, `cruise_loop` in cruise, `cruise_disengage` when it lets go. The chain follows what the ship does, frame by frame, not a plan made at the start: a charge can be cancelled and time can run slow. |
-| Fold | `fold_charge` while the drive charges, `fold_jump` when the ship enters the tunnel (a jump out of cruise has no disengage sound), `fold_tunnel_loop` in the tunnel, also while another server takes the ship over, `fold_exit` on arrival. |
+| Fold | `fold_charge` while the drive charges, `fold_jump` when the ship enters the tunnel (a jump out of cruise has no disengage sound), `fold_tunnel_loop` in the tunnel, also while another server takes the ship over, `fold_exit` on arrival (also when the frame of the arrival comes after a pause without a view, within 10 s). |
 | Hits on the own ship | From the `hit` events of the own ship, several in one frame as one: light, medium or heavy by the share of the hull or shield the hit took (a tenth, a fifth), from the side the impact point lies on. A heavy hull hit is followed by `hull_stress_groan`. A hit of the ground is a hull hit like any other. |
 | Alarms | One at a time, the most urgent: `alarm_missile` while a missile closes on the ship, `alarm_hull_critical` for 6 s after the hull fell below a quarter and after every further hit there, `alarm_heat` above nine tenths of the heat capacity, `alarm_fuel_low` for 12 s when the fuel falls below a tenth and again below a twentieth. `alarm_shields_down` when the shield collapses. |
 | Own weapons | A `shot` event of the own ship by the kind of its mount: `weapon_pulse_fire`, `weapon_cannon_fire`, `missile_launch` from the side its rack sits on; `weapon_beam_loop` while a beam reports itself, `mining_laser_loop` while the mining laser or the salvage beam works. |

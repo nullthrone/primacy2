@@ -437,7 +437,7 @@ try {
       await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
     } catch {
       const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), dest.id);
-      assert(r.ok, );
+      assert(r.ok, `the fold jump to ${dest.name} (${dest.ly.toFixed(1)} ly) was refused: ${r.err}`);
       await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
     }
     await page.waitForFunction((id) => {
@@ -450,15 +450,15 @@ try {
     const jump = fresh.find((p) => p.id.startsWith('g_fold_jump'));
     const tunnel = fresh.find((p) => p.id === 'fold_tunnel_loop');
     const exit = fresh.find((p) => p.id.startsWith('g_fold_exit'));
-    assert(charge && jump && tunnel && exit, );
+    assert(charge && jump && tunnel && exit, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
     const charged = jump.start - charge.start;
-    assert(charged > 7.4 && charged < 9.2, );
-    assert(Math.abs(tunnel.start - jump.start) < 0.3, );
-    assert(exit.start - jump.start > 6, );
-    assert(tunnel.end !== null && tunnel.end >= exit.start - 0.3, );
-    assert(s.loops.cabin_ambience_loop === 1 && s.loops.fold_tunnel_loop === undefined, );
-    assert(s.engine.length === 6, );
-    return ;
+    assert(charged > 7.4 && charged < 9.2, `the jump came ${charged.toFixed(2)} s after the charge began (the charge takes 8 s)`);
+    assert(Math.abs(tunnel.start - jump.start) < 0.3, `the tunnel bed began ${(tunnel.start - jump.start).toFixed(2)} s from the jump`);
+    assert(exit.start - jump.start > 6, `the exit came ${(exit.start - jump.start).toFixed(2)} s after the jump (the tunnel takes 7 s)`);
+    assert(tunnel.end !== null && tunnel.end >= exit.start - 0.3, `the tunnel bed ended ${tunnel.end === null ? 'never' : `${(exit.start - tunnel.end).toFixed(2)} s before the exit`}`);
+    assert(s.loops.cabin_ambience_loop === 1 && s.loops.fold_tunnel_loop === undefined, `loops after the arrival: ${JSON.stringify(s.loops)}`);
+    assert(s.engine.length === 6, `engine levels after the arrival: ${JSON.stringify(s.engine)}`);
+    return `to ${dest.name}: the jump ${charged.toFixed(2)} s after the charge began, the exit ${(exit.start - jump.start).toFixed(2)} s after the jump, the tunnel bed faded out ${(tunnel.end - exit.start).toFixed(2)} s after the exit began`;
   });
 
   let recording = null;

@@ -379,8 +379,9 @@ Done means: the game plays the approved sounds in flight, combat, cruise, fold a
 `npx vitest run`, `npm run build`, `node scripts/pad-check.mjs` and `node scripts/e2e.mjs` are
 green, `docs/ROADMAP.md` is updated, and Thomas has played it and said what he hears.
 
-Where it stands (2026-11-19): the three pieces are in `main` (pull requests 9, 12 and the one for
-the recorder of the browser check), each green by itself with the runs above. The game plays the approved sounds in flight, combat, cruise, fold and
+Where it stands (2026-11-19): it is in `main` in four pieces (pull requests 9, 12 and 14, and a
+fourth that repaired the arrival from a fold jump and the gesture rule after a review), each green
+by itself with the runs above. The game plays the approved sounds in flight, combat, cruise, fold and
 landing; what is silent and why, and what was checked in a browser and what only by unit tests, is
 in `docs/ROADMAP.md`, section 2. What is left of "done": he has not played it yet. He was told how
 to start it (in the worktree `runtime-audio-43eb54`: `PRIMACY2_FIXED_UNIVERSE=16 npm run dev`, then
