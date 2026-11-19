@@ -18,7 +18,7 @@ import type { Vents } from './vents.ts';
 const SPARKING = 0.4, VENTING = 0.2;
 /** The clock is cut into beats of this many seconds; on each a ship sparks or does not. */
 const BEAT = 0.7;
-const COUNT = [3, 5, 7] as const;
+const COUNT = [4, 6, 9] as const;
 
 const P: Vec3 = [0, 0, 0];
 const N: Vec3 = [0, 0, 0];
@@ -62,7 +62,7 @@ export class Wounds {
         randCone(N[0], N[1], N[2], 0.7, D);
         const v = rand(8, 38);
         sparks.spawn(t.x + W[0] + N[0] * 0.3, t.y + W[1] + N[1] * 0.3, t.z + W[2] + N[2] * 0.3,
-          t.vx + D[0] * v, t.vy + D[1] * v, t.vz + D[2] * v, rand(0.3, 0.85), 0.07, 7, 5, 2.4, 0.04);
+          t.vx + D[0] * v, t.vy + D[1] * v, t.vz + D[2] * v, rand(0.35, 0.95), 0.09, 8, 5.6, 2.6, 0.045);
       }
     }
 

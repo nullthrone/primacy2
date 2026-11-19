@@ -143,7 +143,8 @@ export class Impacts {
     const px = t.x + nx * r + f.zx, py = t.y + ny * r + f.zy, pz = t.z + nz * r + f.zz;
     const facing = -(nx * px + ny * py + nz * pz) / (Math.hypot(px, py, pz) || 1);
     const face = smooth(-0.2, 0.3, facing);
-    if (face > 0) this.scars.glint(t, L[0] * r, L[1] * r, L[2] * r, light[0], light[1], light[2], 0.4 + 0.3 * power, 0.2, 7 * face);
+    // Nor from inside the shell, where it would be a glare a few metres from the eye.
+    if (face > 0 && Math.hypot(t.x + f.zx, t.y + f.zy, t.z + f.zz) > r) this.scars.glint(t, L[0] * r, L[1] * r, L[2] * r, light[0], light[1], light[2], 0.4 + 0.3 * power, 0.2, 7 * face);
     // And the dome's light on the hull beneath it.
     effectLights.pulse(nx * r * 0.85, ny * r * 0.85, nz * r * 0.85, SHIELD[0], SHIELD[1], SHIELD[2],
       0.45 * power * t.radius * t.radius * (1 - 0.5 * weak), 2.4 * t.radius, 0.3, t.id);

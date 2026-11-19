@@ -139,8 +139,9 @@ void main() {
   col *= holes * mix(1.0, 0.2 + 0.8 * beat, weak) * (1.0 - 0.5 * weak);
   col = mix(col, vec3(dot(col, vec3(0.3, 0.45, 0.25))) * 0.7, 0.7 * weak);
 
-  // The far side is seen through the shell, so it is dimmer; from inside there is no other side.
-  col *= gl_FrontFacing ? 1.0 : mix(0.3, 0.8, vAux.w);
+  // The far side is seen through the shell, so it is dimmer. From inside, where the pilot of the
+  // ship sits, the shell fills the view: there it is a veil, not a wall of light.
+  col *= gl_FrontFacing ? 1.0 : mix(0.3, 0.2, vAux.w);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
