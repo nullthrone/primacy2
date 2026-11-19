@@ -65,5 +65,4 @@ The files are lossless copies of sounds of the sound library (`tools/audio`, `as
 | g_impact_shield_a.2744bc81e56f.flac | Shield hit: high shelf added (corner 300 Hz, +8 dB) · MOSS, processed | Generated | made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0) | MOSS-SoundEffect v2.0 (OpenMOSS) |
 | g_impact_shield_b.1287a08589e5.flac | Shield hit: tuned 3 semitones up by resampling, high shelf added (corner 300 Hz, +8 dB) · MOSS, processed | Generated | made by tools/sound/derive.py from a file generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0) | MOSS-SoundEffect v2.0 (OpenMOSS) |
 | k_switch_ui_5.2a9410fae1f5.flac | Toggle switch, version 5 | Kenney: kenney-ui-audio/Audio/switch5.ogg | CC0 1.0 | Kenney (www.kenney.nl) |
-| k_switch_ui_18.2d760d9ddf5c.flac | Toggle switch, version 18 | Kenney: kenney-ui-audio/Audio/switch18.ogg | CC0 1.0 | Kenney (www.kenney.nl) |
 | k_bong_1.d62a8c9d010b.flac | Soft bong | Kenney: kenney-interface-sounds/Audio/bong_001.ogg | CC0 1.0 | Kenney (www.kenney.nl) |

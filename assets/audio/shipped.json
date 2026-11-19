@@ -8,14 +8,14 @@
   "manifestEntries": 189,
   "roundCandidatesAndVoices": 82,
   "librarySounds": 107,
-  "shipped": 56,
+  "shipped": 55,
   "byCode": {
    "in:fits-older": 7,
-   "in:fits": 39,
+   "in:fits": 38,
    "out:wrong": 25,
    "out:close": 7,
    "in:stars-older": 2,
-   "out:no-use": 9,
+   "out:no-use": 10,
    "in:candidate": 8,
    "out:licence": 10
   },
@@ -23,9 +23,9 @@
   "eventsWithOwnSound": 43,
   "eventsWithStandIn": 5,
   "eventsSilent": 7,
-  "seconds": 181.1,
-  "wavBytes": 27032364,
-  "flacBytes": 5595295
+  "seconds": 180.6,
+  "wavBytes": 26948736,
+  "flacBytes": 5576784
  },
  "events": {
   "engine_main_t000": [
@@ -178,9 +178,6 @@
  "roles": {
   "ui_click": [
    "k_switch_ui_5"
-  ],
-  "ui_confirm": [
-   "k_switch_ui_18"
   ],
   "ui_notice": [
    "k_bong_1"
@@ -1001,13 +998,11 @@
   },
   {
    "id": "k_switch_ui_18",
-   "ship": true,
-   "code": "fits",
-   "why": "rated fits on this file",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
    "event": null,
-   "roles": [
-    "ui_confirm"
-   ],
+   "roles": [],
    "approval": "fits"
   },
   {

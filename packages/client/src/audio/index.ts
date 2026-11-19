@@ -35,9 +35,9 @@ export interface GameAudio {
 const UI: Record<UiSound, string | null> = {
   click: 'ui_click',
   hover: null,
-  open: 'ui_confirm',
-  close: 'ui_confirm',
-  confirm: 'ui_confirm',
+  open: null,
+  close: null,
+  confirm: null,
   deny: null,
   notice: 'ui_notice',
   warning: 'alarm_master_caution',
@@ -75,6 +75,12 @@ export function createAudio(): GameAudio {
 
   const audio: GameAudio = {
     update(view) {
+      stage.nudge();
+      // Between two systems the game has no view for a moment (the system is replaced while the ship is in the fold
+      // tunnel, also when another server takes it over). The pilot still sits in the ship: what sounds goes on, and
+      // the mapping keeps its state, so that the arrival is heard. Only the menu is silence.
+      const phase = store.phase.peek();
+      if (!view && (phase === 'playing' || phase === 'handoff')) return;
       const next = cue(state, view, Math.random);
       state = next.state;
       debug.mix = next.mix;
@@ -116,6 +122,11 @@ export function createAudio(): GameAudio {
 
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => stage.setHidden(document.hidden));
+    // Browsers start sound only after a gesture. The game core unlocks from its own first click or key; these catch
+    // every other way in (a start by controller creates the context without a gesture, and it stays suspended then).
+    for (const type of ['pointerdown', 'keydown', 'touchstart'] as const) {
+      document.addEventListener(type, () => stage.unlock(), { capture: true, passive: true });
+    }
     // Every button of the interface is a console switch.
     document.addEventListener('click', (e) => {
       const el = e.target instanceof Element ? e.target : null;

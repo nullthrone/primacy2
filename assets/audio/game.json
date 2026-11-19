@@ -69,10 +69,6 @@
    "sounds": ["k_switch_ui_5"],
    "use": "a button of a menu or panel is pressed"
   },
-  "ui_confirm": {
-   "sounds": ["k_switch_ui_18"],
-   "use": "a panel opens or closes, a choice is confirmed"
-  },
   "ui_notice": {
    "sounds": ["k_bong_1"],
    "use": "an information notice arrives"

@@ -373,3 +373,9 @@ plays. The run after that change: 56 sounds shipped, 181.1 s, 5.60 MB as FLAC (2
 39 rated fits on the file the manifest lists, 7 and 2 on an earlier version, 8 accepted as
 candidates; 9 approved sounds that no event plays; of 55 events asked for, 43 have a sound of
 their own, 5 play a stand-in and the same 7 are silent.
+
+Since the fourth piece of the runtime audio (2026-11-19) the game no longer adopts `k_switch_ui_18`
+(a panel opening or closing: nothing in the interface asked for it, so it was shipped and never
+played). The run after that: 55 sounds shipped, 180.6 s, 5.58 MB as FLAC (26.95 MB as WAV): 38
+rated fits on the file the manifest lists, 7 and 2 on an earlier version, 8 accepted as
+candidates; 10 approved sounds that no event plays; the events as before.

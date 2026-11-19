@@ -1202,29 +1202,6 @@
    "peakDb": -14.0
   },
   {
-   "id": "k_switch_ui_18",
-   "file": "k_switch_ui_18.2d760d9ddf5c.flac",
-   "event": null,
-   "roles": [
-    "ui_confirm"
-   ],
-   "kind": "oneshot",
-   "path": "structure",
-   "dry": true,
-   "channels": 2,
-   "gain": 1.0,
-   "en": "Toggle switch, version 18",
-   "de": "Kippschalter, Variante 18",
-   "licence": "CC0 1.0",
-   "frames": 20896,
-   "duration": 0.435333,
-   "hash": "2d760d9ddf5c",
-   "bytes": 18511,
-   "approval": "fits",
-   "lufs": -33.13,
-   "peakDb": -14.0
-  },
-  {
    "id": "k_bong_1",
    "file": "k_bong_1.d62a8c9d010b.flac",
    "event": null,
@@ -1399,9 +1376,6 @@
  "roles": {
   "ui_click": [
    "k_switch_ui_5"
-  ],
-  "ui_confirm": [
-   "k_switch_ui_18"
   ],
   "ui_notice": [
    "k_bong_1"

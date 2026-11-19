@@ -804,10 +804,11 @@ word. Then the rules in `tools/audio` get new numbers, taken from everything he 
 the first full build after the repairs refreshes the checks. Nothing he accepted exists yet for the
 cannon, the pulse laser, the gear retracting and the shields-down alarm, and three landing sounds
 are close; a further round for those is his to want. The plan for the game's runtime audio was
-shown to him in a few sentences on 2026-11-17; it is not started without his word. Before a tool
+shown to him in a few sentences on 2026-11-17; he gave his word on 2026-11-18 and it is built since
+2026-11-19 (see "The game's runtime audio on the library"). Before a tool
 writes to the real tree, look whether he has rated anything new: `assets/audio/ratings.json` is
 byte-identical to `assets/audio/rounds/round7-ratings.json` as long as he has not. Not to be started without his word: the voice
-pipeline, the game's runtime audio, a re-render of the event sounds, other downloads, music.
+pipeline, a re-render of the event sounds, other downloads, music.
 
 The library step for round 7 (2026-11-18, late evening; `tools/audio/README.md`, "Generated sounds in
 the build", has the fields, the level table and the measurements). `assets/audio/generated.json`
@@ -967,9 +968,10 @@ Decided by the session that built it, and told to him (his to overrule):
   (`standIn` in `assets/audio/game.json`): a medium and a heavy shield hit play the shield sounds
   he accepted (they stand for the light hit in the library), a hard touchdown plays the soft one,
   and the thruster pulses a and b, which were withdrawn, play the sounds of `thruster_pulse_c`.
-- Three downloads he rated fits get a role the sound list has no event for (`adopt`): the toggle
-  `k_switch_ui_5` is the press of a button of the interface, `k_switch_ui_18` a panel opening or
-  closing, `k_bong_1` an information notice. He rated the files, not that use, and he asked for
+- Two downloads he rated fits get a role the sound list has no event for (`adopt`): the toggle
+  `k_switch_ui_5` is the press of a button of the interface, `k_bong_1` an information notice. (A
+  third, `k_switch_ui_18` for a panel opening or closing, was shipped until 2026-11-19 and never
+  played: nothing in the interface asked for it. It is out again.) He rated the files, not that use, and he asked for
   the relay sounds to go ("die ganzen Relais Töne bitte weglassen") the same evening: it is his to
   say whether the interface should click at all.
 - NASA recordings are not shipped, though he rated ten of them fits: `assets/audio/CREDITS.md` says
@@ -1040,6 +1042,24 @@ session ran on the machine (a dev server was listening on port 5183). The steeri
 test, replayed alone on the same build, settled on the station in 52 steps at 60 frames per
 second, and the third run, started after that other check had ended, passed. That the other
 check was the cause is a reading of the timing, not a measurement.
+
+Piece 4 (2026-11-19), found by a review of the finished work before he played. (1) The arrival
+from a fold jump made no sound, and the tunnel bed was cut: a jump ends in another system, and
+while the game takes that system over (also when another server takes the ship over) it has no
+view for a moment, which the audio treated like the menu. Now the sound goes on while the game is
+playing and has no view, the mapping keeps its state, and the arrival is played when the frame
+after the tunnel comes within 10 s. The unit tests had assumed a view in every frame, and the
+browser check had played no jump. It plays one now, to the other server: the jump came 8.02 s
+after the charge began, the exit 7.08 s after the jump, the tunnel bed faded out 0.10 s after the
+exit began; with the correction switched off the same check fails (no exit sound). (2) The
+browser's rule that sound starts only after a gesture had been checked with a browser flag that
+switches the rule off. The check now runs without the flag, and the click on the start button is
+the gesture. Besides the game core's own unlock, any press of a pointer or a key now starts or
+resumes the context, and a suspended context is asked to run once a second. Whether a start by
+controller alone gets sound depends on whether the browser counts a controller button as a
+gesture; that is not verified, and he is told that one click or key is needed if it stays
+silent. (3) `k_switch_ui_18` out (above): 55 shipped sounds, 5.58 MB. The check on 2026-11-19:
+22 of 22, 60.3 s recorded with the jump in it, no click and no clipped sample, peak -5.7 dBFS.
 
 He was told on 2026-11-19 how to play it: in the worktree `runtime-audio-43eb54`,
 `PRIMACY2_FIXED_UNIVERSE=16 npm run dev`, then `http://localhost:8420` (the universe of the
