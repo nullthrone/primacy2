@@ -1343,6 +1343,17 @@ new measured in turn within one run of `scripts/bench.mjs`, because other work s
   still run through the shell to the hull, which is the weapons' part. Cost: 2.0 ms old and
   2.0 ms new on the stage; twelve damaged ships in view 2.2 ms (one run, card at 27 % and 89 W,
   control 1.5).
+- 2026-11-19, weapons and tool beams (`docs/CLIENT.md`, "Effects"): each weapon has a shape of
+  its own, a beam has structure, ignition and afterglow, shots keep a smallest size on screen, the
+  mining beam and the salvage torch leave something, and shots at a shielded ship end on the
+  shell, which completes his idea of the shield that swallows. In the pictures a pulse bolt, a
+  rail line and a beam read clearly at 1500 m, where the old ones were hairlines. Cost on the
+  stage: 1.9 ms old and 1.9 ms new (one run, card at 0 % and 54 W, control 1.4). With this the
+  package "Kampf" is built. Still open from the proposals of that package: the pilot's own hit
+  with a direction instead of the red veil, and the weak camera shake near a blast.
+- Not begun on 2026-11-19: the packages "Antriebe" (engines, cruise, fold) and "Himmelskörper"
+  (neutron star, sun). The weekly allowance of the model that does the graphics stood at about
+  80 % with four days to its reset, and the sound work had priority.
 
 ## 3. Order of work
 
@@ -1663,6 +1674,12 @@ Never verified:
   1500 m, the own ship in the chase view, the own shield falling seen from inside and a surface
   frame were not looked at; from the cockpit the pilot's own hull hits show only light and own
   damage shows nothing.
+  For weapons: at 60 m a beam reads mostly white, with its colour in the sheath only; the hot
+  (tier 1) beam is in no picture; the mining seam was seen only on the stage's stand-in, never on
+  a rock; at 60 m a pulse bolt shows for two frames and a cannon tracer in none of the frames
+  taken (tracers were seen at 400 m and 1500 m); the rail gun's ring is grainy when faint; the
+  pilot's own fire is a thin needle, thinner than before; `scene=fight` was never opened with the
+  new fire; at quality 0 only rail gun and beam were caught in a frame.
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
