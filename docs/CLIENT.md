@@ -311,6 +311,18 @@ hit flash) by the final pass `src/render/post/Composite.ts`; the look of cruise 
   faded toward the ground. A missile that vanishes beside a hull or the ground goes off
   (`fx/detonations.ts`, derived in the client: the server sends only a plain hit): a flash, a cone
   of streaks along its flight, light; its trail lasts 0.9 s.
+- Weapon fire is drawn by a batch of its own, `fx/shots.ts`, whose kinds (bolt, beam, wake, jet,
+  dot, ring) each have a shape. Everything in it keeps at least 2.5 pixels on screen, with its
+  light capped at a radiance of 3 there (full brightness on screen without turning into a
+  blooming bar), and is clamped to a small angle near the camera, so the pilot's own fire does not
+  white out the view. A pulse laser throws a tapered bolt with a white head; a cannon tracer
+  beads behind a three-frame jet of muzzle gas; a rail gun an instant line that tears into a
+  fading trail, with a ring at the muzzle. A beam ignites from the muzzle in 60 ms, carries waves
+  of brightness in a coloured sheath around a white core and leaves an afterglow for 0.4 s when
+  cut. Shots and beams at a ship whose shield is up end on the shell. The mining beam leaves a
+  seam that glows and cools over about 5 s, droplets and a jet of gas; the salvage torch is a
+  small flickering arc that lights the wreck. Sparks, trails and flashes still go through
+  `fx/ribbons.ts` and `fx/sprites.ts` with their old floor of about a pixel.
 - A shot on a shield is swallowed (`fx/shell.ts`, `fx/impacts.ts`): the shell, a smooth sphere
   of 1.15 ship radii, gives way at the place, the shot's colour sinks into the dent, and a soft
   dome of light drains toward its rim in tongues; a held beam ends in a spot that tints the shell
