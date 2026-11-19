@@ -1,7 +1,9 @@
 /**
  * Wreckage thrown out by an explosion: solid chunks that tumble apart on straight lines, lit by the
- * sun and glowing from the heat of the blast for their first moments. The shapes come from the
- * models `debris_0` .. `debris_3` when those exist and from generated shards otherwise.
+ * sun and glowing from the heat of the blast for their first seconds. They are the few large
+ * pieces among the hundreds of splinters of `splinters.ts`, and live and cool as long as those do.
+ * The shapes come from the models `debris_0` .. `debris_3` when those exist and from generated
+ * shards otherwise.
  */
 import {
   BufferGeometry, DynamicDrawUsage, Group, IcosahedronGeometry, InstancedBufferAttribute, InstancedMesh, Mesh,
@@ -14,15 +16,18 @@ import type { Lighting } from '../../../contracts.ts';
 import { modelUrl } from '../assets.ts';
 import { TAU, hash2, seeded } from '../util.ts';
 import { Pool, rand, randDir, type Frame } from './core.ts';
+import type { GroundBelow } from './ground.ts';
 
 const VERTEX = /* glsl */ `
 attribute float iHeat;
 varying vec3 vN;
+varying vec3 vP;
 varying float vHeat;
 
 void main() {
   mat4 m = modelMatrix * instanceMatrix;
   vN = mat3(m) * normal; // chunks are scaled evenly, so this only needs normalising
+  vP = position;
   vHeat = iHeat;
   gl_Position = projectionMatrix * viewMatrix * m * vec4(position, 1.0);
 }`;
@@ -32,14 +37,19 @@ uniform vec3 uSunDir;
 uniform vec3 uSun;
 uniform float uAmbient;
 varying vec3 vN;
+varying vec3 vP;
 varying float vHeat;
 
 void main() {
   vec3 n = normalize(vN);
   vec3 albedo = vec3(0.2, 0.2, 0.21);
   vec3 lit = albedo * (uSun * max(dot(n, uSunDir), 0.0) + uAmbient);
-  // Torn metal comes out of the blast glowing and cools through orange to dull red.
-  vec3 glow = mix(vec3(1.0, 0.12, 0.02), vec3(1.0, 0.55, 0.2), vHeat) * vHeat * vHeat * 5.0;
+  // Torn metal comes out of the blast glowing and cools through orange to dull red, and not
+  // evenly: some of a chunk was in the fire and some was not, so it glows in patches and the rest
+  // of it shows its shape in the sunlight.
+  float patches = 0.5 + 0.5 * sin(dot(vP, vec3(5.1, 3.7, 4.3)) + 2.0 * sin(dot(vP, vec3(-2.3, 4.9, 1.7))));
+  float heat = vHeat * (0.25 + 0.95 * patches * patches);
+  vec3 glow = mix(vec3(1.0, 0.12, 0.02), vec3(1.0, 0.55, 0.2), min(heat, 1.0)) * heat * heat * 3.5;
   gl_FragColor = vec4(lit + glow, 1.0);
 }`;
 
@@ -47,6 +57,10 @@ interface Chunk {
   shape: number;
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
+  /** Pull of the ground, m/s^2 along each axis; zero in space. */
+  gx: number; gy: number; gz: number;
+  /** Seconds in which its glow falls by 1/e. */
+  cool: number;
   /** Unit spin axis, angle and rate in rad/s. */
   ax: number; ay: number; az: number; angle: number; spin: number;
   size: number;
@@ -54,7 +68,7 @@ interface Chunk {
 }
 
 const SHAPES = 4;
-const PER_SHAPE = 20;
+const PER_SHAPE = 32;
 const D: Vec3 = [0, 0, 0];
 
 /** A jagged plate or splinter with a bounding radius of one metre. */
@@ -117,7 +131,7 @@ async function loadShape(loader: GLTFLoader, key: string): Promise<BufferGeometr
 export class Debris {
   readonly group = new Group();
   private readonly pool = new Pool<Chunk>(SHAPES * PER_SHAPE, () => ({
-    shape: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ax: 0, ay: 1, az: 0, angle: 0, spin: 0, size: 1, age: 0, life: 1,
+    shape: 0, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, gx: 0, gy: 0, gz: 0, cool: 1, ax: 0, ay: 1, az: 0, angle: 0, spin: 0, size: 1, age: 0, life: 1,
   }));
   private readonly sunDir = new Vector3(0, 1, 0);
   private readonly sun = new Vector3(1, 1, 1);
@@ -168,23 +182,34 @@ export class Debris {
     this.group.add(mesh);
   }
 
-  /** Throws `count` chunks out of a blast of a ship of `radius` metres at an anchor-relative point. */
-  burst(x: number, y: number, z: number, radius: number, count: number): void {
+  /**
+   * Throws `count` chunks out of a blast of a ship of `radius` metres at an anchor-relative point.
+   * They keep the velocity (vx, vy, vz) the ship had, glow for about `cool` seconds and are gone
+   * after `life0` to `life1`. Over `ground` none is thrown downward, and they fall.
+   */
+  burst(x: number, y: number, z: number, radius: number, count: number, vx: number, vy: number, vz: number,
+        cool: number, life0: number, life1: number, ground: GroundBelow | null): void {
     for (let i = 0; i < count; i++) {
       const c = this.pool.take();
       if (!c) return;
       randDir(D);
-      const v = radius * rand(0.8, 4.5);
+      if (ground) {
+        const down = D[0] * ground.ux + D[1] * ground.uy + D[2] * ground.uz;
+        if (down < 0) { D[0] -= 2 * down * ground.ux; D[1] -= 2 * down * ground.uy; D[2] -= 2 * down * ground.uz; }
+      }
+      const v = radius * rand(0.5, 3.2);
       c.shape = i % SHAPES;
       c.x = x + D[0] * radius * 0.3; c.y = y + D[1] * radius * 0.3; c.z = z + D[2] * radius * 0.3;
-      c.vx = D[0] * v; c.vy = D[1] * v; c.vz = D[2] * v;
+      c.vx = vx + D[0] * v; c.vy = vy + D[1] * v; c.vz = vz + D[2] * v;
+      c.gx = ground ? -ground.ux * ground.g : 0; c.gy = ground ? -ground.uy * ground.g : 0; c.gz = ground ? -ground.uz * ground.g : 0;
+      c.cool = cool * rand(0.7, 1.3);
       randDir(D);
       c.ax = D[0]; c.ay = D[1]; c.az = D[2];
       c.angle = rand(0, TAU);
       c.spin = rand(1.5, 7);
       c.size = radius * rand(0.1, 0.28);
       c.age = 0;
-      c.life = rand(3.5, 6);
+      c.life = rand(life0, life1);
     }
   }
 
@@ -201,6 +226,7 @@ export class Debris {
       const c = items[i]!;
       c.age += f.dt;
       if (c.age >= c.life) { this.pool.free(i); continue; }
+      c.vx += c.gx * f.dt; c.vy += c.gy * f.dt; c.vz += c.gz * f.dt;
       c.x += c.vx * f.dt; c.y += c.vy * f.dt; c.z += c.vz * f.dt;
       c.angle += c.spin * f.dt;
       const slot = this.counts[c.shape]!;
@@ -217,7 +243,7 @@ export class Debris {
       m[o + 4] = (t * c.ax * c.ay - sn * c.az) * s; m[o + 5] = (t * c.ay * c.ay + cs) * s; m[o + 6] = (t * c.ay * c.az + sn * c.ax) * s; m[o + 7] = 0;
       m[o + 8] = (t * c.ax * c.az + sn * c.ay) * s; m[o + 9] = (t * c.ay * c.az - sn * c.ax) * s; m[o + 10] = (t * c.az * c.az + cs) * s; m[o + 11] = 0;
       m[o + 12] = c.x + f.zx; m[o + 13] = c.y + f.zy; m[o + 14] = c.z + f.zz; m[o + 15] = 1;
-      this.heats[c.shape]!.array[slot] = Math.exp(-c.age / 0.9);
+      this.heats[c.shape]!.array[slot] = Math.exp(-c.age / c.cool);
     }
     for (let s = 0; s < SHAPES; s++) {
       const mesh = this.meshes[s]!;

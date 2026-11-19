@@ -5,15 +5,15 @@
  * sky takes a detour through a target of its own, where it is smeared into streaks.
  */
 import {
-  DepthTexture, HalfFloatType, LinearFilter, NoToneMapping, PerspectiveCamera, Scene, WebGLRenderTarget, WebGLRenderer,
+  DepthTexture, HalfFloatType, LinearFilter, NoToneMapping, PerspectiveCamera, Quaternion, Scene, Vector3, WebGLRenderTarget, WebGLRenderer,
 } from 'three';
 import type { FrameView, GameRenderer, GraphicsSettings, LocalLayer } from '../contracts.ts';
 import { Bloom } from './post/Bloom.ts';
-import { Composite } from './post/Composite.ts';
+import { Composite, type OwnShip } from './post/Composite.ts';
 import { CRUISE_MIN, Cruise } from './post/Cruise.ts';
 import { Exposure } from './post/Exposure.ts';
 import { FullscreenPass } from './post/fullscreen.ts';
-import { COCKPIT_DEPTH } from './post/lens.ts';
+import { COCKPIT_DEPTH, localLens } from './post/lens.ts';
 import { Bodies } from './space/Bodies.ts';
 import { Sky } from './space/Sky.ts';
 import { idleFrame } from './space/idle.ts';
@@ -58,6 +58,9 @@ class SpaceRenderer implements GameRenderer {
   private localReady = false;
   private idleGraphics: GraphicsSettings = { quality: 2, bloom: true, resolution: 1 };
   private readonly startMs = performance.now();
+  /** The pilot's own ship for the final pass, filled in each frame of a chase view. */
+  private readonly own: OwnShip = { at: new Vector3(), up: new Vector3(0, 1, 0), radius: 0, belly: 1, near: 0.5, far: 400000 };
+  private readonly turn = new Quaternion();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new WebGLRenderer({
@@ -185,7 +188,25 @@ class SpaceRenderer implements GameRenderer {
 
     const bloom = this.bloom.render(r, this.pass, target.texture, this.width, this.height, frame.graphics.bloom);
     const canopy = view !== null && view.camera.mode === 'cockpit' && view.self !== null;
-    this.composite.prepare(target.depthTexture, this.bodies.lights, this.spaceCam, this.width, this.height, canopy);
+    // In the chase view the pilot's own ship is in the picture, and the flight effects of the final
+    // pass leave it alone: it is told where the ship is.
+    let own: OwnShip | null = null;
+    if (local && view && view.self && view.camera.mode === 'chase') {
+      const rel = view.self.rel, rot = view.self.rot;
+      own = this.own;
+      // Into the axes of the camera: the ship's origin, and its up axis.
+      own.up.set(0, 1, 0).applyQuaternion(this.turn.set(rot[0], rot[1], rot[2], rot[3]));
+      this.turn.copy(this.localCam.quaternion).invert();
+      own.at.set(rel[0], rel[1], rel[2]).applyQuaternion(this.turn);
+      own.up.applyQuaternion(this.turn);
+      own.radius = view.self.stats.radius;
+      own.belly = view.self.stats.belly;
+      own.near = this.localCam.near;
+      own.far = this.localCam.far;
+    }
+    // The glare of the sky's lights and of what flashed in the local scene in this frame.
+    const dazzling = localLens.collect(this.bodies.lights, params);
+    this.composite.prepare(target.depthTexture, dazzling, this.spaceCam, this.width, this.height, canopy, this.localCam, own);
     this.exposure.update(r, this.pass, this.bloom.meter, frame.dt);
     this.composite.render(r, this.pass, target.texture, bloom, this.exposure.texture, frame.fx, frame.clock);
   }
