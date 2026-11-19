@@ -888,7 +888,55 @@ with the event it stands for (the manifest is not in git); `tools/sound/compare.
 library files without the page's steps, which is right for the pulses of rounds 4 and 5 that it
 reads and would be wrong for a sound of round 7.
 
-<<<<<<< HEAD
+The relay and switch sounds taken off the page (2026-11-18, night). His note on eight rendered
+sounds of the category `switches`, each rated wrong: "die ganzen Relais Töne bitte weglassen". The
+scope is those eight (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
+`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`). The six downloaded
+sounds of the category stay, the three he rated wrong among them (`k_door_close_1`,
+`k_door_open_1`, `k_toggle_1`): his note stands on the rendered ones.
+
+- In the repository: the eight are out of `tools/audio/sounds.json` (56 sounds in 16 categories;
+  `switches` stays as a category of downloads), `tools/audio/synth/cat_switches.py` is deleted (it
+  held only these eight), and their level rows and tests went with them. Commit 59bce6b is the last
+  one that can render them. Where one of them had served as an arbitrary example, another sound
+  stands now (a registry test, and the keyboard step of `tools/dev/audition-check.mjs`, which
+  presses `thruster_pulse_b`).
+- In the scenes of the audition page only the docking approach played any of them: the cues at
+  0.5 s (power up) and 36.5 s (power down) and three event buttons are gone. The other cues keep
+  their times and the scene its 40 s.
+- On the real tree, by the procedure of the direction samples, this time with the build: the
+  ratings file was compared with the record of round 7 first; the 24 files (wav, spectrogram and
+  build record of each) were moved to `assets/audio/gen/_kept/relays-2026-11-18` with a `kept.json`
+  (hashes, his rating of each, the manifest entry); then `build.py --manifest-only` ran. Gate: 189
+  entries, each equal to its entry of before in every field and in the same order, the eight gone
+  and none added; of the 541 files under `assets/audio/render` only `manifest.json` changed and
+  exactly the 24 are gone. The files have to go first: the manifest is assembled from the files in
+  the tree, not from `sounds.json`, and a checker showed on a copy that with the files still there
+  the build keeps 197 entries and moves the eight to the end of the rendered block.
+- His eight ratings stay in `assets/audio/ratings.json`, which is never written by a tool: ten
+  ratings there now belong to sounds that are not on the page (these eight and the two withdrawn
+  pulses). The backup outside the worktrees was copied again (366 files).
+
+Suites after the change: 149, 80, 112 and 62 in the four Python suites, `npx tsc -p packages/client
+--noEmit` without output, `npx vitest run` 807 passed and 2 expected failures. One builder and two
+independent checkers (the manifest gate and the suites; every reference, the scenes and the
+scope), on the cheaper model; no finding had to be repaired. Not verified: the page in a browser
+(the page check was not run; it will meet the docking scene with 7 event buttons and 9 cues, and
+the keyboard step on another sound). Left as it is and known: the rules `switch-too-long` and
+`switch-centroid` apply to no rendered sound any more (two tests with made-up sounds still pin
+them); the level of -16 dBFS for a short cabin sound is pinned by no test since `button_press`
+went; the category is still titled "Relays and switches", and `tools/audio/RECORDINGS.md` still
+asks him for recordings of relay clicks and a rotary selector, which no longer fits his word. What
+the cockpit switches sound like is open: the two downloaded toggles fit.
+
+The runtime audio is started (2026-11-18, night). Asked whether any worktree already plays the new
+sounds, because he wants to play with them, he was told that none does (the game still makes its
+sound with oscillators, and the scenes of the audition page still play the rendered events he
+rejected), and to the question whether the runtime audio should now be built as a first playable
+version he answered "Ja, bauen". A session of its own builds it in a worktree of its own; it reads
+the render tree of the sound worktree and writes nothing there. `docs/NEXT.md`, section 3, is its
+specification.
+
 ### The game's runtime audio on the library (first playable version, from 2026-11-18)
 
 His word, on 2026-11-18, asked whether the runtime audio should now be built as a first playable
@@ -941,56 +989,6 @@ with sideways thrust and the burn runs while the key is held, eight quick taps s
 two pulses, silent running swaps the cabin bed; the output peak was -29.1 dBFS at idle and
 -14.9 dBFS at full thrust at the default volume, and the page logged no error. Not established:
 how any of it sounds. Nobody has heard it.
-=======
-The relay and switch sounds taken off the page (2026-11-18, night). His note on eight rendered
-sounds of the category `switches`, each rated wrong: "die ganzen Relais Töne bitte weglassen". The
-scope is those eight (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
-`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`). The six downloaded
-sounds of the category stay, the three he rated wrong among them (`k_door_close_1`,
-`k_door_open_1`, `k_toggle_1`): his note stands on the rendered ones.
-
-- In the repository: the eight are out of `tools/audio/sounds.json` (56 sounds in 16 categories;
-  `switches` stays as a category of downloads), `tools/audio/synth/cat_switches.py` is deleted (it
-  held only these eight), and their level rows and tests went with them. Commit 59bce6b is the last
-  one that can render them. Where one of them had served as an arbitrary example, another sound
-  stands now (a registry test, and the keyboard step of `tools/dev/audition-check.mjs`, which
-  presses `thruster_pulse_b`).
-- In the scenes of the audition page only the docking approach played any of them: the cues at
-  0.5 s (power up) and 36.5 s (power down) and three event buttons are gone. The other cues keep
-  their times and the scene its 40 s.
-- On the real tree, by the procedure of the direction samples, this time with the build: the
-  ratings file was compared with the record of round 7 first; the 24 files (wav, spectrogram and
-  build record of each) were moved to `assets/audio/gen/_kept/relays-2026-11-18` with a `kept.json`
-  (hashes, his rating of each, the manifest entry); then `build.py --manifest-only` ran. Gate: 189
-  entries, each equal to its entry of before in every field and in the same order, the eight gone
-  and none added; of the 541 files under `assets/audio/render` only `manifest.json` changed and
-  exactly the 24 are gone. The files have to go first: the manifest is assembled from the files in
-  the tree, not from `sounds.json`, and a checker showed on a copy that with the files still there
-  the build keeps 197 entries and moves the eight to the end of the rendered block.
-- His eight ratings stay in `assets/audio/ratings.json`, which is never written by a tool: ten
-  ratings there now belong to sounds that are not on the page (these eight and the two withdrawn
-  pulses). The backup outside the worktrees was copied again (366 files).
-
-Suites after the change: 149, 80, 112 and 62 in the four Python suites, `npx tsc -p packages/client
---noEmit` without output, `npx vitest run` 807 passed and 2 expected failures. One builder and two
-independent checkers (the manifest gate and the suites; every reference, the scenes and the
-scope), on the cheaper model; no finding had to be repaired. Not verified: the page in a browser
-(the page check was not run; it will meet the docking scene with 7 event buttons and 9 cues, and
-the keyboard step on another sound). Left as it is and known: the rules `switch-too-long` and
-`switch-centroid` apply to no rendered sound any more (two tests with made-up sounds still pin
-them); the level of -16 dBFS for a short cabin sound is pinned by no test since `button_press`
-went; the category is still titled "Relays and switches", and `tools/audio/RECORDINGS.md` still
-asks him for recordings of relay clicks and a rotary selector, which no longer fits his word. What
-the cockpit switches sound like is open: the two downloaded toggles fit.
-
-The runtime audio is started (2026-11-18, night). Asked whether any worktree already plays the new
-sounds, because he wants to play with them, he was told that none does (the game still makes its
-sound with oscillators, and the scenes of the audition page still play the rendered events he
-rejected), and to the question whether the runtime audio should now be built as a first playable
-version he answered "Ja, bauen". A session of its own builds it in a worktree of its own; it reads
-the render tree of the sound worktree and writes nothing there. `docs/NEXT.md`, section 3, is its
-specification.
->>>>>>> main
 
 ### The owner's first play session (2026-11-14)
 
