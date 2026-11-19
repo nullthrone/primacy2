@@ -17,6 +17,7 @@ const MIME: Record<string, string> = {
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
   '.glb': 'model/gltf-binary',
+  '.flac': 'audio/flac',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.webp': 'image/webp',
@@ -129,7 +130,8 @@ export function createHttpHandler(world: World, fed: Federation, clientDir: stri
       file = join(root, 'index.html');
     }
     const ext = extname(file).toLowerCase();
-    const hashed = /[.-][A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpg|webp|glb)$/.test(file);
+    // The shipped sounds carry the hash of their content in the name (`<id>.<hash>.flac`).
+    const hashed = /[.-][A-Za-z0-9_-]{8,}\.(js|css|woff2?|png|jpg|webp|glb|flac)$/.test(file);
     res.writeHead(200, {
       'content-type': MIME[ext] ?? 'application/octet-stream',
       'content-length': statSync(file).size,

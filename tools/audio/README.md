@@ -299,3 +299,70 @@ below). Two more were withdrawn on 2026-11-18 (see below).
   0.265, 0.265, 0.265, 0.470 and 0.502 dB, which is the table above. The decisions (fade, ramp, mean removal) are
   the same as the page copy's for all eight; the smallest margin is 1.1 dB (the first sample of `g_impact_shield_a`
   is 1.1 dB under the ramp threshold at the library level, 0.6 dB under it at the page level).
+
+## Shipping to the game (ship.py)
+
+The game plays files of this library (`packages/client/src/audio`; `docs/CLIENT.md`, "Sound").
+`ship.py` puts them where the game loads them:
+
+    <python with numpy and soundfile> -B tools/audio/ship.py --library <assets/audio of the tree that holds the rendered sounds>
+    ... --check      writes nothing; returns 1 when a run would change a file
+
+The rendered sounds lie in one worktree only and are not in git, so the script takes the path of
+that tree's `assets/audio` as an argument, reads there (`render/manifest.json`, the WAV files,
+`ratings.json`, `selection.json`, `generated.json`) and never writes there. It can be started from
+another worktree with the interpreter of that tree's `.venv-audio`; `-B` keeps Python from writing
+a cache beside the interpreter's modules. It writes in the tree it is started from:
+
+- `packages/client/public/audio/<id>.<hash>.flac`: the shipped sounds. FLAC because it is lossless:
+  every sample the game plays is the sample the owner rated, a loop keeps its seam, and every
+  browser decodes it. `<hash>` is the hash of the WAV in the manifest, so a changed sound has a new
+  name and the game server may let browsers keep the file for good.
+- `packages/client/public/audio/manifest.json`: what the game loads. Per sound the fields of the
+  library's manifest that the stage reads (`kind`, `path`, `dry`, `channels`, `gain`, `place`,
+  `cue`, `family`, `params`), the event it is or stands for, its length in frames, how it was
+  approved; then `events` (event to sound ids), `standIn`, `roles` and `silent` (below).
+- `packages/client/public/audio/CREDITS.md`: the licence of every shipped file.
+- `assets/audio/shipped.json`: the decision for every library sound and every event, with the
+  reason, and the counts.
+
+These files are in git, so that `main` plays with sound in every worktree without the Python
+environment. Run the script again whenever the library or the ratings have changed, and commit
+what it changed. A second run changes nothing (it prints "nothing changed").
+
+What goes in is derived from data (`decide`, tested in `tests/test_ship.py`), in this order:
+
+1. Candidates of the listening rounds and voice samples (categories `source`, `voice`, `events*`)
+   are not library sounds.
+2. Never what `assets/audio/game.json` lists under `never` (the eight relay sounds, on the owner's
+   word of 2026-11-18), never a withdrawn sound, never output of Stable Audio (his decision of
+   2026-11-16).
+3. Only a sound he approved: his latest rating is "fits", or four stars and more without a verdict
+   (round 1 gave stars). A rating on an earlier version of the file still counts while it is
+   positive, and the sound is marked (`approval` `fits-older`, `stars-older`); a negative rating
+   keeps a sound out whatever file it was given on. A generated library sound that he has not
+   rated as built goes in when he accepted the candidate it was built from (`candidate`).
+4. Only where the licence allows shipping: the repository's own renders (AGPL-3.0-or-later), output
+   of MOSS-SoundEffect v2.0 (Apache-2.0), CC0 files. NASA recordings stay out: `CREDITS.md` of the
+   downloads says why their use in a game is the owner's decision, and he has not made it.
+5. Only what the game plays: `game.json` lists the events the game has a trigger for (`events`) and
+   the downloads it adopts for a role the sound list has no event for (`adopt`).
+
+An event with no approved sound of its own is silent in the game, unless `game.json` names a
+stand-in for it (`standIn`: it then plays the approved sounds of another event). Stand-ins and
+adopted roles are choices of the session that built the runtime audio, not ratings of the owner.
+
+Before a file is encoded its SHA-256 is compared with the hash in the manifest, so a tree that is
+being rebuilt while the script runs is noticed, and after encoding the FLAC is decoded again and
+compared with the WAV sample by sample. A problem with one file stops the run with code 1 before
+the manifest is written.
+
+The first run, on 2026-11-18 (numbers printed by the script, manifest of 189 entries after the relay
+sounds had gone, ratings saved 2026-11-18T19:22:12.338Z): 82 round candidates and voice samples, 107
+library sounds. Shipped: 57 sounds, 185.1 s, 5.70 MB as FLAC (27.42 MB as WAV): 40 rated fits on the
+file the manifest lists, 7 rated fits and 2 given five stars on an earlier version of the file, 8
+accepted as candidates and not yet rated as built. Not shipped: 25 rated wrong, 7 rated close, 10
+NASA recordings he rated fits, 8 approved downloads that no event of the game plays. Of the 56
+events the game asks for, 44 have a sound of their own, 5 play a stand-in and 7 are silent
+(`debris_patter`, `gear_retract`, `ground_scrape_loop`, `dust_patter_loop`, `alarm_shields_down`,
+`weapon_pulse_fire`, `weapon_cannon_fire`).
