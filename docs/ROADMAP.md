@@ -1033,7 +1033,13 @@ signal, the radio, docking, the cruise chain, a cancelled charge) held no click 
 sample, with a peak of -6.0 dBFS at the default volume. The cheaper model wrote the recorder from
 a brief; the control was added after it reported that a recording without a fault proves little
 without one. Not recorded: the fold chain, a landing on a moon, the alarms and the beam loops,
-which the browser check does not play.
+which the browser check does not play. `node scripts/e2e.mjs` failed twice on this piece before it
+passed, both times at its steering steps ("could not turn the nose at Dudreldus Hub", the second
+time also "could not bring the second pilot into view"), while the browser check of another
+session ran on the machine (a dev server was listening on port 5183). The steering loop of the
+test, replayed alone on the same build, settled on the station in 52 steps at 60 frames per
+second, and the third run, started after that other check had ended, passed. That the other
+check was the cause is a reading of the timing, not a measurement.
 
 He was told on 2026-11-19 how to play it: in the worktree `runtime-audio-43eb54`,
 `PRIMACY2_FIXED_UNIVERSE=16 npm run dev`, then `http://localhost:8420` (the universe of the
@@ -1840,6 +1846,10 @@ Other notes:
   `tools/audio/ship.py --library <assets/audio of the sound worktree>` (it reads there and writes
   only in the tree it is started from; `tools/audio/README.md`, "Shipping to the game"); run it
   again when the library or the ratings have changed, and commit what it changed.
+- Before `node scripts/e2e.mjs`, look whether another session runs a browser job (`netstat -ano` for
+  listeners on dev ports such as 5183 or 5173, `tasklist` for many `chrome.exe`): on 2026-11-19 the
+  test failed twice at its steering steps while another session's page check ran, and passed once
+  that had ended (section 2, "The game's runtime audio on the library", piece 3).
 - Start `node scripts/e2e.mjs` in the foreground. Started as a detached background job of an
   agent session it failed twice on 2026-11-14 at its steering steps; in the foreground it passed
   (see "Orientation on the HUD").
