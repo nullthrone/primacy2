@@ -36,6 +36,11 @@ import {
 import { QuadBatch } from './batch.ts';
 import { Pool, rand, rotate, type Frame, type Track } from './core.ts';
 
+/** The largest a streak is drawn: its half extent as a share of its distance from the camera (about 18 degrees from end to end). */
+const SPAN = 0.16;
+/** A streak nearer to the camera than this many of its half extents is not drawn; it fades out from where it reaches `SPAN`. */
+const GONE = 2.5;
+
 const VERTEX = /* glsl */ `
 attribute vec4 iA; // tail position (camera-relative), half width in metres
 attribute vec4 iB; // head position
@@ -50,6 +55,19 @@ void main() {
   vec3 b = (modelViewMatrix * vec4(iB.xyz, 1.0)).xyz;
   vec3 d = b - a;
   float len = length(d);
+  // How far the streak is from the eye where it comes nearest, in units of its own half extent
+  // (half its length plus its half width).
+  float tn = len > 1e-4 ? clamp(-dot(a, d) / (len * len), 0.0, 1.0) : 0.0;
+  float near = length(a + d * tn) / (iA.w + 0.5 * len);
+  // A clump is thin dust metres across. From far off it is a patch; one that flies past the eye
+  // would cross the whole view as a pale band, where in truth the eye is then in haze too thin
+  // to see. So a streak stops growing on screen once it spans SPAN of its distance (it is drawn
+  // smaller, about its head) and fades from there on; GONE half extents from the eye it is gone.
+  float fade = smoothstep(${GONE.toFixed(2)}, ${(1 / SPAN).toFixed(2)}, near);
+  float fit = min(1.0, ${SPAN.toFixed(3)} * near);
+  a = b - d * fit;
+  d = b - a;
+  len *= fit;
   vec3 dir = len > 1e-4 ? d / len : vec3(0.0, 1.0, 0.0);
   float end = position.y * 0.5 + 0.5;
   vec3 p = mix(a, b, end);
@@ -57,12 +75,14 @@ void main() {
   float sl = length(side);
   side = sl > 1e-4 * length(p) ? side / sl : vec3(1.0, 0.0, 0.0);
   // Never thinner than a pixel; what a distant clump gains in width it loses in brightness.
-  float w = max(iA.w, 0.8 * uPix * max(-p.z, 0.5));
+  float wide = iA.w * fit;
+  float w = max(wide, 0.8 * uPix * max(-p.z, 0.5));
   vec3 pos = p + side * (position.x * w) + dir * (position.y * w);
   vP = vec4(position.x, end * len + position.y * w, len, w);
-  vCol = iC.rgb * (iA.w / w);
+  vCol = iC.rgb * (wide / w) * fade;
   vTail = iC.a;
-  gl_Position = projectionMatrix * vec4(pos, 1.0);
+  // A clump that has faded out is not drawn at all.
+  gl_Position = fade > 0.0 ? projectionMatrix * vec4(pos, 1.0) : vec4(0.0, 0.0, 2.0, 1.0);
 }`;
 
 const FRAGMENT = /* glsl */ `

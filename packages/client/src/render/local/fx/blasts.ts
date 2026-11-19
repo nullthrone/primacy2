@@ -2,10 +2,13 @@
  * The big, brief events: a ship blowing up, a ship arriving or leaving by fold, a ship entering or
  * dropping out of cruise. Each is a recipe of flashes, sparks, debris and streaks.
  */
+import { Group } from 'three';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
+import type { Lighting } from '../../../contracts.ts';
 import { TAU, clamp, hash01 } from '../util.ts';
 import { rand, randDir, rotate, type Frame } from './core.ts';
 import type { Debris } from './debris.ts';
+import { effectLights } from './lights.ts';
 import { RISE, type Flashes, type Sparks } from './particles.ts';
 import { GLOW, PUFF, RING } from './sprites.ts';
 import type { Weapons } from './weapons.ts';
@@ -19,8 +22,12 @@ const PUFFS = [5, 8, 11] as const;
 const BLAST_SPARKS = [45, 90, 150] as const;
 const CHUNKS = [6, 10, 16] as const;
 const FOLD_SPARKS = [10, 18, 28] as const;
+/** Intensity of the light a blast throws at its first moment, per square metre of the radius of what blew up. */
+const BLAST_LIGHT = 600;
 
 export class Blasts {
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
   constructor(private readonly f: Frame, private readonly sparks: Sparks, private readonly flashes: Flashes,
               private readonly debris: Debris, private readonly weapons: Weapons) {}
 
@@ -33,6 +40,9 @@ export class Blasts {
     // The flash: blinding for a few frames, then an orange glare that is gone within a second.
     fl.spawn(GLOW, x, y, z, 0.18, R * 5, R * 13, 1.0, 0.94, 0.84, 45);
     fl.spawn(GLOW, x, y, z, 0.8, R * 3.5, R * 6, 1.0, 0.5, 0.16, 6).cool = 1;
+    // Its light on whatever is near: the white of the flash, then what the fireball still gives.
+    effectLights.pulse(x, y, z, 1.0, 0.9, 0.76, BLAST_LIGHT * R * R, R * 45, 0.22);
+    effectLights.pulse(x, y, z, 1.0, 0.5, 0.16, 0.12 * BLAST_LIGHT * R * R, R * 30, 0.9);
 
     // The fireball: puffs of burning gas driven outward, each tearing apart as it expands.
     for (let i = PUFFS[f.quality]; i > 0; i--) {
@@ -119,4 +129,15 @@ export class Blasts {
       this.flashes.spawn(GLOW, x, y, z, 0.18, 5, 14, 0.65, 0.8, 1.0, 9).age = -0.2;
     }
   }
+
+  /**
+   * Steps and draws what a blast leaves beyond the shared sparks and flashes. `light` is the
+   * light that reaches the camera: the sun, gone on the night side of the body the zone is near.
+   */
+  update(_light: Lighting): void {}
+
+  clear(): void {}
+
+  /** Frees what `group` holds. */
+  dispose(): void {}
 }

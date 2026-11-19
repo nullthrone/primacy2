@@ -121,28 +121,55 @@ void main() {
 }
 `;
 
-// Stars of other systems: quads of a fixed pixel size around their direction. With uLum they add
-// their luminance to the alpha channel of the bake instead of drawing colour.
+/** Half the size of the quad that holds the disc of a neighbour star on screen, in pixels. */
+const NEIGHBOUR_PX = 7;
+
+// Stars of other systems: quads of a fixed pixel size around their direction, a soft disc each.
+// On screen (uRays) every one of them also has the thin rays of the brightest stars of the sky,
+// longer and stronger the brighter it is, and its quad grows to hold them; the disc keeps its size.
+// With uLum they add their luminance to the alpha channel of the bake instead of drawing colour.
 const NEIGHBOUR_VERT = /* glsl */ `
 attribute vec3 color;
 uniform vec2 uHalf;
+uniform float uPx;
+uniform float uHot;
+uniform float uRays;
 varying vec3 vColor;
 varying vec2 vUv;
+varying float vRays;
 void main() {
   vColor = color;
-  vUv = uv;
+  float peak = max(color.r, max(color.g, color.b));
+  // Above uHot as the stars of the sky; below it, where those have none, a short faint set.
+  vRays = uRays * (0.45 + 0.55 * smoothstep(uHot, uHot * 3.0, peak));
+  float grow = vRays > 0.0 ? max(1.0, (4.5 + 17.0 * vRays) * uPx / ${NEIGHBOUR_PX.toFixed(1)}) : 1.0;
+  vUv = uv * grow;
   vec4 p = projectionMatrix * vec4(mat3(viewMatrix) * position, 1.0);
-  p.xy += uv * uHalf * p.w;
+  p.xy += vUv * uHalf * p.w;
   gl_Position = p;
 }
 `;
 const NEIGHBOUR_FRAG = /* glsl */ `
 uniform float uLum;
+uniform float uPx;
 varying vec3 vColor;
 varying vec2 vUv;
+varying float vRays;
+float ray(vec2 p, float angle, float reach) {
+  vec2 u = vec2(cos(angle), sin(angle));
+  float along = abs(dot(p, u)) / reach;
+  float across = abs(p.x * u.y - p.y * u.x) / (0.6 * uPx);
+  return exp(-across * across) * (1.0 - smoothstep(0.6, 1.0, along)) / (1.0 + 90.0 * along * along);
+}
 void main() {
   float r2 = dot(vUv, vUv);
   vec3 c = vColor * (exp(-r2 * 14.0) + 0.05 * exp(-r2 * 3.0)) * (1.0 - smoothstep(0.7, 1.0, r2));
+  if (vRays > 0.0) {
+    // In pixels with y running down, as in the point of a sky star, so the pattern is the same.
+    vec2 p = vec2(vUv.x, -vUv.y) * ${NEIGHBOUR_PX.toFixed(1)};
+    float reach = (4.5 + 17.0 * vRays) * uPx;
+    c += vColor * vRays * 0.5 * (ray(p, 0.72, reach) + 0.85 * ray(p, 1.7672, reach) + 0.92 * ray(p, 2.8144, reach));
+  }
   gl_FragColor = uLum > 0.5 ? vec4(0.0, 0.0, 0.0, dot(c, vec3(0.3333))) : vec4(c, 1.0);
 }
 `;
@@ -289,7 +316,11 @@ export class Sky {
 
     const neighbour = (lum: number): ShaderMaterial => new ShaderMaterial({
       vertexShader: NEIGHBOUR_VERT, fragmentShader: NEIGHBOUR_FRAG,
-      uniforms: { uHalf: { value: new Vector2(0.01, 0.01) }, uLum: { value: lum } },
+      // In the bake they are plain discs, as the stars are.
+      uniforms: {
+        uHalf: { value: new Vector2(0.01, 0.01) }, uLum: { value: lum }, uPx: { value: 1 }, uHot: { value: STAR_RAYS_FROM },
+        uRays: { value: lum ? 0 : 1 },
+      },
       blending: AdditiveBlending, transparent: true, depthTest: false, depthWrite: false, side: DoubleSide,
     });
     this.neighbourMat = neighbour(0);
@@ -343,8 +374,10 @@ export class Sky {
   /** Per-frame values: the pixel size of the stars follows the view. */
   frame(params: ViewParams): void {
     // A larger picture shows finer stars, but not in full proportion: they must stay wider than a pixel.
-    this.starMat.uniforms.uPx!.value = Math.max(0.85, Math.sqrt(params.height / 1080));
-    (this.neighbourMat.uniforms.uHalf!.value as Vector2).set(14 / params.width, 14 / params.height);
+    const px = Math.max(0.85, Math.sqrt(params.height / 1080));
+    this.starMat.uniforms.uPx!.value = px;
+    this.neighbourMat.uniforms.uPx!.value = px;
+    (this.neighbourMat.uniforms.uHalf!.value as Vector2).set((2 * NEIGHBOUR_PX) / params.width, (2 * NEIGHBOUR_PX) / params.height);
   }
 
   /** Places the nebulae: few, small and pale, and like the stars the same from every system. */

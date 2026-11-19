@@ -161,7 +161,10 @@ checks them the old way):
 - A rattle is a fast run of several small uneven knocks of noise, never a pitched ping, and no
   two rattles in a file are alike.
 - cabin (switches, relays): shorter than the list's duration, spectral centre between 800 Hz and
-  5 kHz, and audibly in a small room (the cabin reverb is applied in the render).
+  5 kHz, and audibly in a small room (the cabin reverb is applied in the render). The eight rendered
+  switch sounds that this rule was written for were taken out on 2026-11-18 on the owner's word
+  ("die ganzen Relais Töne bitte weglassen"); the rule stays in `rules.py` for the category and
+  applies to no rendered sound now.
 - alarms: fundamental between 400 Hz and 1.6 kHz, no energy peak above 5 kHz, each alarm's
   envelope pattern different from the others (the measuring tool prints the envelope). Rendered
   dry, as the loudspeaker gives them out.
@@ -861,7 +864,8 @@ The same evening he rated the 39 sounds that were still unrated on the page (23 
 wrong), so that all 189 are rated by the page's rule. His notes of that evening, word for word: on
 eight rendered switch sounds (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
 `breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`), each wrong, "die ganzen
-Relais Töne bitte weglassen"; on `weapon_cannon_fire`, wrong, "klingt nach einfach nur ein dumpes
+Relais Töne bitte weglassen" (the eight were taken out of the library on 2026-11-18 on this word, and
+the six downloaded switch sounds stayed); on `weapon_cannon_fire`, wrong, "klingt nach einfach nur ein dumpes
 klopfen, erinnert überhaupt nicht an eine Kanone. Brauchen wir hier noch etwas? Wir haben in
 anderen Runden ja schon etwas gesammelt"; on `weapon_pulse_fire`, wrong, "Klingt überhaupt nicht
 nach Laser, sondern als ob jemand auf einem Plastikeimer tippt..."; on `touchdown_hard` and on
