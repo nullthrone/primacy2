@@ -287,8 +287,8 @@ export function cue(prev: CueState, view: FrameView | null, rand: () => number):
     state.lateral = false;
     state.contacts = [];
     state.nextTick = 0;
-    if (!first && mode === FlightMode.Docked && was !== FlightMode.Docked) {
-      // The ship is set down on its pad.
+    if (!first && mode === FlightMode.Docked && (was === FlightMode.Normal || was === FlightMode.Landed)) {
+      // The ship is set down on its pad. (A pilot who comes back after his ship was destroyed wakes up docked: no touchdown.)
       mix.shots.push({ event: 'touchdown_soft', pick: rand() });
       mix.shots.push({ event: 'settle_creak', pick: rand(), delay: 1.2 });
     }

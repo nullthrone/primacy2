@@ -90,6 +90,8 @@ const audioState = (page) => page.evaluate(() => {
     engine: a.mixer.engineLevelGains(),
     loops: a.mixer.runningLoops(),
     thrust: a.state.thrust,
+    mode: window.primacy2?.game?.view?.mode ?? null,
+    held: a.mixer.heldSounds(),
     plays: a.stage.plays.map((p) => ({ ...p, end: Number.isFinite(p.end) ? p.end : null })),
     now: a.stage.now(),
   };
@@ -228,6 +230,150 @@ try {
     const off = await audioState(page);
     assert(on.loops.silent_running_loop === 1 && on.loops.cabin_ambience_loop === undefined, `loops: ${JSON.stringify(on.loops)}`);
     assert(off.loops.cabin_ambience_loop === 1 && off.loops.silent_running_loop === undefined, `loops: ${JSON.stringify(off.loops)}`);
+  });
+
+  // What follows needs events the server only sends in a fight. The check puts them into the game's
+  // event buffer as the server's message would, at a point given in the ship's own axes.
+  const inject = (event, local) => page.evaluate(([ev, v]) => {
+    const g = window.primacy2.game;
+    const self = g.view.self;
+    const [x, y, z, w] = self.state.rot;
+    const tx = 2 * (y * v[2] - z * v[1]);
+    const ty = 2 * (z * v[0] - x * v[2]);
+    const tz = 2 * (x * v[1] - y * v[0]);
+    const r = [v[0] + w * tx + (y * tz - z * ty), v[1] + w * ty + (z * tx - x * tz), v[2] + w * tz + (x * ty - y * tx)];
+    const at = [self.state.pos[0] + r[0], self.state.pos[1] + r[1], self.state.pos[2] + r[2]];
+    const dmg = ev.share !== undefined ? ev.share * (ev.shield ? self.stats.shieldMax : self.stats.hullMax) : undefined;
+    g.events.push(ev.e === 'hit' ? { e: 'hit', id: self.id, dmg, shield: ev.shield, at } : { e: ev.e, id: ev.id, at });
+  }, [event, local]);
+  const freshPlays = async (before, wait) => {
+    await page.waitForTimeout(wait);
+    return (await audioState(page)).plays.slice(before);
+  };
+  const near = (a, b, tol) => a !== null && Math.abs(((a - b + 540) % 360) - 180) <= tol;
+
+  await check('a solid hit on the shield from the right: the approved shield sound, from the right, louder than a light hit', async () => {
+    const before = (await audioState(page)).plays.length;
+    await inject({ e: 'hit', shield: true, share: 0.15 }, [40, 0, 0]);
+    const fresh = await freshPlays(before, 400);
+    const hit = fresh.find((p) => p.id.startsWith('g_impact_shield'));
+    assert(hit, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(near(hit.azimuth, 90, 3), `azimuth ${hit.azimuth}`);
+    assert(Math.abs(hit.gain - 1.41) < 0.01, `gain ${hit.gain}`);
+    return `${hit.id} at ${hit.azimuth.toFixed(0)} degrees, gain ${hit.gain}`;
+  });
+
+  await check('a dangerous hit on the hull from the left: a heavy hull hit from the left, and the hull groans half a second later', async () => {
+    const before = (await audioState(page)).plays.length;
+    await inject({ e: 'hit', shield: false, share: 0.25 }, [-40, 0, 0]);
+    const fresh = await freshPlays(before, 900);
+    const hit = fresh.find((p) => p.id.startsWith('g_impact_hull_heavy'));
+    const groan = fresh.find((p) => p.id === 'hull_stress_groan');
+    assert(hit && groan, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(near(hit.azimuth, -90, 3), `azimuth ${hit.azimuth}`);
+    assert(Math.abs(groan.start - hit.start - 0.5) < 0.06, `the groan starts ${(groan.start - hit.start).toFixed(3)} s after the hit`);
+    const peak = await peakOver(page, 600);
+    assert(peak < 0.99, `output peak ${peak}`);
+    return `${hit.id} at ${hit.azimuth.toFixed(0)} degrees, peak ${db(peak)} dBFS`;
+  });
+
+  await check('a light hit on the hull from ahead plays a light hull hit', async () => {
+    const before = (await audioState(page)).plays.length;
+    await inject({ e: 'hit', shield: false, share: 0.04 }, [0, 0, -40]);
+    const fresh = await freshPlays(before, 400);
+    const hit = fresh.find((p) => p.id.startsWith('g_impact_hull_light'));
+    assert(hit, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(near(hit.azimuth, 0, 3), `azimuth ${hit.azimuth}`);
+    return hit.id;
+  });
+
+  await check('a ship destroyed behind: the sensor signal from behind, and no sound for the debris, which has none approved', async () => {
+    const before = (await audioState(page)).plays.length;
+    await inject({ e: 'destroyed', id: 987654321 }, [0, 0, 600]);
+    const fresh = await freshPlays(before, 1500);
+    const signal = fresh.find((p) => p.id === 'sensor_explosion_outside');
+    assert(signal, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(near(signal.azimuth, 180, 3), `azimuth ${signal.azimuth}`);
+    assert(!fresh.some((p) => p.id.includes('debris')), 'a debris sound played');
+  });
+
+  await check('a transmission on the radio: the squelch opens, the tone follows inside it, the squelch closes at its end', async () => {
+    const before = (await audioState(page)).plays.length;
+    await page.evaluate(() => window.__audio.mixer.transmission('radio_tone'));
+    const fresh = await freshPlays(before, 900);
+    const open = fresh.find((p) => p.id === 'radio_squelch_open');
+    const tone = fresh.find((p) => p.id === 'radio_tone');
+    const close = fresh.find((p) => p.id === 'radio_squelch_close');
+    assert(open && tone && close, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(tone.start > open.start && tone.start < open.end, `the tone starts ${(tone.start - open.start).toFixed(3)} s after the squelch, which is ${(open.end - open.start).toFixed(3)} s long`);
+    assert(Math.abs(close.start - (tone.end - 0.02)) < 0.005, `the squelch closes ${(close.start - tone.end).toFixed(3)} s from the end of the tone`);
+  });
+
+  await check('docking sets the ship down: a soft touchdown, the struts settle after it, the engine is off', async () => {
+    const before = (await audioState(page)).plays.length;
+    const reply = await page.evaluate(() => window.primacy2.game.cmd({ k: 'dock' }));
+    assert(reply.ok, `the dock command was refused: ${JSON.stringify(reply)}`);
+    await page.waitForFunction(() => window.primacy2.game.view?.mode === 3, null, { timeout: 10_000 });
+    const fresh = await freshPlays(before, 1800);
+    const down = fresh.find((p) => p.id === 'touchdown_soft');
+    const settle = fresh.find((p) => p.id === 'settle_creak');
+    assert(down && settle, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(Math.abs(settle.start - down.start - 1.2) < 0.06, `settling ${(settle.start - down.start).toFixed(3)} s after the touchdown`);
+    const s = await audioState(page);
+    assert(s.engine.length === 0, `engine levels while docked: ${JSON.stringify(s.engine)}`);
+  });
+
+  await check('the cruise chain: the charge, the drive takes hold at its cue, the cruise bed runs, the drive lets go', async () => {
+    await page.waitForFunction(() => document.querySelector('.panel header button.primary'), null, { timeout: 10_000 });
+    await page.click('.panel header button.primary');
+    await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 10_000 });
+    // Out of the station's mass lock first.
+    await page.keyboard.down('KeyW');
+    await page.keyboard.down('ShiftLeft');
+    await page.waitForFunction(() => Math.min(...window.primacy2.game.view.sites.map((x) => x.dist)) > 4600, null, { timeout: 90_000 });
+    await page.keyboard.up('ShiftLeft');
+    await page.keyboard.up('KeyW');
+    const before = (await audioState(page)).plays.length;
+    await page.evaluate(() => window.primacy2.game.toggleCruise());
+    await page.waitForFunction(() => window.__audio.mixer.heldSounds().includes('cruise_charge'), null, { timeout: 3000 });
+    await page.waitForFunction(() => window.primacy2.game.view?.mode === 1, null, { timeout: 12_000 });
+    await page.waitForTimeout(1200);
+    const inCruise = await audioState(page);
+    const fresh = inCruise.plays.slice(before);
+    const charge = fresh.find((p) => p.id === 'cruise_charge');
+    const engage = fresh.find((p) => p.id === 'cruise_engage');
+    assert(charge && engage, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    const gap = engage.start - charge.start;
+    assert(gap > 3.6 && gap < 4.6, `the drive took hold ${gap.toFixed(2)} s after the charge began (the cue of the charge is at 4 s)`);
+    assert(inCruise.loops.cruise_loop === 1, `loops in cruise: ${JSON.stringify(inCruise.loops)}`);
+    const on = inCruise.engine.filter((l) => l.gain > 0.001);
+    assert(on.length === 1 && on[0].id === 'engine_main_t000', `engine in cruise: ${JSON.stringify(inCruise.engine)}`);
+    const peak = await peakOver(page, 800);
+    const mark = inCruise.plays.length;
+    await page.evaluate(() => window.primacy2.game.toggleCruise());
+    await page.waitForFunction(() => window.primacy2.game.view?.mode === 0, null, { timeout: 8000 });
+    const after = await freshPlays(mark, 600);
+    assert(after.some((p) => p.id === 'cruise_disengage'), `plays after the drop: ${JSON.stringify(after.map((p) => p.id))}`);
+    assert((await audioState(page)).loops.cruise_loop === undefined, 'the cruise bed still runs');
+    assert(peak < 0.99, `output peak ${peak}`);
+    return `engage ${gap.toFixed(2)} s after the charge began, peak in cruise ${db(peak)} dBFS`;
+  });
+
+  await check('a charge that is cancelled does not run on', async () => {
+    await page.waitForTimeout(1500);
+    const before = (await audioState(page)).plays.length;
+    await page.evaluate(() => window.primacy2.game.toggleCruise());
+    await page.waitForFunction(() => window.__audio.mixer.heldSounds().includes('cruise_charge'), null, { timeout: 3000 });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => window.primacy2.game.toggleCruise());
+    await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 0, null, { timeout: 3000 });
+    const fresh = await freshPlays(before, 600);
+    const s = await audioState(page);
+    const charge = fresh.find((p) => p.id === 'cruise_charge');
+    assert(charge, `plays: ${JSON.stringify(fresh.map((p) => p.id))}`);
+    assert(s.mode !== 1 && !fresh.some((p) => p.id === 'cruise_engage'), 'the drive took hold although the charge was cancelled');
+    assert(charge.end !== null && charge.end - charge.start < 2.5, `the charge sound ran for ${(charge.end - charge.start).toFixed(2)} s`);
+    return `stopped after ${(charge.end - charge.start).toFixed(2)} s`;
   });
 
   await check('nothing went wrong on the page', async () => {

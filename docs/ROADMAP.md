@@ -990,6 +990,21 @@ two pulses, silent running swaps the cabin bed; the output peak was -29.1 dBFS a
 -14.9 dBFS at full thrust at the default volume, and the page logged no error. Not established:
 how any of it sounds. Nobody has heard it.
 
+Piece 2 (2026-11-19): the rest of the mapping (`docs/CLIENT.md`, "Sound", has the table of what
+sounds when). Hits on the own ship by strength and from the side they came from; the cruise and
+the fold as chains that follow what the ship does (a charge is a sound held by its event and is
+cut short when the charge is cancelled); alarms by state, one at a time; the beam, the mining
+laser and the missile launch; sensor signals for a new contact, a lock, fire and blasts outside;
+the gear, the approach signal and the touchdown; a tone on the radio for a chat message. Choices
+of the session, told to him: only one alarm sounds at a time (missile before hull before heat
+before fuel), the hull alarm sounds for 6 s and the fuel alarm for 12 s and not for as long as the
+state lasts, a hit is light, medium or heavy by the share of the hull or shield it took (a tenth,
+a fifth), and a medium and a heavy shield hit play the one approved shield sound 3 and 6 dB
+louder. The game has no state for the landing gear and none for a missile lock: the gear goes out
+below 150 m above the ground while sinking, and the missile alarm sounds while a missile within
+8 km closes on the ship. `radio_static_loop` is no longer asked for (nothing triggers an open
+channel), which leaves 56 shipped sounds.
+
 ### The owner's first play session (2026-11-14)
 
 He played the game himself for the first time and reported. Good: the controls, the shadows, the
