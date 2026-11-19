@@ -1260,6 +1260,19 @@ new measured in turn within one run of `scripts/bench.mjs`, because other work s
   control scene 1.3); a fight 2.4 and 2.3 and a landed ship 10.6 and 10.9 (one run, card at 21 %
   and 85 W, control 1.5). At quality 0 the lights stay dark and the pictures equal the old ones;
   there new measured 0.4 ms faster than old in both runs (1.4 and 1.0), which is not explained.
+- 2026-11-18, four defects of section 4. (1) The charge glow, the heat haze and the hit flash of
+  the final pass (`packages/client/src/render/post/Composite.ts`) leave out the pixels of the
+  cockpit and, in the chase view, what the local scene drew within 1.1 hull radii of the pilot's
+  ship (fading out to 1.5) and not below its belly; the place of a pixel is rebuilt from the depth
+  buffer, and a warp that would reach a protected pixel stops short of it. Cost with the haze on:
+  2.5 and 2.6 ms old and new in the cockpit (card at 7 % and 39 W, control 1.5); the chase path
+  was not measured. (2) Dust after a hard landing: see section 4. (3) The hot inner disk of a
+  black hole is a light in the lens in the colour of the disk, full while the core is under 20
+  pixels and gone at 200; the glow in the scene is as small as the neutron star's, so between 12
+  and 200 pixels the glare stands alone where the centre used to be a white blob. Its hiding
+  behind bodies and ships was read from the code, not seen (the lens takes four lights and keeps
+  the strongest). (4) The stars of the neighbouring systems have the small rays of the bright sky
+  stars, at 0.45 to 1 of their strength by brightness (`packages/client/src/render/space/Sky.ts`).
 
 ## 3. Order of work
 
@@ -1320,7 +1333,10 @@ Defects seen and left in:
 - After a hard landing dark streaks fan across the sky (probably the dust burst). On 2026-11-18
   wide pale bands were made on the dev page a second after a touchdown at 7 m/s: clumps of the
   burst drawn very large close to the camera (section 2, "Special effects"). Whether they are the
-  same streaks is to be confirmed in the game; the cure is planned with the effects work.
+  same streaks is to be confirmed in the game. Cured on the dev page on 2026-11-18: a streak of
+  dust is drawn no larger than 0.16 of its distance and fades from there
+  (`packages/client/src/render/local/fx/regolith.ts`); short faint streaks low over the horizon
+  remain.
 - The ground casts no shadows on itself: no long crater and hill shadows at the terminator.
 - A pale disc of 800 m radius around every base at noon (the pad's fixed tone); ice ridges read
   as scribble from 50 km; rays around fresh craters look painted from 500 m.
@@ -1357,11 +1373,13 @@ Defects seen and left in:
   RTX 5080 a ship over an ocean planet takes 8.5 ms per frame and an earth-like planet from 1.15
   radii 13.7 ms, against 2.4 ms for a station filling the view. That is less than before the
   close-up work, but nobody has looked at what it means on a weak graphics card.
-- The stars of the neighbouring systems are still soft discs without rays; only the sun of the
-  system and the brightest points of the sky have the new glare.
-- The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
-  frame, the cockpit included.
-- Light in the lens: a black hole's disk has none; the core of a star that stays in the scene is
+- The fold tunnel and time dilation are drawn over the whole frame, the cockpit included. The
+  charge glow, the heat haze and the hit flash no longer are (2026-11-18): they leave out the
+  cockpit and, in the chase view, the pilot's own ship. What remains of that: the engine plumes
+  outside the hull's outline still take them, their rim tints now read as coloured sky in the side
+  windows of the cockpit, and on the dev page a patch of ground round a ship standing or hovering
+  within a metre of it stayed untinted, which is not explained.
+- Light in the lens: the core of a star that stays in the scene is
   not reddened by an atmosphere in front of it, only its glare is; a bright star of the sky that
   leaves the view loses its rays at once, because a point is clipped as a whole.
 - On `dev/space.html` every scene counts as a cockpit view, so the scratches of the canopy glass
@@ -1559,6 +1577,9 @@ Never verified:
   move, and nothing of it was looked at in the real game. For the light of effects in particular:
   how a light fades when its source goes, whether lights hop between sources when more than three
   glow at once (covered by a throwaway test only), and the cost with a landed ship (measured once).
+  For the defects of that day: the edge of the cockpit and of the pilot's ship while the haze
+  shimmers, and whether the rays of the sky's stars and of the neighbour stars mirror the sun's top
+  to bottom (the code suggests it; the pictures are too small to tell).
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
