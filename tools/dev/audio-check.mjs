@@ -143,6 +143,30 @@ try {
     return `loops ${Object.keys(s.loops).join(', ')}`;
   });
 
+  // A recording without a fault says something only if the recorder would have found one.
+  await check('the recorder finds a step that is put into the output on purpose', async () => {
+    const result = await page.evaluate(async () => {
+      const a = window.__audio;
+      const rec = await a.capture();
+      await rec.start();
+      const ctx = a.stage.context;
+      // A fifth of full scale for 20 ms, straight into the node the recorder listens to: a step up and a step down.
+      const buf = ctx.createBuffer(1, Math.round(ctx.sampleRate * 0.02), ctx.sampleRate);
+      buf.getChannelData(0).fill(0.2);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(a.stage.tap);
+      src.start(ctx.currentTime + 0.3);
+      await new Promise((r) => setTimeout(r, 900));
+      const out = await rec.stop();
+      src.disconnect();
+      return out;
+    });
+    const clicks = result.faults.filter((f) => f.kind === 'click' && f.origin === 'page');
+    assert(clicks.length >= 2, `faults: ${JSON.stringify(result.faults)}`);
+    return `${clicks.length} clicks found, of size ${clicks.map((f) => f.size.toFixed(2)).join(', ')}`;
+  });
+
   // The context exists now: record the output for the rest of the flight.
   let capturing = false;
   try {
