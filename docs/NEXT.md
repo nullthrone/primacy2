@@ -337,10 +337,13 @@ built (it is a greenfield design):
 Started on 2026-11-18 on his word. He asked whether any worktree already plays the new sounds,
 because he wants to play with them (none did), and answered "Ja, bauen" to the question whether
 the runtime audio should now be built as a first playable version. The session "Laufzeit-Klang:
-erste spielbare Fassung" builds it in a worktree of its own, cut from `main`; it reads
+erste spielbare Fassung" builds it in a worktree of its own
+(`.claude/worktrees/runtime-audio-43eb54`), cut from `main`; it reads
 `assets/audio/render` of the sound worktree by its path and writes nothing there. This section is
 its specification, and it may change this section by exact replacement. Events that have no sound
-he accepted stay silent in the first version. Core work for the strongest model:
+he accepted stay silent in the first version. What is built, what was decided and what is silent
+is in `docs/ROADMAP.md`, section 2, "The game's runtime audio on the library", and
+`docs/CLIENT.md`, "Sound"; the text below is the brief it was built from. Core work for the strongest model:
 `packages/client/src/audio` is rebuilt, not patched. Design it first and show Thomas the plan in a
 few sentences (done on 2026-11-17). Since round 7 each of the six event families of rounds 4 to 7
 has a sound he accepted: eighteen are in the library (`assets/audio/generated.json`; the first ten

@@ -1,0 +1,92 @@
+{
+ "note": "What the game's runtime audio asks of the sound library. `events` are the events of tools/audio/sounds.json that the game has a trigger for, each with the moment it plays. `tools/audio/ship.py` ships, for every event, the library sounds that are that event or stand for it (`generated.standsFor` in the render manifest) and that the owner has approved; an event with none stays silent in the game. `standIn` names events without an approved sound of their own that play the approved sounds of another event: these are choices of the session that built the runtime audio (2026-11-18), not ratings of the owner, and he is told each one. `adopt` gives downloaded sounds a role in the game that the sound list has no event for; he rated the files, not that use. `never` is never shipped, whatever the manifest or the ratings say.",
+ "events": {
+  "engine_main_t000": "main engines idle: in flight with no thrust asked for, in cruise, standing on the ground",
+  "engine_main_t025": "main engines, crossfaded by the thrust the pilot asks for",
+  "engine_main_t050": "main engines, crossfaded by the thrust the pilot asks for",
+  "engine_main_t075": "main engines, crossfaded by the thrust the pilot asks for",
+  "engine_main_t100": "main engines at full thrust",
+  "engine_main_boost": "main engines while the boost runs",
+  "thruster_pulse_a": "a manoeuvring thruster fires once",
+  "thruster_pulse_b": "a manoeuvring thruster fires once",
+  "thruster_pulse_c": "a manoeuvring thruster fires once: the moment sideways or vertical thrust sets in",
+  "thruster_burn_loop": "sideways or vertical thrust is held",
+  "impact_hull_light": "a light hit on the own hull, from the side it came from",
+  "impact_hull_medium": "a solid hit on the own hull",
+  "impact_hull_heavy": "a dangerous hit on the own hull",
+  "impact_shield_light": "a light hit on the own shield, from the side it came from",
+  "impact_shield_medium": "a solid hit on the own shield",
+  "impact_shield_heavy": "a hit that nearly breaks the own shield",
+  "hull_stress_groan": "after a dangerous hull hit or a hard touchdown",
+  "debris_patter": "fragments of a ship destroyed nearby reach the hull",
+  "gear_deploy": "the landing gear extends on the approach to the ground",
+  "gear_retract": "the landing gear retracts after lift-off",
+  "touchdown_soft": "the ship sets down within the limits",
+  "touchdown_hard": "the ship sets down too fast",
+  "ground_scrape_loop": "the ship slides over the ground",
+  "dust_patter_loop": "close above the ground the engines throw up regolith",
+  "settle_creak": "a moment after the ship has come to rest on the ground",
+  "alarm_heat": "heat above nine tenths of the capacity",
+  "alarm_missile": "a missile is closing on the ship",
+  "alarm_shields_down": "the shield has just collapsed",
+  "alarm_fuel_low": "fuel below a tenth of the tank",
+  "alarm_hull_critical": "the hull falls below a quarter",
+  "alarm_master_caution": "a warning notice arrives",
+  "cruise_charge": "the cruise drive charges",
+  "cruise_engage": "the cruise drive takes hold",
+  "cruise_loop": "in cruise",
+  "cruise_disengage": "cruise ends",
+  "fold_charge": "the fold drive charges",
+  "fold_jump": "the jump",
+  "fold_tunnel_loop": "in the fold tunnel",
+  "fold_exit": "arrival",
+  "cabin_ambience_loop": "the cabin, whenever the pilot sits in the ship",
+  "silent_running_loop": "the cabin in silent running",
+  "cabin_ir": "the cabin's impulse response: the room every sound is put into",
+  "weapon_pulse_fire": "an own pulse laser fires",
+  "weapon_cannon_fire": "an own cannon fires",
+  "weapon_beam_loop": "an own beam weapon burns",
+  "mining_laser_loop": "the own mining laser or salvage beam works",
+  "missile_launch": "an own missile leaves the rack",
+  "sensor_contact_ping": "a new contact appears on the sensors",
+  "sensor_lock_tone": "a target is locked",
+  "sensor_proximity_tick": "the approach signal close above the ground, faster as the height falls",
+  "sensor_fire_outside": "another ship fires nearby",
+  "sensor_explosion_outside": "a ship is destroyed nearby",
+  "radio_squelch_open": "a transmission begins",
+  "radio_squelch_close": "a transmission ends",
+  "radio_static_loop": "an open channel with nobody on it",
+  "radio_tone": "a message arrives on the radio"
+ },
+ "standIn": {
+  "thruster_pulse_a": "thruster_pulse_c",
+  "thruster_pulse_b": "thruster_pulse_c",
+  "impact_shield_medium": "impact_shield_light",
+  "impact_shield_heavy": "impact_shield_light",
+  "touchdown_hard": "touchdown_soft"
+ },
+ "adopt": {
+  "ui_click": {
+   "sounds": ["k_switch_ui_5"],
+   "use": "a button of a menu or panel is pressed"
+  },
+  "ui_confirm": {
+   "sounds": ["k_switch_ui_18"],
+   "use": "a panel opens or closes, a choice is confirmed"
+  },
+  "ui_notice": {
+   "sounds": ["k_bong_1"],
+   "use": "an information notice arrives"
+  }
+ },
+ "never": {
+  "relay_click_a": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "relay_click_b": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "switch_toggle": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "switch_rotary": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "breaker_thunk": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "button_press": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "systems_power_up": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\"",
+  "systems_power_down": "his note of 2026-11-18: \"die ganzen Relais Töne bitte weglassen\""
+ }
+}
