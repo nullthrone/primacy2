@@ -8,24 +8,24 @@
   "manifestEntries": 189,
   "roundCandidatesAndVoices": 82,
   "librarySounds": 107,
-  "shipped": 57,
+  "shipped": 56,
   "byCode": {
    "in:fits-older": 7,
-   "in:fits": 40,
+   "in:fits": 39,
    "out:wrong": 25,
    "out:close": 7,
    "in:stars-older": 2,
+   "out:no-use": 9,
    "in:candidate": 8,
-   "out:no-use": 8,
    "out:licence": 10
   },
-  "eventsAsked": 56,
-  "eventsWithOwnSound": 44,
+  "eventsAsked": 55,
+  "eventsWithOwnSound": 43,
   "eventsWithStandIn": 5,
   "eventsSilent": 7,
-  "seconds": 185.1,
-  "wavBytes": 27416408,
-  "flacBytes": 5701557
+  "seconds": 181.1,
+  "wavBytes": 27032364,
+  "flacBytes": 5595295
  },
  "events": {
   "engine_main_t000": [
@@ -163,9 +163,6 @@
   ],
   "radio_squelch_close": [
    "radio_squelch_close"
-  ],
-  "radio_static_loop": [
-   "radio_static_loop"
   ],
   "radio_tone": [
    "radio_tone"
@@ -687,9 +684,9 @@
   },
   {
    "id": "radio_static_loop",
-   "ship": true,
-   "code": "fits",
-   "why": "rated fits on this file",
+   "ship": false,
+   "code": "no-use",
+   "why": "approved (rated fits on this file), but no event of the game plays it",
    "event": "radio_static_loop",
    "roles": [],
    "approval": "fits"

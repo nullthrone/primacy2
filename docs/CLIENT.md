@@ -238,7 +238,7 @@ manifest lists those under `silent`, with the reason.
 | `library.ts` | The shipped manifest and the decoded files. Fetching and decoding start with the page and need no click (an offline context decodes); the room, the cabin, the engine and the thrusters come first. |
 | `stage.ts` | The audio graph, the one of the audition page: a one-channel sound at its place by a balance law (straight ahead it plays at the file's level on both sides; behind it is duller), a two-channel file as it is, everything through the cabin's impulse response, a limiter that leaves everything below -2 dBFS as it is. |
 | `cues.ts` | The mapping from a `FrameView` to what should sound, as a pure function with its state and its random numbers handed in. It names events of the sound list (`assets/audio/game.json`), never files. |
-| `mixer.ts` | Makes the stage sound like the mapping says: the engine group, the loops, the one-shots; picks among an event's sounds, never the same twice in a row. |
+| `mixer.ts` | Makes the stage sound like the mapping says: the engine group, the loops, the sounds held by their event, the one-shots, a transmission on the radio; picks among an event's sounds, never the same twice in a row. |
 | `index.ts` | `createAudio()`, the `GameAudio` the game core and the interface use. |
 
 Rules that hold across these files:
@@ -262,7 +262,21 @@ What sounds when (`cues.ts`; the numbers are `TUNING` there):
 | Main engines (`engine_main_*`, six levels) | In flight and on the ground. The levels are crossfaded with equal power by what the pilot asks for: the forward axis or the throttle setpoint, whichever is more; the boost level while the boost runs; half thrust while the brake is held and the ship moves. The sound follows a change with a spool time (0.25 s up, 0.45 s down). In cruise and on the ground the engines idle. |
 | Thruster pulse (the sounds of `thruster_pulse_c`) | When sideways or vertical thrust sets in or turns round. No sooner than 1.2 s after the pulse before it, at most two at once. |
 | Thruster burn (`thruster_burn_loop`) | While sideways or vertical thrust is held, as loud as the stick is pushed. |
+| Cruise | `cruise_charge` while the drive charges (cut short when the charge is cancelled), `cruise_engage` when it takes hold, `cruise_loop` in cruise, `cruise_disengage` when it lets go. The chain follows what the ship does, frame by frame, not a plan made at the start: a charge can be cancelled and time can run slow. |
+| Fold | `fold_charge` while the drive charges, `fold_jump` when the ship enters the tunnel (a jump out of cruise has no disengage sound), `fold_tunnel_loop` in the tunnel, also while another server takes the ship over, `fold_exit` on arrival. |
+| Hits on the own ship | From the `hit` events of the own ship, several in one frame as one: light, medium or heavy by the share of the hull or shield the hit took (a tenth, a fifth), from the side the impact point lies on. A heavy hull hit is followed by `hull_stress_groan`. A hit of the ground is a hull hit like any other. |
+| Alarms | One at a time, the most urgent: `alarm_missile` while a missile closes on the ship, `alarm_hull_critical` for 6 s after the hull fell below a quarter and after every further hit there, `alarm_heat` above nine tenths of the heat capacity, `alarm_fuel_low` for 12 s when the fuel falls below a tenth and again below a twentieth. `alarm_shields_down` when the shield collapses. |
+| Own weapons | A `shot` event of the own ship by the kind of its mount: `weapon_pulse_fire`, `weapon_cannon_fire`, `missile_launch` from the side its rack sits on; `weapon_beam_loop` while a beam reports itself, `mining_laser_loop` while the mining laser or the salvage beam works. |
+| Outside | What happens outside is a sensor signal, from the direction it lies in: `sensor_fire_outside` when another ship within 12 km fires (at most once a second), `sensor_explosion_outside` when one is destroyed, `debris_patter` a moment later within 1.5 km. `sensor_contact_ping` for a new contact (not for what is there on arrival), `sensor_lock_tone` for a new target. |
+| Landing | `gear_deploy` below 150 m above the ground while sinking, `gear_retract` above 300 m; `sensor_proximity_tick` below 600 m while sinking, every 1.6 s there and every 0.12 s at the ground; `dust_patter_loop` below 60 m; on touchdown `touchdown_soft`, or `touchdown_hard` and the hull's groan at 3 m/s and more, then `settle_creak`. Docking at a station plays the soft touchdown as well. |
+| Radio | A chat message of somebody else arrives as `radio_tone` on the radio loudspeaker: the squelch opens, the tone plays in the narrow band with a little hiss, the squelch closes. |
 | Interface | A press on any button plays `ui_click`; an information notice `ui_notice`, a warning `alarm_master_caution`. |
+
+The mapping asks for every event, also for those that have no approved sound (the cannon, the pulse
+laser, the gear retracting, the shields-down alarm, the debris, the dust and the scraping on the
+ground): they are silent until a sound for them is approved and shipped, and need no change of the
+code then. Where an event plays the sounds of a stand-in, a gain can say what the borrowed sound
+cannot: a medium and a heavy shield hit play the approved shield sound 3 and 6 dB louder.
 
 ## Models
 

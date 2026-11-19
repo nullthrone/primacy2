@@ -366,3 +366,10 @@ NASA recordings he rated fits, 8 approved downloads that no event of the game pl
 events the game asks for, 44 have a sound of their own, 5 play a stand-in and 7 are silent
 (`debris_patter`, `gear_retract`, `ground_scrape_loop`, `dust_patter_loop`, `alarm_shields_down`,
 `weapon_pulse_fire`, `weapon_cannon_fire`).
+
+Since 2026-11-19 the game no longer asks for `radio_static_loop` (an open channel with nobody on
+it: nothing in the game triggers it yet), so it counts among the approved sounds that no event
+plays. The run after that change: 56 sounds shipped, 181.1 s, 5.60 MB as FLAC (27.03 MB as WAV):
+39 rated fits on the file the manifest lists, 7 and 2 on an earlier version, 8 accepted as
+candidates; 9 approved sounds that no event plays; of 55 events asked for, 43 have a sound of
+their own, 5 play a stand-in and the same 7 are silent.

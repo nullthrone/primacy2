@@ -10,7 +10,9 @@
  * The concept is "you hear your ship, not space" (`tools/audio/SOUND_DESIGN.md`). An event of the
  * game without an approved sound is silent; `public/audio/manifest.json` lists those under `silent`.
  */
+import { effect } from '@preact/signals';
 import type { FrameView } from '../contracts.ts';
+import { store } from '../state/store.ts';
 import { cue, initialCueState, type CueState, type Mix } from './cues.ts';
 import { Library } from './library.ts';
 import { Mixer } from './mixer.ts';
@@ -41,6 +43,9 @@ const UI: Record<UiSound, string | null> = {
   warning: 'alarm_master_caution',
 };
 
+/** A chat message older than this when it arrives is history, not a transmission (ms). */
+const CHAT_FRESH_MS = 5000;
+
 /** What `window.__audio` offers the browser check and the console. */
 export interface AudioDebug {
   library: Library;
@@ -57,6 +62,7 @@ export function createAudio(): GameAudio {
   const mixer = new Mixer(library, stage);
   let state = initialCueState();
   let silent = true;
+  let lastChatAt = 0;
   const debug: AudioDebug = { library, stage, mixer, mix: null, state };
 
   // Fetching and decoding need no click: by the time the pilot has logged in the sounds are there.
@@ -88,6 +94,21 @@ export function createAudio(): GameAudio {
       stage.setVolume(volume);
     },
   };
+
+  // The radio: a message from somebody else arrives as a tone on the loudspeaker (voices are to come).
+  effect(() => {
+    const own = store.pilot.peek()?.id;
+    let newest = lastChatAt;
+    let news = false;
+    for (const m of store.chat.value) {
+      if (m.at <= lastChatAt) continue;
+      newest = Math.max(newest, m.at);
+      // Not the pilot's own words, and not what was said before he came (a server may send the last lines on arrival).
+      if (m.from.id !== own && Date.now() - m.at < CHAT_FRESH_MS) news = true;
+    }
+    lastChatAt = newest;
+    if (news) mixer.transmission('radio_tone');
+  });
 
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => stage.setHidden(document.hidden));

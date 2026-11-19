@@ -45,7 +45,6 @@ The files are lossless copies of sounds of the sound library (`tools/audio`, `as
 | sensor_explosion_outside.cc9e1e08d928.flac | Explosion nearby | Rendered | AGPL-3.0-or-later | PRIMACY2 contributors |
 | radio_squelch_open.9e067d65c41a.flac | Radio opens | Rendered | AGPL-3.0-or-later | PRIMACY2 contributors |
 | radio_squelch_close.f2f184b7dfa3.flac | Radio closes | Rendered | AGPL-3.0-or-later | PRIMACY2 contributors |
-| radio_static_loop.a2f3c06b8274.flac | Radio noise | Rendered | AGPL-3.0-or-later | PRIMACY2 contributors |
 | radio_tone.933b28cf0f63.flac | Signal tone | Rendered | AGPL-3.0-or-later | PRIMACY2 contributors |
 | g_impact_hull_light.7d47a6a97cd5.flac | Hull hit, light · MOSS | Generated | generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0) | MOSS-SoundEffect v2.0 (OpenMOSS) |
 | g_impact_hull_medium.de738cf5770b.flac | Hull hit, medium · MOSS | Generated | generated with MOSS-SoundEffect v2.0 (code and weights Apache-2.0) | MOSS-SoundEffect v2.0 (OpenMOSS) |
