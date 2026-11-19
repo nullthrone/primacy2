@@ -334,6 +334,11 @@ export class Stage {
     if (this.ctx) this.volumeNode.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.02);
   }
 
+  /** The volume setting as it is applied ahead of the limiter, 0..1: what a recorder needs to tell a file's step from the stage's. */
+  get level(): number {
+    return this.volume;
+  }
+
   /** The cabin's impulse response. Until it is there, dry sounds play direct and nothing is sent to the room. */
   setRoom(ir: AudioBuffer): void {
     if (this.ir === ir) return;

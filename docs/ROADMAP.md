@@ -226,8 +226,9 @@ measurements are in `tools/audio/SOUND_DESIGN.md`, section 4):
 He offered to record household sounds with his phone: the list is `tools/audio/RECORDINGS.md`.
 
 Not built: the voice pipeline (only the comparison of models exists), music (the model is
-downloaded and has never been run). The game's runtime audio on the library is being built since
-2026-11-18, on his word (see "The game's runtime audio on the library").
+downloaded and has never been run). The game's runtime audio on the library is built as a first
+playable version (2026-11-19, in `main`; see "The game's runtime audio on the library"); he has
+not played it yet.
 
 ### Voices: a comparison of open speech models (2026-11-15)
 
@@ -1020,6 +1021,26 @@ played in a browser, held by the unit tests only: the fold chain, the landing on
 approach signal, touchdown), the alarms, the beam and the mining laser, the contact ping and the
 lock tone. Not established: how any of it sounds.
 
+Piece 3 (2026-11-19): the browser check listens to the output. `packages/client/src/dev/gameCapture.ts`
+records what the loudspeakers get (after the limiter) while the check flies, and looks for clipped
+samples and clicks with the detector of the audition page (`dev/audition/capture.ts`, unchanged);
+a fault counts against the game unless the same fault is in the samples of a sound that was
+playing, times the gain the stage can apply. The recorder is a chunk of its own that the game
+loads only when the check asks for it (`window.__audio.capture()`). On 2026-11-19 (21 of 21
+checks): a step of a fifth of full scale put into the output on purpose was found (four clicks,
+up and down on two channels), and the 43.6 s of the flight (engine, thrusters, hits, the blast
+signal, the radio, docking, the cruise chain, a cancelled charge) held no click and no clipped
+sample, with a peak of -6.0 dBFS at the default volume. The cheaper model wrote the recorder from
+a brief; the control was added after it reported that a recording without a fault proves little
+without one. Not recorded: the fold chain, a landing on a moon, the alarms and the beam loops,
+which the browser check does not play. `node scripts/e2e.mjs` failed twice on this piece before it
+passed, both times at its steering steps ("could not turn the nose at Dudreldus Hub", the second
+time also "could not bring the second pilot into view"), while the browser check of another
+session ran on the machine (a dev server was listening on port 5183). The steering loop of the
+test, replayed alone on the same build, settled on the station in 52 steps at 60 frames per
+second, and the third run, started after that other check had ended, passed. That the other
+check was the cause is a reading of the timing, not a measurement.
+
 He was told on 2026-11-19 how to play it: in the worktree `runtime-audio-43eb54`,
 `PRIMACY2_FIXED_UNIVERSE=16 npm run dev`, then `http://localhost:8420` (the universe of the
 browser test: a ground base on a rocky moon in Alpha's capital, a Beta system one jump away).
@@ -1405,8 +1426,9 @@ Each step is one work session with its own workflow runs.
    round 7 he has not heard as built) and heard once more; new numbers
    for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
-   rendered; started on the owner's word of 2026-11-18 in a session of its own, see section 2, "The
-   runtime audio is started"); the voice pipeline, designed with him after he has heard the models (see "Voices"
+   rendered; built as a first playable version on 2026-11-19 on the owner's word of 2026-11-18, see
+   section 2, "The game's runtime audio on the library"; what is left is his play test and what
+   he says after it); the voice pipeline, designed with him after he has heard the models (see "Voices"
    in section 2); music. The runtime audio and the design of the voice pipeline are core work
    for the strongest model; `docs/NEXT.md` is the brief. What is left of the controller: the
    owner's own test with a real pad.
@@ -1818,10 +1840,16 @@ Other notes:
   tools/dev/audio-check.mjs` plays the built game in a headless browser, with two servers of its
   own on that port and the next and their data in a temporary folder (it refuses 8420, 8421 and
   5190), and reads `window.__audio`: what was scheduled, the target gains of the engine levels, the
-  loops that run, the level at the output. The sounds the game ships are written by
+  loops that run, the level at the output. It also records the output and fails on a click or a clipped
+  sample that no sound file explains (`packages/client/src/dev/gameCapture.ts`, on the detector of the
+  audition page), after a control that puts a step into the output on purpose. The sounds the game ships are written by
   `tools/audio/ship.py --library <assets/audio of the sound worktree>` (it reads there and writes
   only in the tree it is started from; `tools/audio/README.md`, "Shipping to the game"); run it
   again when the library or the ratings have changed, and commit what it changed.
+- Before `node scripts/e2e.mjs`, look whether another session runs a browser job (`netstat -ano` for
+  listeners on dev ports such as 5183 or 5173, `tasklist` for many `chrome.exe`): on 2026-11-19 the
+  test failed twice at its steering steps while another session's page check ran, and passed once
+  that had ended (section 2, "The game's runtime audio on the library", piece 3).
 - Start `node scripts/e2e.mjs` in the foreground. Started as a detached background job of an
   agent session it failed twice on 2026-11-14 at its steering steps; in the foreground it passed
   (see "Orientation on the HUD").
