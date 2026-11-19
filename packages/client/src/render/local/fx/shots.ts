@@ -133,7 +133,7 @@ void main() {
     float n = 0.34 * noise(s / 17.0) + 0.36 * noise(s / 4.3) + 0.3 * noise(s / 70.0);
     n = smoothstep(0.3, 0.7, n);
     float flash = exp(-age * 40.0);
-    float cut = 1.15 * pow(age, 0.75) - 0.05;
+    float cut = 1.4 * pow(age, 0.7) - 0.3;
     gain = (0.5 * pow(1.0 - age, 1.5) + 1.2 * flash) * smoothstep(cut, cut + 0.2, n);
     white = 0.2 + 0.6 * flash;
     core = 30.0 * (1.0 + 2.0 * age);

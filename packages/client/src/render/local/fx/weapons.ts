@@ -101,6 +101,8 @@ interface Scar {
   /** The entity the place is on (and then relative to), or -1 for a place in the zone. */
   on: number;
   x: number; y: number; z: number;
+  /** Where the beam was before it came here, when that is near: the cut between the two glows as a seam. */
+  px: number; py: number; pz: number; joined: boolean;
   /** 1 under the beam, falling to 0. */
   heat: number;
   /** Effect time at which the beam was last on it. */
@@ -112,11 +114,14 @@ interface Scar {
 const M: Vec3 = [0, 0, 0];
 const C: Vec3 = [0, 0, 0];
 const D: Vec3 = [0, 0, 0];
+const A: Vec3 = [0, 0, 0];
 const E1: Vec3 = [0, 0, 0];
 const E2: Vec3 = [0, 0, 0];
 const SPARK_RATE = [0.4, 0.7, 1] as const;
 /** Lobes of a cannon's muzzle gas by quality; from ahead they are the points of a star. */
 const LOBES = [3, 4, 5] as const;
+/** The shell of a shield stands this many ship radii out; a shot at a shielded ship ends there (see `shell.ts`). */
+const SHELL = 1.15;
 /** Seconds a beam takes to reach its end when it is switched on. */
 const IGNITE = 0.06;
 /** Seconds the trail of a rail slug takes to fade. */
@@ -156,7 +161,9 @@ export class Weapons {
     key: 0, kind: WEAPON, from: 0, slot: 0, to: -1, mode: FIXED, ex: 0, ey: 0, ez: 0, cx: 0, cy: 0, cz: 0, body: 0,
     exact: false, last: 0, born: 0, carry: 0, drip: 0, cold: true,
   }));
-  private readonly scars = new Pool<Scar>(48, () => ({ key: 0, on: -1, x: 0, y: 0, z: 0, heat: 0, fed: 0, lift: 0 }));
+  private readonly scars = new Pool<Scar>(48, () => ({
+    key: 0, on: -1, x: 0, y: 0, z: 0, px: 0, py: 0, pz: 0, joined: false, heat: 0, fed: 0, lift: 0,
+  }));
 
   constructor(private readonly f: Frame, private readonly ribbons: Ribbons, private readonly sprites: Sprites,
               private readonly sparks: Sparks, _flashes: Flashes) {
@@ -169,13 +176,13 @@ export class Weapons {
     const src = this.f.tracks.get(ev.from);
     if (!def || !weapon || !src) return;
     this.f.muzzle(src, ev.slot, M);
-    const at = ev.at;
+    const at = this.aim(ev);
     const dist = Math.hypot(at[0] - M[0], at[1] - M[1], at[2] - M[2]);
     const laser = def.tier >= 2 ? COLD : HOT;
     switch (weapon.kind) {
       case 'pulse':
         this.round(PULSE, at, clamp(dist / 6000, 0.05, 0.1), Math.min(dist * 0.3, 40), 0, 0, 0.42, laser, 12, 1.5);
-        this.muzzle(LENS, src, at, laser, 1.3, 0.08, 70);
+        this.muzzle(LENS, src, at, laser, 1.3, 0.08, 50);
         break;
       case 'cannon':
         if (weapon.speed >= 5000) {
@@ -200,6 +207,27 @@ export class Weapons {
         // The missile itself is an entity; see missiles.ts.
         break;
     }
+  }
+
+  /**
+   * Where a shot from the muzzle in `M` ends: where the server says, or, at a ship whose shield is
+   * up, on the shell of that shield where it faces the shooter. The shield swallows the shot.
+   */
+  private aim(ev: ShotEvent): Readonly<Vec3> {
+    const to = ev.to ?? -1;
+    const target = to >= 0 ? this.f.tracks.get(to) : undefined;
+    if (!target || !this.shielded(to)) return ev.at;
+    this.f.surface(target, M[0], M[1], M[2], SHELL, A);
+    return A;
+  }
+
+  /** True when the ship `id` has its shield up. */
+  private shielded(id: number): boolean {
+    const view = this.f.view;
+    if (view.self && view.self.id === id) return view.self.state.shield > 0;
+    const ents = view.ents;
+    for (let i = 0; i < ents.length; i++) if (ents[i]!.id === id) return ents[i]!.shield > 0;
+    return false;
   }
 
   mine(ev: MineEvent): void {
@@ -281,8 +309,9 @@ export class Weapons {
     const side = Math.hypot(sx, sy, sz);
     const off = side > 1 ? Math.min(0.3 * src.radius, 0.5 * side) / side : 0;
     const ahead = 0.1 * src.radius;
+    // The pilot's own muzzle is a few metres from the cabin, which takes its light through the canopy: half is plenty.
     effectLights.pulse(M[0] - src.x + dx * ahead + sx * off, M[1] - src.y + dy * ahead + sy * off, M[2] - src.z + dz * ahead + sz * off,
-      c[0], c[1], c[2], light, 10 + 1.5 * src.radius, life * 1.5, src.id);
+      c[0], c[1], c[2], src.own ? 0.5 * light : light, 10 + 1.5 * src.radius, life * 1.5, src.id);
   }
 
   /** Starts or refreshes the beam `key` from `src` to `at`. */
@@ -438,7 +467,11 @@ export class Weapons {
       let touch = true;
       C[0] = ex; C[1] = ey; C[2] = ez;
       const target = b.mode === ON_TARGET ? f.tracks.get(b.to) : undefined;
-      if (target) {
+      if (target && b.kind === WEAPON && this.shielded(b.to)) {
+        // The shield swallows the beam: it ends on the shell, where that faces the muzzle.
+        f.surface(target, M[0], M[1], M[2], SHELL, C);
+        ex = C[0]; ey = C[1]; ez = C[2];
+      } else if (target) {
         if (b.exact) {
           ex += target.x; ey += target.y; ez += target.z;
           C[0] = ex; C[1] = ey; C[2] = ez;
@@ -480,7 +513,7 @@ export class Weapons {
         const c = b.cold ? COLD : HOT;
         if (level > 0) {
           const g = 9 * flick;
-          shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.55, c[0] * g, c[1] * g, c[2] * g, level, time);
+          shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.48, c[0] * g, c[1] * g, c[2] * g, level, time);
           shots.dot(sx, sy, sz, 1.5, c[0] * 6 * flick, c[1] * 6 * flick, c[2] * 6 * flick, 0.8);
           if (reach < 1) shots.dot(tx, ty, tz, 1.1, c[0] * 12 * flick, c[1] * 12 * flick, c[2] * 12 * flick, 0.9);
           if (touch) shots.dot(cx, cy, cz, 2.4, c[0] * 9 * flick, c[1] * 9 * flick, c[2] * 9 * flick, 0.9);
@@ -494,15 +527,15 @@ export class Weapons {
           // deeper in colour, as the gas the beam went through lets go of its light.
           const k = 1 - (since - hold) / (gone - hold);
           const g = 2.6 * k * k;
-          shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.55 * (1.7 - 0.7 * k), c[0] * g, c[1] * g * (0.5 + 0.5 * k), c[2] * g * (0.5 + 0.5 * k), 0, time);
+          shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.48 * (1.7 - 0.7 * k), c[0] * g, c[1] * g * (0.5 + 0.5 * k), c[2] * g * (0.5 + 0.5 * k), 0, time);
           shots.dot(sx, sy, sz, 1.2, c[0] * g, c[1] * g * k, c[2] * g * k, 0);
         }
       } else if (b.kind === MINE) {
         const g = 7 * flick;
-        shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.8, MINING[0] * g, MINING[1] * g, MINING[2] * g, 0.9 * level, time * 0.6);
+        shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.8, MINING[0] * g, MINING[1] * g, MINING[2] * g, 0.45 * level, time * 0.6);
         shots.dot(sx, sy, sz, 1.6, 5 * flick, 2.6 * flick, 0.9 * flick, 0.6);
         if (!touch) continue;
-        shots.dot(cx, cy, cz, 3.2, 11 * flick, 6.4 * flick, 2.4 * flick, 0.9);
+        shots.dot(cx, cy, cz, 2.5, 10 * flick, 5.6 * flick, 2 * flick, 0.6);
         effectLights.add(cx + nx * 1.5, cy + ny * 1.5, cz + nz * 1.5, 1, 0.6, 0.25, 70 * flick, 16);
         this.heat(b, target ? b.to : -1, target);
         // Rock that boils off leaves as a thin jet of gas, away from the surface and a little off
@@ -516,8 +549,8 @@ export class Weapons {
         this.drip(b, 26, level);
       } else {
         // The torch: hardly a beam at all, and at its end a small hard arc that never burns evenly.
-        const g = 1.5 * flick;
-        shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.18, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 0.5 * level, time);
+        const g = 0.7 * flick;
+        shots.seg(BEAM, sx, sy, sz, tx, ty, tz, 0.18, SALVAGE[0] * g, SALVAGE[1] * g, SALVAGE[2] * g, 0.3 * level, time);
         shots.dot(sx, sy, sz, 0.8, 1.4 * flick, 2.1 * flick, 3.2 * flick, 0.5);
         const q = crackle(f.now, 47, b.key);
         const arc = level * (q < 0.14 ? 0.12 : 0.4 + 0.6 * q * q);
@@ -566,16 +599,22 @@ export class Weapons {
     const f = this.f;
     const x = host ? C[0] - host.x : C[0], y = host ? C[1] - host.y : C[1], z = host ? C[2] - host.z : C[2];
     const items = this.scars.items;
-    let s: Scar | null = null, coldest = 0;
+    let s: Scar | null = null, last: Scar | null = null, coldest = 0;
     for (let i = 0; i < this.scars.count; i++) {
       const k = items[i]!;
-      if (k.key === b.key && k.on === on && Math.hypot(k.x - x, k.y - y, k.z - z) < 0.5) s = k;
+      if (k.key === b.key && k.on === on) {
+        if (Math.hypot(k.x - x, k.y - y, k.z - z) < 0.3) s = k;
+        if (!last || k.fed > last.fed) last = k;
+      }
       if (k.heat < items[coldest]!.heat) coldest = i;
     }
     if (!s) {
-      // When every scar is in use the coldest makes room.
+      // The beam has moved on from the place it heated last. When every scar is in use the coldest makes room.
+      const px = last ? last.x : x, py = last ? last.y : y, pz = last ? last.z : z;
       s = this.scars.take() ?? items[coldest]!;
       s.key = b.key; s.on = on; s.x = x; s.y = y; s.z = z; s.heat = 0.35;
+      s.px = px; s.py = py; s.pz = pz;
+      s.joined = last !== null && Math.hypot(px - x, py - y, pz - z) < 4;
       s.lift = b.body > 0 ? 0.1 * b.body : 0.4;
     }
     s.heat = Math.min(1, s.heat + f.dt / 0.3);
@@ -597,7 +636,12 @@ export class Weapons {
       const k = 1 - Math.min(s.lift, 0.5 * d) / d;
       const h = s.heat;
       // From yellow-white through orange to a red that is barely there.
-      shots.dot(x * k, y * k, z * k, 0.45 + 0.75 * h, 10 * h, 6 * h * h, 2.4 * h * h * h, 0.6 * h * h);
+      const r = 10 * h, g = 6 * h * h, b = 2.4 * h * h * h;
+      shots.dot(x * k, y * k, z * k, 0.45 + 0.75 * h, r, g, b, 0.6 * h * h);
+      if (s.joined) {
+        const ox = x + s.px - s.x, oy = y + s.py - s.y, oz = z + s.pz - s.z;
+        shots.seg(BOLT, ox * k, oy * k, oz * k, x * k, y * k, z * k, 0.3 + 0.3 * h, r * 0.7, g * 0.7, b * 0.7, 0, 1);
+      }
     }
   }
 
