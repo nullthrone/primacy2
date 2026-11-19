@@ -106,7 +106,9 @@ void main() {
     float sink = smoothstep(0.0, 0.2, t);
     float shot = exp(-a * a / mix(0.03, 0.0008, sink)) * (1.0 - sink) * (1.0 - sink);
     float limb = 0.55 + 0.45 * edge;
-    col = vTint.rgb * (dome * left * flow * pow(1.0 - t, 2.0) * smoothstep(0.0, 0.04, t) * limb) + vShot.rgb * shot;
+    col = vTint.rgb * (dome * left * flow * pow(1.0 - t, 2.0) * smoothstep(0.0, 0.04, t) * limb)
+      // Seen from inside the shell the shot lands a few metres from the eye: a glow there, not a glare.
+      + vShot.rgb * (shot * mix(1.0, 0.3, vAux.w));
   } else if (kind < 1.5) {
     // A held beam: the spot it ends in, and the shell around it taking on its colour while light
     // streams away from the spot without pause.
