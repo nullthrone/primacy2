@@ -7,6 +7,9 @@
 // their data in a fresh temporary folder, and stops them again. It refuses the ports of the owner's
 // own stack (8420, 8421) and of his audition page (5190). Nobody can hear here: the check reads the
 // play log, the target gains and the level at the output (`window.__audio`), and says only that.
+// From the docked check on, a recorder (src/dev/gameCapture.ts, loaded on demand) takes the signal
+// after the limiter; at the end the check says whether it holds clicks or clipped samples that no
+// sound file explains, and whether it stayed below full scale.
 // Exits with code 1 when a step fails or the page logged an error.
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -139,6 +142,18 @@ try {
     assert(s.engine.length === 0, `engine levels while docked: ${JSON.stringify(s.engine)}`);
     return `loops ${Object.keys(s.loops).join(', ')}`;
   });
+
+  // The context exists now: record the output for the rest of the flight.
+  let capturing = false;
+  try {
+    await page.evaluate(async () => {
+      window.__rec = await window.__audio.capture();
+      await window.__rec.start();
+    });
+    capturing = true;
+  } catch (e) {
+    problems.push(`recorder did not start: ${e instanceof Error ? e.message : e}`);
+  }
 
   await page.evaluate(() => { window.primacy2.game.input.testMode = true; });
   await page.click('.panel header button.primary');
@@ -378,9 +393,37 @@ try {
     return `stopped after ${(charge.end - charge.start).toFixed(2)} s`;
   });
 
+  let recording = null;
+  if (capturing) {
+    try {
+      recording = await page.evaluate(() => window.__rec.stop());
+    } catch (e) {
+      problems.push(`recorder did not stop: ${e instanceof Error ? e.message : e}`);
+    }
+  }
+
   await check('nothing went wrong on the page', async () => {
     assert(problems.length === 0, problems.join(' | '));
     assert(failed.length === 0, failed.join(', '));
+  });
+
+  await check('the recording holds no click or clipped sample that no sound file explains', async () => {
+    assert(recording, 'there is no recording');
+    const own = recording.faults.filter((f) => f.origin === 'page');
+    const fileFaults = recording.faults.filter((f) => f.origin === 'file');
+    const per = {};
+    for (const f of fileFaults) for (const s of f.sounds) per[s] = (per[s] ?? 0) + 1;
+    console.log(`      file faults (not failing): ${fileFaults.length}${fileFaults.length ? ` — per sound ${Object.entries(per).map(([s, n]) => `${s} ${n}`).join(', ')}` : ''}`);
+    assert(own.length === 0, `${own.length} page fault(s): ` + own.map((f) => `${f.kind} ch${f.channel} at ${f.t.toFixed(3)} s size ${f.size.toFixed(4)}${f.ratio !== undefined ? ` ratio ${Number.isFinite(f.ratio) ? f.ratio.toFixed(1) : 'inf'}` : ''} [${f.sounds.join(', ')}]`).join(' | '));
+    return `${recording.faults.length} faults, all of files`;
+  });
+
+  await check('the recording is long enough and stays below full scale', async () => {
+    assert(recording, 'there is no recording');
+    assert(recording.seconds >= 20, `only ${recording.seconds.toFixed(1)} s recorded`);
+    const peak = Math.max(...recording.peak);
+    assert(peak < 0.99, `peak ${db(peak)} dBFS (channels ${recording.peak.map(db).join(', ')})`);
+    return `${recording.seconds.toFixed(1)} s, peak ${db(peak)} dBFS`;
   });
 } catch (e) {
   failures.push('run');
