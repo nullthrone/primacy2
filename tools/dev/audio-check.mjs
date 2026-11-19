@@ -107,7 +107,9 @@ let browser = null;
 try {
   servers = await startServers();
   browser = await chromium.launch({
-    args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
+    // No --autoplay-policy flag: the browser holds the sound back until a gesture, as a player's browser does,
+    // and the click on the start button is that gesture.
+    args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'],
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
@@ -415,6 +417,48 @@ try {
     assert(s.mode !== 1 && !fresh.some((p) => p.id === 'cruise_engage'), 'the drive took hold although the charge was cancelled');
     assert(charge.end !== null && charge.end - charge.start < 2.5, `the charge sound ran for ${(charge.end - charge.start).toFixed(2)} s`);
     return `stopped after ${(charge.end - charge.start).toFixed(2)} s`;
+  });
+
+  await check('a fold jump to the other server: the charge, the jump, the tunnel bed until the arrival, the exit', async () => {
+    await page.evaluate(() => window.primacy2.game.cmd({ k: 'galaxy' }));
+    await page.waitForFunction(() => window.primacy2.game.view?.galaxy, null, { timeout: 5000 });
+    const dest = await page.evaluate(() => {
+      const v = window.primacy2.game.view;
+      const here = v.system;
+      const foreign = v.galaxy.sectors.filter((s) => !s.systems.some((x) => x.id === here.id)).flatMap((s) => s.systems);
+      const d = (x) => Math.hypot(x.pos[0] - here.pos[0], x.pos[1] - here.pos[1], x.pos[2] - here.pos[2]);
+      foreign.sort((a, b) => d(a) - d(b));
+      return foreign[0] ? { id: foreign[0].id, name: foreign[0].name, ly: d(foreign[0]) } : null;
+    });
+    assert(dest, 'the galaxy lists no system of another server');
+    const before = (await audioState(page)).plays.length;
+    await page.evaluate((id) => { const g = window.primacy2.game; g.setFoldTarget(id); g.startFold(); }, dest.id);
+    try {
+      await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+    } catch {
+      const r = await page.evaluate((id) => window.primacy2.game.cmd({ k: 'fold', system: id }), dest.id);
+      assert(r.ok, );
+      await page.waitForFunction(() => window.primacy2.game.view?.fx.chargeKind === 2, null, { timeout: 4000 });
+    }
+    await page.waitForFunction((id) => {
+      const v = window.primacy2.game.view;
+      return !!v && v.system.id === id && v.self !== null && v.fx.fold === 0;
+    }, dest.id, { timeout: 120_000 });
+    const fresh = await freshPlays(before, 1500);
+    const s = await audioState(page);
+    const charge = fresh.find((p) => p.id === 'fold_charge');
+    const jump = fresh.find((p) => p.id.startsWith('g_fold_jump'));
+    const tunnel = fresh.find((p) => p.id === 'fold_tunnel_loop');
+    const exit = fresh.find((p) => p.id.startsWith('g_fold_exit'));
+    assert(charge && jump && tunnel && exit, );
+    const charged = jump.start - charge.start;
+    assert(charged > 7.4 && charged < 9.2, );
+    assert(Math.abs(tunnel.start - jump.start) < 0.3, );
+    assert(exit.start - jump.start > 6, );
+    assert(tunnel.end !== null && tunnel.end >= exit.start - 0.3, );
+    assert(s.loops.cabin_ambience_loop === 1 && s.loops.fold_tunnel_loop === undefined, );
+    assert(s.engine.length === 6, );
+    return ;
   });
 
   let recording = null;

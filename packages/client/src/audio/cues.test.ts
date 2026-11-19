@@ -743,3 +743,36 @@ describe('the list of cue events', () => {
     for (const e of inFile) if (!OTHERS.includes(e) && !e.startsWith('engine_main_')) expect(CUE_EVENTS, e).toContain(e);
   });
 });
+
+describe('the arrival from a fold jump', () => {
+  const exits = (mix: Mix): number => mix.shots.filter((s) => s.event === 'fold_exit').length;
+
+  it('is played although the game had no view for a moment while it took the new system over', () => {
+    // Two seconds in the tunnel, then 1.5 s without a frame, then the first frame in the new system.
+    const { state } = run(repeat(120, { mode: FlightMode.Fold }));
+    const arrived = cue(state, frame({ clock: 2 + 1.5, mode: FlightMode.Normal }), () => 0.5);
+    expect(exits(arrived.mix)).toBe(1);
+    expect(arrived.mix.loops.fold_tunnel_loop).toBeUndefined();
+    expect(arrived.mix.loops.cabin_ambience_loop).toBe(1);
+    // And once only.
+    expect(exits(cue(arrived.state, frame({ clock: 2 + 1.5 + 1 / 60, mode: FlightMode.Normal }), () => 0.5).mix)).toBe(0);
+  });
+
+  it('is not played when the pilot comes back long after the jump', () => {
+    const { state } = run(repeat(120, { mode: FlightMode.Fold }));
+    const late = cue(state, frame({ clock: 2 + TUNING.arrival + 1, mode: FlightMode.Normal }), () => 0.5);
+    expect(exits(late.mix)).toBe(0);
+  });
+
+  it('is not played for a ship that is destroyed in the tunnel, nor on the first frame of a session', () => {
+    const { state } = run(repeat(60, { mode: FlightMode.Fold }));
+    expect(exits(cue(state, frame({ clock: 1 + 1 / 60, mode: FlightMode.Dead }), () => 0.5).mix)).toBe(0);
+    expect(exits(cue(initialCueState(), frame({ mode: FlightMode.Normal }), () => 0.5).mix)).toBe(0);
+  });
+
+  it('nothing else of the frame after a pause is played: the other one-shots stay old news', () => {
+    const { state } = run(repeat(120, { mode: FlightMode.Fold }));
+    const arrived = cue(state, frame({ clock: 2 + 1.5, mode: FlightMode.Normal, thrust: [1, 0, 0], events: [{ e: 'hit', id: SELF, dmg: 50, shield: false, at: [10, 0, 0] }] }), () => 0.5);
+    expect(arrived.mix.shots.map((s) => s.event)).toEqual(['fold_exit']);
+  });
+});

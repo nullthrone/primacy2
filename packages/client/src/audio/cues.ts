@@ -115,6 +115,8 @@ export const TUNING = {
   pulseVoices: 2,
   /** A longer pause than this between two frames (a hidden tab) starts no one-shots, in seconds. */
   gap: 0.5,
+  /** The arrival from a fold jump is played when the frame after the tunnel comes within this many seconds of the last frame in it. */
+  arrival: 10,
   /** A hit that takes less than the first share of the hull or shield is light, less than the second medium, else heavy. */
   hitMedium: 0.1,
   hitHeavy: 0.2,
@@ -265,7 +267,11 @@ export function cue(prev: CueState, view: FrameView | null, rand: () => number):
     // The jump takes the cruise away with it; only a drop to normal flight is the drive letting go.
     else if (was === FlightMode.Cruise && mode !== FlightMode.Fold) mix.shots.push({ event: 'cruise_disengage', pick: rand() });
     if (mode === FlightMode.Fold) mix.shots.push({ event: 'fold_jump', pick: rand() });
-    else if (was === FlightMode.Fold) mix.shots.push({ event: 'fold_exit', pick: rand() });
+  }
+  // The arrival. A jump ends in another system, and while the game takes that system over it has no view for a
+  // moment: the frame of the arrival may come after a pause, and is played all the same.
+  if (prev.clock >= 0 && prev.mode === FlightMode.Fold && mode !== FlightMode.Fold && now - prev.clock <= TUNING.arrival) {
+    mix.shots.push({ event: 'fold_exit', pick: rand() });
   }
   const charge = view.fx.chargeKind;
   const charging = charge === ChargeKind.Cruise ? 'cruise_charge' : charge === ChargeKind.Fold ? 'fold_charge' : null;

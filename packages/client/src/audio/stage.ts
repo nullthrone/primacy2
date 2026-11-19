@@ -231,6 +231,8 @@ export class Stage {
   private makeup = 1;
   private ir: AudioBuffer | null = null;
   private noise: AudioBuffer | null = null;
+  private hidden = false;
+  private nudged = 0;
   private edges = new WeakMap<AudioBuffer, { startSilent: boolean; endSilent: boolean }>();
   private meter = new Float32Array(2048);
 
@@ -322,8 +324,23 @@ export class Stage {
     void ctx.resume();
   }
 
+  /**
+   * Asks a suspended context to run, at most once a second; called every frame. A context that was created
+   * without a gesture (a start by controller) runs as soon as the browser allows it, which for some browsers is
+   * the first press on the controller and for others the first click or key.
+   */
+  nudge(): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'suspended' || this.hidden) return;
+    const now = performance.now();
+    if (now - this.nudged < 1000) return;
+    this.nudged = now;
+    void ctx.resume().catch(() => undefined);
+  }
+
   /** Pauses the output while the page is hidden and resumes it when it is seen again. */
   setHidden(hidden: boolean): void {
+    this.hidden = hidden;
     if (!this.ctx) return;
     if (hidden && this.ctx.state === 'running') void this.ctx.suspend();
     else if (!hidden && this.ctx.state === 'suspended') void this.ctx.resume();
