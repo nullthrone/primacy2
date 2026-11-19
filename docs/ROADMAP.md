@@ -1003,7 +1003,26 @@ a fifth), and a medium and a heavy shield hit play the one approved shield sound
 louder. The game has no state for the landing gear and none for a missile lock: the gear goes out
 below 150 m above the ground while sinking, and the missile alarm sounds while a missile within
 8 km closes on the ship. `radio_static_loop` is no longer asked for (nothing triggers an open
-channel), which leaves 56 shipped sounds.
+channel), which leaves 56 shipped sounds. The mapping is held by 85 tests of the pure function
+(`cues.test.ts`: every row of the table, and a list of every event the mapping can ask for
+against `assets/audio/game.json`); the cheaper model wrote 50 of them from the comments of
+`cues.ts` and found no place where the code and its comments disagree. In the browser
+(`tools/dev/audio-check.mjs`, 18 of 18 checks on 2026-11-19; the hits and the blast are put into
+the game's event buffer as the server's message would): a medium shield hit from the right plays
+an approved shield sound at 90 degrees with gain 1.41, a heavy hull hit from the left a heavy hull
+sound at -90 degrees and the groan 0.5 s later, a blast behind the sensor signal at 180 degrees and
+no debris sound, a transmission the squelch, the tone and the squelch in that order, docking the
+soft touchdown and the settling 1.2 s later; the cruise drive took hold 4.03 s after its charge
+began (the cue of the charge is at 4 s), the cruise bed ran with the engine on its idle level, and
+a charge cancelled after 1.2 s was faded out (its sound ran 1.51 s). Output peaks at the default
+volume: -16.8 and -15.3 dBFS around the heavy hull hit in two runs, -16.2 dBFS in cruise. Not
+played in a browser, held by the unit tests only: the fold chain, the landing on a moon (gear,
+approach signal, touchdown), the alarms, the beam and the mining laser, the contact ping and the
+lock tone. Not established: how any of it sounds.
+
+He was told on 2026-11-19 how to play it: in the worktree `runtime-audio-43eb54`,
+`PRIMACY2_FIXED_UNIVERSE=16 npm run dev`, then `http://localhost:8420` (the universe of the
+browser test: a ground base on a rocky moon in Alpha's capital, a Beta system one jump away).
 
 ### The owner's first play session (2026-11-14)
 
