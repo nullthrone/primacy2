@@ -19,6 +19,7 @@ import { effectLights } from './lights.ts';
 import type { Sprites } from './sprites.ts';
 import type { Flashes, Sparks } from './particles.ts';
 import type { Ribbons } from './ribbons.ts';
+import { SHELL as SHIELD_SHELL } from './shell.ts';
 import { BEAM, BOLT, JET, Shots, WAKE } from './shots.ts';
 
 type ShotEvent = Extract<GameEvent, { e: 'shot' }>;
@@ -120,8 +121,6 @@ const E2: Vec3 = [0, 0, 0];
 const SPARK_RATE = [0.4, 0.7, 1] as const;
 /** Lobes of a cannon's muzzle gas by quality; from ahead they are the points of a star. */
 const LOBES = [3, 4, 5] as const;
-/** The shell of a shield stands this many ship radii out; a shot at a shielded ship ends there (see `shell.ts`). */
-const SHELL = 1.15;
 /** Seconds a beam takes to reach its end when it is switched on. */
 const IGNITE = 0.06;
 /** Seconds the trail of a rail slug takes to fade. */
@@ -181,7 +180,9 @@ export class Weapons {
     const laser = def.tier >= 2 ? COLD : HOT;
     switch (weapon.kind) {
       case 'pulse':
-        this.round(PULSE, at, clamp(dist / 6000, 0.05, 0.1), Math.min(dist * 0.3, 40), 0, 0, 0.42, laser, 12, 1.5);
+        // The way a bolt went glows on for a moment. Seen from the ship that fired, the bolt itself is
+        // end-on and all but hidden behind its own head; this is what the pilot sees of his fire.
+        this.round(PULSE, at, clamp(dist / 6000, 0.05, 0.1), Math.min(dist * 0.3, 40), 0.13, 0.1, 0.42, laser, 12, 1.5);
         this.muzzle(LENS, src, at, laser, 1.3, 0.08, 50);
         break;
       case 'cannon':
@@ -217,7 +218,7 @@ export class Weapons {
     const to = ev.to ?? -1;
     const target = to >= 0 ? this.f.tracks.get(to) : undefined;
     if (!target || !this.shielded(to)) return ev.at;
-    this.f.surface(target, M[0], M[1], M[2], SHELL, A);
+    this.f.surface(target, M[0], M[1], M[2], SHIELD_SHELL, A);
     return A;
   }
 
@@ -398,7 +399,8 @@ export class Weapons {
       if (s.age < s.after) {
         const k = 1 - s.age / s.after;
         const gain = s.afterGain * k * k;
-        this.ribbons.seg(ox, oy, oz, hx, hy, hz, s.w * 0.6, s.r * gain, s.g * gain, s.b * gain, 1, 1);
+        if (s.shape === PULSE) shots.seg(BOLT, ox, oy, oz, hx, hy, hz, s.w * 0.5, s.r * gain, s.g * gain, s.b * gain, 0, 1);
+        else this.ribbons.seg(ox, oy, oz, hx, hy, hz, s.w * 0.6, s.r * gain, s.g * gain, s.b * gain, 1, 1);
       }
     }
   }
@@ -469,7 +471,7 @@ export class Weapons {
       const target = b.mode === ON_TARGET ? f.tracks.get(b.to) : undefined;
       if (target && b.kind === WEAPON && this.shielded(b.to)) {
         // The shield swallows the beam: it ends on the shell, where that faces the muzzle.
-        f.surface(target, M[0], M[1], M[2], SHELL, C);
+        f.surface(target, M[0], M[1], M[2], SHIELD_SHELL, C);
         ex = C[0]; ey = C[1]; ez = C[2];
       } else if (target) {
         if (b.exact) {

@@ -66,7 +66,7 @@ void main() {
   float pix = uPix * depth;
   // Never wider than a small angle: what leaves the pilot's own muzzle is a needle, not a wall.
   // Never narrower than two pixels to each side, of which the fragment shader lights 2.5 in all.
-  float w = max(min(iA.w, (kind > 3.5 ? 0.07 : 0.016) * depth), 2.0 * pix);
+  float w = max(min(iA.w, (kind > 3.5 ? 0.07 : 0.022) * depth), 2.0 * pix);
   vec3 pos = p + side * (position.x * w) + dir * (position.y * w);
   vP = vec4(position.x, end * len + position.y * w, len, w);
   vK.w = w / pix;
