@@ -3,13 +3,16 @@
  * picture. A soft veil around it, a faint ring with a colour fringe, and the thin rays that the
  * edges of an aperture bend out of a point of light. None of it is in the scene: it forms in the
  * optics, so it lies over everything, the cockpit frame included, and it goes out when its source
- * is covered. The final pass draws it from a list of at most `LENS_LIGHTS` sources.
+ * is covered. The final pass draws it from a list of at most `LENS_LIGHTS` sources: the stars and
+ * what else dazzles in the sky, and for the frames they last the flashes of the local scene, which
+ * the local layer names in `localLens`.
  *
  * In development builds `?lens=6|4|eye` picks the ray pattern.
  */
 import { Quaternion, Vector3, Vector4 } from 'three';
 import type { IUniform, PerspectiveCamera } from 'three';
-import type { LensLight } from '../space/types.ts';
+import type { LensLight, ViewParams } from '../space/types.ts';
+import { glare } from '../space/visual.ts';
 
 export const LENS_LIGHTS = 4;
 
@@ -34,23 +37,26 @@ export const CANOPY = 0.022;
 /**
  * Vertex part: how much of each light the local scene and the cockpit leave uncovered. The depth
  * buffer is empty (1) wherever neither of them drew, so the share of empty points across the disc
- * of the light is the share of it that is seen.
+ * of the light is the share of it that is seen. A light that stands in the local scene itself is
+ * covered only by what is nearer than it is; the depth that tells the two apart comes with the
+ * light, in the fourth component of its colour.
  */
 export const LENS_VERT = /* glsl */ `
 uniform sampler2D tDepth;
 uniform vec2 uRes;
 uniform vec4 uLensPos[${LENS_LIGHTS}];
+uniform vec4 uLensCol[${LENS_LIGHTS}];
 uniform int uLensCount;
 varying vec4 vLensOpen;
 
-float lensOpen(vec4 light) {
+float lensOpen(vec4 light, float cover) {
   float radius = max(light.z, 2.5 * uRes.y / 1080.0);
   float open = 0.0;
   for (int k = 0; k < 20; k++) {
     float fk = float(k);
     float a = fk * 2.39996323;
     vec2 p = light.xy + radius * sqrt((fk + 0.5) / 20.0) * vec2(cos(a), sin(a));
-    open += step(0.99999, texture2D(tDepth, clamp(p / uRes, 0.0, 1.0)).r);
+    open += step(cover, texture2D(tDepth, clamp(p / uRes, 0.0, 1.0)).r);
   }
   return open / 20.0;
 }
@@ -59,7 +65,7 @@ void lensVertex() {
   vLensOpen = vec4(0.0);
   for (int i = 0; i < ${LENS_LIGHTS}; i++) {
     if (i >= uLensCount) break;
-    vLensOpen[i] = lensOpen(uLensPos[i]);
+    vLensOpen[i] = lensOpen(uLensPos[i], uLensCol[i].a);
   }
 }
 `;
@@ -212,7 +218,10 @@ export function lensUniforms(): Record<string, IUniform> {
   };
 }
 
-interface Seen { x: number; y: number; disc: number; size: number; r: number; g: number; b: number; power: number }
+/** The depth that counts as empty: nothing drew there, so a light in the sky is seen. */
+const EMPTY = 0.99999;
+
+interface Seen { x: number; y: number; disc: number; size: number; r: number; g: number; b: number; power: number; cover: number }
 
 const seen: Seen[] = [];
 const inverse = new Quaternion();
@@ -220,9 +229,14 @@ const v = new Vector3();
 
 /**
  * Places the lights on the screen for this frame and keeps the strongest. `cam` is the camera of the
- * celestial pass; `width` and `height` are the size of the frame in pixels.
+ * celestial pass; `width` and `height` are the size of the frame in pixels. `local` is the camera
+ * the local scene was drawn with: its projection says what depth a light in that scene lies at.
  */
-export function aimLens(uniforms: Record<string, IUniform>, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number): void {
+export function aimLens(
+  uniforms: Record<string, IUniform>, lights: readonly LensLight[], cam: PerspectiveCamera, width: number, height: number,
+  local: PerspectiveCamera,
+): void {
+  const depth = local.projectionMatrix.elements;
   inverse.copy(cam.quaternion).invert();
   const px = cam.projectionMatrix.elements[0]!, py = cam.projectionMatrix.elements[5]!;
   let n = 0;
@@ -238,8 +252,11 @@ export function aimLens(uniforms: Record<string, IUniform>, lights: readonly Len
     const fade = 1 - t * t * (3 - 2 * t);
     if (fade <= 0) continue;
     const gain = light.gain * fade;
-    const s = (seen[n] ??= { x: 0, y: 0, disc: 0, size: 1, r: 0, g: 0, b: 0, power: 0 });
+    const s = (seen[n] ??= { x: 0, y: 0, disc: 0, size: 1, r: 0, g: 0, b: 0, power: 0, cover: EMPTY });
     n++;
+    // Window depth of the point `dist` metres out along the line of sight, as the local camera wrote it.
+    const z = light.dist ? light.dist * v.z : 0;
+    s.cover = z < 0 ? Math.min(EMPTY, 0.5 - (0.5 * (depth[10]! * z + depth[14]!)) / z) : EMPTY;
     s.x = x; s.y = y; s.disc = light.discPx; s.size = Math.max(1, light.sizePx);
     s.r = light.color[0] * light.vis[0] * gain; s.g = light.color[1] * light.vis[1] * gain; s.b = light.color[2] * light.vis[2] * gain;
     s.power = gain * shown;
@@ -254,7 +271,69 @@ export function aimLens(uniforms: Record<string, IUniform>, lights: readonly Len
     seen[best] = seen[i]!;
     seen[i] = s;
     pos[i]!.set(s.x, s.y, s.disc, s.size);
-    col[i]!.set(s.r, s.g, s.b, 1);
+    col[i]!.set(s.r, s.g, s.b, s.cover);
   }
   uniforms.uLensCount!.value = count;
 }
+
+interface LocalLight { light: LensLight; flux: number; level: number }
+
+/**
+ * Lights in the lens that belong to the local scene and last a frame: the flash of a blast, a
+ * ship arriving by fold. Whatever part of the local layer has one names it with `add` in every
+ * frame it shines; the renderer takes them over with `collect`, together with the lights of the
+ * sky, and forgets them. No more are kept than the lens pass draws.
+ */
+export class LocalLens {
+  private readonly kept: LocalLight[] = [];
+  private count = 0;
+  private readonly all: LensLight[] = [];
+
+  /**
+   * @param dx,dy,dz unit vector from the camera toward the source, system axes
+   * @param dist metres from the camera, nearer than which something drawn covers the source; a
+   *   source that sits on a hull should give a little less than its own distance
+   * @param flux its light at the camera when it is brightest, relative to sunlight at 1 AU: this
+   *   sets how wide the glare is and how far its rays reach
+   * @param level 0..1, how much of that it gives in this frame
+   */
+  add(dx: number, dy: number, dz: number, dist: number, flux: number, level: number, r: number, g: number, b: number): void {
+    if (!(flux * level > 0) || !(dist > 0)) return;
+    let k = this.kept[this.count];
+    if (this.count < LENS_LIGHTS) {
+      k ??= this.kept[this.count] = { light: { dir: [0, 0, -1], discPx: 0, sizePx: 1, gain: 0, color: [1, 1, 1], vis: [1, 1, 1], dist: 1 }, flux: 0, level: 0 };
+      this.count++;
+    } else {
+      // Full: the new one takes the place of the weakest, if it is stronger.
+      k = this.kept[0]!;
+      for (let i = 1; i < LENS_LIGHTS; i++) if (this.kept[i]!.flux * this.kept[i]!.level < k.flux * k.level) k = this.kept[i]!;
+      if (flux * level <= k.flux * k.level) return;
+    }
+    const l = k.light;
+    l.dir[0] = dx; l.dir[1] = dy; l.dir[2] = dz;
+    l.dist = dist;
+    l.color[0] = r; l.color[1] = g; l.color[2] = b;
+    k.flux = flux;
+    k.level = level;
+  }
+
+  /** The lights of this frame: those of the sky and those added here, which are forgotten with this call. */
+  collect(sky: readonly LensLight[], params: ViewParams): readonly LensLight[] {
+    if (this.count === 0) return sky;
+    const all = this.all;
+    all.length = 0;
+    for (let i = 0; i < sky.length; i++) all.push(sky[i]!);
+    for (let i = 0; i < this.count; i++) {
+      const k = this.kept[i]!;
+      const g = glare(k.flux, params);
+      k.light.sizePx = g.sizePx;
+      k.light.gain = g.gain * k.level;
+      all.push(k.light);
+    }
+    this.count = 0;
+    return all;
+  }
+}
+
+/** The one list of the local scene's lens lights; any part of the local layer may add to it. */
+export const localLens = new LocalLens();

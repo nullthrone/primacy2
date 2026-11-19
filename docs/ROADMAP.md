@@ -1342,6 +1342,22 @@ new measured in turn within one run of `scripts/bench.mjs`, because other work s
   behind bodies and ships was read from the code, not seen (the lens takes four lights and keeps
   the strongest). (4) The stars of the neighbouring systems have the small rays of the bright sky
   stars, at 0.45 to 1 of their strength by brightness (`packages/client/src/render/space/Sky.ts`).
+- 2026-11-19, blasts and the missile's detonation, as he chose ("Trümmer und Licht";
+  `docs/CLIENT.md`, "Effects"): a flash with a falloff and rays in the lens instead of a white
+  disc, a fireball of under half a second, a soft shell instead of the hairline ring, a glowing
+  cloud of splinters and chunks for 6 to 12 s, after-blasts on the wreck, three size classes, a
+  blast near the ground without a dome, and a missile that goes off with a picture of its own.
+  In the pictures the cloud reads from close by, at 400 m (fading by about 6 s) and at 1500 m;
+  seen from 60 m in a whole frame it is nearly invisible from 5 s on. For about a second tan
+  streaks of gas fan out from the blast. Cost with a blast every 2 s at 60 m: 2.2 ms old and
+  2.5 ms new (one run, card at 21 % and 46 W, control 1.4).
+- 2026-11-19, hits on shield and hull (`docs/CLIENT.md`, "Effects"): the shield swallows the
+  shot as he proposed (a soft dome on a smooth shell that drains toward its rim, no rings, no
+  honeycomb), a weak shield and a falling one show it, hull hits leave a cooling scar with sparks
+  and gas, and damaged ships spark and vent. Only half of his idea is met so far: bolts and beams
+  still run through the shell to the hull, which is the weapons' part. Cost: 2.0 ms old and
+  2.0 ms new on the stage; twelve damaged ships in view 2.2 ms (one run, card at 27 % and 89 W,
+  control 1.5).
 
 ## 3. Order of work
 
@@ -1649,6 +1665,19 @@ Never verified:
   For the defects of that day: the edge of the cockpit and of the pilot's ship while the haze
   shimmers, and whether the rays of the sky's stars and of the neighbour stars mirror the sun's top
   to bottom (the code suggests it; the pictures are too small to tell).
+  For blasts: only ships of 2 m and 17 m radius were looked at, nothing near 80 m; a flash covered
+  by something nearer was never tested; on the ground one case was seen (daylight, from 380 m),
+  no rays could be made out there and debris falls through the ground; glint and veil use the
+  sun's colour and strength, not its direction. The missile was seen only at the stage's 23 m/s:
+  at its real 650 m/s the reach within which it counts as having hit is about 120 m, and its
+  cloud does not follow a moving target.
+  For hits: a light hit on a shield at 1500 m could not be made out as a dot (the glint is
+  confirmed at 60 m only); a missile on a hull plays the heavy hit and the detonation together;
+  a held beam is told from single shots by its `shot` event coming directly before its `hit`,
+  which was never tried against the real server; damaged ships and the held beam at 400 and
+  1500 m, the own ship in the chase view, the own shield falling seen from inside and a surface
+  frame were not looked at; from the cockpit the pilot's own hull hits show only light and own
+  damage shows nothing.
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.

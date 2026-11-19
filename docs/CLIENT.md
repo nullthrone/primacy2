@@ -315,6 +315,30 @@ hit flash) by the final pass `src/render/post/Composite.ts`; the look of cruise 
   strongest source outside, in its direction, with 0.45 of its strength. At quality 0 the lights
   stay dark. Sources are kept until the effects part ends its frame, so another part may add its
   own before.
+- A destroyed ship (`fx/blasts.ts`, `destroyed`) gives a short flash with a falloff and rays in
+  the lens, a fireball of under half a second and a soft shell of gas that is gone in 0.4 s. What
+  remains is a cloud of splinters (`fx/splinters.ts`; 50 for a pod, 300 for a ship, 520 for a
+  large one) and chunks (`fx/debris.ts`) that fly apart on straight lines for 6 to 12 s, cool from
+  white to dull red and glint in the sun, inside a thin veil of gas (`fx/blastlight.ts`). Hot
+  splinters keep a smallest size of 2.5 pixels. Two to four smaller blasts follow on the wreck
+  within 1.5 s. Near the ground (`fx/ground.ts`) there is no shell and the discs are lifted and
+  faded toward the ground. A missile that vanishes beside a hull or the ground goes off
+  (`fx/detonations.ts`, derived in the client: the server sends only a plain hit): a flash, a cone
+  of streaks along its flight, light; its trail lasts 0.9 s.
+- A shot on a shield is swallowed (`fx/shell.ts`, `fx/impacts.ts`): the shell, a smooth sphere
+  of 1.15 ship radii, gives way at the place, the shot's colour sinks into the dent, and a soft
+  dome of light drains toward its rim in tongues; a held beam ends in a spot that tints the shell
+  for as long as it is held; a hit on the far side shows dimmer behind the hull. Below 40 % a
+  shield answers paler, patchy and stuttering, and when it falls a band of light runs once over
+  the whole shell and leaves shreds. A hull hit leaves a scar that cools from white to dull red
+  over 2 to 3 s and turns with the ship (`fx/scars.ts`; it sits on a stand-in ellipsoid, because
+  the server reports hits on the bounding sphere), a cone of sparks scaled by the damage, and
+  from a damage of 100 a puff of venting gas (`fx/vents.ts`). Ships below 40 % hull throw sparks
+  now and then and below 20 % vent a thin jet (`fx/wounds.ts`, without state per ship). Hits give
+  a pulse to the effect lights: warm on a hull, blue under a shield.
+- Light in the lens from the local scene: any part of the local layer can add a lens light for a
+  frame through `localLens` (`post/lens.ts`); the flash of a blast is one. It is hidden by the
+  depth buffer like the glare of a star, within the four lights the lens pass takes.
 - The overlays of the final pass that belong to the pilot's own ship (charge glow, heat haze, hit
   flash) act only on what is seen outside: not on the pixels of the cockpit, and in the chase view
   not on what stands within about a hull radius of the pilot's ship. `Renderer.ts` hands the pass

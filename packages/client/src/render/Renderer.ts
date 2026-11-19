@@ -13,7 +13,7 @@ import { Composite, type OwnShip } from './post/Composite.ts';
 import { CRUISE_MIN, Cruise } from './post/Cruise.ts';
 import { Exposure } from './post/Exposure.ts';
 import { FullscreenPass } from './post/fullscreen.ts';
-import { COCKPIT_DEPTH } from './post/lens.ts';
+import { COCKPIT_DEPTH, localLens } from './post/lens.ts';
 import { Bodies } from './space/Bodies.ts';
 import { Sky } from './space/Sky.ts';
 import { idleFrame } from './space/idle.ts';
@@ -204,7 +204,9 @@ class SpaceRenderer implements GameRenderer {
       own.near = this.localCam.near;
       own.far = this.localCam.far;
     }
-    this.composite.prepare(target.depthTexture, this.bodies.lights, this.spaceCam, this.width, this.height, canopy, own);
+    // The glare of the sky's lights and of what flashed in the local scene in this frame.
+    const dazzling = localLens.collect(this.bodies.lights, params);
+    this.composite.prepare(target.depthTexture, dazzling, this.spaceCam, this.width, this.height, canopy, this.localCam, own);
     this.exposure.update(r, this.pass, this.bloom.meter, frame.dt);
     this.composite.render(r, this.pass, target.texture, bloom, this.exposure.texture, frame.fx, frame.clock);
   }
