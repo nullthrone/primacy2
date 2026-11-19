@@ -54,6 +54,8 @@ export interface AudioDebug {
   /** The mix of the last frame and the state behind it. */
   mix: Mix | null;
   state: CueState;
+  /** The recorder of the browser check, loaded on first use so that it is a chunk of its own and a player never fetches it. */
+  capture?: () => Promise<{ start(): Promise<void>; stop(): Promise<unknown> }>;
 }
 
 export function createAudio(): GameAudio {
@@ -64,6 +66,8 @@ export function createAudio(): GameAudio {
   let silent = true;
   let lastChatAt = 0;
   const debug: AudioDebug = { library, stage, mixer, mix: null, state };
+  let recorder: Promise<{ start(): Promise<void>; stop(): Promise<unknown> }> | null = null;
+  debug.capture = () => (recorder ??= import('../dev/gameCapture.ts').then((m) => m.createGameCapture(stage, library)));
 
   // Fetching and decoding need no click: by the time the pilot has logged in the sounds are there.
   library.start();
