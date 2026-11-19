@@ -142,9 +142,11 @@ def build_sound(sound_id: str, out: Path, clap, describe_fn, measure, common) ->
 #   impacts  short -5 peak (impact_*_medium). Long: no value; an impact of medium strength that
 #            lasts a couple of seconds measures about -26 LUFS, taken as -26.
 #   landing  short -8 peak (landing one-shot default), long -32 LUFS (landing loop default).
-#   switches short -14 peak (relay_click_*, breaker_thunk); long: no value, -30 LUFS (as thrusters).
-#   cabin    short: no value, -16 peak (button_press); long one-shot -32 LUFS (see below); loop -45
-#            LUFS (cabin_ambience_loop).
+#   switches short -14 peak (the one-shot default of the category in levels.py; the rendered relay_click_*
+#            and breaker_thunk that had this level were taken out on 2026-11-18); long: no value, -30 LUFS
+#            (as thrusters).
+#   cabin    short: no value, -16 peak (the level button_press had until it was taken out on 2026-11-18);
+#            long one-shot -32 LUFS (see below); loop -45 LUFS (cabin_ambience_loop).
 #   sensors  default is -27 LUFS for any one-shot; for the short ones that is about -17 dB peak
 #            of a blip, taken as -16 peak. Loops: no value, -27 LUFS as the one-shots.
 #   radio    short -14 peak, long / loop -32 LUFS (radio defaults).

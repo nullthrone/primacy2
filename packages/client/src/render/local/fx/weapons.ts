@@ -3,10 +3,12 @@
  * the muzzle to their end point; beam lasers, mining lasers and salvage torches are held beams that
  * the server reports several times per second and that are kept alive in between.
  */
+import { Group } from 'three';
 import { MODULES } from '@primacy2/shared';
 import type { GameEvent, Vec3 } from '@primacy2/shared';
 import { clamp, smooth } from '../util.ts';
 import { Pool, rand, randCone, type Frame, type Track } from './core.ts';
+import { effectLights } from './lights.ts';
 import { GLOW, type Sprites } from './sprites.ts';
 import type { Flashes, Sparks } from './particles.ts';
 import type { Ribbons } from './ribbons.ts';
@@ -69,6 +71,8 @@ const D: Vec3 = [0, 0, 0];
 const SPARK_RATE = [0.4, 0.7, 1] as const;
 
 export class Weapons {
+  /** What this family draws besides the shared streaks and discs; the effects part hangs it into the scene. */
+  readonly group = new Group();
   private readonly rounds = new Pool<Round>(192, () => ({
     ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, age: 0, flight: 0, len: 0, after: 0, afterGain: 0, w: 0.3, r: 0, g: 0, b: 0, glare: 0,
   }));
@@ -170,6 +174,8 @@ export class Weapons {
     const s = src.own ? size * 0.45 : size;
     const p = this.flashes.spawn(GLOW, M[0] - src.x, M[1] - src.y, M[2] - src.z, life, s, s * 1.6, c[0], c[1], c[2], gain);
     p.follow = src.id;
+    // The light it throws back on the ship that fired.
+    effectLights.pulse(M[0] - src.x, M[1] - src.y, M[2] - src.z, c[0], c[1], c[2], 1.5 * gain * s * s, 8 + 6 * s, life * 1.5, src.id);
   }
 
   /** Starts or refreshes the beam `key` from `src` to `at`. */
@@ -281,6 +287,11 @@ export class Weapons {
         ribbons.seg(sx, sy, sz, tx, ty, tz, 0.5, c[0] * g, c[1] * g, c[2] * g, 1, 1);
         sprites.glow(sx, sy, sz, 1.6, c[0] * 6 * flick, c[1] * 6 * flick, c[2] * 6 * flick);
         if (touch) sprites.glow(cx, cy, cz, 2.6, c[0] * 8 * flick, c[1] * 8 * flick, c[2] * 8 * flick);
+        // Both glows tint the plating around them, a few metres and no more. The one at the far end
+        // stands off the hull it touches, toward the muzzle: a light in the skin lights nothing.
+        const off = 1.2 / (Math.hypot(sx - cx, sy - cy, sz - cz) || 1);
+        effectLights.add(sx, sy, sz, c[0], c[1], c[2], 15 * flick, 7);
+        if (touch) effectLights.add(cx + (sx - cx) * off, cy + (sy - cy) * off, cz + (sz - cz) * off, c[0], c[1], c[2], 40 * flick, 10);
       } else if (b.kind === MINE) {
         const g = 7 * flick;
         ribbons.seg(sx, sy, sz, tx, ty, tz, 0.8, MINING[0] * g, MINING[1] * g, MINING[2] * g, 1, 1);
@@ -318,4 +329,7 @@ export class Weapons {
     this.rounds.count = 0;
     this.beams.count = 0;
   }
+
+  /** Frees what `group` holds. */
+  dispose(): void {}
 }

@@ -287,6 +287,28 @@ hit flash) by the final pass `src/render/post/Composite.ts`; the look of cruise 
   `blasts.ts`, `transits.ts`, `engines.ts`); `stage/index.ts` lists the options and where the
   effects are that the stage does not show (mining in `scene=belt`, the pilot's own engines in
   `scene=chase`, the ground in `scene=surface`, the overlays as options of any scene).
+- Effects throw light on what is near them. `fx/lights.ts` holds a fixed few point lights: three
+  in the local scene and one in the cockpit scene, made once and never hidden (a light without a
+  source has intensity 0), because three compiles a material for the number of lights in its
+  scene. Each frame the strongest sources as seen from the camera get them; a light stays with
+  its source and fades over a few frames when it loses it. An effect names a source with
+  `effectLights.add(x, y, z, r, g, b, intensity, reach)` in every frame it glows (relative to the
+  camera, zone axes, metres, linear colour; the light at distance d is intensity/d², where the sun
+  is about 3), or once with `effectLights.pulse(x, y, z, r, g, b, intensity, reach, life, follow)`
+  for an event (relative to the zone anchor or to the entity `follow`; it fades by itself). A
+  blast gives 600 times its squared ship radius for 0.22 s, a muzzle flash 30 (pulse) to 380 (rail
+  gun), the ends of a beam 15 and 40 with a reach of 7 and 10 m. The cockpit's light stands for the
+  strongest source outside, in its direction, with 0.45 of its strength. At quality 0 the lights
+  stay dark. Sources are kept until the effects part ends its frame, so another part may add its
+  own before.
+- The overlays of the final pass that belong to the pilot's own ship (charge glow, heat haze, hit
+  flash) act only on what is seen outside: not on the pixels of the cockpit, and in the chase view
+  not on what stands within about a hull radius of the pilot's ship. `Renderer.ts` hands the pass
+  what it needs to rebuild a pixel's place from the depth buffer. The fold tunnel and time
+  dilation still lie over the whole frame.
+- Each family of effects (`Weapons`, `Impacts`, `Blasts`, `Missiles`) has a `group` for what it
+  draws beyond the shared streaks and discs, and `update`, `clear` and `dispose` of its own; a new
+  primitive of a family is a new file under `fx/` and needs no change in `fx/index.ts`.
 - `node tools/dev/fx-shots.mjs --port=<dev server>` takes picture sequences of the dev pages at
   exact moments and lays each out as one sheet under `screenshots/fx/` (ignored by git). It stops
   the page's clock at every moment asked for and seeds `Math.random`, so two runs of the same code

@@ -30,19 +30,20 @@ which the owner listens and rates. On 2026-11-18 its manifest (`assets/audio/ren
 lists 189 sounds (counted by a script: 187 until 2026-11-17, then 176 when the eleven direction
 samples of round 3 were taken off the page on the owner's word, see section 2, "The direction
 samples taken off the page", then 178 and 188 with the library change and round 7 of 2026-11-18,
-189 with the changes of round 7 after its first check, and 197 since the library step for round 7
-late that evening; the counts of this paragraph are of the 197).
+189 with the changes of round 7 after its first check, 197 with the library step for round 7 late
+that evening, and 189 again since the eight relay and switch sounds were taken off the page that
+night; the counts of this paragraph are of those 189).
 By category: eleven are the candidates of round 7, the category `events7`; fourteen the candidates of
 round 6, `events6`; seventeen the event sounds of round 5, `events5`; and sixteen the candidates of
 round 4, `source` (see section 2). Eighteen are the generated sounds of the library itself: MOSS
 candidates he accepted in rounds 4 to 7 (six of the eight of round 7 are processed copies of two
 MOSS files), built as processed copies with their origin and licence
-(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 121
-are 88 `synth` (rendered by scripts: 64 sounds, and 24 voice samples, the twenty of the speech
+(ids `g_*`, field `source` `generated`). Counted by the field `source` of each entry, the other 113
+are 80 `synth` (rendered by scripts: 56 sounds, and 24 voice samples, the twenty of the speech
 comparison and four countdown samples) and 33 `download` (files with a licence list). The candidates
 of rounds 5 to 7 are all `synth` (made by MOSS, or derived from a MOSS file), and the sixteen of
 round 4 carry the same field: twelve `synth` (made by the two models) and four `download` (the
-recordings), so the whole manifest reads 142 `synth`, 37 `download` and 18 `generated`. The game
+recordings), so the whole manifest reads 134 `synth`, 37 `download` and 18 `generated`. The game
 itself still plays the old procedural sound. Since 2026-11-15
 there is also a comparison of five open speech models (`tools/voice`), with twenty voice samples on
 the audition page, and since 2026-11-16 a listening test of two sound models and CC0 recordings
@@ -166,8 +167,8 @@ The sound library, all of it outside the game's runtime:
   loudness, spectrum, envelope, loop seam, two channels, a spectrogram picture), compares it with
   descriptions (CLAP), transcribes speech (Whisper) and has it described (Qwen2-Audio).
 - `tools/audio/synth` and `tools/audio/build.py`: the synthesis library and one script per
-  category; `tools/audio/sounds.json` is the list of the 64 sounds and what each is meant to be (it
-  held 75 while the eleven direction samples of round 3 were in it, 2026-11-15 to 2026-11-17). The build renders them, checks every rule and writes
+  category; `tools/audio/sounds.json` is the list of the 56 sounds and what each is meant to be (it
+  held 75 while the eleven direction samples of round 3 were in it, 2026-11-15 to 2026-11-17, and 64 until the eight relay and switch sounds went on 2026-11-18). The build renders them, checks every rule and writes
   the manifest. Rendered files are not in git; the build is deterministic and makes them again.
 - `tools/audio/fetch.py`, `assets/audio/downloads.json`, `assets/audio/CREDITS.md`: 5 CC0 packs
   from kenney.nl and NASA recordings without voices (25 entries, about 160 MB, not in git,
@@ -874,13 +875,67 @@ answer, and only then open the page.
 
 Not verified: how any of the eight sounds as built (nobody listened, and he has not rated them in
 this form: 8 of the 197 sounds on the page are unrated); the page check `audition-check.mjs` was not
-run for them; the level of a shield at the page was measured for one random direction only.
+run for them; the level of a shield at the page was measured for one random direction only. The
+third checker (the manifest gate, the suites, whether each rule is pinned) was not run again after
+the repair: the orchestrator made the gate and the suites again, but the tests of the page's steps
+were seen failing only by the agent that wrote them. The test that makes the six processed files
+again from their parents and wants every sample equal has run on this machine only; another
+version of numpy or scipy may round a sample differently.
 Left as it is and known: the choice of the page's steps hangs on the round number in the code, not
 on a field of the entry; `screen.py` and `publish.py` still record a cut start with four decimals,
 so the next library step has to find the sample again; no test compares the `lufs` of an entry
 with the event it stands for (the manifest is not in git); `tools/sound/compare.py` rebuilds
 library files without the page's steps, which is right for the pulses of rounds 4 and 5 that it
 reads and would be wrong for a sound of round 7.
+
+The relay and switch sounds taken off the page (2026-11-18, night). His note on eight rendered
+sounds of the category `switches`, each rated wrong: "die ganzen Relais Töne bitte weglassen". The
+scope is those eight (`relay_click_a`, `relay_click_b`, `switch_toggle`, `switch_rotary`,
+`breaker_thunk`, `button_press`, `systems_power_up`, `systems_power_down`). The six downloaded
+sounds of the category stay, the three he rated wrong among them (`k_door_close_1`,
+`k_door_open_1`, `k_toggle_1`): his note stands on the rendered ones.
+
+- In the repository: the eight are out of `tools/audio/sounds.json` (56 sounds in 16 categories;
+  `switches` stays as a category of downloads), `tools/audio/synth/cat_switches.py` is deleted (it
+  held only these eight), and their level rows and tests went with them. Commit 59bce6b is the last
+  one that can render them. Where one of them had served as an arbitrary example, another sound
+  stands now (a registry test, and the keyboard step of `tools/dev/audition-check.mjs`, which
+  presses `thruster_pulse_b`).
+- In the scenes of the audition page only the docking approach played any of them: the cues at
+  0.5 s (power up) and 36.5 s (power down) and three event buttons are gone. The other cues keep
+  their times and the scene its 40 s.
+- On the real tree, by the procedure of the direction samples, this time with the build: the
+  ratings file was compared with the record of round 7 first; the 24 files (wav, spectrogram and
+  build record of each) were moved to `assets/audio/gen/_kept/relays-2026-11-18` with a `kept.json`
+  (hashes, his rating of each, the manifest entry); then `build.py --manifest-only` ran. Gate: 189
+  entries, each equal to its entry of before in every field and in the same order, the eight gone
+  and none added; of the 541 files under `assets/audio/render` only `manifest.json` changed and
+  exactly the 24 are gone. The files have to go first: the manifest is assembled from the files in
+  the tree, not from `sounds.json`, and a checker showed on a copy that with the files still there
+  the build keeps 197 entries and moves the eight to the end of the rendered block.
+- His eight ratings stay in `assets/audio/ratings.json`, which is never written by a tool: ten
+  ratings there now belong to sounds that are not on the page (these eight and the two withdrawn
+  pulses). The backup outside the worktrees was copied again (366 files).
+
+Suites after the change: 149, 80, 112 and 62 in the four Python suites, `npx tsc -p packages/client
+--noEmit` without output, `npx vitest run` 807 passed and 2 expected failures. One builder and two
+independent checkers (the manifest gate and the suites; every reference, the scenes and the
+scope), on the cheaper model; no finding had to be repaired. Not verified: the page in a browser
+(the page check was not run; it will meet the docking scene with 7 event buttons and 9 cues, and
+the keyboard step on another sound). Left as it is and known: the rules `switch-too-long` and
+`switch-centroid` apply to no rendered sound any more (two tests with made-up sounds still pin
+them); the level of -16 dBFS for a short cabin sound is pinned by no test since `button_press`
+went; the category is still titled "Relays and switches", and `tools/audio/RECORDINGS.md` still
+asks him for recordings of relay clicks and a rotary selector, which no longer fits his word. What
+the cockpit switches sound like is open: the two downloaded toggles fit.
+
+The runtime audio is started (2026-11-18, night). Asked whether any worktree already plays the new
+sounds, because he wants to play with them, he was told that none does (the game still makes its
+sound with oscillators, and the scenes of the audition page still play the rendered events he
+rejected), and to the question whether the runtime audio should now be built as a first playable
+version he answered "Ja, bauen". A session of its own builds it in a worktree of its own; it reads
+the render tree of the sound worktree and writes nothing there. `docs/NEXT.md`, section 3, is its
+specification.
 
 ### The game's runtime audio on the library (first playable version, from 2026-11-18)
 
@@ -1243,6 +1298,36 @@ from close by; that stage is the first thing built.
 After he has played with the new effects he wants to be asked what to improve, with proposals of
 what more is possible (his standing wish of 2026-11-14 for work on the picture).
 
+Built since, one pull request per piece (frame times at 3840x2160 on the RTX 5080, old against
+new measured in turn within one run of `scripts/bench.mjs`, because other work shared the card):
+
+- 2026-11-18, the effect stage and the capture tool (pull request 4; see section 5).
+- 2026-11-18, light of effects (`packages/client/src/render/local/fx/lights.ts`,
+  `docs/CLIENT.md`, "Effects"): three point lights in the local scene and one in the cockpit that
+  the strongest effects of a frame share. A blast, a muzzle flash and the ends of a beam use them
+  so far. In the pictures a blast at 60 m lights the ship beside it and, from the cockpit, the
+  dashboard and the canopy frame for as long as its flash lasts. Hulls, the cockpit and stones on
+  the ground respond; flat ground barely does (the source stands 3 m up and its light grazes it);
+  the muzzle flash of a pulse laser shows nothing on the ship that fired, nor does the pilot's own
+  fire inside the cabin. Cost: none that can be measured. Old and new, in ms: a station filling
+  the view 1.9 and 1.9, the cockpit 2.3 and 2.3 (six rounds, card at 16 % and 51 W before the run,
+  control scene 1.3); a fight 2.4 and 2.3 and a landed ship 10.6 and 10.9 (one run, card at 21 %
+  and 85 W, control 1.5). At quality 0 the lights stay dark and the pictures equal the old ones;
+  there new measured 0.4 ms faster than old in both runs (1.4 and 1.0), which is not explained.
+- 2026-11-18, four defects of section 4. (1) The charge glow, the heat haze and the hit flash of
+  the final pass (`packages/client/src/render/post/Composite.ts`) leave out the pixels of the
+  cockpit and, in the chase view, what the local scene drew within 1.1 hull radii of the pilot's
+  ship (fading out to 1.5) and not below its belly; the place of a pixel is rebuilt from the depth
+  buffer, and a warp that would reach a protected pixel stops short of it. Cost with the haze on:
+  2.5 and 2.6 ms old and new in the cockpit (card at 7 % and 39 W, control 1.5); the chase path
+  was not measured. (2) Dust after a hard landing: see section 4. (3) The hot inner disk of a
+  black hole is a light in the lens in the colour of the disk, full while the core is under 20
+  pixels and gone at 200; the glow in the scene is as small as the neutron star's, so between 12
+  and 200 pixels the glare stands alone where the centre used to be a white blob. Its hiding
+  behind bodies and ships was read from the code, not seen (the lens takes four lights and keeps
+  the strongest). (4) The stars of the neighbouring systems have the small rays of the bright sky
+  stars, at 0.45 to 1 of their strength by brightness (`packages/client/src/render/space/Sky.ts`).
+
 ## 3. Order of work
 
 Each step is one work session with its own workflow runs.
@@ -1259,7 +1344,8 @@ Each step is one work session with its own workflow runs.
    round 7 he has not heard as built) and heard once more; new numbers
    for the rules, taken from what he accepted; the game's runtime audio rebuilt on the library (files instead of
    oscillators, the stage with places, two channels and the cabin's impulse response, levels as
-   rendered); the voice pipeline, designed with him after he has heard the models (see "Voices"
+   rendered; started on the owner's word of 2026-11-18 in a session of its own, see section 2, "The
+   runtime audio is started"); the voice pipeline, designed with him after he has heard the models (see "Voices"
    in section 2); music. The runtime audio and the design of the voice pipeline are core work
    for the strongest model; `docs/NEXT.md` is the brief. What is left of the controller: the
    owner's own test with a real pad.
@@ -1301,7 +1387,10 @@ Defects seen and left in:
 - After a hard landing dark streaks fan across the sky (probably the dust burst). On 2026-11-18
   wide pale bands were made on the dev page a second after a touchdown at 7 m/s: clumps of the
   burst drawn very large close to the camera (section 2, "Special effects"). Whether they are the
-  same streaks is to be confirmed in the game; the cure is planned with the effects work.
+  same streaks is to be confirmed in the game. Cured on the dev page on 2026-11-18: a streak of
+  dust is drawn no larger than 0.16 of its distance and fades from there
+  (`packages/client/src/render/local/fx/regolith.ts`); short faint streaks low over the horizon
+  remain.
 - The ground casts no shadows on itself: no long crater and hill shadows at the terminator.
 - A pale disc of 800 m radius around every base at noon (the pad's fixed tone); ice ridges read
   as scribble from 50 km; rays around fresh craters look painted from 500 m.
@@ -1338,11 +1427,13 @@ Defects seen and left in:
   RTX 5080 a ship over an ocean planet takes 8.5 ms per frame and an earth-like planet from 1.15
   radii 13.7 ms, against 2.4 ms for a station filling the view. That is less than before the
   close-up work, but nobody has looked at what it means on a weak graphics card.
-- The stars of the neighbouring systems are still soft discs without rays; only the sun of the
-  system and the brightest points of the sky have the new glare.
-- The fold tunnel, the charge glow, the heat haze and the hit flash are drawn over the whole
-  frame, the cockpit included.
-- Light in the lens: a black hole's disk has none; the core of a star that stays in the scene is
+- The fold tunnel and time dilation are drawn over the whole frame, the cockpit included. The
+  charge glow, the heat haze and the hit flash no longer are (2026-11-18): they leave out the
+  cockpit and, in the chase view, the pilot's own ship. What remains of that: the engine plumes
+  outside the hull's outline still take them, their rim tints now read as coloured sky in the side
+  windows of the cockpit, and on the dev page a patch of ground round a ship standing or hovering
+  within a metre of it stayed untinted, which is not explained.
+- Light in the lens: the core of a star that stays in the scene is
   not reddened by an atmosphere in front of it, only its glare is; a bright star of the sky that
   leaves the view loses its rays at once, because a point is clipped as a whole.
 - On `dev/space.html` every scene counts as a cockpit view, so the scratches of the canopy glass
@@ -1437,8 +1528,8 @@ Never verified:
   and in the evening of 2026-11-18 the 11 candidates of round 7, `g_gear_deploy` and the four
   newest library sounds as built, and the 34 older sounds that had been unrated). By the page's own
   definition none of the 189 sounds on the page was unrated then (script, ratings saved
-  2026-11-18T19:22:12.338Z); since the library step for round 7 the page has 197 and the eight new
-  library copies are unrated. Every other judgement of the sound library and of the
+  2026-11-18T19:22:12.338Z); since the library step for round 7 and the removal of the relay sounds the page
+  has 189 again, of which the eight new library copies are unrated. Every other judgement of the sound library and of the
   speech models comes from measurements, spectrogram pictures and models that listen.
 - Round 4, the sound sources (2026-11-16; `tools/sound/RESULTS.md`, "What could not be judged"):
   - How any of the sixteen candidates sounds: nobody listened. The cuts were made by a level
@@ -1535,6 +1626,14 @@ Never verified:
     file, not in every field (no earlier manifest is in git).
   - The held-out thresholds of the analysis of round 6 and its single-measure separations: the
     check could verify only counts from the analysis's own table.
+- The effects work of 2026-11-18 in motion. Every judgement of it rests on still sequences of the
+  dev pages taken with the clock stopped (`tools/dev/fx-shots.mjs`); nobody has seen any of it
+  move, and nothing of it was looked at in the real game. For the light of effects in particular:
+  how a light fades when its source goes, whether lights hop between sources when more than three
+  glow at once (covered by a throwaway test only), and the cost with a landed ship (measured once).
+  For the defects of that day: the edge of the cockpit and of the pilot's ship while the haze
+  shimmers, and whether the rays of the sky's stars and of the neighbour stars mirror the sun's top
+  to bottom (the code suggests it; the pictures are too small to tell).
 - A real controller, joystick or throttle lever (every pad in the tests is a simulated one), the
   joystick preset, a phone, and any browser but Chromium for the controller and for the stage of
   the audition page.
@@ -1594,7 +1693,8 @@ Other notes:
   sessions that used that folder are archived and it is still there, but why the app kept it is
   not known: before the session that holds it is archived, or "Clean up inactive sessions" is used,
   look at what happens to the folder. Since 2026-11-18 a byte copy of `assets/audio/gen/_kept`
-  (rounds 3 to 7, 341 files, with a list of their sha256) lies outside every worktree, at
+  (rounds 3 to 7 and the relay sounds taken off the page, 366 files, with a list of their sha256)
+  lies outside every worktree, at
   `C:\Claude Code\LOCAL\primacy2-kept`, on the owner's word; a new round is copied there once it is
   recorded. The pools of unrated raw candidates (`assets/audio/gen/r5`, `r6`, `r7`, `moss/raw`) are
   not in that copy.
