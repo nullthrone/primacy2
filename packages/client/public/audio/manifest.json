@@ -766,28 +766,6 @@
    "peakDb": -14.0
   },
   {
-   "id": "radio_static_loop",
-   "file": "radio_static_loop.a2f3c06b8274.flac",
-   "event": "radio_static_loop",
-   "roles": [],
-   "kind": "loop",
-   "path": "radio",
-   "dry": true,
-   "channels": 1,
-   "gain": 1.0,
-   "place": 45,
-   "en": "Radio noise",
-   "de": "Funkrauschen",
-   "licence": "AGPL-3.0-or-later",
-   "frames": 192000,
-   "duration": 4.0,
-   "hash": "a2f3c06b8274",
-   "bytes": 106262,
-   "approval": "fits",
-   "lufs": -32.0,
-   "peakDb": -26.49
-  },
-  {
    "id": "radio_tone",
    "file": "radio_tone.933b28cf0f63.flac",
    "event": "radio_tone",
@@ -1406,9 +1384,6 @@
   ],
   "radio_squelch_close": [
    "radio_squelch_close"
-  ],
-  "radio_static_loop": [
-   "radio_static_loop"
   ],
   "radio_tone": [
    "radio_tone"

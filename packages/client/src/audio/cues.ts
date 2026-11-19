@@ -216,6 +216,21 @@ const dist = (a: Readonly<Vec3>, b: Readonly<Vec3>): number => Math.hypot(a[0] -
 const HULL_HITS = ['impact_hull_light', 'impact_hull_medium', 'impact_hull_heavy'] as const;
 const SHIELD_HITS = ['impact_shield_light', 'impact_shield_medium', 'impact_shield_heavy'] as const;
 
+/**
+ * Every event `cue` can ask for, as a loop, a held sound or a one-shot. A test holds this list
+ * against the code and against `assets/audio/game.json`, so that the mapping asks for nothing the
+ * shipping step does not know. The engine levels are asked for as a family, not by name.
+ */
+export const CUE_EVENTS: readonly string[] = [
+  'cabin_ambience_loop', 'silent_running_loop', 'thruster_pulse_c', 'thruster_burn_loop',
+  'cruise_charge', 'cruise_engage', 'cruise_loop', 'cruise_disengage', 'fold_charge', 'fold_jump', 'fold_tunnel_loop', 'fold_exit',
+  ...HULL_HITS, ...SHIELD_HITS, 'hull_stress_groan', 'debris_patter',
+  'weapon_pulse_fire', 'weapon_cannon_fire', 'weapon_beam_loop', 'mining_laser_loop', 'missile_launch',
+  'alarm_missile', 'alarm_hull_critical', 'alarm_heat', 'alarm_fuel_low', 'alarm_shields_down',
+  'sensor_contact_ping', 'sensor_lock_tone', 'sensor_proximity_tick', 'sensor_fire_outside', 'sensor_explosion_outside',
+  'gear_deploy', 'gear_retract', 'touchdown_soft', 'touchdown_hard', 'settle_creak', 'dust_patter_loop', 'ground_scrape_loop',
+];
+
 /** The interval of the approach signal at a height above the ground, in seconds. */
 export function tickInterval(height: number): number {
   const f = Math.min(1, Math.max(0, height / TUNING.tickHeight));

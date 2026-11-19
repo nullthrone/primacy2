@@ -1,4 +1,4 @@
-import { Button, FlightMode } from '@primacy2/shared';
+import { Button, EntityKind, FlightMode, type GameEvent, type Vec3 } from '@primacy2/shared';
 import { describe, expect, it } from 'vitest';
 import type { FrameView } from '../contracts.ts';
 import { cue, engineAsk, initialCueState, TUNING, type CueState, type Mix } from './cues.ts';
@@ -16,19 +16,62 @@ interface Frame {
   speed?: number;
   /** False for a view without the pilot's ship (docked, fold tunnel, destroyed). */
   self?: boolean;
+  events?: GameEvent[];
+  /** 0 none, 1 cruise, 2 fold. */
+  chargeKind?: number;
+  heat?: number;
+  /** Shares of the maximum, 0..1. */
+  hull?: number;
+  shield?: number;
+  fuel?: number;
+  /** Other ships and missiles: position relative to the pilot's ship in the ship's own axes (nose -Z, right +X), and velocity. */
+  ents?: { id: number; kind?: number; at: Vec3; vel?: Vec3 }[];
+  targetId?: number | null;
+  /** Over the ground of a landable body: height in metres and vertical speed (negative sinking). */
+  ground?: { height: number; verticalSpeed: number; groundSpeed?: number };
+  weapons?: { kind: 'pulse' | 'beam' | 'cannon' | 'missile' | 'mining'; offset?: Vec3 }[];
 }
 
+const SELF = 1;
+const HULL_MAX = 200;
+const SHIELD_MAX = 100;
+const FUEL_CAP = 10;
+
+/**
+ * A view with the ship at the origin of the zone, the camera in it and no rotation anywhere: the
+ * ship's own axes, the zone's axes and system axes are the same, so a point `[x, 0, -z]` is x
+ * metres to the right and z metres ahead.
+ */
 function frame(f: Frame = {}): FrameView {
   const mode = f.mode ?? FlightMode.Normal;
   const self = f.self ?? (mode === FlightMode.Normal || mode === FlightMode.Cruise || mode === FlightMode.Landed);
+  const placed = mode === FlightMode.Normal || mode === FlightMode.Landed;
   return {
     clock: f.clock ?? 0,
     dt: f.dt ?? 1 / 60,
     mode,
-    events: [],
-    fx: { cruise: 0, charge: 0, chargeKind: 0, fold: 0, dilation: 1, heat: 0, boosting: f.boosting ?? false, hitFlash: 0 },
+    events: f.events ?? [],
+    fx: { cruise: 0, charge: 0, chargeKind: f.chargeKind ?? 0, fold: 0, dilation: 1, heat: f.heat ?? 0, boosting: f.boosting ?? false, hitFlash: 0 },
+    zone: placed ? [0, 0, 0] : null,
+    zoneRot: placed ? [0, 0, 0, 1] : null,
+    targetId: f.targetId ?? null,
+    ents: (f.ents ?? []).map((e) => ({ id: e.id, info: { id: e.id, kind: e.kind ?? EntityKind.Ship }, rel: e.at, vel: e.vel ?? [0, 0, 0] })),
+    surface: f.ground
+      ? { ship: { height: f.ground.height, verticalSpeed: f.ground.verticalSpeed, groundSpeed: f.ground.groundSpeed ?? 0, landed: mode === FlightMode.Landed } }
+      : null,
     self: self
-      ? { id: 1, vel: [0, 0, -(f.speed ?? 0)], input: { seq: 0, thrust: f.thrust ?? [0, 0, 0], aim: [0, 0], roll: 0, throttle: f.throttle ?? 0, buttons: f.buttons ?? 0 } }
+      ? {
+        id: SELF,
+        rel: [0, 0, 0],
+        rot: [0, 0, 0, 1],
+        vel: [0, 0, -(f.speed ?? 0)],
+        input: { seq: 0, thrust: f.thrust ?? [0, 0, 0], aim: [0, 0], roll: 0, throttle: f.throttle ?? 0, buttons: f.buttons ?? 0 },
+        state: { hull: (f.hull ?? 1) * HULL_MAX, shield: (f.shield ?? 1) * SHIELD_MAX, fuel: (f.fuel ?? 1) * FUEL_CAP },
+        stats: {
+          hullMax: HULL_MAX, shieldMax: SHIELD_MAX, fuelCap: FUEL_CAP,
+          weapons: (f.weapons ?? []).map((w) => ({ kind: w.kind, offset: w.offset ?? [0, 0, 0] })),
+        },
+      }
       : null,
   } as unknown as FrameView;
 }
@@ -52,13 +95,13 @@ describe('nothing to hear', () => {
   it('is silent without a view, and the state starts over', () => {
     const { state } = run(repeat(30, { thrust: [0, 0, 1] }));
     const r = cue(state, null, () => 0);
-    expect(r.mix).toEqual({ engine: null, loops: {}, shots: [] });
+    expect(r.mix).toEqual({ engine: null, loops: {}, holds: {}, shots: [] });
     expect(r.state).toEqual(initialCueState());
   });
 
   it('a destroyed ship has no cabin and no engine', () => {
     const { mix } = cue(initialCueState(), frame({ mode: FlightMode.Dead }), () => 0);
-    expect(mix).toEqual({ engine: null, loops: {}, shots: [] });
+    expect(mix).toEqual({ engine: null, loops: {}, holds: {}, shots: [] });
   });
 });
 
