@@ -180,9 +180,9 @@ export class Weapons {
     const laser = def.tier >= 2 ? COLD : HOT;
     switch (weapon.kind) {
       case 'pulse':
-        // The way a bolt went glows on for a moment. Seen from the ship that fired, the bolt itself is
-        // end-on and all but hidden behind its own head; this is what the pilot sees of his fire.
-        this.round(PULSE, at, clamp(dist / 6000, 0.05, 0.1), Math.min(dist * 0.3, 40), 0.13, 0.1, 0.42, laser, 12, 1.5);
+        // Seen from the ship that fired, a bolt is end-on and all but hidden behind its own head. So
+        // the way the pilot's own bolt went glows on for a moment; anyone else's is the bolt alone.
+        this.round(PULSE, at, clamp(dist / 6000, 0.05, 0.1), Math.min(dist * 0.3, 40), src.own ? 0.13 : 0, 0.1, 0.42, laser, 12, 1.5);
         this.muzzle(LENS, src, at, laser, 1.3, 0.08, 50);
         break;
       case 'cannon':
